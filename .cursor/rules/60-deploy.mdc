@@ -1,0 +1,19 @@
+---
+description: Kubernetes packaging and environments
+globs: ["deploy/**", ".github/workflows/**", "Tiltfile", "**/Dockerfile"]
+alwaysApply: false
+---
+# Deployment
+
+- **Packaging:** one Helm chart per module in `deploy/charts/`, orchestrated by `deploy/helmfile/` with values per environment in `deploy/envs/<env>/`.
+- **Environments:**
+  - `local`: k3d + Tilt;
+  - `dev`: Scaleway Kapsule nl-ams, follows the `develop` branch;
+  - `demo`: same cluster, follows release tags.
+
+  Both cloud environments are virtual mode with Stripe test only.
+- **Public hosts** (`*.intelligent-eu-bp.blooo.dev`): `app.<env>`, `api.<env>`, `auth`, `docs`, `ops`. Only `api.<env>/webhooks/payment-provider` is unauthenticated (Stripe signature verified).
+- **Delivery:** Argo CD syncs from Git (GitOps). Never `kubectl apply` by hand on `dev` or `demo`.
+- **Secrets:** ExternalSecret resources pointing to OpenBao paths `<env>/<module>/…`. No Kubernetes Secret manifest with values in Git.
+- **NetworkPolicies:** default deny. Allow only the synchronous dependencies of 03 §2.2, plus NATS, PostgreSQL, Temporal and the OTel collector.
+- **Containers:** non-root, read-only root filesystem, CPU and memory requests and limits.

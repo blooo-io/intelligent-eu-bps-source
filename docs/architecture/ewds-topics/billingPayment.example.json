@@ -1,0 +1,17 @@
+{
+  "paymentId": "9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a",
+  "invoiceId": "3f1c2a9e-8b7d-4c21-9a0e-5d6f7a8b9c01",
+  "communityId": "c0ffee00-1234-4abc-8def-0123456789ab",
+  "billingMode": "virtual",
+  "payerId": "11111111-2222-4333-8444-555555555555",
+  "payeeId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+  "paymentDate": "2026-12-03T10:14:52+01:00",
+  "paymentAmount": 10.2,
+  "currency": "CHF",
+  "paymentMethod": "card",
+  "paymentProvider": "stripe",
+  "paymentStatus": "succeeded",
+  "failureCategory": null,
+  "createdAt": "2026-12-03T10:14:30+01:00",
+  "updatedAt": "2026-12-03T10:15:00+01:00"
+}

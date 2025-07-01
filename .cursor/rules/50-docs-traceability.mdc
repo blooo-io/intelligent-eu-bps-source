@@ -1,0 +1,19 @@
+---
+description: Documentation, traceability and Jira conventions
+globs: ["docs/**", "**/*.spec.ts", "**/*.e2e-spec.ts", ".github/**"]
+alwaysApply: false
+---
+# Documentation and traceability
+
+- **Source of truth for the spec:** `docs/requirements/items/` (one note per REQ / NFR / US / UAT / persona, with YAML frontmatter). Narrative files (`requirements.md`, `user-stories.md`, `uat-test-cases.md`) must be kept in sync.
+- **IDs are never renumbered.** Deprecate with `spec_status: deprecated` and keep links bidirectional:
+  - `REQ.stories` ↔ `US.requirements`;
+  - `REQ.uat` ↔ `UAT.requirement`.
+- **Tests:** name test suites and cases with the ids they verify, e.g. `describe('UAT-071 REQ-054 one invoice per pair', …)`.
+- **UAT status:** when a UAT scenario passes in CI or on `dev`, set `status: Pass`, `last_run` and `tester` in `docs/requirements/items/uat/UAT-xxx.md` in the same PR.
+- **Jira:**
+  - every branch, commit and PR title starts with the Jira key `INT-xxx`;
+  - do not copy requirement text into Jira; reference the ids.
+  - Jira task codes such as `[REQ-0x]`, `[TD-0x]` are **project tasks**, not spec ids. Spec ids have three digits (`REQ-054`); technical decisions are `TD-1..TD-13`.
+- **Mermaid:** flowchart, state, ER and class diagrams start with `%% elk %%`, one concern per diagram.
+- Docs are in English. The deliverable is public (PU): no consortium-confidential content.

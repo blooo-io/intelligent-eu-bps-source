@@ -1,0 +1,16 @@
+---
+description: API-first, contract-first workflow (OpenAPI 3.1 / AsyncAPI 3)
+globs: ["contracts/**", "services/**/src/**", "apps/web/src/**", "mocks/**"]
+alwaysApply: false
+---
+# Contract first (TP-8, TD-13)
+
+1. Any new or changed endpoint or event starts in `contracts/`:
+   - REST: `contracts/openapi/<module>.v1.yaml` (public API under `/v1`, internal APIs in `contracts/openapi/internal/`);
+   - events: `contracts/asyncapi/<module>.v1.yaml`, using the common envelope `eventId, type, version, occurredAt, producer, communityId, billingMode, data`;
+   - EWDS messages: `docs/architecture/ewds-topics/*.schema.json` (billingInvoice, billingPayment).
+2. Lint with Spectral and Redocly. Do not ship a breaking change on `/v1`; a breaking change means `/v2` (oasdiff blocks it in CI).
+3. Serve the contract with Prism for consumers before the implementation exists.
+4. Generate types and clients: `openapi-typescript` (server types), Orval (clients for the web app and module-to-module calls). Never hand-write DTOs that duplicate the contract.
+5. NestJS validates every request and response with `express-openapi-validator` against the contract.
+6. Add or extend the Schemathesis contract test for the module.

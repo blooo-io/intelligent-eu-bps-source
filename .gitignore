@@ -1,0 +1,38 @@
+# --- Confidential knowledge base: NEVER commit (consortium-internal / SEN content) ---
+brain/
+docs/project-context/
+
+# Obsidian workspace state (keep vault settings local)
+.obsidian/
+.trash/
+
+# Node / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+.nx/
+*.tsbuildinfo
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment and secrets (secrets live in OpenBao, never in Git)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.crt
+secrets/
+**/secrets.*.yaml
+
+# Local tooling
+.tilt/
+tilt_modules/
+*.log
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

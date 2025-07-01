@@ -1,0 +1,21 @@
+---
+description: Security, GDPR and secrets
+globs: ["services/**", "apps/**", "packages/**", "deploy/**"]
+alwaysApply: false
+---
+# Security and privacy
+
+- **Authentication:**
+  - users authenticate with Keycloak (OIDC, Authorization Code + PKCE);
+  - APISIX validates tokens;
+  - modules re-check role and community scope with the module-template guard on every request (REQ-010, REQ-049).
+- **Personal data** (name, address, e-mail, IBAN, KYC data) lives only in:
+  - `participants` (billing profile);
+  - Stripe (invoices, KYC);
+  - `compliance` (audit).
+
+  Never put it in logs, traces, metrics labels, events or EWDS messages. Use participant ids.
+- **Audit:** every read or write of personal or payment data emits `AuditableActionPerformed` (REQ-030).
+- **GDPR requests:** an erasure is orchestrated by `compliance` and propagated to Stripe and Keycloak. Invoices under legal retention are kept (REQ-013).
+- **Secrets:** Stripe keys, webhook secrets and client secrets come from OpenBao via External Secrets. Never commit them, never log them. Use `.env.example` with placeholders only.
+- Containers run as non-root, with a read-only filesystem and resource limits.

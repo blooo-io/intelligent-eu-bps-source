@@ -1,0 +1,46 @@
+# Initial CI skeleton. Build, test and image jobs are added with the first modules (Jira BLD tasks).
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks (MIT), CLI in container, no licence key needed
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+            detect --source=/repo --redact --verbose
+
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Lint OpenAPI contracts (when present)
+        run: |
+          shopt -s nullglob globstar
+          files=(contracts/openapi/**/*.yaml)
+          if [ ${#files[@]} -gt 0 ]; then
+            npx --yes @stoplight/spectral-cli lint "${files[@]}"
+          else
+            echo "No OpenAPI contract yet"
+          fi
+      - name: Validate EWDS topic schemas against their examples
+        run: |
+          for t in billingInvoice billingPayment; do
+            npx --yes -p ajv-cli@5 -p ajv-formats@3 ajv validate --spec=draft2020 -c ajv-formats \
+              -s docs/architecture/ewds-topics/$t.v1.0.0.schema.json \
+              -d docs/architecture/ewds-topics/$t.example.json
+          done

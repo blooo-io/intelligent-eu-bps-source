@@ -1,0 +1,23 @@
+---
+description: Module boundaries, data ownership, outbox events, Temporal jobs
+globs: ["services/**", "packages/**"]
+alwaysApply: false
+---
+# Module boundaries and events
+
+- One NestJS service per logical block (see `AGENTS.md` §5). Every service is built from `packages/module-template`, which provides health, config, auth guard, outbox, idempotent consumer and OpenTelemetry.
+- **Own data only:**
+  - each module has its own PostgreSQL database and user;
+  - no cross-module SQL, no shared tables;
+  - calculation tables are append-only: corrections create a new version (REQ-005, BR-13).
+- **Synchronous calls** are only the internal commands listed in `docs/architecture/03-application-architecture.md` §3.2, made through generated clients with a service token (Keycloak client credentials).
+- **Events** (03 §4):
+  - insert the outbox row in the **same transaction** as the business change;
+  - Debezium relays it to NATS JetStream; never publish to NATS directly from business code;
+  - consumers deduplicate on `eventId` (processed-events table) and must be safe to replay.
+- **Time-based work** (logical view §4.5) runs as Temporal workflows in `services/scheduler`. Workflows only call the owning module's command; business logic stays in the module.
+- **Stripe (TP-7):**
+  - store only Stripe ids and links, plus a read cache fed by webhooks (lists and reports only);
+  - detail views read Stripe live;
+  - webhooks: verify the signature and deduplicate on the Stripe event id.
+- Never update a trade status. Payment status is derived from published Invoice and Payment records (REQ-048).

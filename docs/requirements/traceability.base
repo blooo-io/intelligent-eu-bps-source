@@ -1,0 +1,127 @@
+filters:
+  and:
+    - file.inFolder("docs/requirements/items")
+formulas:
+  in_d55: if(scope_d55 == "in", "✅", "—")
+properties:
+  statement:
+    displayName: Statement
+  scope_d55:
+    displayName: D5.5 scope
+  spec_status:
+    displayName: Spec status
+  uat:
+    displayName: UAT
+  stories:
+    displayName: User stories
+  requirements:
+    displayName: Requirements
+  requirement:
+    displayName: Requirement
+  status:
+    displayName: UAT status
+  review_note:
+    displayName: Review note
+views:
+  - type: table
+    name: Requirements (all)
+    filters:
+      and:
+        - type == "requirement"
+    groupBy:
+      property: area
+      direction: ASC
+    order:
+      - file.name
+      - priority
+      - scope_d55
+      - spec_status
+      - statement
+      - stories
+      - uat
+      - review_note
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: Requirements in D5.5 scope
+    filters:
+      and:
+        - type == "requirement"
+        - scope_d55 == "in"
+    order:
+      - file.name
+      - category
+      - area
+      - priority
+      - spec_status
+      - statement
+      - stories
+      - uat
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: UAT — status tracking (editable)
+    filters:
+      and:
+        - type == "uat"
+    groupBy:
+      property: status
+      direction: ASC
+    order:
+      - file.name
+      - requirement
+      - status
+      - scope_d55
+      - last_run
+      - tester
+      - given
+      - when
+      - then
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: User stories
+    filters:
+      and:
+        - type == "user-story"
+    groupBy:
+      property: epic
+      direction: ASC
+    order:
+      - file.name
+      - persona
+      - priority
+      - scope_d55
+      - statement
+      - requirements
+      - review_note
+    sort:
+      - property: file.name
+        direction: ASC
+  - type: table
+    name: Out of D5.5 scope / under review
+    filters:
+      or:
+        - scope_d55 == "out"
+        - spec_status == "under-review"
+    order:
+      - file.name
+      - type
+      - priority
+      - previous_priority
+      - scope_d55
+      - spec_status
+      - statement
+  - type: table
+    name: Personas
+    filters:
+      and:
+        - type == "persona"
+    order:
+      - file.name
+      - name
+      - primary_interest
+      - primary_modules

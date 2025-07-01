@@ -1,0 +1,22 @@
+---
+description: Dependency and licence policy
+globs: ["**/package.json", "pnpm-lock.yaml", "deploy/**", "**/Dockerfile"]
+alwaysApply: false
+---
+# Dependencies and licences (TP-1, TP-2)
+
+- **Reuse before build.** Prefer an existing MIT or Apache-2.0 library or product over custom code. The reuse map is in `docs/architecture/04-technical-architecture.md` §2.
+- **Allowed licences:** MIT, Apache-2.0. Permissive equivalents (BSD-2/3, ISC, 0BSD) may be accepted when they are transitive dependencies.
+- **Refused:** GPL, LGPL, AGPL, SSPL, BUSL/BSL, Elastic, and any "enterprise" or "ee" licensed part.
+- **Accepted exception:** OpenBao (MPL-2.0), as a separate unmodified service only.
+- **Before adding a dependency:**
+  1. check its licence;
+  2. if it is a new platform component, add it to the licence table in 04 §4.
+- **Already decided stack** (do not replace without an architecture decision):
+  - back end: NestJS, stripe-node, Temporal TS SDK;
+  - front end: Refine;
+  - data and events: PostgreSQL / CloudNativePG, NATS JetStream, Debezium Server;
+  - platform: APISIX, Keycloak, ESO + OpenBao, cert-manager;
+  - observability: OpenTelemetry, Prometheus, Jaeger, VictoriaLogs, Perses;
+  - delivery: GitHub Actions, helmfile, Argo CD;
+  - local development: k3d, Tilt, Mailpit, Stripe CLI.

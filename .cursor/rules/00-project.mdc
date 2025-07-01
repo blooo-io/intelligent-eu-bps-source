@@ -1,0 +1,13 @@
+---
+description: Project context and global rules for the INTELLIGENT Billing & Payment Service
+alwaysApply: true
+---
+# Project rules (always on)
+
+- Read `AGENTS.md` first. The Jira issue (`INT-xxx`) defines the scope. `docs/` defines what to build.
+- **Billing model:** one invoice per consumer→producer pair and period, issued in the producer's name (self-billing). Purchases and sales are netted per pair. A 5 €/CHF threshold applies, with carry-forward. Early settlement is possible. Payment goes directly to the producer's Stripe Connect account. Grid fees, taxes and levies are **not** on P2P invoices (A20).
+- **V1 = Stripe test mode is the only real integration.** GSY DEX, EWDS and ECB go through adapters with mock implementations.
+- Language of code, comments, docs and commits: **English**.
+- Business rules BR-01..BR-13 (`docs/architecture/01-functional-architecture.md` §6) are mandatory. Cite the rule id in code comments where a rule is implemented.
+- Do not invent requirements. If something is missing or contradictory in `docs/`, stop and state it in the PR description (proposed spec change).
+- Never read or modify `brain/` or `docs/project-context/` (confidential, not in Git).

@@ -1,0 +1,12 @@
+# Never send these to the AI assistant
+brain/
+docs/project-context/
+.obsidian/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+**/secrets.*.yaml

@@ -29,11 +29,21 @@ controls. They do not replace unit or component coverage.
 - Coverage output uses a common `coverage/` location per workspace and is not
   committed.
 
+## Branches
+
+Every development change starts from a Jira issue. If no issue covers the
+change, create one before branching. The branch name is
+`<type>/INT-xxx-short-description`, taken from `develop`. The type is one of
+`feature`, `fix`, `docs`, `test`, `refactor`, `ci` or `chore`, and it matches
+the Conventional Commit type. Commits and the pull request title include the
+same key so GitHub for Jira can attach the branch.
+
 ## Continuous integration
 
-GitHub Actions runs the root coverage command for pull requests and pushes to
-`develop`. The job fails when tests fail, a workspace cannot produce coverage,
-or any metric is below 80%.
+GitHub Actions runs every workspace test script, including unit, component,
+contract and integration scripts, for pull requests and pushes to `develop`.
+The coverage command fails when tests fail, a workspace with executable source
+cannot produce coverage, or any metric is below 80%.
 
 Coverage reports are uploaded as workflow artifacts even when the threshold
 step fails, so failures can be diagnosed. The job uses the repository's pinned
@@ -45,8 +55,9 @@ tests, making that module subject to the gate in the same pull request.
 
 ## Jira traceability
 
-A dedicated sub-task under INT-70 tracks installation of the monorepo coverage
-gate in GitHub Actions. INT-73 tracks consolidated test evidence.
+INT-150, under INT-70, tracks installation of the monorepo coverage gate in
+GitHub Actions. INT-73 tracks consolidated test evidence from the coverage
+artifacts. The branch for this change is `ci/INT-150-coverage-gate`.
 
 Every development ticket must include these completion criteria:
 
@@ -69,7 +80,7 @@ reviewed in the pull request and linked to a Jira ticket.
 
 1. One root command runs coverage for every executable workspace.
 2. Each workspace fails below 80% for statements, branches, functions or lines.
-3. GitHub Actions runs the command on pull requests and pushes to `develop`.
+3. GitHub Actions runs every test script on pull requests and pushes to `develop`.
 4. Coverage reports are retained as workflow artifacts.
 5. Jira contains the implementation task and current development tickets carry
    the shared completion criteria.

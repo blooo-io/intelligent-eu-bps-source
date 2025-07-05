@@ -27,7 +27,7 @@ It then publishes invoices and payments to the project data space (EWDS).
 
 ## Working on this repository
 - **Where to start:** read [`AGENTS.md`](AGENTS.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md).
-- **Work items:** tracked in the Blooo Jira project **INTELLIGENT (`INT`)**. Branches, commits and pull requests carry the Jira key (`INT-123`).
+- **Work items:** tracked in the Blooo Jira project **INTELLIGENT (`INT`)**. Branches use `<type>/INT-123-short-description` (`feature`, `fix`, `docs`, `test`, `refactor`, `ci` or `chore`). Commits and pull requests carry the Jira key.
 - **Documentation:** `docs/` is the single source of truth for what is built. Update the spec and the code in the same pull request.
 
 ## Licence

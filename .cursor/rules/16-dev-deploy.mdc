@@ -1,0 +1,13 @@
+---
+description: Deploy each built version to the dev cluster
+alwaysApply: true
+---
+
+# Deploy during development
+
+After a version is built and its tests pass, deploy it to the Scaleway cluster `k8s-intelligent-eu-dev`.
+
+- Access: the operator's own kubeconfig for that cluster, passed through `KUBECONFIG`. It stays outside the repository and is never committed.
+- Target the `dev` environment. Do not deploy a development build to `demo`.
+- Before the first deployment, check whether `deploy/` already holds the Helm charts, the helmfile and the Argo CD application definitions. If any is missing, create it from the architecture views (`docs/architecture/04-technical-architecture.md` TD-11, `05-physical-architecture.md`), the module map in `AGENTS.md` and `.cursor/rules/60-deploy.mdc`, on INT-135 and its own branch.
+- Do not commit secret values.

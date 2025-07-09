@@ -18,6 +18,7 @@
 
 ### Checklist (Definition of Done)
 - [ ] Contract first, lint green, oasdiff green
+- [ ] GitHub Actions runs every test script and each module stays at or above 80% statements, branches, functions and lines
 - [ ] Unit + contract + UAT tests green
 - [ ] UAT status updated in `docs/requirements/items/uat/`
 - [ ] No personal data in logs/events, no secrets (gitleaks)

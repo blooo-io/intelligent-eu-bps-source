@@ -1,0 +1,19 @@
+---
+description: Branch from a Jira issue and run every test in GitHub Actions at 80% coverage
+alwaysApply: true
+---
+
+# Development workflow
+
+1. Start from a Jira issue in project `INT`. If none covers the change, create one before coding: a Sub-task under the matching Task, or a Task under the matching Workstream. A new task gets its own issue and its own branch. Do not carry it on another issue's branch.
+2. Branch from `develop` as `<type>/INT-xxx-short-description`. Choose the type from CONTRIBUTING (`feature`, `fix`, `docs`, `test`, `refactor`, `ci`, `chore`) so it matches the commit type. Commits and the pull request title include `INT-xxx`.
+3. GitHub for Jira attaches the branch, commits and pull request through that key.
+4. Assign every new and updated `INT` issue to Steven Lin (`62f0d6c15111209f4fdff1dc`). Do not assign Maylis Ametowoglo.
+
+# Tests and coverage
+
+- Every code change includes automated tests for the behaviour it adds or changes.
+- GitHub Actions (`.github/workflows/ci.yml`) runs every workspace test script on pull requests and on `develop`.
+- Each module with executable source stays at or above 80% statements, branches, functions and lines (`config/coverage-thresholds.json`).
+- `scripts/run-tests.mjs` is the CI entry point. A module with source and no `test:coverage` script fails the job.
+- Do not bypass the coverage job. An exclusion is an explicit reviewed change linked to a Jira issue.

@@ -44,3 +44,21 @@ jobs:
               -s docs/architecture/ewds-topics/$t.v1.0.0.schema.json \
               -d docs/architecture/ewds-topics/$t.example.json
           done
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Run every test script and enforce 80% coverage per module
+        run: node scripts/run-tests.mjs
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: "**/coverage/**"
+          if-no-files-found: ignore
+          retention-days: 14

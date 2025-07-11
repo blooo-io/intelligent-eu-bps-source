@@ -12,7 +12,7 @@ alwaysApply: false
 - **Tests:** name test suites and cases with the ids they verify, e.g. `describe('UAT-071 REQ-054 one invoice per pair', …)`.
 - **UAT status:** when a UAT scenario passes in CI or on `dev`, set `status: Pass`, `last_run` and `tester` in `docs/requirements/items/uat/UAT-xxx.md` in the same PR.
 - **Jira:**
-  - every branch, commit and PR title starts with the Jira key `INT-xxx`;
+  - every branch is `<type>/INT-xxx-short-description` (`feature`, `fix`, `docs`, `test`, `refactor`, `ci` or `chore`); commits and PR titles include `INT-xxx`;
   - do not copy requirement text into Jira; reference the ids.
   - Jira task codes such as `[REQ-0x]`, `[TD-0x]` are **project tasks**, not spec ids. Spec ids have three digits (`REQ-054`); technical decisions are `TD-1..TD-13`.
 - **Mermaid:** flowchart, state, ER and class diagrams start with `%% elk %%`, one concern per diagram.

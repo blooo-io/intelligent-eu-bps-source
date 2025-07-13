@@ -1,0 +1,32 @@
+openapi: 3.1.0
+info:
+  title: Compliance internal API
+  version: 1.0.0
+  description: >
+    Module-to-module commands of AC-12 (02 §4.5). Never exposed to clients.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /internal/v1
+tags:
+  - name: Compliance
+    description: Module-to-module commands of AC-12.
+security:
+  - serviceAuth: []
+paths:
+  /retention:apply:
+    post:
+      operationId: applyRetention
+      tags: [Compliance]
+      summary: Apply personal-data retention
+      description: ApplyRetention. Called by AC-14 (REQ-011).
+      responses:
+        '202':
+          description: Retention run accepted.
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+components:
+  securitySchemes:
+    serviceAuth:
+      $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'

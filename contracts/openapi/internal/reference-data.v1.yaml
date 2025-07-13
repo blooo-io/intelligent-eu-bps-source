@@ -1,0 +1,115 @@
+openapi: 3.1.0
+info:
+  title: Reference data internal API
+  version: 1.0.0
+  description: >
+    Module-to-module commands of AC-13 (03 §3.2 and 02 §4.5). Never exposed to clients.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /internal/v1
+tags:
+  - name: ReferenceData
+    description: Module-to-module commands of AC-13.
+security:
+  - serviceAuth: []
+paths:
+  /rates:
+    get:
+      operationId: getRate
+      tags: [ReferenceData]
+      summary: Read an exchange rate
+      description: GetRate(currency, date). Called by AC-05 (REQ-002).
+      parameters:
+        - name: currency
+          in: query
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: The rate for that date.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRate'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /communities/{communityId}/vat-rate:
+    get:
+      operationId: getVatRate
+      tags: [ReferenceData]
+      summary: Read the community VAT rate
+      description: GetVatRate(communityId). Called by AC-05 (BR-07).
+      parameters:
+        - name: communityId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The VAT rate.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [communityId, vatRate]
+                properties:
+                  communityId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  vatRate:
+                    $ref: '../components/schemas.yaml#/components/schemas/Rate'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /rates:fetch:
+    post:
+      operationId: fetchRates
+      tags: [ReferenceData]
+      summary: Refresh exchange rates
+      description: FetchRates(date). Called by AC-14 on business days (REQ-002).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [date]
+              properties:
+                date:
+                  type: string
+                  format: date
+      responses:
+        '202':
+          description: Rate refresh accepted.
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+components:
+  securitySchemes:
+    serviceAuth:
+      $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'
+  schemas:
+    ExchangeRate:
+      type: object
+      additionalProperties: false
+      required: [currency, date, rate]
+      properties:
+        currency:
+          $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        date:
+          type: string
+          format: date
+        rate:
+          $ref: '../components/schemas.yaml#/components/schemas/Rate'
+        source:
+          type: string
+          description: Fixture in V1, ECB later (03 §7, port P-FX).

@@ -1,0 +1,1169 @@
+openapi: 3.1.0
+info:
+  title: Billing & Payment public API
+  version: 1.0.0
+  description: >
+    Public API exposed by the gateway under `/v1` (03 §3.1, REQ-052).
+    Every call needs a bearer token. A response contains only data of the
+    caller's own participant or community (REQ-010). Personal data is limited
+    to the billing profile on `/me`.
+  contact:
+    name: Blooo
+    url: https://github.com/blooo-io/intelligent-eu-billing-and-payment
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /v1
+    description: API gateway (AC-02)
+tags:
+  - name: Profile
+    description: Caller profile (REQ-009, REQ-049).
+  - name: Terms
+    description: Current terms and their acceptance.
+  - name: Payments
+    description: Payment-account onboarding and invoice payment.
+  - name: Balances
+    description: Balances of the caller.
+  - name: Invoices
+    description: Invoices of the caller.
+  - name: Communities
+    description: Community settings.
+  - name: Participants
+    description: Import, list, update and offboarding of participants.
+  - name: Billing
+    description: Billing runs and early settlement.
+  - name: Reports
+    description: Periodic summaries, discrepancies, intake anomalies and KPI export.
+  - name: Operations
+    description: Scheduled jobs.
+  - name: Privacy
+    description: Data-subject export and erasure requests.
+security:
+  - bearerAuth: []
+paths:
+  /me:
+    get:
+      operationId: getMe
+      tags: [Profile]
+      summary: Caller profile, roles, community and readiness
+      description: Profile, roles, community and readiness of the caller (REQ-049, REQ-009).
+      x-served-by: AC-03
+      responses:
+        '200':
+          description: The caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /me/profile:
+    put:
+      operationId: putMyProfile
+      tags: [Profile]
+      summary: Update the caller's billing profile
+      description: >
+        The participant updates their own name, address and contact e-mail.
+        Trade-attribution identifiers are changed by the community manager (REQ-009).
+      x-served-by: AC-03
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingProfileWrite'
+      responses:
+        '200':
+          description: Updated billing profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingProfile'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /terms/current:
+    get:
+      operationId: getCurrentTerms
+      tags: [Terms]
+      summary: Current terms
+      description: Current terms, including the self-billing mandate shown to a producer (REQ-050).
+      x-served-by: AC-03
+      responses:
+        '200':
+          description: Current terms.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Terms'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+  /me/terms-acceptance:
+    post:
+      operationId: acceptTerms
+      tags: [Terms]
+      summary: Accept the current terms
+      description: Records terms acceptance and, for a producer, the self-billing mandate (REQ-050).
+      x-served-by: AC-03
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TermsAcceptance'
+      responses:
+        '201':
+          description: Acceptance recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TermsAcceptance'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /me/payment-account/onboarding:
+    post:
+      operationId: createPaymentOnboarding
+      tags: [Payments]
+      summary: Start payment-account onboarding
+      description: >
+        Returns the provider link for producer KYC or for a consumer payment method (REQ-051, REQ-040).
+      x-served-by: AC-07
+      responses:
+        '200':
+          description: Provider onboarding link.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingLink'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /me/balances:
+    get:
+      operationId: listMyBalances
+      tags: [Balances]
+      summary: Unbilled balances per counterpart
+      description: Unbilled amounts of the caller, one row per counterpart (REQ-002, REQ-057).
+      x-served-by: AC-05
+      responses:
+        '200':
+          description: Unbilled balances.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Balance'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+  /me/invoices:
+    get:
+      operationId: listMyInvoices
+      tags: [Invoices]
+      summary: Invoices of the caller
+      description: Invoices where the caller is the producer or the consumer (REQ-007, REQ-039).
+      x-served-by: AC-06
+      responses:
+        '200':
+          description: The caller's invoices.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags: [Invoices]
+      summary: Invoice detail
+      description: One invoice in the caller's scope. The detail view reads the provider live (TD-6, REQ-007).
+      x-served-by: AC-06
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The invoice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /invoices/{id}/document:
+    get:
+      operationId: getInvoiceDocument
+      tags: [Invoices]
+      summary: Invoice PDF
+      description: Hosted invoice PDF (REQ-039). The provider sends the document.
+      x-served-by: AC-06
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Invoice PDF.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                contentMediaType: application/pdf
+                contentEncoding: binary
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /invoices/{id}/payments:
+    post:
+      operationId: payInvoice
+      tags: [Payments]
+      summary: Pay an invoice
+      description: The consumer pays the invoice. The payment goes to the producer's account (REQ-014).
+      x-served-by: AC-07
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '201':
+          description: Payment started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /invoices/{id}/status:
+    post:
+      operationId: setInvoiceStatus
+      tags: [Invoices]
+      summary: Set an invoice status manually
+      description: A community manager sets a status with a mandatory reason (REQ-044).
+      x-served-by: AC-06
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceStatusChange'
+      responses:
+        '200':
+          description: Updated invoice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /early-settlements:
+    post:
+      operationId: createEarlySettlement
+      tags: [Balances]
+      summary: Settle early with one producer
+      description: The consumer settles the unbilled balance with the named producer now (REQ-057). The threshold does not apply (BR-05).
+      x-served-by: AC-05
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [producerId]
+              properties:
+                producerId:
+                  $ref: './components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '201':
+          description: Early settlement accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingRun'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /communities/{id}/settings:
+    get:
+      operationId: getCommunitySettings
+      tags: [Communities]
+      summary: Read community billing settings
+      description: Currency, period, threshold, VAT and mode (REQ-006, REQ-043, REQ-056).
+      x-served-by: AC-03
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Community settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunitySettings'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+    put:
+      operationId: putCommunitySettings
+      tags: [Communities]
+      summary: Update community billing settings
+      description: A community manager updates currency, period, threshold, VAT and mode (REQ-006, REQ-043, REQ-056).
+      x-served-by: AC-03
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommunitySettingsWrite'
+      responses:
+        '200':
+          description: Updated settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunitySettings'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /communities/{id}/participants:import:
+    post:
+      operationId: importParticipants
+      tags: [Participants]
+      summary: Import participants
+      description: >
+        Imports a minimal list of e-mail, GSY DEX actor identifier, meter identifier and role.
+        The import creates the participant, the identity-provider account and the invitation (REQ-008).
+      x-served-by: AC-03
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [participants]
+              properties:
+                participants:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/ParticipantImport'
+      responses:
+        '201':
+          description: Imported participants.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Participant'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /communities/{id}/participants:
+    get:
+      operationId: listParticipants
+      tags: [Participants]
+      summary: List participants of a community
+      description: Participant registry of the community (REQ-008, REQ-058).
+      x-served-by: AC-03
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Participants. Billing-profile personal data is not included.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Participant'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /participants/{id}:
+    patch:
+      operationId: patchParticipant
+      tags: [Participants]
+      summary: Update trade-attribution identifiers
+      description: >
+        A community manager changes the GSY DEX actor identifier, meter or role.
+        The participant cannot change these (REQ-009, REQ-058).
+      x-served-by: AC-03
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParticipantPatch'
+      responses:
+        '200':
+          description: Updated participant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Participant'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /participants/{id}:offboard:
+    post:
+      operationId: offboardParticipant
+      tags: [Participants]
+      summary: Offboard a participant
+      description: Removes the participant from the community and triggers the final settlement (REQ-012).
+      x-served-by: AC-03
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '202':
+          description: Offboarding accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Participant'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /communities/{id}/billing-runs:
+    post:
+      operationId: startBillingRun
+      tags: [Billing]
+      summary: Start a billing run
+      description: A manager or operator starts a run for the community (REQ-006).
+      x-served-by: AC-05
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BillingRunCreate'
+      responses:
+        '202':
+          description: Run accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingRun'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /billing-runs/{id}:
+    get:
+      operationId: getBillingRun
+      tags: [Billing]
+      summary: Read a billing run
+      description: Status of one billing run (REQ-006).
+      x-served-by: AC-05
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The billing run.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingRun'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /communities/{id}/payments-overview:
+    get:
+      operationId: getPaymentsOverview
+      tags: [Reports]
+      summary: Payment overview of a community
+      description: Manager view of payments in the community (REQ-018). Lists use the provider read cache (TD-6).
+      x-served-by: AC-09
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Payments of the community.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Payment'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /participants/{id}/history:
+    get:
+      operationId: getParticipantHistory
+      tags: [Reports]
+      summary: Member history
+      description: Invoices and payments of one participant (REQ-031).
+      x-served-by: AC-09
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Member history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberHistory'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /reports/summary:
+    get:
+      operationId: getPeriodicSummary
+      tags: [Reports]
+      summary: Periodic summary
+      description: Summary of one community and period (REQ-032).
+      x-served-by: AC-09
+      parameters:
+        - $ref: '#/components/parameters/CommunityIdQuery'
+        - $ref: '#/components/parameters/PeriodQuery'
+      responses:
+        '200':
+          description: Periodic summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodicSummary'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /reconciliation/discrepancies:
+    get:
+      operationId: listDiscrepancies
+      tags: [Operations]
+      summary: Reconciliation discrepancies
+      description: Discrepancies visible to an operator (REQ-041).
+      x-served-by: AC-08
+      parameters:
+        - $ref: '#/components/parameters/OptionalCommunityIdQuery'
+      responses:
+        '200':
+          description: Discrepancies.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Discrepancy'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /intake/anomalies:
+    get:
+      operationId: listIntakeAnomalies
+      tags: [Operations]
+      summary: Intake anomalies
+      description: Trade-intake anomalies visible to an operator (REQ-029).
+      x-served-by: AC-04
+      parameters:
+        - $ref: '#/components/parameters/OptionalCommunityIdQuery'
+      responses:
+        '200':
+          description: Intake anomalies.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IntakeAnomaly'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /kpi-exports/{period}:
+    get:
+      operationId: getKpiExport
+      tags: [Reports]
+      summary: KPI export for a period
+      description: >
+        File export of the period (REQ-047). The file format is the V1 file export;
+        the later channel is still open in the architecture (03 §7, port P-KPI).
+      x-served-by: AC-09
+      parameters:
+        - name: period
+          in: path
+          required: true
+          description: Billing period of the export.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/CommunityIdQuery'
+      responses:
+        '200':
+          description: KPI file.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                contentMediaType: application/octet-stream
+                contentEncoding: binary
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /data-subject-requests:
+    post:
+      operationId: createDataSubjectRequest
+      tags: [Privacy]
+      summary: Request an export or an erasure
+      description: The member or the DPO opens an export or erasure request (REQ-013).
+      x-served-by: AC-12
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataSubjectRequestCreate'
+      responses:
+        '201':
+          description: Request accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSubjectRequest'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /data-subject-requests/{id}:
+    get:
+      operationId: getDataSubjectRequest
+      tags: [Privacy]
+      summary: Read a data-subject request
+      description: Status of one export or erasure request (REQ-013).
+      x-served-by: AC-12
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: The request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSubjectRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /jobs:
+    get:
+      operationId: listJobs
+      tags: [Operations]
+      summary: List scheduled jobs
+      description: Job executions visible to an operator (02 §4.5).
+      x-served-by: AC-14
+      parameters:
+        - $ref: '#/components/parameters/OptionalCommunityIdQuery'
+      responses:
+        '200':
+          description: Jobs.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /jobs/{id}:run:
+    post:
+      operationId: runJob
+      tags: [Operations]
+      summary: Run a job now
+      description: An operator triggers one scheduled job (02 §4.5).
+      x-served-by: AC-14
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '202':
+          description: Job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: './components/schemas.yaml#/components/securitySchemes/bearerAuth'
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      description: Resource identifier.
+      schema:
+        $ref: './components/schemas.yaml#/components/schemas/Uuid'
+    CommunityIdQuery:
+      name: communityId
+      in: query
+      required: true
+      description: Community whose data is requested (REQ-010).
+      schema:
+        $ref: './components/schemas.yaml#/components/schemas/Uuid'
+    OptionalCommunityIdQuery:
+      name: communityId
+      in: query
+      required: false
+      description: Limits the result to one community in the caller's scope (REQ-010).
+      schema:
+        $ref: './components/schemas.yaml#/components/schemas/Uuid'
+    PeriodQuery:
+      name: period
+      in: query
+      required: true
+      description: Billing period of the report.
+      schema:
+        type: string
+  schemas:
+    BillingProfile:
+      type: object
+      additionalProperties: false
+      required: [name, address, email]
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        email:
+          type: string
+          format: email
+    BillingProfileWrite:
+      $ref: '#/components/schemas/BillingProfile'
+    Me:
+      type: object
+      additionalProperties: false
+      required: [participantId, communityId, roles, readiness, profile]
+      properties:
+        participantId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        roles:
+          type: array
+          items:
+            $ref: './components/schemas.yaml#/components/schemas/CallerRole'
+        readiness:
+          $ref: './components/schemas.yaml#/components/schemas/ReadinessStatus'
+        profile:
+          $ref: '#/components/schemas/BillingProfile'
+        billingMode:
+          $ref: './components/schemas.yaml#/components/schemas/BillingMode'
+    Terms:
+      type: object
+      additionalProperties: false
+      required: [termsVersion, text]
+      properties:
+        termsVersion:
+          type: string
+        text:
+          type: string
+          description: Current terms text shown to the participant (REQ-050).
+    TermsAcceptance:
+      type: object
+      additionalProperties: false
+      required: [termsVersion, selfBillingMandate]
+      properties:
+        termsVersion:
+          type: string
+        selfBillingMandate:
+          type: boolean
+          description: Required for a producer. False for a consumer who does not self-bill (REQ-050).
+        acceptedAt:
+          type: string
+          format: date-time
+          readOnly: true
+    OnboardingLink:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Provider onboarding link (REQ-051).
+    Balance:
+      type: object
+      additionalProperties: false
+      required: [counterpartId, amount, currency]
+      properties:
+        counterpartId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        amount:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        currency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+        since:
+          type: string
+          format: date-time
+    InvoiceAmounts:
+      type: object
+      additionalProperties: false
+      required: [energy, vat, total]
+      properties:
+        energy:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        vat:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        total:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+    Invoice:
+      type: object
+      additionalProperties: false
+      required: [invoiceId, producerId, consumerId, currency, status, amounts]
+      properties:
+        invoiceId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        legalNumber:
+          type: string
+          description: Provider invoice number, once issued (REQ-042). Absent while Draft.
+        producerId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        consumerId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        period:
+          type: string
+        currency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+        status:
+          $ref: './components/schemas.yaml#/components/schemas/InvoiceStatus'
+        dueDate:
+          type: string
+          format: date
+        pairSettlementId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        tradeIds:
+          type: array
+          items:
+            type: string
+        amounts:
+          $ref: '#/components/schemas/InvoiceAmounts'
+        billingMode:
+          $ref: './components/schemas.yaml#/components/schemas/BillingMode'
+    InvoiceStatusChange:
+      type: object
+      additionalProperties: false
+      required: [status, reason]
+      properties:
+        status:
+          $ref: './components/schemas.yaml#/components/schemas/InvoiceStatus'
+        reason:
+          type: string
+          minLength: 1
+    Payment:
+      type: object
+      additionalProperties: false
+      required: [paymentId, invoiceId, amount, currency, status]
+      properties:
+        paymentId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        invoiceId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        amount:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        currency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+        status:
+          $ref: './components/schemas.yaml#/components/schemas/PaymentStatus'
+        method:
+          type: string
+        failureCategory:
+          type: string
+          description: Present when the payment failed (REQ-016, REQ-046).
+    CommunitySettings:
+      type: object
+      additionalProperties: false
+      required: [communityId, currency, billingPeriod, threshold, vatRate, billingMode]
+      properties:
+        communityId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        currency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+        billingPeriod:
+          type: string
+          description: Billing period. Monthly by default (02 §4.5).
+        threshold:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        vatRate:
+          $ref: './components/schemas.yaml#/components/schemas/Rate'
+        billingMode:
+          $ref: './components/schemas.yaml#/components/schemas/BillingMode'
+    CommunitySettingsWrite:
+      type: object
+      additionalProperties: false
+      required: [currency, billingPeriod, threshold, vatRate, billingMode]
+      properties:
+        currency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+        billingPeriod:
+          type: string
+        threshold:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        vatRate:
+          $ref: './components/schemas.yaml#/components/schemas/Rate'
+        billingMode:
+          $ref: './components/schemas.yaml#/components/schemas/BillingMode'
+    ParticipantImport:
+      type: object
+      additionalProperties: false
+      required: [email, marketActorId, meterId, role]
+      properties:
+        email:
+          type: string
+          format: email
+        marketActorId:
+          type: string
+          description: GSY DEX actor identifier (REQ-008).
+        meterId:
+          type: string
+        role:
+          $ref: './components/schemas.yaml#/components/schemas/ParticipantRole'
+    Participant:
+      type: object
+      additionalProperties: false
+      required: [participantId, communityId, role, status]
+      properties:
+        participantId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        role:
+          $ref: './components/schemas.yaml#/components/schemas/ParticipantRole'
+        status:
+          $ref: './components/schemas.yaml#/components/schemas/ReadinessStatus'
+        marketActorId:
+          type: string
+        meterId:
+          type: string
+    ParticipantPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        marketActorId:
+          type: string
+        meterId:
+          type: string
+        role:
+          $ref: './components/schemas.yaml#/components/schemas/ParticipantRole'
+    BillingRunCreate:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          $ref: './components/schemas.yaml#/components/schemas/BillingRunType'
+        period:
+          type: string
+          description: Required when type is periodic.
+    BillingRun:
+      type: object
+      additionalProperties: false
+      required: [runId, communityId, type, status, version]
+      properties:
+        runId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        period:
+          type: string
+        type:
+          $ref: './components/schemas.yaml#/components/schemas/BillingRunType'
+        status:
+          $ref: './components/schemas.yaml#/components/schemas/BillingRunStatus'
+        version:
+          type: integer
+          minimum: 1
+    MemberHistory:
+      type: object
+      additionalProperties: false
+      required: [participantId, invoices, payments]
+      properties:
+        participantId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        invoices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invoice'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+    PeriodicSummary:
+      type: object
+      additionalProperties: false
+      required: [communityId, period, invoiceCount, paymentCount, total]
+      properties:
+        communityId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        period:
+          type: string
+        currency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+        invoiceCount:
+          type: integer
+          minimum: 0
+        paymentCount:
+          type: integer
+          minimum: 0
+        total:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+    Discrepancy:
+      type: object
+      additionalProperties: false
+      required: [scope, expected, actual]
+      properties:
+        scope:
+          type: string
+          description: invoice or market (02 §6).
+          enum: [invoice, market]
+        expected:
+          type: string
+        actual:
+          type: string
+        status:
+          type: string
+    IntakeAnomaly:
+      type: object
+      additionalProperties: false
+      required: [type, marketId]
+      properties:
+        type:
+          type: string
+        marketId:
+          type: string
+        details:
+          type: string
+          description: Identifiers only. No personal data (03 §4).
+    DataSubjectRequestCreate:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [export, erasure]
+        participantId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+          description: Set by a DPO acting for a participant. Omitted when the member acts for themselves.
+    DataSubjectRequest:
+      type: object
+      additionalProperties: false
+      required: [requestId, participantId, type, status]
+      properties:
+        requestId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        participantId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        type:
+          type: string
+          enum: [export, erasure]
+        status:
+          type: string
+    Job:
+      type: object
+      additionalProperties: false
+      required: [jobId, name]
+      properties:
+        jobId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        name:
+          $ref: './components/schemas.yaml#/components/schemas/JobName'
+        communityId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        outcome:
+          type: string
+        lastRunAt:
+          type: string
+          format: date-time

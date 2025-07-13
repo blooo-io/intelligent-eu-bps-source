@@ -1,0 +1,172 @@
+asyncapi: 3.0.0
+info:
+  title: participants events
+  version: 1.0.0
+  description: >-
+    Domain events published by AC-03. Catalogue in application architecture section 4.
+    Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+channels:
+  ParticipantOnboarded:
+    address: ParticipantOnboarded
+    description: Consumed by AC-07 and AC-11.
+    messages:
+      ParticipantOnboarded:
+        $ref: '#/components/messages/ParticipantOnboarded'
+  ParticipantReadinessChanged:
+    address: ParticipantReadinessChanged
+    description: Consumed by AC-06.
+    messages:
+      ParticipantReadinessChanged:
+        $ref: '#/components/messages/ParticipantReadinessChanged'
+  ParticipantOffboarded:
+    address: ParticipantOffboarded
+    description: Consumed by AC-05.
+    messages:
+      ParticipantOffboarded:
+        $ref: '#/components/messages/ParticipantOffboarded'
+  ErasureCompleted:
+    address: ErasureCompleted
+    description: Consumed by AC-12.
+    messages:
+      ErasureCompleted:
+        $ref: '#/components/messages/ErasureCompleted'
+operations:
+  publishParticipantOnboarded:
+    action: send
+    channel:
+      $ref: '#/channels/ParticipantOnboarded'
+    messages:
+      - $ref: '#/channels/ParticipantOnboarded/messages/ParticipantOnboarded'
+  publishParticipantReadinessChanged:
+    action: send
+    channel:
+      $ref: '#/channels/ParticipantReadinessChanged'
+    messages:
+      - $ref: '#/channels/ParticipantReadinessChanged/messages/ParticipantReadinessChanged'
+  publishParticipantOffboarded:
+    action: send
+    channel:
+      $ref: '#/channels/ParticipantOffboarded'
+    messages:
+      - $ref: '#/channels/ParticipantOffboarded/messages/ParticipantOffboarded'
+  publishErasureCompleted:
+    action: send
+    channel:
+      $ref: '#/channels/ErasureCompleted'
+    messages:
+      - $ref: '#/channels/ErasureCompleted/messages/ErasureCompleted'
+components:
+  messages:
+    ParticipantOnboarded:
+      name: ParticipantOnboarded
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: ParticipantOnboarded
+              producer:
+                const: AC-03
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - participantId
+                  - role
+                properties:
+                  participantId:
+                    type: "string"
+                    format: "uuid"
+                  role:
+                    type: "string"
+                    enum:
+                      - "consumer"
+                      - "producer"
+                      - "prosumer"
+    ParticipantReadinessChanged:
+      name: ParticipantReadinessChanged
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: ParticipantReadinessChanged
+              producer:
+                const: AC-03
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - participantId
+                  - ready
+                properties:
+                  participantId:
+                    type: "string"
+                    format: "uuid"
+                  ready:
+                    type: "boolean"
+                  reason:
+                    type: "string"
+    ParticipantOffboarded:
+      name: ParticipantOffboarded
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: ParticipantOffboarded
+              producer:
+                const: AC-03
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - participantId
+                  - effectiveAt
+                properties:
+                  participantId:
+                    type: "string"
+                    format: "uuid"
+                  effectiveAt:
+                    type: "string"
+                    format: "date-time"
+    ErasureCompleted:
+      name: ErasureCompleted
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: ErasureCompleted
+              producer:
+                const: AC-03
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - requestId
+                  - module
+                  - result
+                properties:
+                  requestId:
+                    type: "string"
+                    format: "uuid"
+                  module:
+                    type: "string"
+                    const: "AC-03"
+                  result:
+                    type: "string"
+                    enum:
+                      - "completed"
+                      - "failed"

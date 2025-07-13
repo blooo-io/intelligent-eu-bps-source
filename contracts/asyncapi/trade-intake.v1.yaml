@@ -1,0 +1,106 @@
+asyncapi: 3.0.0
+info:
+  title: trade-intake events
+  version: 1.0.0
+  description: >-
+    Domain events published by AC-04. Catalogue in application architecture section 4.
+    Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+channels:
+  TradesIngested:
+    address: TradesIngested
+    description: Consumed by AC-05 and AC-09.
+    messages:
+      TradesIngested:
+        $ref: '#/components/messages/TradesIngested'
+  IntakeAnomalyDetected:
+    address: IntakeAnomalyDetected
+    description: Consumed by AC-08, AC-09 and AC-11.
+    messages:
+      IntakeAnomalyDetected:
+        $ref: '#/components/messages/IntakeAnomalyDetected'
+operations:
+  publishTradesIngested:
+    action: send
+    channel:
+      $ref: '#/channels/TradesIngested'
+    messages:
+      - $ref: '#/channels/TradesIngested/messages/TradesIngested'
+  publishIntakeAnomalyDetected:
+    action: send
+    channel:
+      $ref: '#/channels/IntakeAnomalyDetected'
+    messages:
+      - $ref: '#/channels/IntakeAnomalyDetected/messages/IntakeAnomalyDetected'
+components:
+  messages:
+    TradesIngested:
+      name: TradesIngested
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: TradesIngested
+              producer:
+                const: AC-04
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - window
+                  - tradeIds
+                  - communityIds
+                properties:
+                  window:
+                    type: "object"
+                    additionalProperties: false
+                    required:
+                      - "from"
+                      - "to"
+                    properties:
+                      from:
+                        type: "string"
+                        format: "date-time"
+                      to:
+                        type: "string"
+                        format: "date-time"
+                  tradeIds:
+                    type: "array"
+                    items:
+                      type: "string"
+                  communityIds:
+                    type: "array"
+                    items:
+                      type: "string"
+                      format: "uuid"
+    IntakeAnomalyDetected:
+      name: IntakeAnomalyDetected
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: IntakeAnomalyDetected
+              producer:
+                const: AC-04
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - type
+                  - marketId
+                properties:
+                  type:
+                    type: "string"
+                  marketId:
+                    type: "string"
+                  details:
+                    type: "string"
+                    description: "Identifiers only."

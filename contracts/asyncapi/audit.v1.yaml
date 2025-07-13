@@ -1,0 +1,56 @@
+asyncapi: 3.0.0
+info:
+  title: audit events
+  version: 1.0.0
+  description: >-
+    Domain events published by every module that handles personal or payment data. Catalogue in application architecture section 4.
+    Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+channels:
+  AuditableActionPerformed:
+    address: AuditableActionPerformed
+    description: Consumed by AC-12.
+    messages:
+      AuditableActionPerformed:
+        $ref: '#/components/messages/AuditableActionPerformed'
+operations:
+  publishAuditableActionPerformed:
+    action: send
+    channel:
+      $ref: '#/channels/AuditableActionPerformed'
+    messages:
+      - $ref: '#/channels/AuditableActionPerformed/messages/AuditableActionPerformed'
+components:
+  messages:
+    AuditableActionPerformed:
+      name: AuditableActionPerformed
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: AuditableActionPerformed
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - actorId
+                  - action
+                  - target
+                  - timestamp
+                properties:
+                  actorId:
+                    type: "string"
+                    format: "uuid"
+                    description: "Actor identifier. The name is not carried."
+                  action:
+                    type: "string"
+                  target:
+                    type: "string"
+                  timestamp:
+                    type: "string"
+                    format: "date-time"

@@ -1,0 +1,28 @@
+extends:
+  - recommended
+rules:
+  info-license-strict: off
+  no-unused-components: error
+apis:
+  public@v1:
+    root: contracts/openapi/public.v1.yaml
+  webhook@v1:
+    root: contracts/openapi/webhooks/payment-provider.v1.yaml
+  participants@v1:
+    root: contracts/openapi/internal/participants.v1.yaml
+  trade-intake@v1:
+    root: contracts/openapi/internal/trade-intake.v1.yaml
+  settlement@v1:
+    root: contracts/openapi/internal/settlement.v1.yaml
+  invoicing@v1:
+    root: contracts/openapi/internal/invoicing.v1.yaml
+  reference-data@v1:
+    root: contracts/openapi/internal/reference-data.v1.yaml
+  reconciliation@v1:
+    root: contracts/openapi/internal/reconciliation.v1.yaml
+  reporting@v1:
+    root: contracts/openapi/internal/reporting.v1.yaml
+  publication@v1:
+    root: contracts/openapi/internal/publication.v1.yaml
+  compliance@v1:
+    root: contracts/openapi/internal/compliance.v1.yaml

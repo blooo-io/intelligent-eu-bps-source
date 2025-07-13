@@ -1,0 +1,65 @@
+openapi: 3.1.0
+info:
+  title: Reporting internal API
+  version: 1.0.0
+  description: >
+    Module-to-module commands of AC-09 (02 §4.5). Never exposed to clients.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /internal/v1
+tags:
+  - name: Reporting
+    description: Module-to-module commands of AC-09.
+security:
+  - serviceAuth: []
+paths:
+  /reports:build:
+    post:
+      operationId: buildReport
+      tags: [Reporting]
+      summary: Build the periodic summary
+      description: BuildReport. Called by AC-14 after period close (REQ-032).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeriodScope'
+      responses:
+        '202':
+          description: Report build accepted.
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /kpi-exports:
+    post:
+      operationId: exportKpi
+      tags: [Reporting]
+      summary: Export KPIs for a period
+      description: ExportKpi. Called by AC-14 after period close (REQ-047).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeriodScope'
+      responses:
+        '202':
+          description: Export accepted.
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+components:
+  securitySchemes:
+    serviceAuth:
+      $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'
+  schemas:
+    PeriodScope:
+      type: object
+      additionalProperties: false
+      required: [communityId, period]
+      properties:
+        communityId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        period:
+          type: string

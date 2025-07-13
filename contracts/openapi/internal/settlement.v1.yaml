@@ -1,0 +1,109 @@
+openapi: 3.1.0
+info:
+  title: Settlement internal API
+  version: 1.0.0
+  description: >
+    Module-to-module commands of AC-05 (03 §3.2 and 02 §4.5). Never exposed to clients.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /internal/v1
+tags:
+  - name: Settlement
+    description: Module-to-module commands of AC-05.
+security:
+  - serviceAuth: []
+paths:
+  /settlements/{settlementId}:
+    get:
+      operationId: getPairSettlement
+      tags: [Settlement]
+      summary: Read one pair settlement
+      description: GetPairSettlement(settlementId). Called by AC-06.
+      parameters:
+        - name: settlementId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The pair settlement.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairSettlement'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /billing-runs:
+    post:
+      operationId: startRun
+      tags: [Settlement]
+      summary: Start a billing run
+      description: StartRun(community, period) or StartRun(type = final). Called by AC-14 (REQ-006, REQ-056).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [communityId, type]
+              properties:
+                communityId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                period:
+                  type: string
+                type:
+                  $ref: '../components/schemas.yaml#/components/schemas/BillingRunType'
+      responses:
+        '202':
+          description: Run accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [runId]
+                properties:
+                  runId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+components:
+  securitySchemes:
+    serviceAuth:
+      $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'
+  schemas:
+    PairSettlement:
+      type: object
+      additionalProperties: false
+      required: [settlementId, runId, consumerId, producerId, currency]
+      properties:
+        settlementId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        runId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        consumerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        producerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        tradeIds:
+          type: array
+          items:
+            type: string
+        kWh:
+          type: string
+        energyAmount:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        vat:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        currency:
+          $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        rate:
+          $ref: '../components/schemas.yaml#/components/schemas/Rate'
+        carriedForwardIn:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        carriedForwardOut:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent.eu/billing/asyncapi/envelope.schema.json",
+  "title": "Domain event envelope",
+  "description": "Common envelope for V1 domain events (03 §4). Payloads carry identifiers only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "type",
+    "version",
+    "occurredAt",
+    "producer",
+    "communityId",
+    "billingMode",
+    "data"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "description": "Producing module, for example AC-03."
+    },
+    "communityId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "billingMode": {
+      "type": "string",
+      "enum": ["live", "virtual"]
+    },
+    "data": {
+      "type": "object"
+    }
+  }
+}

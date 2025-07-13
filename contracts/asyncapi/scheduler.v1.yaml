@@ -1,0 +1,51 @@
+asyncapi: 3.0.0
+info:
+  title: scheduler events
+  version: 1.0.0
+  description: >-
+    Domain events published by AC-14. Catalogue in application architecture section 4.
+    Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+channels:
+  JobFailed:
+    address: JobFailed
+    description: Consumed by AC-11.
+    messages:
+      JobFailed:
+        $ref: '#/components/messages/JobFailed'
+operations:
+  publishJobFailed:
+    action: send
+    channel:
+      $ref: '#/channels/JobFailed'
+    messages:
+      - $ref: '#/channels/JobFailed/messages/JobFailed'
+components:
+  messages:
+    JobFailed:
+      name: JobFailed
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: JobFailed
+              producer:
+                const: AC-14
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - jobId
+                  - error
+                properties:
+                  jobId:
+                    type: "string"
+                    format: "uuid"
+                  error:
+                    type: "string"
+                    description: "Failure category. No personal data."

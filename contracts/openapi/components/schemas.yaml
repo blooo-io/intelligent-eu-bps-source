@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: Shared V1 schemas
+  version: 1.0.0
+  description: >
+    Schemas shared by the public and internal contracts. Field names come from
+    the validated logical data model (02 §6) and the API catalogue (03 §3).
+    This document is not an API.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+paths: {}
+components:
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+    Currency:
+      type: string
+      description: ISO 4217 currency code of the community.
+      pattern: '^[A-Z]{3}$'
+      examples: ['EUR']
+    Money:
+      type: string
+      description: Decimal amount rounded to the cent (BR-08).
+      pattern: '^-?\d+\.\d{2}$'
+      examples: ['5.00']
+    Rate:
+      type: string
+      description: Decimal rate rounded to the cent, such as a VAT rate (BR-07, BR-08).
+      pattern: '^\d+\.\d{2}$'
+      examples: ['0.00']
+    BillingMode:
+      type: string
+      description: Community billing mode (REQ-043). V1 communities are virtual.
+      enum: [live, virtual]
+    ParticipantRole:
+      type: string
+      description: Role of a participant in the community (02 §6).
+      enum: [consumer, producer, prosumer]
+    CallerRole:
+      type: string
+      description: Role of the authenticated caller on the public API (03 §3.1).
+      enum: [member, manager, operator, dpo]
+    ReadinessStatus:
+      type: string
+      description: Participant readiness lifecycle (02 §5).
+      enum: [Invited, ProfileCompleted, TermsAccepted, Ready, Restricted, Offboarded]
+    InvoiceStatus:
+      type: string
+      description: Invoice lifecycle (REQ-044, 02 §5).
+      enum: [Draft, Open, PartiallyPaid, Paid, Overdue, Void, Disputed]
+    PaymentStatus:
+      type: string
+      description: Payment lifecycle (02 §5).
+      enum: [pending, succeeded, failed, cancelled, refunded]
+    BillingRunType:
+      type: string
+      description: Kind of billing run (02 §6).
+      enum: [periodic, early, final]
+    BillingRunStatus:
+      type: string
+      description: Billing run lifecycle (02 §5).
+      enum: [Scheduled, Collecting, Computing, Completed, Failed]
+    JobName:
+      type: string
+      description: Scheduled job owned by a module (02 §4.5).
+      enum:
+        - RefreshIntake
+        - CheckIntakeHealth
+        - StartRun
+        - MarkOverdue
+        - Reconcile
+        - BuildReport
+        - ExportKpi
+        - RetryPending
+        - PurgeCache
+        - ApplyRetention
+        - FetchRates
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+  responses:
+    BadRequest:
+      description: The request does not match the contract.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: The caller is not allowed to see this participant or community (REQ-010).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: The resource does not exist in the caller's scope.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Keycloak access token validated by the API gateway (TD-8).
+    serviceAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Keycloak client-credentials token of the calling module, validated by the
+        module guard (04 §7). Internal APIs are not exposed at the gateway.

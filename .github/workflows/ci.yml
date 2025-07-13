@@ -25,17 +25,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-      - name: Lint OpenAPI contracts (when present)
+          cache: pnpm
+      - name: Install contract tooling
+        run: pnpm install --frozen-lockfile
+      - name: Lint OpenAPI and AsyncAPI contracts
+        run: pnpm contracts:lint
+      - name: Block an unannounced breaking change
         run: |
-          shopt -s nullglob globstar
-          files=(contracts/openapi/**/*.yaml)
-          if [ ${#files[@]} -gt 0 ]; then
-            npx --yes @stoplight/spectral-cli lint "${files[@]}"
+          git fetch origin develop --depth=1
+          if git cat-file -e FETCH_HEAD:contracts/openapi/public.v1.yaml 2>/dev/null; then
+            git show FETCH_HEAD:contracts/openapi/public.v1.yaml > /tmp/public.base.yaml
+            docker run --rm -v "$PWD:/work" -v /tmp/public.base.yaml:/base.yaml \
+              tufin/oasdiff:latest breaking /base.yaml /work/contracts/openapi/public.v1.yaml
           else
-            echo "No OpenAPI contract yet"
+            echo "No public contract on develop yet"
           fi
       - name: Validate EWDS topic schemas against their examples
         run: |

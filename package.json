@@ -4,11 +4,19 @@
   "version": "0.0.0",
   "description": "INTELLIGENT (GA 101160678) — Billing & Payment Service (T5.6 / D5.5)",
   "license": "Apache-2.0",
-  "packageManager": "pnpm@9",
+  "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "test": "node scripts/run-tests.mjs"
+    "test": "node scripts/run-tests.mjs",
+    "contracts:lint": "spectral lint --fail-severity=error \"contracts/openapi/**/*.yaml\" && redocly lint && for f in contracts/asyncapi/*.v1.yaml; do asyncapi validate \"$f\" || exit 1; done",
+    "contracts:mock": "prism mock contracts/openapi/public.v1.yaml"
+  },
+  "devDependencies": {
+    "@asyncapi/cli": "^3.5.1",
+    "@redocly/cli": "^1.34.5",
+    "@stoplight/prism-cli": "^5.14.2",
+    "@stoplight/spectral-cli": "^6.15.0"
   }
 }

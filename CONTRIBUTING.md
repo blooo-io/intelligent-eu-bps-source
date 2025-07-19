@@ -23,6 +23,7 @@
 - **Pull requests:**
   - title `INT-123 <summary>`;
   - use the PR template;
+  - request `n4l5u0r` as reviewer;
   - squash-merge into `develop`.
 
 ## Definition of Done

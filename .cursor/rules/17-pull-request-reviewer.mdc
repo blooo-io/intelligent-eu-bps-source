@@ -1,0 +1,8 @@
+---
+description: Request n4l5u0r as reviewer on every pull request
+alwaysApply: true
+---
+
+# Pull request reviewer
+
+Request GitHub user `n4l5u0r` as a reviewer on every pull request.

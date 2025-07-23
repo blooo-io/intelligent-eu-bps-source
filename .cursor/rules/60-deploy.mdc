@@ -8,12 +8,14 @@ alwaysApply: false
 - **Packaging:** one Helm chart per module in `deploy/charts/`, orchestrated by `deploy/helmfile/` with values per environment in `deploy/envs/<env>/`.
 - **Environments:**
   - `local`: k3d + Tilt;
-  - `dev`: Scaleway Kapsule nl-ams, follows the `develop` branch;
+  - `dev`: Scaleway Kapsule cluster `k8s-intelligent-eu-dev` (nl-ams), follows the `develop` branch;
   - `demo`: same cluster, follows release tags.
 
   Both cloud environments are virtual mode with Stripe test only.
 - **Public hosts** (`*.intelligent-eu-bp.blooo.dev`): `app.<env>`, `api.<env>`, `auth`, `docs`, `ops`. Only `api.<env>/webhooks/payment-provider` is unauthenticated (Stripe signature verified).
-- **Delivery:** Argo CD syncs from Git (GitOps). Never `kubectl apply` by hand on `dev` or `demo`.
+- **Delivery during development:** after each built version whose tests pass, deploy it to `k8s-intelligent-eu-dev`, environment `dev` only, with the operator's own kubeconfig passed through `KUBECONFIG`. Argo CD syncs from Git once it is installed. Until then, deploy the same Helm releases with that kubeconfig. Do not deploy a development build to `demo`.
+- **First deployment:** check whether `deploy/charts/`, `deploy/helmfile/`, `deploy/envs/` and the Argo CD application definitions exist. Create what is missing from the architecture (TD-11, physical architecture, module map) on INT-135 and its own branch.
+- Never copy a kubeconfig or secret values into Git.
 - **Secrets:** ExternalSecret resources pointing to OpenBao paths `<env>/<module>/…`. No Kubernetes Secret manifest with values in Git.
 - **NetworkPolicies:** default deny. Allow only the synchronous dependencies of 03 §2.2, plus NATS, PostgreSQL, Temporal and the OTel collector.
 - **Containers:** non-root, read-only root filesystem, CPU and memory requests and limits.

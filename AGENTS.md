@@ -49,6 +49,8 @@ This file tells an agent **what to read, in which order, and which rules are non
 ## 4. Typical task flow
 `INT-xxx` (Jira; create the issue first if none exists) → branch `<type>/INT-xxx-short-description` from `develop` (`feature`, `fix`, `docs`, `test`, `refactor`, `ci` or `chore`, matching the commit type) → contract → Prism mock → generated types/clients → implementation → unit tests + UAT scenario (mocks + Stripe test) → PR (template) → CI green, including every test script and 80% statements, branches, functions and lines per module → review → merge → Argo CD deploys to `dev`.
 
+After a version is built and its tests pass, deploy it to the cluster `k8s-intelligent-eu-dev`, environment `dev`. Pass the operator kubeconfig through `KUBECONFIG` and keep it outside the repository. Before the first deployment, create any missing Helm charts, helmfile or Argo CD definitions on INT-135 and its own branch.
+
 ## 5. Module map (directory → component → logical block)
 | Directory | Component | Block |
 |---|---|---|

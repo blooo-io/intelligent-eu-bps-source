@@ -6,7 +6,8 @@
 - A task names the module(s) concerned and the spec ids it covers (`REQ-xxx`, `UAT-xxx`). The requirement text stays in `docs/` and is never copied into Jira.
 
 ## Branches and commits
-- **Default branch:** `develop`, deployed automatically to the `dev` environment. Release tags `vX.Y.Z` are deployed to `demo`.
+
+- **Default branch:** `develop`. Each built version whose tests pass is deployed to the Scaleway cluster `k8s-intelligent-eu-dev`, environment `dev`, using your own kubeconfig for that cluster through `KUBECONFIG`. Release tags `vX.Y.Z` are deployed to `demo`. Never commit a kubeconfig.
 - **Branches:** `<type>/INT-123-short-description`, branched from `develop` and short-lived. Create the Jira issue first when the change does not already have one. The type matches the Conventional Commit of the change:
 
   | Branch prefix | Use | Commit type |
@@ -34,7 +35,7 @@
 - [ ] Docs updated if behaviour or architecture changed (spec gap → proposed change described in the PR)
 - [ ] No personal data in logs or events; no secret in the diff (gitleaks green)
 - [ ] New dependencies are MIT / Apache-2.0
-- [ ] Deployed and smoke-tested on `dev`
+- [ ] Built version deployed and smoke-tested on `k8s-intelligent-eu-dev` (`dev`)
 
 ## GitHub ↔ Jira
 The **GitHub for Jira** app links branches, commits, PRs and builds to the `INT-xxx` issue. A merged PR moves the issue forward through a Jira automation rule.

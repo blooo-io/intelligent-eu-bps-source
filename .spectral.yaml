@@ -1,0 +1,11 @@
+extends:
+  - spectral:oas
+rules:
+  info-contact: off
+  oas3-unused-component: error
+overrides:
+  - files:
+      - contracts/openapi/components/schemas.yaml
+    rules:
+      oas3-unused-component: off
+      oas3-api-servers: off

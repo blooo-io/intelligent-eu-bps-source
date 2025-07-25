@@ -1,0 +1,47 @@
+openapi: 3.1.0
+info:
+  title: Payment provider webhook
+  version: 1.0.0
+  description: >
+    Inbound webhook of the payment provider (03 §3.1). It is not part of the
+    public API. AC-07 verifies the signature before accepting the event (NFR-015).
+    The provider owns the payload; this contract does not redefine it.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /
+    description: Payments module (AC-07)
+tags:
+  - name: Webhooks
+    description: Inbound payment-provider events. Not part of the public API.
+security:
+  - stripeSignature: []
+paths:
+  /webhooks/payment-provider:
+    post:
+      operationId: receivePaymentProviderWebhook
+      tags: [Webhooks]
+      summary: Receive a payment-provider event
+      description: >
+        Accepts a signed provider event. The body is the provider payload and is not interpreted
+        beyond signature verification (TD-6, NFR-015).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Provider event. Opaque to this contract.
+      responses:
+        '204':
+          description: Signature valid and the event was accepted.
+        '400':
+          description: Signature missing or invalid.
+components:
+  securitySchemes:
+    stripeSignature:
+      type: apiKey
+      in: header
+      name: Stripe-Signature
+      description: Provider signature of the raw body (NFR-015).

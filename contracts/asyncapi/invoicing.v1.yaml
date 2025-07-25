@@ -1,0 +1,181 @@
+asyncapi: 3.0.0
+info:
+  title: invoicing events
+  version: 1.0.0
+  description: >-
+    Domain events published by AC-06. Catalogue in application architecture section 4.
+    Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+channels:
+  InvoiceIssued:
+    address: InvoiceIssued
+    description: Consumed by AC-07, AC-08, AC-09, AC-10 and AC-11.
+    messages:
+      InvoiceIssued:
+        $ref: '#/components/messages/InvoiceIssued'
+  InvoiceStatusChanged:
+    address: InvoiceStatusChanged
+    description: Consumed by AC-08, AC-09 and AC-10.
+    messages:
+      InvoiceStatusChanged:
+        $ref: '#/components/messages/InvoiceStatusChanged'
+  ErasureCompleted:
+    address: ErasureCompleted
+    description: Consumed by AC-12.
+    messages:
+      ErasureCompleted:
+        $ref: '#/components/messages/ErasureCompleted'
+operations:
+  publishInvoiceIssued:
+    action: send
+    channel:
+      $ref: '#/channels/InvoiceIssued'
+    messages:
+      - $ref: '#/channels/InvoiceIssued/messages/InvoiceIssued'
+  publishInvoiceStatusChanged:
+    action: send
+    channel:
+      $ref: '#/channels/InvoiceStatusChanged'
+    messages:
+      - $ref: '#/channels/InvoiceStatusChanged/messages/InvoiceStatusChanged'
+  publishErasureCompleted:
+    action: send
+    channel:
+      $ref: '#/channels/ErasureCompleted'
+    messages:
+      - $ref: '#/channels/ErasureCompleted/messages/ErasureCompleted'
+components:
+  messages:
+    InvoiceIssued:
+      name: InvoiceIssued
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: InvoiceIssued
+              producer:
+                const: AC-06
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - invoiceId
+                  - issuerId
+                  - recipientId
+                  - amounts
+                  - currency
+                  - tradeIds
+                properties:
+                  invoiceId:
+                    type: "string"
+                    format: "uuid"
+                  issuerId:
+                    type: "string"
+                    format: "uuid"
+                    description: "Producer participant id. Not a name."
+                  recipientId:
+                    type: "string"
+                    format: "uuid"
+                    description: "Consumer participant id. Not a name."
+                  amounts:
+                    type: "object"
+                    additionalProperties: false
+                    required:
+                      - "energy"
+                      - "vat"
+                      - "total"
+                    properties:
+                      energy:
+                        type: "string"
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                        description: "Amount rounded to the cent (BR-08)."
+                      vat:
+                        type: "string"
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                        description: "Amount rounded to the cent (BR-08)."
+                      total:
+                        type: "string"
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                        description: "Amount rounded to the cent (BR-08)."
+                  currency:
+                    type: "string"
+                    pattern: "^[A-Z]{3}$"
+                  tradeIds:
+                    type: "array"
+                    items:
+                      type: "string"
+    InvoiceStatusChanged:
+      name: InvoiceStatusChanged
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: InvoiceStatusChanged
+              producer:
+                const: AC-06
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - invoiceId
+                  - status
+                  - outstanding
+                properties:
+                  invoiceId:
+                    type: "string"
+                    format: "uuid"
+                  status:
+                    type: "string"
+                    enum:
+                      - "Draft"
+                      - "Open"
+                      - "PartiallyPaid"
+                      - "Paid"
+                      - "Overdue"
+                      - "Void"
+                      - "Disputed"
+                  reason:
+                    type: "string"
+                  outstanding:
+                    type: "string"
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                    description: "Amount rounded to the cent (BR-08)."
+    ErasureCompleted:
+      name: ErasureCompleted
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: ErasureCompleted
+              producer:
+                const: AC-06
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - requestId
+                  - module
+                  - result
+                properties:
+                  requestId:
+                    type: "string"
+                    format: "uuid"
+                  module:
+                    type: "string"
+                    const: "AC-06"
+                  result:
+                    type: "string"
+                    enum:
+                      - "completed"
+                      - "failed"

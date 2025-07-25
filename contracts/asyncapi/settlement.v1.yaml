@@ -1,0 +1,105 @@
+asyncapi: 3.0.0
+info:
+  title: settlement events
+  version: 1.0.0
+  description: >-
+    Domain events published by AC-05. Catalogue in application architecture section 4.
+    Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+channels:
+  SettlementCompleted:
+    address: SettlementCompleted
+    description: Consumed by AC-06 and AC-09.
+    messages:
+      SettlementCompleted:
+        $ref: '#/components/messages/SettlementCompleted'
+  BillingRunCompleted:
+    address: BillingRunCompleted
+    description: Consumed by AC-08 and AC-09.
+    messages:
+      BillingRunCompleted:
+        $ref: '#/components/messages/BillingRunCompleted'
+operations:
+  publishSettlementCompleted:
+    action: send
+    channel:
+      $ref: '#/channels/SettlementCompleted'
+    messages:
+      - $ref: '#/channels/SettlementCompleted/messages/SettlementCompleted'
+  publishBillingRunCompleted:
+    action: send
+    channel:
+      $ref: '#/channels/BillingRunCompleted'
+    messages:
+      - $ref: '#/channels/BillingRunCompleted/messages/BillingRunCompleted'
+components:
+  messages:
+    SettlementCompleted:
+      name: SettlementCompleted
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: SettlementCompleted
+              producer:
+                const: AC-05
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - pairSettlementIds
+                properties:
+                  runId:
+                    type: "string"
+                    format: "uuid"
+                    description: "Set for a periodic or final run. Absent for an early settlement."
+                  earlySettlementId:
+                    type: "string"
+                    format: "uuid"
+                    description: "Set for an early settlement. Absent for a billing run."
+                  pairSettlementIds:
+                    type: "array"
+                    items:
+                      type: "string"
+                      format: "uuid"
+                    description: "Pair settlements of the run or the early settlement."
+    BillingRunCompleted:
+      name: BillingRunCompleted
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: BillingRunCompleted
+              producer:
+                const: AC-05
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - runId
+                  - period
+                  - version
+                  - counts
+                properties:
+                  runId:
+                    type: "string"
+                    format: "uuid"
+                  period:
+                    type: "string"
+                  version:
+                    type: "integer"
+                    minimum: 1
+                  counts:
+                    type: "object"
+                    additionalProperties:
+                      type: "integer"
+                      minimum: 0
+                    description: "Counts of the completed run."

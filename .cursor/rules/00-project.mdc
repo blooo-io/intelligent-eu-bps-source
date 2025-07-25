@@ -11,3 +11,4 @@ alwaysApply: true
 - Business rules BR-01..BR-13 (`docs/architecture/01-functional-architecture.md` §6) are mandatory. Cite the rule id in code comments where a rule is implemented.
 - Do not invent requirements. If something is missing or contradictory in `docs/`, stop and state it in the PR description (proposed spec change).
 - Never read or modify `brain/` or `docs/project-context/` (confidential, not in Git).
+- Do not attribute work to a coding assistant or an editor product in source, documentation, comments, commit messages, notices, or generated files. Credit stays with Blooo and the INTELLIGENT project.

@@ -23,7 +23,7 @@ It then publishes invoices and payments to the project data space (EWDS).
 | `packages/` | Shared module template, generated clients, common libraries |
 | `mocks/` | Mock suite (AC-15) and scenario datasets S1–S13 |
 | `deploy/` | Helm charts, helmfile, environment values (`dev`, `demo`) for the Scaleway Kapsule cluster |
-| `.cursor/rules/`, `AGENTS.md` | Instructions for AI-assisted development in Cursor |
+| `AGENTS.md` | Instructions for contributors and coding agents |
 
 ## Working on this repository
 - **Where to start:** read [`AGENTS.md`](AGENTS.md) and [`CONTRIBUTING.md`](CONTRIBUTING.md).

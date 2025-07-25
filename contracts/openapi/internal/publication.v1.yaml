@@ -1,0 +1,55 @@
+openapi: 3.1.0
+info:
+  title: Publication internal API
+  version: 1.0.0
+  description: >
+    Module-to-module commands of AC-10 (02 §4.5). Never exposed to clients.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /internal/v1
+tags:
+  - name: Publication
+    description: Module-to-module commands of AC-10.
+security:
+  - serviceAuth: []
+paths:
+  /publication:retry-pending:
+    post:
+      operationId: retryPending
+      tags: [Publication]
+      summary: Retry pending publications
+      description: RetryPending. Called by AC-14 (REQ-048).
+      responses:
+        '202':
+          description: Retry accepted.
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /publication:purge-cache:
+    post:
+      operationId: purgeCache
+      tags: [Publication]
+      summary: Purge the publication cache
+      description: PurgeCache(before). Called by AC-14. Retention is at most 7 days (REQ-053).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [before]
+              properties:
+                before:
+                  type: string
+                  format: date-time
+      responses:
+        '202':
+          description: Purge accepted.
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+components:
+  securitySchemes:
+    serviceAuth:
+      $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'

@@ -1,0 +1,46 @@
+openapi: 3.1.0
+info:
+  title: Reconciliation internal API
+  version: 1.0.0
+  description: >
+    Module-to-module commands of AC-08 (02 §4.5). Never exposed to clients.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /internal/v1
+tags:
+  - name: Reconciliation
+    description: Module-to-module commands of AC-08.
+security:
+  - serviceAuth: []
+paths:
+  /reconciliation:run:
+    post:
+      operationId: reconcile
+      tags: [Reconciliation]
+      summary: Run reconciliation
+      description: Reconcile(scope). Called by AC-14 (REQ-041).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [scope]
+              properties:
+                scope:
+                  type: string
+                  enum: [invoice, market]
+                communityId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '202':
+          description: Reconciliation accepted.
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+components:
+  securitySchemes:
+    serviceAuth:
+      $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'

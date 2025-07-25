@@ -1,0 +1,130 @@
+openapi: 3.1.0
+info:
+  title: Trade intake internal API
+  version: 1.0.0
+  description: >
+    Module-to-module commands of AC-04 (03 §3.2 and 02 §4.5). Never exposed to clients.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /internal/v1
+tags:
+  - name: TradeIntake
+    description: Module-to-module commands of AC-04.
+security:
+  - serviceAuth: []
+paths:
+  /trades/unbilled:
+    get:
+      operationId: getUnbilledTrades
+      tags: [TradeIntake]
+      summary: List trades not yet invoiced
+      description: >
+        GetUnbilledTrades(community or pair, until). Called by AC-05.
+        Provide communityId, or both consumerId and producerId.
+      parameters:
+        - name: until
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: communityId
+          in: query
+          required: false
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        - name: consumerId
+          in: query
+          required: false
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        - name: producerId
+          in: query
+          required: false
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Unbilled trades. Identifiers and quantities only.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trade'
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /intake:refresh:
+    post:
+      operationId: refreshIntake
+      tags: [TradeIntake]
+      summary: Re-query a trade window
+      description: RefreshIntake(window). Called by AC-14 (REQ-001).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [from, to]
+              properties:
+                from:
+                  type: string
+                  format: date-time
+                to:
+                  type: string
+                  format: date-time
+      responses:
+        '202':
+          description: Refresh accepted.
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /intake:check-health:
+    post:
+      operationId: checkIntakeHealth
+      tags: [TradeIntake]
+      summary: Check intake health
+      description: CheckIntakeHealth. Called by AC-14 (REQ-029).
+      responses:
+        '204':
+          description: Health check accepted.
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+components:
+  securitySchemes:
+    serviceAuth:
+      $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'
+  schemas:
+    Trade:
+      type: object
+      additionalProperties: false
+      required: [tradeId, marketId, kWh, price, status]
+      properties:
+        tradeId:
+          type: string
+        marketId:
+          type: string
+        buyerActorId:
+          type: string
+        sellerActorId:
+          type: string
+        consumerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        producerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        kWh:
+          type: string
+        price:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        status:
+          type: string
+          description: Trade status as received from the market. Billing never changes it (BR-11).
+        deliveryStart:
+          type: string
+          format: date-time
+        deliveryEnd:
+          type: string
+          format: date-time

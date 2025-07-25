@@ -1,0 +1,144 @@
+asyncapi: 3.0.0
+info:
+  title: payments events
+  version: 1.0.0
+  description: >-
+    Domain events published by AC-07. Catalogue in application architecture section 4.
+    Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+channels:
+  PaymentAccountStatusChanged:
+    address: PaymentAccountStatusChanged
+    description: Consumed by AC-03.
+    messages:
+      PaymentAccountStatusChanged:
+        $ref: '#/components/messages/PaymentAccountStatusChanged'
+  PaymentStatusChanged:
+    address: PaymentStatusChanged
+    description: Consumed by AC-06, AC-08, AC-09, AC-10 and AC-11.
+    messages:
+      PaymentStatusChanged:
+        $ref: '#/components/messages/PaymentStatusChanged'
+  ErasureCompleted:
+    address: ErasureCompleted
+    description: Consumed by AC-12.
+    messages:
+      ErasureCompleted:
+        $ref: '#/components/messages/ErasureCompleted'
+operations:
+  publishPaymentAccountStatusChanged:
+    action: send
+    channel:
+      $ref: '#/channels/PaymentAccountStatusChanged'
+    messages:
+      - $ref: '#/channels/PaymentAccountStatusChanged/messages/PaymentAccountStatusChanged'
+  publishPaymentStatusChanged:
+    action: send
+    channel:
+      $ref: '#/channels/PaymentStatusChanged'
+    messages:
+      - $ref: '#/channels/PaymentStatusChanged/messages/PaymentStatusChanged'
+  publishErasureCompleted:
+    action: send
+    channel:
+      $ref: '#/channels/ErasureCompleted'
+    messages:
+      - $ref: '#/channels/ErasureCompleted/messages/ErasureCompleted'
+components:
+  messages:
+    PaymentAccountStatusChanged:
+      name: PaymentAccountStatusChanged
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: PaymentAccountStatusChanged
+              producer:
+                const: AC-07
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - participantId
+                  - kycStatus
+                  - paymentMethodPresent
+                properties:
+                  participantId:
+                    type: "string"
+                    format: "uuid"
+                  kycStatus:
+                    type: "string"
+                  paymentMethodPresent:
+                    type: "boolean"
+    PaymentStatusChanged:
+      name: PaymentStatusChanged
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: PaymentStatusChanged
+              producer:
+                const: AC-07
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - paymentId
+                  - invoiceId
+                  - status
+                properties:
+                  paymentId:
+                    type: "string"
+                    format: "uuid"
+                  invoiceId:
+                    type: "string"
+                    format: "uuid"
+                  status:
+                    type: "string"
+                    enum:
+                      - "pending"
+                      - "succeeded"
+                      - "failed"
+                      - "cancelled"
+                      - "refunded"
+                  failureCategory:
+                    type: "string"
+    ErasureCompleted:
+      name: ErasureCompleted
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: ErasureCompleted
+              producer:
+                const: AC-07
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - requestId
+                  - module
+                  - result
+                properties:
+                  requestId:
+                    type: "string"
+                    format: "uuid"
+                  module:
+                    type: "string"
+                    const: "AC-07"
+                  result:
+                    type: "string"
+                    enum:
+                      - "completed"
+                      - "failed"

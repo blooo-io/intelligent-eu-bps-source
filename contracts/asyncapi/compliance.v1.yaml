@@ -1,0 +1,51 @@
+asyncapi: 3.0.0
+info:
+  title: compliance events
+  version: 1.0.0
+  description: >-
+    Domain events published by AC-12. Catalogue in application architecture section 4.
+    Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+channels:
+  ErasureRequested:
+    address: ErasureRequested
+    description: Consumed by AC-03, AC-06 and AC-07.
+    messages:
+      ErasureRequested:
+        $ref: '#/components/messages/ErasureRequested'
+operations:
+  publishErasureRequested:
+    action: send
+    channel:
+      $ref: '#/channels/ErasureRequested'
+    messages:
+      - $ref: '#/channels/ErasureRequested/messages/ErasureRequested'
+components:
+  messages:
+    ErasureRequested:
+      name: ErasureRequested
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: ErasureRequested
+              producer:
+                const: AC-12
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - requestId
+                  - participantId
+                properties:
+                  requestId:
+                    type: "string"
+                    format: "uuid"
+                  participantId:
+                    type: "string"
+                    format: "uuid"

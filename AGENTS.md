@@ -1,6 +1,6 @@
-# AGENTS.md — guide for AI coding agents (Cursor) and developers
+# AGENTS.md — guide for coding agents and developers
 
-This file tells an agent **what to read, in which order, and which rules are non-negotiable** before changing anything in this repository. The detailed rules live in `.cursor/rules/`.
+This file tells an agent **what to read, in which order, and which rules are non-negotiable** before changing anything in this repository. The detailed rules are the project rule files shipped with this repository.
 
 ## 1. Context in five lines
 - Billing & Payment Service of the Horizon Europe project INTELLIGENT (Task T5.6, Deliverable D5.5, public). Led by Blooo.

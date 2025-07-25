@@ -1,0 +1,55 @@
+asyncapi: 3.0.0
+info:
+  title: reconciliation events
+  version: 1.0.0
+  description: >-
+    Domain events published by AC-08. Catalogue in application architecture section 4.
+    Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+channels:
+  DiscrepancyDetected:
+    address: DiscrepancyDetected
+    description: Consumed by AC-09 and AC-11.
+    messages:
+      DiscrepancyDetected:
+        $ref: '#/components/messages/DiscrepancyDetected'
+operations:
+  publishDiscrepancyDetected:
+    action: send
+    channel:
+      $ref: '#/channels/DiscrepancyDetected'
+    messages:
+      - $ref: '#/channels/DiscrepancyDetected/messages/DiscrepancyDetected'
+components:
+  messages:
+    DiscrepancyDetected:
+      name: DiscrepancyDetected
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: DiscrepancyDetected
+              producer:
+                const: AC-08
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - scope
+                  - expected
+                  - actual
+                properties:
+                  scope:
+                    type: "string"
+                    enum:
+                      - "invoice"
+                      - "market"
+                  expected:
+                    type: "string"
+                  actual:
+                    type: "string"

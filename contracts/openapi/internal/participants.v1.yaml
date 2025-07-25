@@ -1,0 +1,130 @@
+openapi: 3.1.0
+info:
+  title: Participants internal API
+  version: 1.0.0
+  description: >
+    Module-to-module commands of AC-03 (03 §3.2). Never exposed to clients.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /internal/v1
+tags:
+  - name: Participants
+    description: Module-to-module commands of AC-03.
+security:
+  - serviceAuth: []
+paths:
+  /parties:resolve:
+    post:
+      operationId: resolveParty
+      tags: [Participants]
+      summary: Resolve a market actor to a participant
+      description: ResolveParty(marketId). Called by AC-04.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [marketId]
+              properties:
+                marketId:
+                  type: string
+      responses:
+        '200':
+          description: The participant attributed to the market actor.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [participantId, communityId]
+                properties:
+                  participantId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  communityId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /communities/{communityId}/settings:
+    get:
+      operationId: getCommunitySettings
+      tags: [Participants]
+      summary: Read community settings
+      description: GetCommunitySettings(communityId). Called by AC-05 and AC-06.
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      responses:
+        '200':
+          description: Community settings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunitySettings'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants/{participantId}/readiness:
+    get:
+      operationId: checkReadiness
+      tags: [Participants]
+      summary: Check whether a participant can be invoiced
+      description: CheckReadiness(participantId). Called by AC-06 before an invoice is issued in a producer's name (BR-09).
+      parameters:
+        - $ref: '#/components/parameters/ParticipantId'
+      responses:
+        '200':
+          description: Readiness of the participant.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [participantId, ready, status]
+                properties:
+                  participantId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  ready:
+                    type: boolean
+                  status:
+                    $ref: '../components/schemas.yaml#/components/schemas/ReadinessStatus'
+                  reason:
+                    type: string
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+components:
+  securitySchemes:
+    serviceAuth:
+      $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'
+  parameters:
+    CommunityId:
+      name: communityId
+      in: path
+      required: true
+      schema:
+        $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+    ParticipantId:
+      name: participantId
+      in: path
+      required: true
+      schema:
+        $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+  schemas:
+    CommunitySettings:
+      type: object
+      additionalProperties: false
+      required: [communityId, currency, billingPeriod, threshold, vatRate, billingMode]
+      properties:
+        communityId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        currency:
+          $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        billingPeriod:
+          type: string
+        threshold:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        vatRate:
+          $ref: '../components/schemas.yaml#/components/schemas/Rate'
+        billingMode:
+          $ref: '../components/schemas.yaml#/components/schemas/BillingMode'

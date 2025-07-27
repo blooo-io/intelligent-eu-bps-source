@@ -1,0 +1,8 @@
+---
+description: Request the blooo-io/github-admin team as reviewer on every pull request
+alwaysApply: true
+---
+
+# Pull request reviewer
+
+Request the GitHub team `blooo-io/github-admin` as a reviewer on every pull request.

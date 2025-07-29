@@ -35,14 +35,19 @@ jobs:
       - name: Lint OpenAPI and AsyncAPI contracts
         run: pnpm contracts:lint
       - name: Block an unannounced breaking change
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          git fetch origin develop --depth=1
-          if git cat-file -e FETCH_HEAD:contracts/openapi/public.v1.yaml 2>/dev/null; then
-            git show FETCH_HEAD:contracts/openapi/public.v1.yaml > /tmp/public.base.yaml
-            docker run --rm -v "$PWD:/work" -v /tmp/public.base.yaml:/base.yaml \
-              tufin/oasdiff:latest breaking /base.yaml /work/contracts/openapi/public.v1.yaml
+          git fetch origin "$BASE_SHA" --depth=1
+          if git cat-file -e "$BASE_SHA:contracts/openapi/public.v1.yaml" 2>/dev/null; then
+            mkdir -p /tmp/base
+            git archive "$BASE_SHA" contracts/openapi | tar -x -C /tmp/base
+            docker run --rm -v "$PWD:/work:ro" -v /tmp/base:/base:ro \
+              tufin/oasdiff:latest breaking \
+              /base/contracts/openapi/public.v1.yaml \
+              /work/contracts/openapi/public.v1.yaml
           else
-            echo "No public contract on develop yet"
+            echo "No public contract at base commit $BASE_SHA"
           fi
       - name: Validate EWDS topic schemas against their examples
         run: |

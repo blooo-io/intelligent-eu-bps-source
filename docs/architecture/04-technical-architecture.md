@@ -187,9 +187,10 @@ Method: a shallow, sparse clone of each repository, then reading the top-level l
 ## 5. Open topics
 All decisions TD-1 … TD-13 are taken. The view was **validated by Rouslan on 2026-10-07** (v1.0).
 
+Licence scanning in CI uses Trivy (Apache-2.0), the same scanner as the dependency and image vulnerability scan. Forbidden licences are GPL, LGPL, AGPL, SSPL, BUSL and Elastic. OpenBao (MPL-2.0) stays outside this repository.
+
 Points left open, without blocking:
 - service mesh for mTLS between pods (deferred);
-- choice of the licence-scanning tool for CI;
 - UI kit (Ant Design or MUI), to fix at implementation.
 
 ## 6. Technical diagrams
@@ -316,7 +317,7 @@ sequenceDiagram
 | Logs and telemetry       | Structured logs without personal data. The OTel Collector applies a redaction processor (e-mail, names, IBAN patterns). Traces carry only identifiers.                                                                                                                                                                                      | NFR-015, REQ-030                       |
 | Audit                    | Every module emits `AuditableActionPerformed` for access to or changes of personal or payment data. AC-12 stores them append-only. Keycloak admin events are enabled.                                                                                                                                                                       | REQ-030                                |
 | Supply chain             | Trivy scans images and dependencies; gitleaks detects secrets; Dependabot updates dependencies. Images run as non-root with a read-only filesystem and resource limits. These rules can optionally be enforced by Kyverno policies.                                                                                                         | NFR-005                                |
-| Licences                 | Licence check at each new dependency (TP-2, TP-6). The CI fails if a dependency with an excluded licence is found (licence scanner to choose at implementation).                                                                                                                                                                            | NFR-012                                |
+| Licences                 | Licence check at each new dependency (TP-2, TP-6). Trivy fails the CI job when a dependency uses an excluded licence (GPL, LGPL, AGPL, SSPL, BUSL, Elastic). OpenBao (MPL-2.0) is not a dependency of this repository.                                                                                                                          | NFR-012                                |
 
 ## 8. Sizing assumptions (V1, to confirm in the physical view)
 

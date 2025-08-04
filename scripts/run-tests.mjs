@@ -48,6 +48,8 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
+await run(process.execPath, ["--test", path.join(root, "scripts/module-images.test.mjs")]);
+
 const commands = [];
 for (const pkg of packages) {
   const hasSource = await hasExecutableSource(pkg.directory);

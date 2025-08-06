@@ -20,7 +20,7 @@
   | `ci/` | Pipeline, tooling or build | `ci` |
   | `chore/` | Maintenance that fits none of the above | `chore` |
 
-- **Commits** follow Conventional Commits and carry the Jira key, e.g. `feat(invoicing): INT-123 issue invoice per consumer-producer pair`.
+- **Commits** follow Conventional Commits and carry the Jira key, e.g. `feat(invoicing): INT-123 issue invoice per consumer-producer pair`. Credit stays with Blooo and the INTELLIGENT project. Do not add a co-author trailer for a coding assistant. The hook in `.githooks/commit-msg` removes it, and CI rejects it on new commits.
 - **Pull requests:**
   - title `INT-123 <summary>`;
   - use the PR template;

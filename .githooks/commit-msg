@@ -1,0 +1,5 @@
+#!/bin/sh
+# Drop a coding-assistant co-author trailer before the commit object is written.
+set -e
+root=$(git rev-parse --show-toplevel)
+node "$root/scripts/commit-attribution.mjs" --strip "$1"

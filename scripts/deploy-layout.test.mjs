@@ -1,0 +1,93 @@
+import assert from "node:assert/strict";
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
+import test from "node:test";
+
+const modules = [
+  "web",
+  "participants",
+  "trade-intake",
+  "settlement",
+  "invoicing",
+  "payments",
+  "reconciliation",
+  "reporting",
+  "publication",
+  "notification",
+  "compliance",
+  "reference-data",
+  "scheduler",
+  "mocks",
+];
+
+test("each module has its own chart", async () => {
+  for (const name of modules) {
+    const chart = await readFile(`deploy/charts/${name}/Chart.yaml`, "utf8");
+    assert.match(chart, new RegExp(`^name: ${name}$`, "m"));
+    assert.match(chart, /repository: "file:\/\/\.\.\/module"/);
+  }
+});
+
+test("helmfile releases every module into the environment namespace", async () => {
+  const text = await readFile("deploy/helmfile/helmfile.yaml", "utf8");
+  for (const name of modules) {
+    assert.match(text, new RegExp(`- name: ${name}\\n`));
+  }
+  assert.match(text, /namespace: "\{\{ \.Values\.appsNamespace \}\}"/);
+});
+
+test("dev applications track develop and land in int-apps", async () => {
+  const dev = await readFile("deploy/envs/dev/values.yaml", "utf8");
+  assert.match(dev, /appsNamespace: int-apps/);
+  for (const name of modules) {
+    const text = await readFile(`deploy/argocd/dev/${name}.yaml`, "utf8");
+    assert.match(text, /targetRevision: develop/);
+    assert.match(text, /namespace: int-apps/);
+    assert.match(text, /automated:/);
+  }
+});
+
+test("demo applications stay manual and land in demo-apps", async () => {
+  const demo = await readFile("deploy/envs/demo/values.yaml", "utf8");
+  assert.match(demo, /appsNamespace: demo-apps/);
+  for (const name of modules) {
+    const text = await readFile(`deploy/argocd/demo/${name}.yaml`, "utf8");
+    assert.equal(text.includes("automated:"), false);
+    assert.equal(text.includes("targetRevision: develop"), false);
+    assert.match(text, /namespace: demo-apps/);
+  }
+});
+
+test("synchronous module calls match the application view", async () => {
+  const settlement = await readFile("deploy/charts/settlement/values.yaml", "utf8");
+  assert.match(settlement, /egressModules:[\s\S]*- reference-data/);
+  const participants = await readFile("deploy/charts/participants/values.yaml", "utf8");
+  assert.match(participants, /keycloakEgress: true/);
+  const payments = await readFile("deploy/charts/payments/values.yaml", "utf8");
+  assert.match(payments, /stripeEgress: true/);
+});
+
+test("workloads are non-root with a read-only filesystem and no committed secret", async () => {
+  const template = await readFile("deploy/charts/module/templates/_resources.tpl", "utf8");
+  assert.match(template, /runAsNonRoot: true/);
+  assert.match(template, /readOnlyRootFilesystem: true/);
+  assert.match(template, /kind: ExternalSecret/);
+  for (const file of await yamlFiles("deploy")) {
+    const text = await readFile(file, "utf8");
+    assert.equal(/^\s*kind:\s*Secret\s*$/m.test(text), false, file);
+    assert.equal(text.includes("stringData:"), false, file);
+  }
+});
+
+async function yamlFiles(directory) {
+  const found = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      found.push(...(await yamlFiles(fullPath)));
+      continue;
+    }
+    if (entry.name.endsWith(".yaml") || entry.name.endsWith(".tpl")) found.push(fullPath);
+  }
+  return found;
+}

@@ -1,0 +1,10 @@
+apiVersion: v2
+name: web
+description: AC-01 web
+type: application
+version: 0.1.0
+appVersion: "0.0.0"
+dependencies:
+  - name: module
+    version: 0.1.0
+    repository: "file://../module"

@@ -1,0 +1,10 @@
+apiVersion: v2
+name: scheduler
+description: AC-14 scheduler
+type: application
+version: 0.1.0
+appVersion: "0.0.0"
+dependencies:
+  - name: module
+    version: 0.1.0
+    repository: "file://../module"

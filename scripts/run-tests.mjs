@@ -49,6 +49,7 @@ if (failures.length > 0) {
 }
 
 await run(process.execPath, ["--test", path.join(root, "scripts/commit-attribution.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/test-plan.test.mjs")]);
 
 const commands = [];
 for (const pkg of packages) {

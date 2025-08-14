@@ -181,7 +181,7 @@ Working assumptions on which this specification relies. Each one must be confirm
 
 A requirement is not considered "ready" until it has: (1) at least one source user story above, and (2) at least one UAT test case in `uat-test-cases.md`.
 
-**Source of truth**: the traceability data lives in one note per item under `items/` (`items/requirements/`, `items/user-stories/`, `items/uat/`, `items/personas/`), with properties (priority, scope, target release, links, UAT status). The editable matrix is [`traceability.base`](traceability.base) (Obsidian Bases) and the coverage checks are in [`traceability-dashboard.md`](traceability-dashboard.md) (Dataview). This document, `user-stories.md` and `uat-test-cases.md` are the readable narrative views, kept in sync with the item notes. The former `traceability-matrix.xlsx` is no longer maintained.
+**Source of truth**: the traceability data lives in one note per item under `items/` (`items/requirements/`, `items/user-stories/`, `items/uat/`, `items/personas/`), with properties (priority, scope, target release, links, UAT status). The editable matrix is [`traceability.base`](traceability.base) (Obsidian Bases) and the coverage checks are in [`traceability-dashboard.md`](traceability-dashboard.md) (Dataview). This document, `user-stories.md` and `uat-test-cases.md` are the readable narrative views, kept in sync with the item notes. The former `traceability-matrix.xlsx` is no longer maintained. The V1 test plan is [`../testing/v1-test-plan.md`](../testing/v1-test-plan.md): it points at `items/uat/` and does not copy the cases.
 
 # Open review points
 

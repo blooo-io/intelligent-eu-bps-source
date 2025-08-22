@@ -1,0 +1,18 @@
+# Demo follows a release tag. Sync stays manual until that tag exists.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo-trade-intake
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+    targetRevision: v0.0.0
+    path: deploy/charts/trade-intake
+    helm:
+      valueFiles:
+        - ../../envs/demo/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo-apps

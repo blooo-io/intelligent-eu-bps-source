@@ -1,0 +1,17 @@
+name: invoicing
+component: AC-06
+environment: dev
+dataNamespace: int-data
+replicaCount: 0
+image:
+  repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-invoicing
+  tag: "0.0.0"
+port: 8080
+egressModules: 
+  - settlement
+  - participants
+ingressFrom: 
+  - payments
+keycloakEgress: false
+stripeEgress: false
+namespaceIngress: false

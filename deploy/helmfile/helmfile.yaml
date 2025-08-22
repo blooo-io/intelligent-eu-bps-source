@@ -1,0 +1,107 @@
+environments:
+  dev:
+    values:
+      - ../envs/dev/values.yaml
+  demo:
+    values:
+      - ../envs/demo/values.yaml
+
+---
+releases:
+  - name: web
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/web
+    values:
+      - ../charts/web/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: participants
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/participants
+    values:
+      - ../charts/participants/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: trade-intake
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/trade-intake
+    values:
+      - ../charts/trade-intake/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: settlement
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/settlement
+    values:
+      - ../charts/settlement/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: invoicing
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/invoicing
+    values:
+      - ../charts/invoicing/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: payments
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/payments
+    values:
+      - ../charts/payments/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: reconciliation
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/reconciliation
+    values:
+      - ../charts/reconciliation/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: reporting
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/reporting
+    values:
+      - ../charts/reporting/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: publication
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/publication
+    values:
+      - ../charts/publication/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: notification
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/notification
+    values:
+      - ../charts/notification/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: compliance
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/compliance
+    values:
+      - ../charts/compliance/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: reference-data
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/reference-data
+    values:
+      - ../charts/reference-data/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: scheduler
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/scheduler
+    values:
+      - ../charts/scheduler/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
+  - name: mocks
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/mocks
+    values:
+      - ../charts/mocks/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml

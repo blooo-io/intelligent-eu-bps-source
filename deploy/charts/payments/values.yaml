@@ -1,0 +1,15 @@
+name: payments
+component: AC-07
+environment: dev
+dataNamespace: int-data
+replicaCount: 0
+image:
+  repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-payments
+  tag: "0.0.0"
+port: 8080
+egressModules: 
+  - invoicing
+ingressFrom: []
+keycloakEgress: false
+stripeEgress: true
+namespaceIngress: false

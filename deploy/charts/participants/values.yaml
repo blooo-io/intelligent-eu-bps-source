@@ -1,0 +1,17 @@
+name: participants
+component: AC-03
+environment: dev
+dataNamespace: int-data
+replicaCount: 0
+image:
+  repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-participants
+  tag: "0.0.0"
+port: 8080
+egressModules: []
+ingressFrom: 
+  - invoicing
+  - settlement
+  - trade-intake
+keycloakEgress: true
+stripeEgress: false
+namespaceIngress: false

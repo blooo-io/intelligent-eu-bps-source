@@ -81,6 +81,26 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # INT-135: lint every module chart against the shared module library.
+  charts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint module Helm charts
+        run: |
+          docker run --rm --entrypoint sh -v "$PWD:/work" -w /work alpine/helm:3.18.4 -c '
+            set -eu
+            for chart in deploy/charts/*; do
+              name=$(basename "$chart")
+              if [ "$name" = module ]; then
+                continue
+              fi
+              helm dependency build "$chart"
+              helm lint "$chart" -f deploy/envs/dev/values.yaml
+            done
+          '
+
+  # INT-99: Trivy on the filesystem and optional module image builds.
   supply-chain:
     runs-on: ubuntu-latest
     permissions:

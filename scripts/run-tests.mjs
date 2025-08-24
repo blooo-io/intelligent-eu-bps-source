@@ -51,6 +51,7 @@ if (failures.length > 0) {
 // Root script suites run before the early-exit when no module source exists yet.
 await run(process.execPath, ["--test", path.join(root, "scripts/commit-attribution.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/test-plan.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/deploy-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/module-images.test.mjs")]);
 
 const commands = [];

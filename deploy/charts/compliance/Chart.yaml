@@ -1,0 +1,10 @@
+apiVersion: v2
+name: compliance
+description: AC-12 compliance
+type: application
+version: 0.1.0
+appVersion: "0.0.0"
+dependencies:
+  - name: module
+    version: 0.1.0
+    repository: "file://../module"

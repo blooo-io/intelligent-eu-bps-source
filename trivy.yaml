@@ -1,0 +1,32 @@
+# Apache-2.0. Vulnerability and licence scan for dependencies and module images.
+# Licence names in documentation are not linked code, so the full text scan stays off.
+scan:
+  scanners:
+    - vuln
+    - license
+severity:
+  - UNKNOWN
+  - HIGH
+  - CRITICAL
+exit-code: 1
+license:
+  forbidden:
+    - AGPL-1.0
+    - AGPL-3.0
+    - GPL-1.0
+    - GPL-2.0
+    - GPL-2.0-only
+    - GPL-2.0-or-later
+    - GPL-3.0
+    - GPL-3.0-only
+    - GPL-3.0-or-later
+    - LGPL-2.0
+    - LGPL-2.1
+    - LGPL-2.1-only
+    - LGPL-2.1-or-later
+    - LGPL-3.0
+    - LGPL-3.0-only
+    - LGPL-3.0-or-later
+    - SSPL-1.0
+    - BUSL-1.1
+    - Elastic-2.0

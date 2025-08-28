@@ -1,0 +1,79 @@
+# INT-155 / TD-11 — one-shot Argo CD install on k8s-intelligent-eu-dev.
+# Uses environment `dev` secret KUBECONFIG_INTELLIGENT_EU_DEV (never commit it).
+# Routine CD after this is Argo pulling Git; do not re-run unless re-bootstrapping.
+name: argocd-bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.32.0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.18.4
+
+      - name: Configure cluster access
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_INTELLIGENT_EU_DEV }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KUBECONFIG_CONTENT}" ]; then
+            echo "Missing secret KUBECONFIG_INTELLIGENT_EU_DEV on environment dev" >&2
+            exit 1
+          fi
+          umask 077
+          mkdir -p "${HOME}/.kube"
+          # Write without echoing the contents into logs.
+          printf '%s\n' "${KUBECONFIG_CONTENT}" > "${HOME}/.kube/config"
+          echo "KUBECONFIG=${HOME}/.kube/config" >> "${GITHUB_ENV}"
+
+      - name: Verify context admin@k8s-intelligent-eu-dev
+        run: |
+          set -euo pipefail
+          ctx="$(kubectl config current-context)"
+          echo "current-context=${ctx}"
+          test "${ctx}" = "admin@k8s-intelligent-eu-dev"
+          kubectl get nodes -o wide
+
+      - name: Install or upgrade Argo CD
+        run: |
+          set -euo pipefail
+          helm repo add argo https://argoproj.github.io/argo-helm
+          helm repo update
+          helm upgrade --install argocd argo/argo-cd \
+            --namespace argocd \
+            --create-namespace \
+            --version 8.5.8 \
+            -f deploy/argocd/bootstrap/values.yaml \
+            --wait \
+            --timeout 15m
+
+      - name: Register Application manifests
+        run: |
+          set -euo pipefail
+          kubectl apply -f deploy/argocd/dev/
+          if [ -d deploy/argocd/platform ]; then
+            kubectl apply -f deploy/argocd/platform/
+          fi
+          kubectl -n argocd get applications.argoproj.io
+          kubectl -n argocd get pods
+
+      - name: Smoke — Argo server is Ready
+        run: |
+          set -euo pipefail
+          kubectl -n argocd rollout status deploy/argocd-server --timeout=5m
+          kubectl -n argocd get svc argocd-server

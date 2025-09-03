@@ -1,0 +1,43 @@
+export { loadModuleConfig, moduleConfigSchema } from "./config/module-config.js";
+export type { ModuleConfig } from "./config/module-config.js";
+
+export { redactPersonalData } from "./logging/redact.js";
+
+export { OutboxService } from "./outbox/outbox.service.js";
+export type { AppendOutboxInput } from "./outbox/outbox.service.js";
+export {
+  InMemoryOutboxStore,
+  type DomainEventEnvelope,
+  type OutboxRow,
+  type OutboxStore,
+} from "./outbox/outbox.types.js";
+
+export {
+  IdempotentConsumer,
+  InMemoryProcessedEventsStore,
+  type ConsumeResult,
+  type EventHandler,
+  type ProcessedEventsStore,
+} from "./consumer/idempotent-consumer.js";
+
+export {
+  ModuleAuthGuard,
+  assertCommunityScope,
+  assertHasRole,
+  type AuthGuardOptions,
+} from "./auth/auth.guard.js";
+export type { AuthClaims, AuthenticatedRequest } from "./auth/auth.types.js";
+
+export { HealthController, type HealthResponse } from "./health/health.controller.js";
+
+export { getMeter, getTracer, startModuleSpan } from "./telemetry/otel.js";
+
+export {
+  ModuleTemplateModule,
+  type ModuleTemplateOptions,
+} from "./module-template.module.js";
+export {
+  MODULE_NAME,
+  OUTBOX_STORE,
+  PROCESSED_EVENTS_STORE,
+} from "./module-template.tokens.js";

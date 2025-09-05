@@ -1,0 +1,23 @@
+# Per-environment — lands in int-data / demo-data (physical §3).
+name: debezium-server
+component: outbox-relay
+environment: dev
+# Stay at 0 until CNPG databases and OpenBao DB credentials exist.
+replicaCount: 0
+image:
+  repository: quay.io/debezium/server
+  tag: "2.7.3.Final"
+nats:
+  host: nats.nats.svc.cluster.local
+  port: 4222
+# Placeholder JDBC host; real DSN fragments come from ExternalSecret.
+postgres:
+  host: cnpg-rw
+  port: 5432
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

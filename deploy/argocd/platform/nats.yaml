@@ -1,0 +1,24 @@
+# Shared NATS JetStream (physical §3). Tracks develop; one install for int + demo accounts.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-nats
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+    targetRevision: develop
+    path: deploy/charts/nats
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nats
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

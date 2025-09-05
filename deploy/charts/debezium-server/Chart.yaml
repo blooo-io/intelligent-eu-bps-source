@@ -1,0 +1,6 @@
+apiVersion: v2
+name: debezium-server
+description: Debezium Server outbox CDC → NATS JetStream (TD-7 / INT-132)
+type: application
+version: 0.1.0
+appVersion: "2.7.3"

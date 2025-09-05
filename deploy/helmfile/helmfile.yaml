@@ -105,3 +105,13 @@ releases:
     values:
       - ../charts/mocks/values.yaml
       - ../envs/{{ .Environment.Name }}/values.yaml
+
+  # TD-7 / INT-132: outbox CDC relay into the environment data namespace.
+  # Shared NATS is Argo-only (deploy/argocd/platform/nats.yaml) so helmfile
+  # per-env apply does not install it twice.
+  - name: debezium-server
+    namespace: "{{ .Values.dataNamespace }}"
+    chart: ../charts/debezium-server
+    values:
+      - ../charts/debezium-server/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml

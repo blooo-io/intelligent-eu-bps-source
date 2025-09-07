@@ -1,0 +1,14 @@
+# Keep image build contexts small (INT-156 / TD-11).
+**/node_modules
+**/coverage
+**/dist
+.git
+.github
+docs
+brain
+**/*.md
+!deploy/docker/README.md
+**/*.spec.ts
+**/*.test.ts
+**/*.test.mjs
+**/vitest.config.ts

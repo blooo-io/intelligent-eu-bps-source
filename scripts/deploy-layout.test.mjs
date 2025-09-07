@@ -18,6 +18,8 @@ const modules = [
   "reference-data",
   "scheduler",
   "mocks",
+  // INT-156 factory CD smoke (proves GHCR image path before product modules).
+  "cd-smoke",
 ];
 
 test("each module has its own chart", async () => {

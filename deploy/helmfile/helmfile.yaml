@@ -115,3 +115,11 @@ releases:
     values:
       - ../charts/debezium-server/values.yaml
       - ../envs/{{ .Environment.Name }}/values.yaml
+
+  # Factory CD smoke image (INT-156 / TD-11). Not a product AC module.
+  - name: cd-smoke
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/cd-smoke
+    values:
+      - ../charts/cd-smoke/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml

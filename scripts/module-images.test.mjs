@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   dockerfileRunsAsNonRoot,
@@ -49,4 +50,26 @@ test("Trivy forbids the excluded licence families", async () => {
   for (const id of ["GPL-2.0", "GPL-3.0", "LGPL-3.0", "AGPL-3.0", "SSPL-1.0", "BUSL-1.1"]) {
     assert.match(text, new RegExp(`- ${id}`));
   }
+});
+
+// INT-156: image scan is vuln-only; OS GPL packages are not TP-2 app deps.
+test("image Trivy config scans vulnerabilities only", async () => {
+  const text = await readFile(new URL("../trivy-image.yaml", import.meta.url), "utf8");
+  assert.match(text, /scanners:\s*\n\s*- vuln/);
+  assert.equal(text.includes("- license"), false);
+});
+
+// INT-156: the factory CD smoke Dockerfile must be discoverable and non-root.
+test("cd-smoke Dockerfile is discovered and runs as non-root", async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const dockerfiles = await findDockerfiles(root);
+  assert.ok(
+    dockerfiles.includes("services/cd-smoke/Dockerfile"),
+    `expected services/cd-smoke/Dockerfile in ${JSON.stringify(dockerfiles)}`,
+  );
+  const source = await readFile(path.join(root, "services/cd-smoke/Dockerfile"), "utf8");
+  assert.equal(dockerfileRunsAsNonRoot(source), true);
+  assert.equal(imageSuffix("services/cd-smoke/Dockerfile"), "services-cd-smoke");
+  assert.match(source, /nodejs22-debian13:nonroot/);
+  assert.equal(source.includes("nodejs22-debian12"), false);
 });

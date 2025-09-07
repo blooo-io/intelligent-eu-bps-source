@@ -2,8 +2,9 @@
 
 One NestJS (TypeScript) service per logical block. Each service is generated from `packages/module-template`, has its own database, and talks to other modules only through internal APIs and events. See `AGENTS.md` §5 and `docs/architecture/03-application-architecture.md`.
 
-| Directory (to create) | Component | Responsibility |
+| Directory | Component | Responsibility |
 |---|---|---|
+| `cd-smoke/` | factory (INT-156) | Health-only CD smoke image to prove CI → GHCR → Helm before product modules |
 | `participants/` | AC-03 | Communities, registry, profiles, terms, readiness, Keycloak provisioning |
 | `trade-intake/` | AC-04 | Market queries (mocked GSY DEX in V1), attribution, completeness |
 | `settlement/` | AC-05 | Billing runs, pair settlement, netting, threshold, FX, VAT, ledger |

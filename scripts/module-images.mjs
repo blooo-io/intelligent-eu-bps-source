@@ -100,7 +100,7 @@ async function buildImages(root) {
       "ghcr.io/aquasecurity/trivy:0.75.0",
       "image",
       "--config",
-      "/work/trivy.yaml",
+      "/work/trivy-image.yaml",
       "--exit-code",
       "1",
       tag,

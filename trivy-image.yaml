@@ -1,0 +1,12 @@
+# Apache-2.0. Image scan for module containers (INT-156 / TD-11).
+# Vulnerability gate only: OS package *licences* (GPL coreutils, etc.) are not
+# application dependencies under TP-2. The licence gate for linked npm/code stays
+# on `trivy fs` via trivy.yaml.
+scan:
+  scanners:
+    - vuln
+severity:
+  - UNKNOWN
+  - HIGH
+  - CRITICAL
+exit-code: 1

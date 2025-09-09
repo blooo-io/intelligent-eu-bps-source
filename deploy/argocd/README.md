@@ -22,7 +22,7 @@ Never commit a kubeconfig. For CI bootstrap, store the file content in the GitHu
 ## Bootstrap via GitHub Actions (preferred when the secret is set)
 
 1. Open **Actions → argocd-bootstrap → Run workflow**.
-2. Select branch `cursor/int-155-argocd-bootstrap-1af3` (or `develop` once merged).
+2. Select branch `develop`.
 3. Run. The job uses environment `dev` + secret `KUBECONFIG_INTELLIGENT_EU_DEV`, installs Argo CD chart `8.5.8`, then `kubectl apply -f deploy/argocd/dev/`.
 
 Workflow file: `.github/workflows/argocd-bootstrap.yml` (workflow_dispatch only).
@@ -48,8 +48,7 @@ helm upgrade --install argocd argo/argo-cd \
 
 # 3. Register Application manifests that exist on this branch / develop
 kubectl apply -f deploy/argocd/dev/
-# After INT-132 merges:
-# kubectl apply -f deploy/argocd/platform/
+kubectl apply -f deploy/argocd/platform/
 
 # 4. Open the UI (temporary; public host comes with APISIX later)
 kubectl -n argocd get secret argocd-initial-admin-secret \

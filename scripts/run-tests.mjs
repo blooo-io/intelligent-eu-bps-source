@@ -55,6 +55,7 @@ await run(process.execPath, ["--test", path.join(root, "scripts/deploy-layout.te
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/argocd-bootstrap.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/module-images.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/local-stack.test.mjs")]);
 
 const commands = [];
 for (const pkg of packages) {

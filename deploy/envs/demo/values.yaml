@@ -2,5 +2,7 @@ environment: demo
 appsNamespace: demo-apps
 dataNamespace: demo-data
 replicaCount: 0
+mailpit:
+  enabled: true
 image:
   tag: "0.0.0"

@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.name }}
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: {{ .Values.component }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.name }}
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: {{ .Values.component }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ .Values.name }}
+  ports:
+    - name: smtp
+      port: {{ .Values.service.smtpPort }}
+      targetPort: smtp
+    - name: ui
+      port: {{ .Values.service.uiPort }}
+      targetPort: ui
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.name }}
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: {{ .Values.component }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.name }}
+        app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+        app.kubernetes.io/component: {{ .Values.component }}
+    spec:
+      serviceAccountName: {{ .Values.name }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mailpit
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --smtp
+            - "0.0.0.0:{{ .Values.service.smtpPort }}"
+            - --listen
+            - "0.0.0.0:{{ .Values.service.uiPort }}"
+          ports:
+            - name: smtp
+              containerPort: {{ .Values.service.smtpPort }}
+            - name: ui
+              containerPort: {{ .Values.service.uiPort }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

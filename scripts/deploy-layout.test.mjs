@@ -36,6 +36,20 @@ test("helmfile releases every module into the environment namespace", async () =
     assert.match(text, new RegExp(`- name: ${name}\\n`));
   }
   assert.match(text, /namespace: "\{\{ \.Values\.appsNamespace \}\}"/);
+  assert.match(text, /local:/);
+  assert.match(text, /- name: mailpit\n/);
+});
+
+test("mailpit chart is non-root and has no committed secret (TD-12)", async () => {
+  const chart = await readFile("deploy/charts/mailpit/Chart.yaml", "utf8");
+  assert.match(chart, /^name: mailpit$/m);
+  const template = await readFile(
+    "deploy/charts/mailpit/templates/resources.yaml",
+    "utf8",
+  );
+  assert.match(template, /runAsNonRoot: true/);
+  assert.match(template, /readOnlyRootFilesystem: true/);
+  assert.equal(/^\s*kind:\s*Secret\s*$/m.test(template), false);
 });
 
 test("dev applications track develop and land in int-apps", async () => {

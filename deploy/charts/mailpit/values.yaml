@@ -1,0 +1,16 @@
+name: mailpit
+component: mail-catcher
+replicaCount: 1
+image:
+  repository: axllent/mailpit
+  tag: "v1.22.3"
+service:
+  smtpPort: 1025
+  uiPort: 8025
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

@@ -1,4 +1,7 @@
 environments:
+  local:
+    values:
+      - ../envs/local/values.yaml
   dev:
     values:
       - ../envs/dev/values.yaml
@@ -8,6 +11,15 @@ environments:
 
 ---
 releases:
+  # Mail catcher for V1 (TD-12 / physical §4). Enabled on local; optional elsewhere via values.
+  - name: mailpit
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/mailpit
+    condition: mailpit.enabled
+    values:
+      - ../charts/mailpit/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
   - name: web
     namespace: "{{ .Values.appsNamespace }}"
     chart: ../charts/web

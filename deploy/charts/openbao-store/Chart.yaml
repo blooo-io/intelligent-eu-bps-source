@@ -1,0 +1,7 @@
+# INT-133 / TD-9 — ClusterSecretStore named `openbao` (referenced by module charts).
+apiVersion: v2
+name: openbao-store
+description: ClusterSecretStore packaging for External Secrets → OpenBao
+type: application
+version: 0.1.0
+appVersion: "1"

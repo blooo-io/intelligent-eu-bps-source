@@ -1,0 +1,12 @@
+# No secret values. Token for ESO → OpenBao lives in a live Secret created by the operator.
+storeName: openbao
+# In-cluster OpenBao Service (chart release name `openbao` in namespace `openbao`).
+server: http://openbao.openbao.svc.cluster.local:8200
+# KV v2 mount path enabled by the operator after init.
+path: secret
+version: v2
+auth:
+  # Operator creates: kubectl -n external-secrets create secret generic openbao-eso-token --from-literal=token=...
+  tokenSecretName: openbao-eso-token
+  tokenSecretNamespace: external-secrets
+  tokenSecretKey: token

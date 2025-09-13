@@ -1,0 +1,38 @@
+# cert-manager — official Jetstack chart (Apache-2.0).
+# Chart: jetstack/cert-manager v1.21.2 (INT-133 / TD-9 / NFR-001).
+# No secret values in this file.
+# ClusterIssuer for Let's Encrypt comes in a later change once DNS/APISIX exist.
+
+crds:
+  enabled: true
+  keep: true
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+webhook:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+cainjector:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi

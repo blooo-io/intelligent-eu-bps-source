@@ -1,0 +1,28 @@
+# INT-133 / TD-9 — ClusterSecretStore `openbao` (wave 2: needs ESO CRDs).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-openbao-store
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+    targetRevision: develop
+    path: deploy/charts/openbao-store
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    # Cluster-scoped resource; namespace is ignored for ClusterSecretStore.
+    namespace: external-secrets
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

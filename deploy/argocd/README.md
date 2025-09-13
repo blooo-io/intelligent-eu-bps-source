@@ -1,6 +1,6 @@
 # Argo CD applications (INT-155 / TD-11)
 
-Application manifests for `dev` (track `develop`), `demo` (manual sync), and shared `platform/`.
+Application manifests for `dev` (track `develop`), `demo` (manual sync), and shared `platform/` (NATS, ESO, cert-manager, OpenBao — INT-132 / INT-133).
 
 ## Operator prerequisite
 
@@ -23,7 +23,7 @@ Never commit a kubeconfig. For CI bootstrap, store the file content in the GitHu
 
 1. Open **Actions → argocd-bootstrap → Run workflow**.
 2. Select branch `develop`.
-3. Run. The job uses environment `dev` + secret `KUBECONFIG_INTELLIGENT_EU_DEV`, installs Argo CD chart `8.5.8`, then `kubectl apply -f deploy/argocd/dev/`.
+3. Run. The job uses environment `dev` + secret `KUBECONFIG_INTELLIGENT_EU_DEV`, installs Argo CD chart `8.5.8`, then `kubectl apply -f deploy/argocd/dev/` and `deploy/argocd/platform/`.
 
 Workflow file: `.github/workflows/argocd-bootstrap.yml` (workflow_dispatch only).
 
@@ -70,6 +70,7 @@ node scripts/argocd-bootstrap.mjs --print   # copy-paste operator steps
 - Merges to `develop` update Helm charts in Git.
 - Argo syncs Applications — no kubeconfig needed in CI for day-to-day deploys.
 - Module `replicaCount` stays `0` until that module's image exists (`deploy/envs/dev/values.yaml`).
+- Platform secrets (INT-133): after `platform-external-secrets` / `platform-openbao` sync, follow `deploy/platform/README.md` for OpenBao init and the live `openbao-eso-token` Secret (never in Git). Module apps need the ESO CRDs before they can sync `ExternalSecret` resources.
 
 ## Fallback until Argo is installed
 

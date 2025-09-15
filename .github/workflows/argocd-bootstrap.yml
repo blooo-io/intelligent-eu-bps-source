@@ -1,6 +1,8 @@
 # INT-155 / TD-11 — one-shot Argo CD install on k8s-intelligent-eu-dev.
-# Uses environment `dev` secret KUBECONFIG_INTELLIGENT_EU_DEV (never commit it).
-# Routine CD after this is Argo pulling Git; do not re-run unless re-bootstrapping.
+# Uses environment `dev` secrets:
+#   - KUBECONFIG_INTELLIGENT_EU_DEV (required)
+#   - ARGOCD_GITHUB_TOKEN (optional but needed for private-repo Application sync)
+# Never commit those values. Routine CD after this is Argo pulling Git.
 name: argocd-bootstrap
 
 on:
@@ -61,6 +63,17 @@ jobs:
             -f deploy/argocd/bootstrap/values.yaml \
             --wait \
             --timeout 15m
+
+      - name: Install Argo repository credentials (private GitHub)
+        env:
+          ARGOCD_GITHUB_TOKEN: ${{ secrets.ARGOCD_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ARGOCD_GITHUB_TOKEN}" ]; then
+            echo "ARGOCD_GITHUB_TOKEN not set on environment dev — skip (apps cannot clone a private repo)" >&2
+            exit 0
+          fi
+          node scripts/argocd-repo-credentials.mjs --apply
 
       - name: Register Application manifests
         run: |

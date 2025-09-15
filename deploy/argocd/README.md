@@ -17,7 +17,20 @@ kubectl config current-context
 # → admin@k8s-intelligent-eu-dev
 ```
 
-Never commit a kubeconfig. For CI bootstrap, store the file content in the GitHub Actions **environment `dev`** secret `KUBECONFIG_INTELLIGENT_EU_DEV`. Routine CD after Argo is up is Argo pulling Git — do not keep using the secret for every deploy.
+Never commit a kubeconfig. For CI bootstrap, store in the GitHub Actions **environment `dev`**:
+
+| Secret | Required | Role |
+|---|---|---|
+| `KUBECONFIG_INTELLIGENT_EU_DEV` | yes | cluster access for bootstrap only |
+| `ARGOCD_GITHUB_TOKEN` | yes for private repo | read-only PAT (`contents:read`) → Argo repository Secret `repo-intelligent-eu-billing-and-payment` |
+
+Routine CD after Argo is up is Argo pulling Git — do not keep using the kubeconfig secret for every deploy.
+
+```bash
+node scripts/argocd-repo-credentials.mjs --check   # CI
+node scripts/argocd-repo-credentials.mjs --print   # operator steps
+ARGOCD_GITHUB_TOKEN=… KUBECONFIG=… node scripts/argocd-repo-credentials.mjs --apply
+```
 
 ## Bootstrap via GitHub Actions (preferred when the secret is set)
 

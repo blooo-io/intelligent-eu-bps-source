@@ -62,7 +62,12 @@ helm upgrade --install argocd argo/argo-cd \\
   -f deploy/argocd/bootstrap/values.yaml \\
   --wait
 
+# Repository credentials (private GitHub) — token never committed
+node scripts/argocd-repo-credentials.mjs --print
+# ARGOCD_GITHUB_TOKEN=… KUBECONFIG=… node scripts/argocd-repo-credentials.mjs --apply
+
 kubectl apply -f deploy/argocd/dev/
+kubectl apply -f deploy/argocd/platform/
 
 kubectl -n argocd get secret argocd-initial-admin-secret \\
   -o jsonpath='{.data.password}' | base64 -d; echo

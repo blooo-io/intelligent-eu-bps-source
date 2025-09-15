@@ -20,6 +20,8 @@ test("printed operator steps use the documented context and chart pin", () => {
   assert.match(text, /argo\/argo-cd/);
   assert.match(text, /deploy\/argocd\/bootstrap\/values\.yaml/);
   assert.match(text, /kubectl apply -f deploy\/argocd\/dev\//);
+  assert.match(text, /kubectl apply -f deploy\/argocd\/platform\//);
+  assert.match(text, /argocd-repo-credentials/);
   assert.equal(text.includes("stringData:"), false);
 });
 

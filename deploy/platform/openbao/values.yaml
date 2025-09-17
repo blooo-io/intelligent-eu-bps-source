@@ -2,11 +2,10 @@
 # Chart: openbao/openbao 0.30.4 (app v2.7.1). Deployed unmodified (INT-133).
 # No unseal keys, root tokens or path secrets in Git.
 #
-# Operator after first sync (see deploy/platform/README.md):
-#   1. bao operator init (share unseal keys offline — physical §5)
-#   2. unseal; enable KV v2 at `secret/`
-#   3. configure auth for ESO; write token into Secret openbao-eso-token
-#      in namespace external-secrets (never commit that Secret)
+# V1 / virtual Stripe-test cluster (k8s-intelligent-eu-dev): single-share init
+# (no Shamir ceremony). After Argo syncs this chart:
+#   KUBECONFIG=… node scripts/openbao-dev-bootstrap.mjs --apply
+# Demo / stronger custody can switch later to multi-share offline keys (physical §5).
 
 global:
   enabled: true

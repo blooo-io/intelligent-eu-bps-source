@@ -41,17 +41,22 @@ Module and NATS/Debezium charts already declare `ExternalSecret` → `ClusterSec
 ### Operator steps after the Argo apps sync (not in Git)
 
 1. Confirm ESO CRDs: `kubectl get crd | grep external-secrets`.
-2. Init OpenBao once (share unseal keys offline — physical §5). Unseal on each restart until auto-unseal exists.
-3. Enable KV v2 at mount `secret/`.
-4. Create a least-privilege token for ESO and store it **only** on the cluster:
+2. **V1 / `dev` (virtual Stripe-test):** single-share OpenBao init — no Shamir multi-person ceremony:
 
 ```bash
-kubectl -n external-secrets create secret generic openbao-eso-token \
-  --from-literal=token='…'   # never commit
+node scripts/openbao-dev-bootstrap.mjs --check
+node scripts/openbao-dev-bootstrap.mjs --print
+KUBECONFIG=… node scripts/openbao-dev-bootstrap.mjs --apply
 ```
 
-5. Write module paths under `secret/data/<env>/<module>` (Stripe test keys, webhook secret, …) — still never in Git.
-6. `ClusterIssuer` for Let's Encrypt (public hosts) lands when DNS + APISIX exist; cert-manager itself is enough for INT-133 packaging.
+   That runs `bao operator init -key-shares=1 -key-threshold=1`, stores the one unseal key + root token in cluster Secret `openbao/openbao-dev-bootstrap`, unseals, enables KV v2 at `secret/`, and writes `external-secrets/openbao-eso-token` for `ClusterSecretStore` `openbao`. Nothing of that goes into Git.
+
+   After an OpenBao pod restart, unseal again from that cluster Secret (see `--print`).
+
+   **Demo / stronger custody later:** multi-share offline keys per physical §5 — out of scope for V1 virtual `dev`.
+
+3. Write module paths under `secret/data/<env>/<module>` (Stripe test keys, webhook secret, …) — still never in Git.
+4. `ClusterIssuer` for Let's Encrypt (public hosts) lands when DNS + APISIX exist; cert-manager itself is enough for INT-133 packaging.
 
 Register or refresh platform Applications from Git (INT-155 bootstrap already applies `deploy/argocd/platform/`):
 

@@ -85,6 +85,8 @@ test("platform README documents operator init without embedding secrets (INT-133
   const text = await readFile("deploy/platform/README.md", "utf8");
   assert.match(text, /INT-133/);
   assert.match(text, /openbao-eso-token/);
+  assert.match(text, /key-shares=1/);
+  assert.match(text, /openbao-dev-bootstrap\.mjs/);
   assert.match(text, /kubectl apply -f deploy\/argocd\/platform\//);
   assert.match(text, /Do not `helm install`/);
 });

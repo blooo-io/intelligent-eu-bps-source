@@ -13,7 +13,7 @@ alwaysApply: false
 
   Both cloud environments are virtual mode with Stripe test only.
 - **Public hosts** (`*.intelligent-eu-bp.blooo.dev`): `app.<env>`, `api.<env>`, `auth`, `docs`, `ops`. Only `api.<env>/webhooks/payment-provider` is unauthenticated (Stripe signature verified).
-- **Delivery during development:** after each built version whose tests pass, deploy it to `k8s-intelligent-eu-dev`, environment `dev` only, with the operator's own kubeconfig passed through `KUBECONFIG`. Argo CD syncs from Git once it is installed. Until then, deploy the same Helm releases with that kubeconfig. Do not deploy a development build to `demo`.
+- **Delivery during development (INT-157):** after each built version whose tests pass, deploy it to `k8s-intelligent-eu-dev`, environment `dev` only, **through GitOps**. Argo CD syncs from Git. Do not mutate the cluster ad hoc (`helm install`, live Secret/OpenBao writes, one-off patches). `kubectl` is for read-only investigation, or for applying manifests/scripts that already exist on a merged branch. Do not deploy a development build to `demo`.
 - **First deployment:** check whether `deploy/charts/`, `deploy/helmfile/`, `deploy/envs/` and the Argo CD application definitions exist. Create what is missing from the architecture (TD-11, physical architecture, module map) on INT-135 and its own branch.
 - Never copy a kubeconfig or secret values into Git.
 - **Secrets:** ExternalSecret resources pointing to OpenBao paths `<env>/<module>/…`. No Kubernetes Secret manifest with values in Git.

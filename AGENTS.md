@@ -45,11 +45,16 @@ This file tells an agent **what to read, in which order, and which rules are non
     - never renumber IDs; deprecate instead;
     - if the code reveals a gap in the spec, propose the spec change in the PR description and do not silently diverge.
 11. **Diagrams:** Mermaid. Flowchart, state, ER and class diagrams start with `%% elk %%`.
+12. **GitOps only on the cluster (INT-157).** Do **not** mutate `k8s-intelligent-eu-dev` ad hoc.
+    - **Allowed without a merge:** read-only investigation (`kubectl get|describe|logs`, status checks).
+    - **Required for any change:** package in Git (Helm / Argo Application / operator script) → Jira `INT-xxx` → PR → CI → merge → Argo CD sync, or apply **only** manifests/scripts that already exist on the merged branch (documented operator path).
+    - **Forbidden live:** `helm install/upgrade` of charts not driven by Argo, creating/patching Secrets or OpenBao state, one-off CR patches, seeding KV paths, or any “just fix it on the cluster” shortcut.
+    - If something is missing for the cluster to become healthy, **stop**, state the gap in the PR/Jira comment, and ship the packaging first.
 
 ## 4. Typical task flow
 `INT-xxx` (Jira; create the issue first if none exists) → branch `<type>/INT-xxx-short-description` from `develop` (`feature`, `fix`, `docs`, `test`, `refactor`, `ci` or `chore`, matching the commit type) → contract → Prism mock → generated types/clients → implementation → unit tests + UAT scenario (mocks + Stripe test) → PR (template) → CI green, including every test script and 80% statements, branches, functions and lines per module → review → merge → Argo CD deploys to `dev`.
 
-After a version is built and its tests pass, deploy it to the cluster `k8s-intelligent-eu-dev`, environment `dev`. Pass the operator kubeconfig through `KUBECONFIG` and keep it outside the repository. Before the first deployment, create any missing Helm charts, helmfile or Argo CD definitions on INT-135 and its own branch.
+After a version is built and its tests pass, deploy it to the cluster `k8s-intelligent-eu-dev`, environment `dev`, **via GitOps** (Argo pulling `develop`). Pass the operator kubeconfig through `KUBECONFIG` only for investigation or for documented apply of already-merged packaging; keep it outside the repository. Before the first deployment, create any missing Helm charts, helmfile or Argo CD definitions on INT-135 and its own branch.
 
 ## 5. Module map (directory → component → logical block)
 | Directory | Component | Block |

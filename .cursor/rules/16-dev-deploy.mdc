@@ -5,9 +5,12 @@ alwaysApply: true
 
 # Deploy during development
 
-After a version is built and its tests pass, deploy it to the Scaleway cluster `k8s-intelligent-eu-dev`.
+After a version is built and its tests pass, deploy it to the Scaleway cluster `k8s-intelligent-eu-dev` **via GitOps** (INT-157).
 
+- **GitOps only.** Agents must not mutate the cluster ad hoc. Package the change in Git, open an `INT-xxx` PR, merge, then let Argo sync (or run a documented operator script / `kubectl apply -f` of manifests that already exist on the merged branch).
+- **Investigation only:** `kubectl get|describe|logs` (and equivalent reads) are allowed to diagnose. No live `helm install`, Secret/OpenBao writes, CR patches, or KV seeding outside Git.
 - Access: the operator's own kubeconfig for that cluster, passed through `KUBECONFIG`. It stays outside the repository and is never committed.
 - Target the `dev` environment. Do not deploy a development build to `demo`.
 - Before the first deployment, check whether `deploy/` already holds the Helm charts, the helmfile and the Argo CD application definitions. If any is missing, create it from the architecture views (`docs/architecture/04-technical-architecture.md` TD-11, `05-physical-architecture.md`), the module map in `AGENTS.md` and `.cursor/rules/60-deploy.mdc`, on INT-135 and its own branch.
 - Do not commit secret values.
+- If the cluster cannot become healthy without a missing piece, stop and ship that packaging on its Jira issue — do not “fix it live”.

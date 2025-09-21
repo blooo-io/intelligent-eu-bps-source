@@ -55,7 +55,14 @@ KUBECONFIG=… node scripts/openbao-dev-bootstrap.mjs --apply
 
    **Demo / stronger custody later:** multi-share offline keys per physical §5 — out of scope for V1 virtual `dev`.
 
-3. Write module paths under `secret/data/<env>/<module>` (Stripe test keys, webhook secret, …) — still never in Git.
+3. Seed KV placeholders so ExternalSecrets can sync (V1 only — field `seeded=true`, no real secrets). Run only from a **merged** branch (INT-157):
+
+```bash
+KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
+```
+
+   Replace those paths later with Stripe test keys / webhook secret under `secret/data/<env>/<module>` — still never in Git.
+
 4. `ClusterIssuer` for Let's Encrypt (public hosts) lands when DNS + APISIX exist; cert-manager itself is enough for INT-133 packaging.
 
 Register or refresh platform Applications from Git (INT-155 bootstrap already applies `deploy/argocd/platform/`):

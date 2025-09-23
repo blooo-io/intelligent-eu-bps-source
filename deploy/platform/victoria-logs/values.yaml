@@ -1,0 +1,21 @@
+# VictoriaLogs single — official chart (Apache-2.0).
+# Chart: vm/victoria-logs-single 0.13.10 (INT-134 / TD-10).
+# No secret values in this file.
+
+fullnameOverride: platform-victoria-logs
+
+server:
+  enabled: true
+  replicaCount: 1
+  # Retention in months when unit omitted (chart default semantics).
+  retentionPeriod: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  persistentVolume:
+    enabled: true
+    size: 10Gi

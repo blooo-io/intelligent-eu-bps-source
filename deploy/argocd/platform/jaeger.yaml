@@ -1,0 +1,30 @@
+# INT-134 / TD-10 — Jaeger traces (sync wave 1; in-memory storage for V1 / virtual dev).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-jaeger
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  sources:
+    - repoURL: https://jaegertracing.github.io/helm-charts
+      chart: jaeger
+      targetRevision: 4.16.1
+      helm:
+        valueFiles:
+          - $values/deploy/platform/jaeger/values.yaml
+    - repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+      targetRevision: develop
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

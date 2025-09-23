@@ -1,4 +1,4 @@
-# Platform packaging (TD-7 / TD-9)
+# Platform packaging (TD-7 / TD-9 / TD-10)
 
 Application modules stay under `deploy/charts/<ac-module>/`. Shared platform pieces live here and under dedicated charts.
 
@@ -64,6 +64,26 @@ KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
    Replace those paths later with Stripe test keys / webhook secret under `secret/data/<env>/<module>` — still never in Git.
 
 4. `ClusterIssuer` for Let's Encrypt (public hosts) lands when DNS + APISIX exist; cert-manager itself is enough for INT-133 packaging.
+
+## Observability (TD-10 / INT-134)
+
+100 % Apache-2.0 stack. **Grafana is not packaged** (AGPL — TD-10). Namespace: `observability` (physical § namespaces).
+
+| Piece | Upstream chart (pinned) | Argo Application | Sync wave |
+|---|---|---|---|
+| Prometheus + kube-prometheus | `kube-prometheus-stack` **92.10.0** | `platform-kube-prometheus` | 0 |
+| Jaeger (traces) | `jaeger` **4.16.1** | `platform-jaeger` | 1 |
+| VictoriaLogs (logs) | `victoria-logs-single` **0.13.10** | `platform-victoria-logs` | 1 |
+| OpenTelemetry Collector | `opentelemetry-collector` **0.176.0** | `platform-otel-collector` | 2 |
+| Perses (dashboards) | `perses` **0.23.3** | `platform-perses` | 2 |
+
+Values files:
+
+- `deploy/platform/kube-prometheus/values.yaml` — `grafana.enabled: false`
+- `deploy/platform/jaeger/values.yaml` — in-memory storage for V1 / virtual `dev`
+- `deploy/platform/victoria-logs/values.yaml`
+- `deploy/platform/otel-collector/values.yaml` — OTLP in; traces→Jaeger, logs→VictoriaLogs, metrics scrape endpoint; attributes redaction (NFR-015)
+- `deploy/platform/perses/values.yaml` — ClusterIP; UI via port-forward until APISIX + Keycloak
 
 Register or refresh platform Applications from Git (INT-155 bootstrap already applies `deploy/argocd/platform/`):
 

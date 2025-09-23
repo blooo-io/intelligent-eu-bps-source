@@ -1,0 +1,54 @@
+# kube-prometheus-stack — official chart (Apache-2.0).
+# Chart: prometheus-community/kube-prometheus-stack 92.10.0 (INT-134 / TD-10).
+# Grafana is AGPL and must stay disabled (TD-10). Alertmanager is Apache-2.0 (physical § monitoring).
+# No secret values in this file.
+
+fullnameOverride: kube-prometheus
+
+crds:
+  enabled: true
+
+grafana:
+  enabled: false
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+prometheus:
+  prometheusSpec:
+    replicas: 1
+    retention: 7d
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 2Gi
+    # Modules scrape via ServiceMonitor labels once workloads exist.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true

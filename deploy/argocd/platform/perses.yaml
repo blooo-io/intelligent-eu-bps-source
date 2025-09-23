@@ -1,0 +1,30 @@
+# INT-134 / TD-10 — Perses dashboards (sync wave 2; Apache-2.0 — not Grafana).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-perses
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  sources:
+    - repoURL: https://perses.github.io/helm-charts
+      chart: perses
+      targetRevision: 0.23.3
+      helm:
+        valueFiles:
+          - $values/deploy/platform/perses/values.yaml
+    - repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+      targetRevision: develop
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

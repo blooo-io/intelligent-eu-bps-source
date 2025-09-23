@@ -1,0 +1,21 @@
+# Perses — official chart (Apache-2.0). Dashboards only; Grafana is excluded (TD-10).
+# Chart: perses/perses 0.23.3 (INT-134 / TD-10).
+# Operators reach the UI via port-forward until APISIX + Keycloak route ops hosts.
+# No secret values in this file.
+
+fullnameOverride: platform-perses
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+serviceMonitor:
+  selfMonitor: false

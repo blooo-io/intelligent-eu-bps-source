@@ -1,0 +1,31 @@
+# INT-134 / TD-10 — Prometheus + kube-prometheus (sync wave 0: CRDs first).
+# Grafana subchart stays disabled (AGPL — excluded by TD-10).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-kube-prometheus
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 92.10.0
+      helm:
+        valueFiles:
+          - $values/deploy/platform/kube-prometheus/values.yaml
+    - repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+      targetRevision: develop
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

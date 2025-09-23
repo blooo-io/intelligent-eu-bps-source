@@ -1,0 +1,30 @@
+# INT-134 / TD-10 — OpenTelemetry Collector (sync wave 2: after backends).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-otel-collector
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  sources:
+    - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+      chart: opentelemetry-collector
+      targetRevision: 0.176.0
+      helm:
+        valueFiles:
+          - $values/deploy/platform/otel-collector/values.yaml
+    - repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+      targetRevision: develop
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

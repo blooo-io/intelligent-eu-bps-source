@@ -1,0 +1,81 @@
+# OpenTelemetry Collector — official chart (Apache-2.0).
+# Chart: open-telemetry/opentelemetry-collector 0.176.0 (INT-134 / TD-10).
+# Deployment mode for V1 / virtual dev. Traces → Jaeger (OTLP); logs → VictoriaLogs;
+# metrics scraped by Prometheus. Redaction processor patterns for NFR-015.
+# No secret values in this file.
+
+mode: deployment
+
+replicaCount: 1
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+ports:
+  otlp:
+    enabled: true
+  otlp-http:
+    enabled: true
+  metrics:
+    enabled: true
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: ${env:MY_POD_IP}:4317
+        http:
+          endpoint: ${env:MY_POD_IP}:4318
+  processors:
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    batch: {}
+    # NFR-015 / REQ-030 — drop obvious personal-data patterns; keep identifiers only.
+    attributes/redact:
+      actions:
+        - key: email
+          action: delete
+        - key: enduser.id
+          action: delete
+  exporters:
+    # In-cluster Jaeger All-in-One OTLP (release name from Argo Application).
+    otlp/jaeger:
+      endpoint: platform-jaeger.observability.svc.cluster.local:4317
+      tls:
+        insecure: true
+    # VictoriaLogs Elasticsearch-compatible ingest.
+    elasticsearch/victorialogs:
+      endpoints:
+        - http://platform-victoria-logs-server.observability.svc.cluster.local:9428/insert/elasticsearch/
+      logs_index: logs-intelligent
+      sending_queue:
+        enabled: true
+    prometheus:
+      endpoint: ${env:MY_POD_IP}:8889
+  service:
+    extensions:
+      - health_check
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, attributes/redact, batch]
+        exporters: [otlp/jaeger]
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [prometheus]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, attributes/redact, batch]
+        exporters: [elasticsearch/victorialogs]

@@ -1,0 +1,7 @@
+# INT-158 / TD-6 — CNPG Cluster for int-data (one DB + user per module).
+apiVersion: v2
+name: cnpg-int-data
+description: CloudNativePG Cluster and managed databases for int-data
+type: application
+version: 0.1.0
+appVersion: "1"

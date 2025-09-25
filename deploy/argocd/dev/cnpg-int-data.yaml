@@ -1,0 +1,27 @@
+# INT-158 / TD-6 — CNPG Cluster for int-data (wave 1: after operator CRDs).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-cnpg-int-data
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+    targetRevision: develop
+    path: deploy/charts/cnpg-int-data
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: int-data
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

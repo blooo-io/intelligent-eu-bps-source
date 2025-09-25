@@ -1,0 +1,51 @@
+{{- /*
+  INT-158 / TD-6 — CNPG Cluster for int-data.
+  Managed roles get auto-generated Secrets (no passwords in Git).
+  Database CRs create one database owned by each role.
+*/ -}}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.clusterName }}
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: database
+spec:
+  instances: {{ .Values.instances }}
+  imageName: {{ .Values.imageName | quote }}
+  storage:
+    size: {{ .Values.storage.size | quote }}
+  postgresql:
+    parameters:
+      wal_level: {{ .Values.postgresql.parameters.wal_level | quote }}
+      max_replication_slots: {{ .Values.postgresql.parameters.max_replication_slots | quote }}
+      max_wal_senders: {{ .Values.postgresql.parameters.max_wal_senders | quote }}
+  enableSuperuserAccess: false
+  managed:
+    roles:
+{{- range .Values.databases }}
+      - name: {{ .name }}
+        ensure: present
+        login: true
+        comment: "Module {{ .module }} (INT-158 / TD-6)"
+{{- end }}
+---
+{{- range .Values.databases }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ .name | replace "_" "-" }}
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: database
+    intelligent.eu/module: {{ .module | quote }}
+spec:
+  name: {{ .name }}
+  owner: {{ .name }}
+  ensure: present
+  cluster:
+    name: {{ $.Values.clusterName }}
+---
+{{- end }}

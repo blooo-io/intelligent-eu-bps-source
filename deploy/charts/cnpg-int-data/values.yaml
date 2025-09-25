@@ -1,0 +1,47 @@
+# INT-158 / TD-6 — V1 / virtual dev cluster in int-data.
+# One database and one login role per NestJS module (physical §3, TD-6).
+# SQL identifiers use underscores (PostgreSQL). Chart names with hyphens map here.
+# CNPG generates role passwords into Kubernetes Secrets — never commit them.
+# Backups to Scaleway Object Storage (PD-4) land when the bucket + OpenBao path exist.
+
+clusterName: int-data
+instances: 1
+storage:
+  size: 20Gi
+imageName: ghcr.io/cloudnative-pg/postgresql:16.6
+
+# Logical decoding for Debezium Server CDC (INT-132) once replicas are raised.
+postgresql:
+  parameters:
+    wal_level: logical
+    max_replication_slots: "16"
+    max_wal_senders: "16"
+
+# name = PostgreSQL database + role; module = deploy chart / service directory.
+databases:
+  - name: participants
+    module: participants
+  - name: trade_intake
+    module: trade-intake
+  - name: settlement
+    module: settlement
+  - name: invoicing
+    module: invoicing
+  - name: payments
+    module: payments
+  - name: reconciliation
+    module: reconciliation
+  - name: reporting
+    module: reporting
+  - name: publication
+    module: publication
+  - name: notification
+    module: notification
+  - name: compliance
+    module: compliance
+  - name: reference_data
+    module: reference-data
+  - name: scheduler
+    module: scheduler
+  - name: mocks
+    module: mocks

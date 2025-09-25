@@ -1,6 +1,15 @@
-# Platform packaging (TD-7 / TD-9 / TD-10)
+# Platform packaging (TD-6 / TD-7 / TD-9 / TD-10)
 
 Application modules stay under `deploy/charts/<ac-module>/`. Shared platform pieces live here and under dedicated charts.
+
+## Databases (TD-6 / INT-158)
+
+| Piece | Upstream / chart (pinned) | Namespace | Argo Application | Sync wave |
+|---|---|---|---|---|
+| CloudNativePG operator | `cloudnative-pg` **0.29.1** (Apache-2.0) | `cnpg-system` | `platform-cloudnative-pg` | 0 |
+| `int-data` Cluster + DBs | local `deploy/charts/cnpg-int-data` | `int-data` | `dev-cnpg-int-data` | 1 |
+
+Values: `deploy/platform/cloudnative-pg/values.yaml`. One PostgreSQL database and login role per NestJS module (`trade_intake`, `reference_data`, …). CNPG writes role passwords to cluster Secrets — never in Git. Object Storage backups (PD-4) wait on Scaleway bucket + OpenBao path. `demo-data` Application stays manual (`deploy/argocd/demo/cnpg-demo-data.yaml`).
 
 ## Event transport (TD-7 / INT-132)
 
@@ -15,7 +24,7 @@ Argo applications:
 - `deploy/argocd/dev/debezium-server.yaml` → `int-data`
 - `deploy/argocd/demo/debezium-server.yaml` → `demo-data` (manual)
 
-`replicaCount` for Debezium stays **0** until CloudNativePG databases and OpenBao credentials exist (INT-133). Consumers remain idempotent via the NestJS module template (INT-98).
+`replicaCount` for Debezium stays **0** until CloudNativePG databases (INT-158) and OpenBao credentials exist (INT-133). Consumers remain idempotent via the NestJS module template (INT-98).
 
 NACK operator (full CRD lifecycle) can replace the StatefulSet later without changing the NATS service DNS `nats.nats.svc.cluster.local:4222` expected by module NetworkPolicies.
 

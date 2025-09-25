@@ -1,0 +1,19 @@
+# CloudNativePG operator — official chart (Apache-2.0).
+# Chart: cnpg/cloudnative-pg 0.29.1 (INT-158 / TD-6).
+# No secret values in this file.
+
+crds:
+  create: true
+
+replicaCount: 1
+
+config:
+  clusterWide: true
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

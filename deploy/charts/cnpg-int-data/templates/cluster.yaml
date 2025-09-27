@@ -1,8 +1,51 @@
 {{- /*
   INT-158 / TD-6 — CNPG Cluster for int-data.
-  Managed roles get auto-generated Secrets (no passwords in Git).
+  Role passwords: ESO Password generator → kubernetes.io/basic-auth Secret
+  (refreshInterval 0 = create once). Never store DB passwords in Git.
   Database CRs create one database owned by each role.
 */ -}}
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: Password
+metadata:
+  name: {{ .Values.clusterName }}-db-password
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+spec:
+  length: 32
+  digits: true
+  symbols: false
+  noUpper: false
+  allowRepeat: true
+---
+{{- range .Values.databases }}
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .name | replace "_" "-" }}-db
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    intelligent.eu/module: {{ .module | quote }}
+spec:
+  refreshInterval: "0"
+  target:
+    name: {{ .name }}
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      engineVersion: v2
+      data:
+        username: {{ .name | quote }}
+        password: "{{ `{{ .password }}` }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: Password
+          name: {{ $.Values.clusterName }}-db-password
+---
+{{- end }}
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -29,6 +72,8 @@ spec:
         ensure: present
         login: true
         comment: "Module {{ .module }} (INT-158 / TD-6)"
+        passwordSecret:
+          name: {{ .name }}
 {{- end }}
 ---
 {{- range .Values.databases }}

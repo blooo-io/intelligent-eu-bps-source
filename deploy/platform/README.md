@@ -9,7 +9,7 @@ Application modules stay under `deploy/charts/<ac-module>/`. Shared platform pie
 | CloudNativePG operator | `cloudnative-pg` **0.29.1** (Apache-2.0) | `cnpg-system` | `platform-cloudnative-pg` | 0 |
 | `int-data` Cluster + DBs | local `deploy/charts/cnpg-int-data` | `int-data` | `dev-cnpg-int-data` | 1 |
 
-Values: `deploy/platform/cloudnative-pg/values.yaml`. One PostgreSQL database and login role per NestJS module (`trade_intake`, `reference_data`, …). CNPG writes role passwords to cluster Secrets — never in Git. Object Storage backups (PD-4) wait on Scaleway bucket + OpenBao path. `demo-data` Application stays manual (`deploy/argocd/demo/cnpg-demo-data.yaml`).
+Values: `deploy/platform/cloudnative-pg/values.yaml`. One PostgreSQL database and login role per NestJS module (`trade_intake`, `reference_data`, …). Role passwords are created once by the ESO Password generator into `kubernetes.io/basic-auth` Secrets (referenced by `passwordSecret`) — never in Git. Object Storage backups (PD-4) wait on Scaleway bucket + OpenBao path. `demo-data` Application stays manual (`deploy/argocd/demo/cnpg-demo-data.yaml`).
 
 ## Event transport (TD-7 / INT-132)
 

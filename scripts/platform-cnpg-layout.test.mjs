@@ -34,6 +34,10 @@ test("int-data Cluster chart has one DB per module and no secrets", async () => 
   );
   assert.match(template, /kind: Cluster/);
   assert.match(template, /kind: Database/);
+  assert.match(template, /kind: Password/);
+  assert.match(template, /kind: ExternalSecret/);
+  assert.match(template, /passwordSecret:/);
+  assert.match(template, /refreshInterval: "0"/);
   assert.match(template, /managed:\s*\n\s*roles:/);
   assert.match(template, /ensure: present/);
   assert.equal(/^\s*kind:\s*Secret\s*$/m.test(template), false);

@@ -1,0 +1,7 @@
+# INT-160 — ExternalSecret for Keycloak bootstrap admin (from OpenBao).
+apiVersion: v2
+name: keycloak-admin-secret
+description: ExternalSecret packaging for Keycloak admin bootstrap password
+type: application
+version: 0.1.0
+appVersion: "1"

@@ -1,0 +1,4 @@
+# Path under OpenBao KV mount `secret/` (no values here).
+storeName: openbao
+secretName: keycloak-admin
+openbaoPath: platform/keycloak

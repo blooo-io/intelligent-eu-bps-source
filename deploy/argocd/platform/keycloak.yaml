@@ -1,0 +1,31 @@
+# INT-160 — Keycloak IdP (wave 2: after its CNPG database).
+# Official quay.io/keycloak image via codecentric/keycloakx (Apache-2.0).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-keycloak
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  sources:
+    - repoURL: https://codecentric.github.io/helm-charts
+      chart: keycloakx
+      targetRevision: 7.4.0
+      helm:
+        valueFiles:
+          - $values/deploy/platform/keycloak/values.yaml
+    - repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+      targetRevision: develop
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keycloak
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

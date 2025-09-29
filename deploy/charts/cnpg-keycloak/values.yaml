@@ -1,0 +1,9 @@
+# INT-160 — Keycloak database on CNPG (Apache-2.0). No passwords in Git.
+clusterName: keycloak
+instances: 1
+storage:
+  size: 10Gi
+imageName: ghcr.io/cloudnative-pg/postgresql:16.6
+database:
+  name: keycloak
+  owner: keycloak

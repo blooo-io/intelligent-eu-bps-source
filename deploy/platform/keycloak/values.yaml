@@ -1,0 +1,53 @@
+# Keycloak.X — codecentric/keycloakx 7.4.0, image quay.io/keycloak/keycloak (Apache-2.0).
+# INT-160. Admin bootstrap and DB password come from Kubernetes Secrets
+# (CNPG-managed role secret + ExternalSecret for admin) — never from Git.
+
+replicas: 1
+
+image:
+  repository: quay.io/keycloak/keycloak
+  tag: "26.8.1"
+
+# Start only after CNPG role Secret `keycloak` exists in this namespace.
+database:
+  vendor: postgres
+  hostname: keycloak-rw.keycloak.svc.cluster.local
+  port: 5432
+  database: keycloak
+  username: keycloak
+  existingSecret: keycloak
+  existingSecretKey: password
+
+# Bootstrap admin via Secret created by ExternalSecret (OpenBao path platform/keycloak).
+extraEnv: |
+  - name: KC_BOOTSTRAP_ADMIN_USERNAME
+    value: admin
+  - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: keycloak-admin
+        key: password
+  - name: KC_HOSTNAME_STRICT
+    value: "false"
+  - name: KC_HTTP_ENABLED
+    value: "true"
+
+http:
+  relativePath: "/"
+
+proxy:
+  enabled: true
+  mode: forwarded
+  http:
+    enabled: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# Realms `int` / `demo` are created by the operator after first boot (or a later
+# realm-import change). Hostname auth.intelligent-eu-bp.blooo.dev waits on APISIX (INT-114).

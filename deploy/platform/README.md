@@ -1,4 +1,4 @@
-# Platform packaging (TD-6 / TD-7 / TD-9 / TD-10)
+# Platform packaging (TD-6 / TD-7 / TD-9 / TD-10 / IdP)
 
 Application modules stay under `deploy/charts/<ac-module>/`. Shared platform pieces live here and under dedicated charts.
 
@@ -10,6 +10,16 @@ Application modules stay under `deploy/charts/<ac-module>/`. Shared platform pie
 | `int-data` Cluster + DBs | local `deploy/charts/cnpg-int-data` | `int-data` | `dev-cnpg-int-data` | 1 |
 
 Values: `deploy/platform/cloudnative-pg/values.yaml`. One PostgreSQL database and login role per NestJS module (`trade_intake`, `reference_data`, …). Role passwords are created once by the ESO Password generator into `kubernetes.io/basic-auth` Secrets (referenced by `passwordSecret`) — never in Git. Object Storage backups (PD-4) wait on Scaleway bucket + OpenBao path. `demo-data` Application stays manual (`deploy/argocd/demo/cnpg-demo-data.yaml`).
+
+## Identity (INT-160)
+
+| Piece | Upstream / chart (pinned) | Namespace | Argo Application | Sync wave |
+|---|---|---|---|---|
+| Keycloak DB (CNPG) | local `deploy/charts/cnpg-keycloak` | `keycloak` | `platform-cnpg-keycloak` | 1 |
+| Keycloak admin ExternalSecret | local `deploy/charts/keycloak-admin-secret` | `keycloak` | `platform-keycloak-admin-secret` | 2 |
+| Keycloak.X | `keycloakx` **7.4.0** (`quay.io/keycloak/keycloak`) | `keycloak` | `platform-keycloak` | 2 |
+
+Values: `deploy/platform/keycloak/values.yaml`. DB password comes from the CNPG-managed Secret `keycloak`. Admin bootstrap password comes from OpenBao path `platform/keycloak` (seed placeholder `password=dev-only-replace-me`). Realms `int` / `demo` and public host `auth.intelligent-eu-bp.blooo.dev` land with APISIX (INT-114). Depends on CNPG operator (INT-158).
 
 ## Event transport (TD-7 / INT-132)
 

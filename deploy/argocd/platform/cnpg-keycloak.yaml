@@ -1,0 +1,27 @@
+# INT-160 — CNPG Cluster for Keycloak DB (wave 1: after CNPG operator).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-cnpg-keycloak
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+    targetRevision: develop
+    path: deploy/charts/cnpg-keycloak
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keycloak
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

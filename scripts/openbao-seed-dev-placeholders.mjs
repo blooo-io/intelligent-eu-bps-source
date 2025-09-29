@@ -21,7 +21,7 @@ const NS = "openbao";
 const POD = "platform-openbao-0";
 const BOOTSTRAP_SECRET = "openbao-dev-bootstrap";
 
-/** Paths referenced by ExternalSecret extract keys (module template + nats + debezium). */
+/** Paths referenced by ExternalSecret extract keys (module template + nats + debezium + IdP). */
 export const DEV_PLACEHOLDER_PATHS = [
   "dev/web",
   "dev/participants",
@@ -40,7 +40,14 @@ export const DEV_PLACEHOLDER_PATHS = [
   "dev/cd-smoke",
   "dev/debezium-server",
   "platform/nats/accounts",
+  // INT-160 — Keycloak bootstrap admin (property `password`; V1 placeholder only).
+  "platform/keycloak",
 ];
+
+/** Extra kv pairs per path (default is seeded=true only). Never real Stripe/live secrets. */
+export const DEV_PLACEHOLDER_FIELDS = {
+  "platform/keycloak": ["password=dev-only-replace-me", "seeded=true"],
+};
 
 function kubectl(args) {
   const result = spawnSync("kubectl", args, {
@@ -80,7 +87,14 @@ export async function checkSeedLayout(repoRoot = root) {
     throw new Error("deploy/platform/README.md must reference openbao-seed-dev-placeholders.mjs");
   }
   const charts = await readdir(path.join(repoRoot, "deploy/charts"));
-  for (const name of ["web", "payments", "nats", "debezium-server", "cd-smoke"]) {
+  for (const name of [
+    "web",
+    "payments",
+    "nats",
+    "debezium-server",
+    "cd-smoke",
+    "keycloak-admin-secret",
+  ]) {
     if (!charts.includes(name)) {
       throw new Error(`expected chart ${name}`);
     }
@@ -89,14 +103,15 @@ export async function checkSeedLayout(repoRoot = root) {
 }
 
 export function printSeedSteps() {
-  return `# INT-133 — seed V1 OpenBao KV placeholders (no real secrets)
+  return `# INT-133 / INT-160 — seed V1 OpenBao KV placeholders (no real secrets)
 # Requires prior: node scripts/openbao-dev-bootstrap.mjs --apply
 # Run only after this script is on the merged branch (INT-157).
 
 KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
 
 # Writes keyed paths used by ExternalSecret extract (e.g. secret/data/dev/web)
-# with field seeded=true only. Replace with Stripe test keys later.
+# with field seeded=true (plus platform/keycloak password=dev-only-replace-me).
+# Replace with Stripe test keys / a real Keycloak admin password later.
 `;
 }
 
@@ -107,7 +122,8 @@ export function applySeedPlaceholders() {
   const token = rootToken();
   const written = [];
   for (const kvPath of DEV_PLACEHOLDER_PATHS) {
-    bao(token, ["kv", "put", "-mount=secret", kvPath, "seeded=true"]);
+    const fields = DEV_PLACEHOLDER_FIELDS[kvPath] ?? ["seeded=true"];
+    bao(token, ["kv", "put", "-mount=secret", kvPath, ...fields]);
     written.push(kvPath);
   }
   return { written: written.length, mount: "secret" };

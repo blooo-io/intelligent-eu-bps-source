@@ -25,7 +25,7 @@
   - title `INT-123 <summary>`;
   - use the PR template;
   - request the `blooo-io/github-admin` team as reviewer;
-  - squash-merge into `develop`.
+  - squash-merge into `develop`. Coding agents squash-merge their own mergeable PRs when CI is green and they are not blocked (see `.cursor/rules/18-pull-request-merge.mdc`, INT-162).
 
 ## Definition of Done
 - [ ] Contract (OpenAPI / AsyncAPI) created or updated first, lint green, no unannounced breaking change

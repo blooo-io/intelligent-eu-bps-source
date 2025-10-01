@@ -52,7 +52,7 @@ This file tells an agent **what to read, in which order, and which rules are non
     - If something is missing for the cluster to become healthy, **stop**, state the gap in the PR/Jira comment, and ship the packaging first.
 
 ## 4. Typical task flow
-`INT-xxx` (Jira; create the issue first if none exists) → branch `<type>/INT-xxx-short-description` from `develop` (`feature`, `fix`, `docs`, `test`, `refactor`, `ci` or `chore`, matching the commit type) → contract → Prism mock → generated types/clients → implementation → unit tests + UAT scenario (mocks + Stripe test) → PR (template) → CI green, including every test script and 80% statements, branches, functions and lines per module → review → merge → Argo CD deploys to `dev`.
+`INT-xxx` (Jira; create the issue first if none exists) → branch `<type>/INT-xxx-short-description` from `develop` (`feature`, `fix`, `docs`, `test`, `refactor`, `ci` or `chore`, matching the commit type) → contract → Prism mock → generated types/clients → implementation → unit tests + UAT scenario (mocks + Stripe test) → PR (template) → request `blooo-io/github-admin` → CI green, including every test script and 80% statements, branches, functions and lines per module → **agent squash-merges** when mergeable and not blocked (INT-162) → Argo CD deploys to `dev`.
 
 After a version is built and its tests pass, deploy it to the cluster `k8s-intelligent-eu-dev`, environment `dev`, **via GitOps** (Argo pulling `develop`). Pass the operator kubeconfig through `KUBECONFIG` only for investigation or for documented apply of already-merged packaging; keep it outside the repository. Before the first deployment, create any missing Helm charts, helmfile or Argo CD definitions on INT-135 and its own branch.
 

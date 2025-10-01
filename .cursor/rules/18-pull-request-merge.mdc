@@ -1,0 +1,34 @@
+---
+description: Agents squash-merge their own mergeable pull requests when not blocked
+alwaysApply: true
+---
+
+# Pull request merge (agents)
+
+When a pull request **you opened** (or that belongs to the current agent run’s branch) is ready, **squash-merge it yourself**. Do not wait for a human to press Merge unless you are blocked.
+
+## Ready means all of
+
+1. Required CI checks on the head commit are green (SUCCESS).
+2. GitHub reports the PR as mergeable / clean (no conflicts with the base branch).
+3. The PR title and body still match the Jira key and the change.
+4. You have requested `blooo-io/github-admin` as reviewer (INT-152). Missing review **request** is not a merge block; a failing required review status from branch protection is a block.
+
+## Merge how
+
+- If the PR is still a **draft** only because the agent defaulted to draft, mark it ready for review once CI is green, then squash-merge.
+- Prefer **squash-merge** into the preferred base (`develop` unless the ticket says otherwise), matching CONTRIBUTING.
+- After merge: delete the head branch if the remote allows it, refresh local `develop`, then continue GitOps (Argo sync / documented apply of merged manifests only — INT-157).
+- If merge fails for conflicts: rebase onto the base branch, resolve, push, wait for CI, then merge.
+
+## Do not merge when blocked
+
+- Any required check is failing, pending, or cancelled.
+- Merge conflicts, or `mergeable` is false / `BLOCKED` / `DIRTY` (fix via rebase first; that is not a permanent stop).
+- Branch protection requires an approving review you cannot satisfy.
+- An explicit human hold (label or comment asking not to merge, or a draft kept on purpose after CI is green).
+- The PR is not yours / not part of this run’s work (do not merge unrelated open PRs such as Dependabot unless the ticket says so).
+
+## Order
+
+When several of your PRs are ready and depend on each other, merge in dependency order (e.g. foundation fix before consumers), not newest-first.

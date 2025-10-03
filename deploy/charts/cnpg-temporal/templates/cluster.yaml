@@ -1,0 +1,79 @@
+{{- /*
+  INT-159 / TD-3 — Temporal DBs. Role password via ESO Password generator (create once).
+*/ -}}
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: Password
+metadata:
+  name: {{ .Values.clusterName }}-db-password
+  labels:
+    app.kubernetes.io/name: cnpg-temporal
+spec:
+  length: 32
+  digits: true
+  symbols: false
+  allowRepeat: true
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .Values.owner }}-db
+  labels:
+    app.kubernetes.io/name: cnpg-temporal
+spec:
+  refreshInterval: "0"
+  target:
+    name: {{ .Values.owner }}
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      engineVersion: v2
+      data:
+        username: {{ .Values.owner | quote }}
+        password: "{{ `{{ .password }}` }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: Password
+          name: {{ .Values.clusterName }}-db-password
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.clusterName }}
+  labels:
+    app.kubernetes.io/name: cnpg-temporal
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: workflow-database
+spec:
+  instances: {{ .Values.instances }}
+  imageName: {{ .Values.imageName | quote }}
+  storage:
+    size: {{ .Values.storage.size | quote }}
+  enableSuperuserAccess: false
+  managed:
+    roles:
+      - name: {{ .Values.owner }}
+        ensure: present
+        login: true
+        comment: "Temporal server databases owner (INT-159 / TD-3)"
+        passwordSecret:
+          name: {{ .Values.owner }}
+---
+{{- range .Values.databases }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ . | replace "_" "-" }}
+  labels:
+    app.kubernetes.io/name: cnpg-temporal
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: workflow-database
+spec:
+  name: {{ . }}
+  owner: {{ $.Values.owner }}
+  ensure: present
+  cluster:
+    name: {{ $.Values.clusterName }}
+---
+{{- end }}

@@ -1,0 +1,10 @@
+# INT-159 — Temporal databases on CNPG. No passwords in Git.
+clusterName: temporal
+instances: 1
+storage:
+  size: 20Gi
+imageName: ghcr.io/cloudnative-pg/postgresql:16.6
+owner: temporal
+databases:
+  - temporal
+  - temporal_visibility

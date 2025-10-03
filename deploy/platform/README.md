@@ -1,6 +1,15 @@
-# Platform packaging (TD-6 / TD-7 / TD-9 / TD-10 / IdP)
+# Platform packaging (TD-3 / TD-6 / TD-7 / TD-9 / TD-10 / IdP)
 
 Application modules stay under `deploy/charts/<ac-module>/`. Shared platform pieces live here and under dedicated charts.
+
+## Workflows (TD-3 / INT-159)
+
+| Piece | Upstream / chart (pinned) | Namespace | Argo Application | Sync wave |
+|---|---|---|---|---|
+| Temporal DB (CNPG) | local `deploy/charts/cnpg-temporal` | `temporal` | `platform-cnpg-temporal` | 1 |
+| Temporal server + UI | `temporal` **1.7.0** (MIT) | `temporal` | `platform-temporal` | 2 |
+
+Values: `deploy/platform/temporal/values.yaml`. SQL on CNPG (`temporal` + `temporal_visibility`); role password via ESO Password generator → Secret `temporal` (`refreshInterval: "0"`, create once). `numHistoryShards: 1` for V1 / virtual `dev` (immutable after init). Temporal namespaces `int` / `demo` are registered after first boot. Depends on CNPG operator (INT-158).
 
 ## Databases (TD-6 / INT-158)
 

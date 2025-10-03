@@ -1,0 +1,7 @@
+# INT-159 / TD-3 — CNPG Cluster for Temporal (physical §3 namespace temporal).
+apiVersion: v2
+name: cnpg-temporal
+description: CloudNativePG Cluster for Temporal default and visibility databases
+type: application
+version: 0.1.0
+appVersion: "1"

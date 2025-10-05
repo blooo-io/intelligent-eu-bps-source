@@ -1,0 +1,32 @@
+# INT-161 / TD-8 — Apache APISIX + Ingress Controller (wave 3: after admin Secret).
+# Official apisix/apisix Helm chart (Apache-2.0). Namespace `ingress` (physical §3).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-apisix
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  sources:
+    - repoURL: https://charts.apiseven.com
+      chart: apisix
+      targetRevision: 2.12.4
+      helm:
+        releaseName: platform-apisix
+        valueFiles:
+          - $values/deploy/platform/apisix/values.yaml
+    - repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+      targetRevision: develop
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

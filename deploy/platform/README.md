@@ -1,4 +1,4 @@
-# Platform packaging (TD-3 / TD-6 / TD-7 / TD-9 / TD-10 / IdP)
+# Platform packaging (TD-3 / TD-6 / TD-7 / TD-8 / TD-9 / TD-10 / IdP)
 
 Application modules stay under `deploy/charts/<ac-module>/`. Shared platform pieces live here and under dedicated charts.
 
@@ -10,6 +10,15 @@ Application modules stay under `deploy/charts/<ac-module>/`. Shared platform pie
 | Temporal server + UI | `temporal` **1.7.0** (MIT) | `temporal` | `platform-temporal` | 2 |
 
 Values: `deploy/platform/temporal/values.yaml`. SQL on CNPG (`temporal` + `temporal_visibility`); role password via ESO Password generator → Secret `temporal` (`refreshInterval: "0"`, create once). `numHistoryShards: 1` for V1 / virtual `dev` (immutable after init). Temporal namespaces `int` / `demo` are registered after first boot. Depends on CNPG operator (INT-158).
+
+## API gateway (TD-8 / INT-161)
+
+| Piece | Upstream / chart (pinned) | Namespace | Argo Application | Sync wave |
+|---|---|---|---|---|
+| APISIX Admin ExternalSecret | local `deploy/charts/apisix-admin-secret` | `ingress` | `platform-apisix-admin-secret` | 2 |
+| Apache APISIX + Ingress Controller | `apisix` **2.12.4** (Apache-2.0) | `ingress` | `platform-apisix` | 3 |
+
+Values: `deploy/platform/apisix/values.yaml`. Admin API keys from OpenBao path `platform/apisix` (seed placeholders `admin` / `viewer`). Built-in etcd is **V1 / virtual `dev` only** (`replicaCount: 1`). Gateway Service is LoadBalancer; public DNS (`api.<env>.intelligent-eu-bp.blooo.dev`), OIDC routes and the Stripe webhook path land on INT-114. Depends on ESO + OpenBao store (INT-133).
 
 ## Databases (TD-6 / INT-158)
 
@@ -112,6 +121,7 @@ Values files:
 - `deploy/platform/victoria-logs/values.yaml`
 - `deploy/platform/otel-collector/values.yaml` — OTLP in; traces→Jaeger, logs→VictoriaLogs, metrics scrape endpoint; attributes redaction (NFR-015)
 - `deploy/platform/perses/values.yaml` — ClusterIP; UI via port-forward until APISIX + Keycloak
+- `deploy/platform/apisix/values.yaml` — LoadBalancer; Admin keys via ExternalSecret; Ingress Class `apisix`
 
 Register or refresh platform Applications from Git (INT-155 bootstrap already applies `deploy/argocd/platform/`):
 

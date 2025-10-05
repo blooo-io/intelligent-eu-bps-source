@@ -11,13 +11,14 @@ import {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-test("dev placeholder paths cover modules, debezium, nats and keycloak (INT-133 / INT-160)", () => {
+test("dev placeholder paths cover modules, debezium, nats, keycloak and apisix (INT-133 / INT-160 / INT-161)", () => {
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("dev/web"));
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("dev/payments"));
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("dev/cd-smoke"));
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("dev/debezium-server"));
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("platform/nats/accounts"));
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("platform/keycloak"));
+  assert.ok(DEV_PLACEHOLDER_PATHS.includes("platform/apisix"));
   assert.equal(
     DEV_PLACEHOLDER_PATHS.some((p) => /sk_live|sk_test|whsec_/.test(p)),
     false,

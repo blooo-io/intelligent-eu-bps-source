@@ -21,7 +21,7 @@ const NS = "openbao";
 const POD = "platform-openbao-0";
 const BOOTSTRAP_SECRET = "openbao-dev-bootstrap";
 
-/** Paths referenced by ExternalSecret extract keys (module template + nats + debezium + IdP). */
+/** Paths referenced by ExternalSecret extract keys (module template + nats + debezium + IdP + gateway). */
 export const DEV_PLACEHOLDER_PATHS = [
   "dev/web",
   "dev/participants",
@@ -42,11 +42,18 @@ export const DEV_PLACEHOLDER_PATHS = [
   "platform/nats/accounts",
   // INT-160 — Keycloak bootstrap admin (property `password`; V1 placeholder only).
   "platform/keycloak",
+  // INT-161 — APISIX Admin API keys (properties `admin` / `viewer`; V1 placeholders only).
+  "platform/apisix",
 ];
 
 /** Extra kv pairs per path (default is seeded=true only). Never real Stripe/live secrets. */
 export const DEV_PLACEHOLDER_FIELDS = {
   "platform/keycloak": ["password=dev-only-replace-me", "seeded=true"],
+  "platform/apisix": [
+    "admin=dev-only-replace-me",
+    "viewer=dev-only-replace-me",
+    "seeded=true",
+  ],
 };
 
 function kubectl(args) {
@@ -94,6 +101,7 @@ export async function checkSeedLayout(repoRoot = root) {
     "debezium-server",
     "cd-smoke",
     "keycloak-admin-secret",
+    "apisix-admin-secret",
   ]) {
     if (!charts.includes(name)) {
       throw new Error(`expected chart ${name}`);
@@ -103,15 +111,15 @@ export async function checkSeedLayout(repoRoot = root) {
 }
 
 export function printSeedSteps() {
-  return `# INT-133 / INT-160 — seed V1 OpenBao KV placeholders (no real secrets)
+  return `# INT-133 / INT-160 / INT-161 — seed V1 OpenBao KV placeholders (no real secrets)
 # Requires prior: node scripts/openbao-dev-bootstrap.mjs --apply
 # Run only after this script is on the merged branch (INT-157).
 
 KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
 
 # Writes keyed paths used by ExternalSecret extract (e.g. secret/data/dev/web)
-# with field seeded=true (plus platform/keycloak password=dev-only-replace-me).
-# Replace with Stripe test keys / a real Keycloak admin password later.
+# with field seeded=true (plus platform/keycloak password and platform/apisix admin/viewer placeholders).
+# Replace with Stripe test keys / real Keycloak admin and APISIX Admin API keys later.
 `;
 }
 

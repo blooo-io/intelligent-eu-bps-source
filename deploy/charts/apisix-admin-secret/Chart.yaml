@@ -1,0 +1,7 @@
+# INT-161 / TD-8 — ExternalSecret for APISIX Admin API credentials (from OpenBao).
+apiVersion: v2
+name: apisix-admin-secret
+description: ExternalSecret packaging for APISIX admin and viewer API keys
+type: application
+version: 0.1.0
+appVersion: "1"

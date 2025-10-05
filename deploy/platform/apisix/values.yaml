@@ -1,0 +1,107 @@
+# Apache APISIX — official chart apisix/apisix 2.12.4 (Apache-2.0).
+# INT-161 / TD-8 / AC-02 packaging. Admin API keys from Secret `apisix-admin`
+# (ExternalSecret ← OpenBao path platform/apisix). No secret values in Git.
+# Built-in etcd is V1 / virtual-dev only (Bitnami chart Apache-2.0; replicaCount 1).
+# Public hosts and full route catalogue stay on INT-114.
+
+replicaCount: 1
+
+image:
+  repository: apache/apisix
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+service:
+  # Scaleway Kapsule LB for api.<env>.intelligent-eu-bp.blooo.dev (DNS later, INT-114).
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  http:
+    enabled: true
+    servicePort: 80
+    containerPort: 9080
+  tls:
+    servicePort: 443
+
+apisix:
+  # Default plugin set includes openid-connect (Keycloak JWKS — routes on INT-114).
+  plugins: []
+  ssl:
+    enabled: true
+    containerPort: 9443
+
+  admin:
+    enabled: true
+    enable_admin_ui: false
+    type: ClusterIP
+    # Cluster-internal only; allow pod / service CIDRs so the Ingress Controller can reach Admin API.
+    allow:
+      ipList:
+        - 10.0.0.0/8
+        - 100.64.0.0/10
+    credentials:
+      # Override chart defaults — keys come from ExternalSecret (INT-161).
+      admin: ""
+      viewer: ""
+      secretName: apisix-admin
+      secretAdminKey: admin
+      secretViewerKey: viewer
+
+etcd:
+  enabled: true
+  replicaCount: 1
+  persistence:
+    size: 8Gi
+  auth:
+    rbac:
+      create: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+# APISIX Ingress Controller (Apache-2.0) as chart subchart.
+ingress-controller:
+  enabled: true
+  deployment:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+  config:
+    kubernetes:
+      ingressClass: apisix
+      defaultIngressClass: true
+  gatewayProxy:
+    createDefault: true
+    provider:
+      type: ControlPlane
+      controlPlane:
+        service:
+          name: platform-apisix-admin
+          port: 9180
+        auth:
+          type: AdminKey
+          adminKey:
+            valueFrom:
+              secretKeyRef:
+                name: apisix-admin
+                key: admin
+  apisix:
+    adminService:
+      namespace: ingress
+      name: platform-apisix-admin
+      port: 9180

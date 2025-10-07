@@ -35,6 +35,11 @@ test("int-data Cluster chart has one DB per module and no secrets", async () => 
   assert.match(template, /kind: Cluster/);
   assert.match(template, /kind: Database/);
   assert.match(template, /kind: Password/);
+  // INT-163 — ESO Password CRD requires integer counts (not bool).
+  assert.match(template, /^\s*digits:\s*\d+\s*$/m);
+  assert.match(template, /^\s*symbols:\s*\d+\s*$/m);
+  assert.equal(/\bdigits:\s*(true|false)\b/.test(template), false);
+  assert.equal(/\bsymbols:\s*(true|false)\b/.test(template), false);
   assert.match(template, /kind: ExternalSecret/);
   assert.match(template, /passwordSecret:/);
   assert.match(template, /refreshInterval: "0"/);

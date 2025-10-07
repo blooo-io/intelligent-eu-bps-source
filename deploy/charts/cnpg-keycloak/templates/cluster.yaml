@@ -9,8 +9,9 @@ metadata:
     app.kubernetes.io/name: cnpg-keycloak
 spec:
   length: 32
-  digits: true
-  symbols: false
+  # ESO Password CRD expects integer counts, not booleans (INT-163).
+  digits: 5
+  symbols: 0
   allowRepeat: true
 ---
 apiVersion: external-secrets.io/v1

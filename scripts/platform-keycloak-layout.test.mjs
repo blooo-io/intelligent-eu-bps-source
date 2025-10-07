@@ -48,6 +48,11 @@ test("Keycloak values use official image and secret refs only", async () => {
     "utf8",
   );
   assert.match(db, /kind: Password/);
+  // INT-163 — ESO Password CRD requires integer counts (not bool).
+  assert.match(db, /^\s*digits:\s*\d+\s*$/m);
+  assert.match(db, /^\s*symbols:\s*\d+\s*$/m);
+  assert.equal(/\bdigits:\s*(true|false)\b/.test(db), false);
+  assert.equal(/\bsymbols:\s*(true|false)\b/.test(db), false);
   assert.match(db, /passwordSecret:/);
   assert.match(db, /refreshInterval: "0"/);
 });

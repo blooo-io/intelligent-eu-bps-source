@@ -13,8 +13,9 @@ metadata:
     app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
 spec:
   length: 32
-  digits: true
-  symbols: false
+  # ESO Password CRD expects integer counts, not booleans (INT-163).
+  digits: 5
+  symbols: 0
   noUpper: false
   allowRepeat: true
 ---

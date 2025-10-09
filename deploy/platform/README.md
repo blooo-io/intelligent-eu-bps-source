@@ -20,6 +20,15 @@ Values: `deploy/platform/temporal/values.yaml`. SQL on CNPG (`temporal` + `tempo
 
 Values: `deploy/platform/apisix/values.yaml`. Admin API keys from OpenBao path `platform/apisix` (seed placeholders `admin` / `viewer`). Built-in etcd is **V1 / virtual `dev` only** (`replicaCount: 1`). Gateway Service is LoadBalancer; public DNS (`api.<env>.intelligent-eu-bp.blooo.dev`), OIDC routes and the Stripe webhook path land on INT-114. Depends on ESO + OpenBao store (INT-133).
 
+## API gateway routes (TD-8 / INT-114)
+
+| Piece | Chart | Namespace | Argo Application | Sync wave |
+|---|---|---|---|---|
+| Let's Encrypt ClusterIssuer | local `deploy/charts/letsencrypt-issuer` | `cert-manager` | `platform-letsencrypt-issuer` | 3 |
+| Public ApisixRoutes + ExternalName backends | local `deploy/charts/apisix-gateway` | `ingress` | `dev-apisix-gateway` | 4 |
+
+Env hosts: `deploy/envs/<env>/apisix-gateway-values.yaml`. Webhook `POST /webhooks/payment-provider` is rate-limited and unauthenticated; `/v1/*` uses `openid-connect` (Keycloak realm per env). Depends on platform APISIX (INT-161) and Keycloak (INT-160). TLS Certificates wait until DNS points at the APISIX LoadBalancer.
+
 ## Databases (TD-6 / INT-158)
 
 | Piece | Upstream / chart (pinned) | Namespace | Argo Application | Sync wave |

@@ -1,0 +1,25 @@
+# INT-114 / TD-8 — public routes for env `demo` (manual sync).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo-apisix-gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+    targetRevision: REPLACE_WITH_RELEASE_TAG
+    path: deploy/charts/apisix-gateway
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../envs/demo/apisix-gateway-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,0 +1,221 @@
+{{- /*
+  INT-114 / TD-8 — ApisixRoute catalogue (03 §3.1 + physical §3).
+  OIDC bearer on /v1; webhook unauthenticated + rate-limited; auth → Keycloak; app → web.
+*/ -}}
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: payment-webhook
+  labels:
+    app.kubernetes.io/name: apisix-gateway
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+spec:
+  ingressClassName: {{ .Values.ingressClassName | quote }}
+  http:
+    - name: payment-provider-webhook
+      priority: 100
+      match:
+        hosts:
+          - {{ .Values.hosts.api | quote }}
+        paths:
+          - {{ .Values.webhook.path | quote }}
+        methods:
+          - POST
+      backends:
+        - serviceName: {{ .Values.webhook.backend }}
+          servicePort: 8080
+      plugins:
+        - name: limit-req
+          enable: true
+          config:
+            rate: {{ .Values.webhook.rate.rate }}
+            burst: {{ .Values.webhook.rate.burst }}
+            rejected_code: 429
+            key_type: var
+            key: remote_addr
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: public-api
+  labels:
+    app.kubernetes.io/name: apisix-gateway
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+spec:
+  ingressClassName: {{ .Values.ingressClassName | quote }}
+  http:
+    - name: participants
+      priority: 50
+      match:
+        hosts:
+          - {{ .Values.hosts.api | quote }}
+        paths:
+          - /v1/me
+          - /v1/me/*
+          - /v1/terms
+          - /v1/terms/*
+          - /v1/communities
+          - /v1/communities/*
+          - /v1/participants
+          - /v1/participants/*
+      backends:
+        - serviceName: participants
+          servicePort: 8080
+      plugins:
+{{ include "apisix-gateway.oidcPlugin" . | nindent 8 }}
+    - name: payments
+      priority: 60
+      match:
+        hosts:
+          - {{ .Values.hosts.api | quote }}
+        paths:
+          - /v1/me/payment-account
+          - /v1/me/payment-account/*
+          - /v1/invoices/*/payments
+          - /v1/invoices/*/payments/*
+      backends:
+        - serviceName: payments
+          servicePort: 8080
+      plugins:
+{{ include "apisix-gateway.oidcPlugin" . | nindent 8 }}
+    - name: settlement
+      priority: 60
+      match:
+        hosts:
+          - {{ .Values.hosts.api | quote }}
+        paths:
+          - /v1/me/balances
+          - /v1/me/balances/*
+          - /v1/early-settlements
+          - /v1/early-settlements/*
+          - /v1/billing-runs
+          - /v1/billing-runs/*
+      backends:
+        - serviceName: settlement
+          servicePort: 8080
+      plugins:
+{{ include "apisix-gateway.oidcPlugin" . | nindent 8 }}
+    - name: invoicing
+      priority: 60
+      match:
+        hosts:
+          - {{ .Values.hosts.api | quote }}
+        paths:
+          - /v1/me/invoices
+          - /v1/me/invoices/*
+          - /v1/invoices
+          - /v1/invoices/*
+      backends:
+        - serviceName: invoicing
+          servicePort: 8080
+      plugins:
+{{ include "apisix-gateway.oidcPlugin" . | nindent 8 }}
+    - name: reporting
+      priority: 50
+      match:
+        hosts:
+          - {{ .Values.hosts.api | quote }}
+        paths:
+          - /v1/reports
+          - /v1/reports/*
+          - /v1/kpi-exports
+          - /v1/kpi-exports/*
+      backends:
+        - serviceName: reporting
+          servicePort: 8080
+      plugins:
+{{ include "apisix-gateway.oidcPlugin" . | nindent 8 }}
+    - name: reconciliation
+      priority: 50
+      match:
+        hosts:
+          - {{ .Values.hosts.api | quote }}
+        paths:
+          - /v1/reconciliation
+          - /v1/reconciliation/*
+      backends:
+        - serviceName: reconciliation
+          servicePort: 8080
+      plugins:
+{{ include "apisix-gateway.oidcPlugin" . | nindent 8 }}
+    - name: trade-intake
+      priority: 50
+      match:
+        hosts:
+          - {{ .Values.hosts.api | quote }}
+        paths:
+          - /v1/intake
+          - /v1/intake/*
+      backends:
+        - serviceName: trade-intake
+          servicePort: 8080
+      plugins:
+{{ include "apisix-gateway.oidcPlugin" . | nindent 8 }}
+    - name: compliance
+      priority: 50
+      match:
+        hosts:
+          - {{ .Values.hosts.api | quote }}
+        paths:
+          - /v1/data-subject-requests
+          - /v1/data-subject-requests/*
+      backends:
+        - serviceName: compliance
+          servicePort: 8080
+      plugins:
+{{ include "apisix-gateway.oidcPlugin" . | nindent 8 }}
+    - name: scheduler
+      priority: 50
+      match:
+        hosts:
+          - {{ .Values.hosts.api | quote }}
+        paths:
+          - /v1/jobs
+          - /v1/jobs/*
+      backends:
+        - serviceName: scheduler
+          servicePort: 8080
+      plugins:
+{{ include "apisix-gateway.oidcPlugin" . | nindent 8 }}
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: auth-idp
+  labels:
+    app.kubernetes.io/name: apisix-gateway
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+spec:
+  ingressClassName: {{ .Values.ingressClassName | quote }}
+  http:
+    - name: keycloak
+      priority: 10
+      match:
+        hosts:
+          - {{ .Values.hosts.auth | quote }}
+        paths:
+          - /*
+      backends:
+        - serviceName: keycloak
+          servicePort: {{ .Values.backends.keycloak.port }}
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: web-app
+  labels:
+    app.kubernetes.io/name: apisix-gateway
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+spec:
+  ingressClassName: {{ .Values.ingressClassName | quote }}
+  http:
+    - name: web
+      priority: 10
+      match:
+        hosts:
+          - {{ .Values.hosts.app | quote }}
+        paths:
+          - /*
+      backends:
+        - serviceName: web
+          servicePort: 8080

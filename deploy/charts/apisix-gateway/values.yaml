@@ -1,0 +1,57 @@
+# INT-114 / TD-8 — route catalogue values (no secrets).
+# Hosts from physical architecture §3. Backends are ExternalName → module Services.
+ingressClassName: apisix
+environment: dev
+
+hosts:
+  api: api.dev.intelligent-eu-bp.blooo.dev
+  auth: auth.intelligent-eu-bp.blooo.dev
+  app: app.dev.intelligent-eu-bp.blooo.dev
+
+# Keycloak realm used by openid-connect (created by operator after INT-160 boot).
+oidc:
+  realm: int
+  # Discovery URL once auth host + realm exist.
+  discoveryHost: auth.intelligent-eu-bp.blooo.dev
+  bearerOnly: true
+  # Public client id for the gateway (realm client; not a secret for bearer_only).
+  clientId: apisix-gateway
+
+backends:
+  appsNamespace: int-apps
+  keycloak:
+    externalName: platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
+    port: 80
+  modules:
+    - name: participants
+      port: 8080
+    - name: payments
+      port: 8080
+    - name: settlement
+      port: 8080
+    - name: invoicing
+      port: 8080
+    - name: reporting
+      port: 8080
+    - name: reconciliation
+      port: 8080
+    - name: trade-intake
+      port: 8080
+    - name: compliance
+      port: 8080
+    - name: scheduler
+      port: 8080
+    - name: web
+      port: 8080
+
+webhook:
+  # POST /webhooks/payment-provider — only unauthenticated public route (NFR-015).
+  path: /webhooks/payment-provider
+  backend: payments
+  rate:
+    rate: 20
+    burst: 40
+
+tls:
+  # Certificates wait on DNS → LoadBalancer (operator). ClusterIssuer is packaged separately.
+  enabled: false

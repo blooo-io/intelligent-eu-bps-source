@@ -1,0 +1,7 @@
+# INT-114 / TD-8 — Public hosts, ApisixRoutes and ExternalName backends (AC-02).
+apiVersion: v2
+name: apisix-gateway
+description: APISIX routes and backends for public API, webhooks, IdP and web app
+type: application
+version: 0.1.0
+appVersion: "1"

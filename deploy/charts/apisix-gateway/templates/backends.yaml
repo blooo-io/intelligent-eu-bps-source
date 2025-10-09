@@ -1,0 +1,40 @@
+{{- /*
+  INT-114 — ExternalName Services in `ingress` so ApisixRoute backends stay
+  same-namespace (IC v2 does not cross namespaces on serviceName).
+*/ -}}
+{{- range .Values.backends.modules }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}
+  labels:
+    app.kubernetes.io/name: apisix-gateway
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: gateway-backend
+    intelligent.eu/module: {{ .name | quote }}
+spec:
+  type: ExternalName
+  externalName: {{ .name }}.{{ $.Values.backends.appsNamespace }}.svc.cluster.local
+  ports:
+    - name: http
+      port: {{ .port }}
+      targetPort: {{ .port }}
+      protocol: TCP
+---
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  labels:
+    app.kubernetes.io/name: apisix-gateway
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: gateway-backend
+spec:
+  type: ExternalName
+  externalName: {{ .Values.backends.keycloak.externalName | quote }}
+  ports:
+    - name: http
+      port: {{ .Values.backends.keycloak.port }}
+      targetPort: {{ .Values.backends.keycloak.port }}
+      protocol: TCP

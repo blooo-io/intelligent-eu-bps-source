@@ -59,6 +59,7 @@ await run(process.execPath, ["--test", path.join(root, "scripts/platform-cnpg-la
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-keycloak-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-temporal-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-apisix-layout.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/platform-apisix-gateway-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/argocd-bootstrap.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/argocd-repo-credentials.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/openbao-dev-bootstrap.test.mjs")]);

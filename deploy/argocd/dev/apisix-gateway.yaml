@@ -1,0 +1,28 @@
+# INT-114 / TD-8 — public routes for env `dev` (wave 4: after platform-apisix).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-apisix-gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+    targetRevision: develop
+    path: deploy/charts/apisix-gateway
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../envs/dev/apisix-gateway-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

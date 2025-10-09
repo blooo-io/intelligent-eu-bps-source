@@ -1,0 +1,13 @@
+# INT-114 — dev hosts (virtual Stripe-test).
+environment: dev
+hosts:
+  api: api.dev.intelligent-eu-bp.blooo.dev
+  auth: auth.intelligent-eu-bp.blooo.dev
+  app: app.dev.intelligent-eu-bp.blooo.dev
+oidc:
+  realm: int
+  discoveryHost: auth.intelligent-eu-bp.blooo.dev
+  bearerOnly: true
+  clientId: apisix-gateway
+backends:
+  appsNamespace: int-apps

@@ -1,0 +1,13 @@
+# INT-114 — demo hosts (manual Argo sync).
+environment: demo
+hosts:
+  api: api.demo.intelligent-eu-bp.blooo.dev
+  auth: auth.intelligent-eu-bp.blooo.dev
+  app: app.demo.intelligent-eu-bp.blooo.dev
+oidc:
+  realm: demo
+  discoveryHost: auth.intelligent-eu-bp.blooo.dev
+  bearerOnly: true
+  clientId: apisix-gateway
+backends:
+  appsNamespace: demo-apps

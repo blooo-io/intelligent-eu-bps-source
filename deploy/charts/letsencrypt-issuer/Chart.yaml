@@ -1,0 +1,7 @@
+# INT-114 / TD-9 — Let's Encrypt ClusterIssuer (HTTP-01 via APISIX IngressClass).
+apiVersion: v2
+name: letsencrypt-issuer
+description: cert-manager ClusterIssuer for public hosts (staging + prod)
+type: application
+version: 0.1.0
+appVersion: "1"

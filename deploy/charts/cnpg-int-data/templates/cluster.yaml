@@ -20,10 +20,11 @@ spec:
   allowRepeat: true
 ---
 {{- range .Values.databases }}
+{{- $secretName := .name | replace "_" "-" }}
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
-  name: {{ .name | replace "_" "-" }}-db
+  name: {{ $secretName }}-db
   labels:
     app.kubernetes.io/name: cnpg-int-data
     app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
@@ -31,7 +32,8 @@ metadata:
 spec:
   refreshInterval: "0"
   target:
-    name: {{ .name }}
+    # INT-164 — Secret name must be DNS-1123; PostgreSQL role stays underscored.
+    name: {{ $secretName }}
     creationPolicy: Owner
     template:
       type: kubernetes.io/basic-auth
@@ -74,7 +76,7 @@ spec:
         login: true
         comment: "Module {{ .module }} (INT-158 / TD-6)"
         passwordSecret:
-          name: {{ .name }}
+          name: {{ .name | replace "_" "-" }}
 {{- end }}
 ---
 {{- range .Values.databases }}

@@ -43,6 +43,10 @@ test("int-data Cluster chart has one DB per module and no secrets", async () => 
   assert.match(template, /kind: ExternalSecret/);
   assert.match(template, /passwordSecret:/);
   assert.match(template, /refreshInterval: "0"/);
+  // INT-164 — Secret names are DNS-1123 (kebab-case); role usernames may keep underscores.
+  assert.match(template, /\$secretName := \.name \| replace "_" "-"/);
+  assert.equal(/target:\s*\n\s*name:\s*\{\{\s*\.name\s*\}\}/.test(template), false);
+  assert.match(template, /username: \{\{ \.name \| quote \}\}/);
   assert.match(template, /managed:\s*\n\s*roles:/);
   assert.match(template, /ensure: present/);
   assert.equal(/^\s*kind:\s*Secret\s*$/m.test(template), false);

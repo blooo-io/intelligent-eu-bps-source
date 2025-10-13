@@ -31,6 +31,10 @@ test("Keycloak values use official image and secret refs only", async () => {
   assert.match(values, /repository: quay\.io\/keycloak\/keycloak/);
   assert.match(values, /existingSecret: keycloak/);
   assert.match(values, /name: keycloak-admin/);
+  assert.match(values, /proxy:\s*\n\s*enabled:\s*true/);
+  assert.match(values, /http:\s*\n\s*enabled:\s*true/);
+  // INT-165 — chart proxy.http.enabled already sets KC_HTTP_ENABLED; do not duplicate in extraEnv.
+  assert.equal(/\bname:\s*KC_HTTP_ENABLED\b/.test(values), false);
   assert.equal(values.includes("stringData:"), false);
   assert.equal(/\bpassword:\s*['\"]?\w+/.test(values), false);
   assert.equal(/bitnami/i.test(values), false);

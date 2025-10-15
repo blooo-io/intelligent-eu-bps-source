@@ -58,6 +58,10 @@ etcd:
   replicaCount: 1
   persistence:
     size: 8Gi
+  # INT-166 — pre-upgrade hook mounts the JWT Secret before it exists on first
+  # install (Argo PreSync). Disable for V1 single-replica virtual-dev etcd.
+  preUpgradeJob:
+    enabled: false
   auth:
     rbac:
       create: false

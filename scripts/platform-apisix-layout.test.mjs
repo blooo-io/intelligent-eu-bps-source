@@ -32,6 +32,8 @@ test("APISIX values use secret refs and enable Ingress Controller", async () => 
   assert.match(values, /ingress-controller:\s*\n\s*enabled: true/);
   assert.match(values, /ingressClass: apisix/);
   assert.match(values, /replicaCount: 1/);
+  // INT-166 — first-install must not run etcd pre-upgrade PreSync hook.
+  assert.match(values, /preUpgradeJob:\s*\n\s*enabled:\s*false/);
   assert.equal(values.includes("stringData:"), false);
   assert.equal(/edd1c9f034335f136f87ad84b625c8f1/.test(values), false);
   assert.equal(/\badmin:\s*['\"]?[a-f0-9]{16,}/.test(values), false);

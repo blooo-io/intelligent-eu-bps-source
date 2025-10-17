@@ -31,6 +31,8 @@ test("Keycloak values use official image and secret refs only", async () => {
   assert.match(values, /repository: quay\.io\/keycloak\/keycloak/);
   assert.match(values, /existingSecret: keycloak/);
   assert.match(values, /name: keycloak-admin/);
+  // INT-167 — must invoke `kc.sh start` (empty chart args print help and exit).
+  assert.match(values, /^args:\s*\n\s*-\s*start\s*$/m);
   assert.match(values, /proxy:\s*\n\s*enabled:\s*true/);
   assert.match(values, /http:\s*\n\s*enabled:\s*true/);
   // INT-165 — chart proxy.http.enabled already sets KC_HTTP_ENABLED; do not duplicate in extraEnv.

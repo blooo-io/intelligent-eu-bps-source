@@ -8,6 +8,11 @@ image:
   repository: quay.io/keycloak/keycloak
   tag: "26.8.1"
 
+# INT-167 — codecentric/keycloakx defaults args to []; without `start` the
+# process prints help and CrashLoops.
+args:
+  - start
+
 # Start only after CNPG role Secret `keycloak` exists in this namespace.
 database:
   vendor: postgres

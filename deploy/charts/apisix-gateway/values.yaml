@@ -53,5 +53,9 @@ webhook:
     burst: 40
 
 tls:
-  # Certificates wait on DNS → LoadBalancer (operator). ClusterIssuer is packaged separately.
+  # INT-168 — enable once DNS A/CNAME points at the APISIX LoadBalancer.
   enabled: false
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+

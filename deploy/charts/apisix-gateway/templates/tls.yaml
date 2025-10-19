@@ -1,0 +1,43 @@
+{{- /*
+  INT-168 / INT-114 — TLS after DNS → LoadBalancer.
+  Certificate (cert-manager HTTP-01) + ApisixTls bind the Secret to each host.
+*/ -}}
+{{- if .Values.tls.enabled }}
+{{- $hosts := list
+  (dict "name" "api" "host" .Values.hosts.api)
+  (dict "name" "auth" "host" .Values.hosts.auth)
+  (dict "name" "app" "host" .Values.hosts.app)
+}}
+{{- range $hosts }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: tls-{{ .name }}
+  labels:
+    app.kubernetes.io/name: apisix-gateway
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+spec:
+  secretName: tls-{{ .name }}
+  issuerRef:
+    name: {{ $.Values.tls.issuerRef.name | quote }}
+    kind: {{ $.Values.tls.issuerRef.kind | quote }}
+  dnsNames:
+    - {{ .host | quote }}
+---
+apiVersion: apisix.apache.org/v2
+kind: ApisixTls
+metadata:
+  name: tls-{{ .name }}
+  labels:
+    app.kubernetes.io/name: apisix-gateway
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+spec:
+  ingressClassName: {{ $.Values.ingressClassName | quote }}
+  hosts:
+    - {{ .host | quote }}
+  secret:
+    name: tls-{{ .name }}
+    namespace: {{ $.Release.Namespace | quote }}
+---
+{{- end }}
+{{- end }}

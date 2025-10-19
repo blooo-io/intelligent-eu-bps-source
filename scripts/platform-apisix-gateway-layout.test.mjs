@@ -53,6 +53,32 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.equal(/\bclient_secret\b/.test(values), false);
 });
 
+test("gateway TLS templates gate Certificate and ApisixTls (INT-168)", async () => {
+  const tls = await readFile(
+    "deploy/charts/apisix-gateway/templates/tls.yaml",
+    "utf8",
+  );
+  assert.match(tls, /Values\.tls\.enabled/);
+  assert.match(tls, /kind: Certificate/);
+  assert.match(tls, /kind: ApisixTls/);
+  assert.match(tls, /issuerRef:/);
+  assert.match(tls, /secretName: tls-/);
+
+  const chartValues = await readFile(
+    "deploy/charts/apisix-gateway/values.yaml",
+    "utf8",
+  );
+  assert.match(chartValues, /issuerRef:/);
+  assert.match(chartValues, /letsencrypt-staging/);
+
+  const dev = await readFile(
+    "deploy/envs/dev/apisix-gateway-values.yaml",
+    "utf8",
+  );
+  assert.match(dev, /tls:\s*\n\s*enabled:\s*true/);
+  assert.match(dev, /letsencrypt-staging/);
+});
+
 test("letsencrypt issuer is staging by default (INT-114)", async () => {
   const app = await readFile(
     "deploy/argocd/platform/letsencrypt-issuer.yaml",

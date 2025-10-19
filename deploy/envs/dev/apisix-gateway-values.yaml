@@ -1,4 +1,4 @@
-# INT-114 — dev hosts (virtual Stripe-test).
+# INT-114 / INT-168 — dev hosts (virtual Stripe-test). DNS → APISIX LB.
 environment: dev
 hosts:
   api: api.dev.intelligent-eu-bp.blooo.dev
@@ -11,3 +11,9 @@ oidc:
   clientId: apisix-gateway
 backends:
   appsNamespace: int-apps
+tls:
+  enabled: true
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+

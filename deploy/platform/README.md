@@ -27,7 +27,7 @@ Values: `deploy/platform/apisix/values.yaml`. Admin API keys from OpenBao path `
 | Let's Encrypt ClusterIssuer | local `deploy/charts/letsencrypt-issuer` | `cert-manager` | `platform-letsencrypt-issuer` | 3 |
 | Public ApisixRoutes + ExternalName backends | local `deploy/charts/apisix-gateway` | `ingress` | `dev-apisix-gateway` | 4 |
 
-Env hosts: `deploy/envs/<env>/apisix-gateway-values.yaml`. Webhook `POST /webhooks/payment-provider` is rate-limited and unauthenticated; `/v1/*` uses `openid-connect` (Keycloak realm per env). Depends on platform APISIX (INT-161) and Keycloak (INT-160). TLS (INT-168): `Certificate` + `ApisixTls` per host once DNS points at the APISIX LoadBalancer; `dev` uses `letsencrypt-staging` (flip issuer / `useProduction` after smoke).
+Env hosts: `deploy/envs/<env>/apisix-gateway-values.yaml`. Webhook `POST /webhooks/payment-provider` is rate-limited and unauthenticated; `/v1/*` uses `openid-connect` (Keycloak realm per env; `client_secret` via ExternalSecret `apisix-oidc`, INT-169). Depends on platform APISIX (INT-161) and Keycloak (INT-160). TLS (INT-168): `Certificate` + `ApisixTls` per host once DNS points at the APISIX LoadBalancer; `dev` uses `letsencrypt-staging` (flip issuer / `useProduction` after smoke).
 
 ## Databases (TD-6 / INT-158)
 
@@ -46,7 +46,7 @@ Values: `deploy/platform/cloudnative-pg/values.yaml`. One PostgreSQL database an
 | Keycloak admin ExternalSecret | local `deploy/charts/keycloak-admin-secret` | `keycloak` | `platform-keycloak-admin-secret` | 2 |
 | Keycloak.X | `keycloakx` **7.4.0** (`quay.io/keycloak/keycloak`) | `keycloak` | `platform-keycloak` | 2 |
 
-Values: `deploy/platform/keycloak/values.yaml`. DB password comes from the CNPG-managed Secret `keycloak`. Admin bootstrap password comes from OpenBao path `platform/keycloak` (seed placeholder `password=dev-only-replace-me`). Realms `int` / `demo` and public host `auth.intelligent-eu-bp.blooo.dev` land with APISIX (INT-114). Depends on CNPG operator (INT-158).
+Values: `deploy/platform/keycloak/values.yaml`. DB password comes from the CNPG-managed Secret `keycloak`. Admin bootstrap password comes from OpenBao path `platform/keycloak` (seed placeholder `password=dev-only-replace-me`). Realms `int` / `demo` (clients `apisix-gateway`, `web`) import from ConfigMap `keycloak-realm-import` (INT-169; client secret matches OpenBao `platform/apisix` `oidc_client_secret`). Public host `auth.intelligent-eu-bp.blooo.dev` is routed by APISIX (INT-114). Depends on CNPG operator (INT-158).
 
 ## Event transport (TD-7 / INT-132)
 

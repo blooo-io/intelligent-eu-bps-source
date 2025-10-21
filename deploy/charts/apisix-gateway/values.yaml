@@ -8,14 +8,19 @@ hosts:
   auth: auth.intelligent-eu-bp.blooo.dev
   app: app.dev.intelligent-eu-bp.blooo.dev
 
-# Keycloak realm used by openid-connect (created by operator after INT-160 boot).
+# Keycloak realm used by openid-connect (INT-169 realm import on Keycloak boot).
 oidc:
   realm: int
-  # Discovery URL once auth host + realm exist.
   discoveryHost: auth.intelligent-eu-bp.blooo.dev
   bearerOnly: true
-  # Public client id for the gateway (realm client; not a secret for bearer_only).
   clientId: apisix-gateway
+  # TLS on auth host is Let's Encrypt (staging/prod); verify once prod issuer is on.
+  sslVerify: false
+  # Secret keys merge into plugin config (must include client_secret — APISIX 3.14).
+  secretName: apisix-oidc
+  storeName: openbao
+  openbaoPath: platform/apisix
+  openbaoProperty: oidc_client_secret
 
 backends:
   appsNamespace: int-apps

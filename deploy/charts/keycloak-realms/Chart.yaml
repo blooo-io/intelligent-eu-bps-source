@@ -1,0 +1,7 @@
+# INT-169 — realm import ConfigMaps for Keycloak (int / demo).
+apiVersion: v2
+name: keycloak-realms
+description: Keycloak realm JSON for virtual environments (no passwords in Git beyond V1 placeholders referenced from OpenBao)
+type: application
+version: 0.1.0
+appVersion: "26.8.1"

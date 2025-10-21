@@ -52,6 +52,8 @@ export const DEV_PLACEHOLDER_FIELDS = {
   "platform/apisix": [
     "admin=dev-only-replace-me",
     "viewer=dev-only-replace-me",
+    // INT-169 — satisfies APISIX openid-connect schema; match Keycloak client secret.
+    "oidc_client_secret=dev-only-replace-me",
     "seeded=true",
   ],
 };

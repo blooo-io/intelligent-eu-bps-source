@@ -1,0 +1,2 @@
+# Realm files are mounted by platform-keycloak at /opt/keycloak/data/import.
+# Client secret for apisix-gateway must match OpenBao platform/apisix oidc_client_secret.

@@ -57,6 +57,7 @@ await run(process.execPath, ["--test", path.join(root, "scripts/platform-secrets
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-observability-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-cnpg-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-keycloak-layout.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/platform-keycloak-realms-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-temporal-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-apisix-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-apisix-gateway-layout.test.mjs")]);

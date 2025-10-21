@@ -10,8 +10,20 @@ image:
 
 # INT-167 — codecentric/keycloakx defaults args to []; without `start` the
 # process prints help and CrashLoops.
+# INT-169 — import realms int/demo from ConfigMap keycloak-realm-import.
 args:
   - start
+  - --import-realm
+
+extraVolumes: |
+  - name: realm-import
+    configMap:
+      name: keycloak-realm-import
+
+extraVolumeMounts: |
+  - name: realm-import
+    mountPath: /opt/keycloak/data/import
+    readOnly: true
 
 # Start only after CNPG role Secret `keycloak` exists in this namespace.
 database:

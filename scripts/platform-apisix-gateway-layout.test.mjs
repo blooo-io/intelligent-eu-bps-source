@@ -37,6 +37,23 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   );
   assert.match(helpers, /openid-connect/);
   assert.match(helpers, /bearer_only/);
+  // INT-169 — client_secret via Secret, never inlined in the route.
+  assert.match(helpers, /secretRef:/);
+  assert.equal(/client_secret:/.test(helpers), false);
+
+  const oidcEs = await readFile(
+    "deploy/charts/apisix-gateway/templates/oidc-secret.yaml",
+    "utf8",
+  );
+  assert.match(oidcEs, /kind: ExternalSecret/);
+  assert.match(oidcEs, /openbaoProperty/);
+
+  const chartValues = await readFile(
+    "deploy/charts/apisix-gateway/values.yaml",
+    "utf8",
+  );
+  assert.match(chartValues, /openbaoProperty: oidc_client_secret/);
+  assert.match(chartValues, /secretName: apisix-oidc/);
 
   const backends = await readFile(
     "deploy/charts/apisix-gateway/templates/backends.yaml",
@@ -50,7 +67,8 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(values, /webhooks\/payment-provider/);
   assert.match(values, /platform-keycloak-keycloakx-http/);
   assert.equal(values.includes("stringData:"), false);
-  assert.equal(/\bclient_secret\b/.test(values), false);
+  // Property name oidc_client_secret is fine; never inline a secret value in values.
+  assert.equal(/\bclient_secret:\s*['\"]?\w+/.test(values), false);
 });
 
 test("gateway TLS templates gate Certificate and ApisixTls (INT-168)", async () => {

@@ -198,6 +198,15 @@ spec:
       backends:
         - serviceName: keycloak
           servicePort: {{ .Values.backends.keycloak.port }}
+      plugins:
+        # INT-170 — Keycloak sslRequired=external needs TLS termination headers.
+        - name: proxy-rewrite
+          enable: true
+          config:
+            headers:
+              set:
+                X-Forwarded-Proto: https
+                X-Forwarded-Port: "443"
 ---
 apiVersion: apisix.apache.org/v2
 kind: ApisixRoute

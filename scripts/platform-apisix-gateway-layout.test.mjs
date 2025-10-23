@@ -30,6 +30,9 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(routes, /apisix-gateway\.oidcPlugin/);
   assert.match(routes, /auth-idp/);
   assert.match(routes, /web-app/);
+  // INT-170 — Keycloak behind APISIX must see HTTPS termination headers.
+  assert.match(routes, /proxy-rewrite/);
+  assert.match(routes, /X-Forwarded-Proto:\s*https/);
 
   const helpers = await readFile(
     "deploy/charts/apisix-gateway/templates/_helpers.tpl",

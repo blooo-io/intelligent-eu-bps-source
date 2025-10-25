@@ -199,14 +199,16 @@ spec:
         - serviceName: keycloak
           servicePort: {{ .Values.backends.keycloak.port }}
       plugins:
-        # INT-170 — Keycloak sslRequired=external needs TLS termination headers.
+        # INT-171 — KC_PROXY_HEADERS=forwarded honors RFC7239 Forwarded (not only X-Forwarded-*).
         - name: proxy-rewrite
           enable: true
           config:
             headers:
               set:
+                Forwarded: {{ printf "proto=https;host=%s;port=443" .Values.hosts.auth | quote }}
                 X-Forwarded-Proto: https
                 X-Forwarded-Port: "443"
+                X-Forwarded-Host: {{ .Values.hosts.auth | quote }}
 ---
 apiVersion: apisix.apache.org/v2
 kind: ApisixRoute

@@ -58,6 +58,6 @@ schema:
   # Argo CD does not honour Helm hooks the same way; schema jobs still run as Jobs.
   useHelmHooks: false
 
-# Temporal namespaces `int` / `demo` are registered by the operator after first
-# boot (tctl / temporal operator namespace create). Workers stay at replicas 0
-# until module images exist (INT-113).
+# Temporal namespaces `int` / `demo` are registered by
+# deploy/charts/temporal-namespaces (INT-172, Argo app platform-temporal-namespaces).
+# Workers stay at replicas 0 until module images exist (INT-113).

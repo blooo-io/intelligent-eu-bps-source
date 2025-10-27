@@ -1,0 +1,27 @@
+# INT-172 / TD-3 — Temporal namespaces for virtual environments.
+# One Temporal namespace per environment (physical §3). No secrets in Git.
+
+frontendAddress: platform-temporal-frontend:7233
+
+# Match platform-temporal admintools image tag.
+image:
+  repository: temporalio/admin-tools
+  tag: "1.32.0"
+  pullPolicy: IfNotPresent
+
+# Closed-workflow retention (Temporal default is 72h).
+retention: 72h
+
+namespaces:
+  - name: int
+    description: Virtual int environment (dev track)
+  - name: demo
+    description: Virtual demo environment (release track)
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

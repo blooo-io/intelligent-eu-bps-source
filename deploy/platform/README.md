@@ -8,8 +8,9 @@ Application modules stay under `deploy/charts/<ac-module>/`. Shared platform pie
 |---|---|---|---|---|
 | Temporal DB (CNPG) | local `deploy/charts/cnpg-temporal` | `temporal` | `platform-cnpg-temporal` | 1 |
 | Temporal server + UI | `temporal` **1.7.0** (MIT) | `temporal` | `platform-temporal` | 2 |
+| Temporal namespaces `int` / `demo` | local `deploy/charts/temporal-namespaces` | `temporal` | `platform-temporal-namespaces` | 3 |
 
-Values: `deploy/platform/temporal/values.yaml`. SQL on CNPG (`temporal` + `temporal_visibility`); role password via ESO Password generator → Secret `temporal` (`refreshInterval: "0"`, create once). `numHistoryShards: 1` for V1 / virtual `dev` (immutable after init). Temporal namespaces `int` / `demo` are registered after first boot. Depends on CNPG operator (INT-158).
+Values: `deploy/platform/temporal/values.yaml`. SQL on CNPG (`temporal` + `temporal_visibility`); role password via ESO Password generator → Secret `temporal` (`refreshInterval: "0"`, create once). `numHistoryShards: 1` for V1 / virtual `dev` (immutable after init). Namespaces are registered by an idempotent Job (`temporalio/admin-tools`) against `platform-temporal-frontend:7233` (INT-172). Depends on CNPG operator (INT-158).
 
 ## API gateway (TD-8 / INT-161)
 

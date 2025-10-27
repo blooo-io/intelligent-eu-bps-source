@@ -1,11 +1,12 @@
 /**
  * INT-159 / TD-3 — Temporal packaging layout (CNPG DB + official Helm chart).
+ * INT-172 — namespace registration Job (int / demo).
  */
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("Temporal Argo apps land in temporal with sync waves (INT-159)", async () => {
+test("Temporal Argo apps land in temporal with sync waves (INT-159 / INT-172)", async () => {
   const db = await readFile("deploy/argocd/platform/cnpg-temporal.yaml", "utf8");
   assert.match(db, /sync-wave: "1"/);
   assert.match(db, /path: deploy\/charts\/cnpg-temporal/);
@@ -17,6 +18,39 @@ test("Temporal Argo apps land in temporal with sync waves (INT-159)", async () =
   assert.match(server, /targetRevision: 1\.7\.0/);
   assert.match(server, /namespace: temporal/);
   assert.match(server, /automated:/);
+
+  const ns = await readFile(
+    "deploy/argocd/platform/temporal-namespaces.yaml",
+    "utf8",
+  );
+  assert.match(ns, /sync-wave: "3"/);
+  assert.match(ns, /path: deploy\/charts\/temporal-namespaces/);
+  assert.match(ns, /namespace: temporal/);
+  assert.match(ns, /automated:/);
+});
+
+test("Temporal namespaces Job is idempotent and secret-free (INT-172)", async () => {
+  const values = await readFile(
+    "deploy/charts/temporal-namespaces/values.yaml",
+    "utf8",
+  );
+  assert.match(values, /frontendAddress: platform-temporal-frontend:7233/);
+  assert.match(values, /name: int/);
+  assert.match(values, /name: demo/);
+  assert.match(values, /temporalio\/admin-tools/);
+  assert.equal(values.includes("stringData:"), false);
+
+  const job = await readFile(
+    "deploy/charts/temporal-namespaces/templates/job.yaml",
+    "utf8",
+  );
+  assert.match(job, /kind: Job/);
+  assert.match(job, /operator namespace create/);
+  assert.match(job, /operator namespace describe/);
+  assert.match(job, /runAsNonRoot: true/);
+  assert.match(job, /readOnlyRootFilesystem: true/);
+  assert.match(job, /argocd\.argoproj\.io\/hook: Sync/);
+  assert.equal(job.includes("stringData:"), false);
 });
 
 test("Temporal values use SQL on CNPG and small shard count for V1", async () => {
@@ -44,10 +78,13 @@ test("Temporal values use SQL on CNPG and small shard count for V1", async () =>
   assert.match(db, /refreshInterval: "0"/);
 });
 
-test("platform README documents Temporal packaging (INT-159)", async () => {
+test("platform README documents Temporal packaging (INT-159 / INT-172)", async () => {
   const text = await readFile("deploy/platform/README.md", "utf8");
   assert.match(text, /INT-159/);
+  assert.match(text, /INT-172/);
   assert.match(text, /TD-3/);
   assert.match(text, /numHistoryShards: 1/);
   assert.match(text, /cnpg-temporal/);
+  assert.match(text, /temporal-namespaces/);
+  assert.match(text, /platform-temporal-namespaces/);
 });

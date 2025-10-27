@@ -1,0 +1,7 @@
+# INT-172 — register Temporal namespaces int / demo after the server is up.
+apiVersion: v2
+name: temporal-namespaces
+description: Idempotent Job to register Temporal namespaces per environment (physical §3)
+type: application
+version: 0.1.0
+appVersion: "1.32.0"

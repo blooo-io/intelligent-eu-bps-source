@@ -1,5 +1,5 @@
-# INT-114 — ACME issuers. No private keys in Git (cert-manager stores them).
+# INT-114 / INT-173 — ACME issuers. No private keys in Git (cert-manager stores them).
 email: security@blooo.io
 ingressClassName: apisix
-# Staging first for V1 virtual smoke; flip `useProduction: true` after DNS works.
-useProduction: false
+# Staging ClusterIssuer stays for debug; production issuer enabled after DNS smoke.
+useProduction: true

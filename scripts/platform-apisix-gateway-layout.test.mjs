@@ -92,17 +92,17 @@ test("gateway TLS templates gate Certificate and ApisixTls (INT-168)", async () 
     "utf8",
   );
   assert.match(chartValues, /issuerRef:/);
-  assert.match(chartValues, /letsencrypt-staging/);
+  assert.match(chartValues, /letsencrypt-prod/);
 
   const dev = await readFile(
     "deploy/envs/dev/apisix-gateway-values.yaml",
     "utf8",
   );
   assert.match(dev, /tls:\s*\n\s*enabled:\s*true/);
-  assert.match(dev, /letsencrypt-staging/);
+  assert.match(dev, /letsencrypt-prod/);
 });
 
-test("letsencrypt issuer is staging by default (INT-114)", async () => {
+test("letsencrypt production issuer enabled after staging smoke (INT-173)", async () => {
   const app = await readFile(
     "deploy/argocd/platform/letsencrypt-issuer.yaml",
     "utf8",
@@ -110,18 +110,28 @@ test("letsencrypt issuer is staging by default (INT-114)", async () => {
   assert.match(app, /sync-wave: "3"/);
   assert.match(app, /path: deploy\/charts\/letsencrypt-issuer/);
 
+  const values = await readFile(
+    "deploy/charts/letsencrypt-issuer/values.yaml",
+    "utf8",
+  );
+  assert.match(values, /useProduction:\s*true/);
+
   const tpl = await readFile(
     "deploy/charts/letsencrypt-issuer/templates/clusterissuer.yaml",
     "utf8",
   );
   assert.match(tpl, /letsencrypt-staging/);
   assert.match(tpl, /acme-staging-v02\.api\.letsencrypt\.org/);
+  assert.match(tpl, /letsencrypt-prod/);
+  assert.match(tpl, /acme-v02\.api\.letsencrypt\.org/);
   assert.match(tpl, /ingressClassName/);
 });
 
-test("platform README documents gateway routes (INT-114)", async () => {
+test("platform README documents gateway routes (INT-114 / INT-173)", async () => {
   const text = await readFile("deploy/platform/README.md", "utf8");
   assert.match(text, /INT-114/);
   assert.match(text, /apisix-gateway/);
   assert.match(text, /letsencrypt-issuer/);
+  assert.match(text, /letsencrypt-prod/);
+  assert.match(text, /INT-173/);
 });

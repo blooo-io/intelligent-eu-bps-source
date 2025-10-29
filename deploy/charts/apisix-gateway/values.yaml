@@ -58,9 +58,9 @@ webhook:
     burst: 40
 
 tls:
-  # INT-168 — enable once DNS A/CNAME points at the APISIX LoadBalancer.
+  # INT-168 / INT-173 — enable once DNS A/CNAME points at the APISIX LoadBalancer.
   enabled: false
   issuerRef:
-    name: letsencrypt-staging
+    name: letsencrypt-prod
     kind: ClusterIssuer
 

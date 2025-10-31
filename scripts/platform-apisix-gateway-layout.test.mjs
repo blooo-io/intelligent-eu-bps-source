@@ -86,6 +86,10 @@ test("gateway TLS templates gate Certificate and ApisixTls (INT-168)", async () 
   assert.match(tls, /kind: ApisixTls/);
   assert.match(tls, /issuerRef:/);
   assert.match(tls, /secretName: tls-/);
+  // INT-174 — Replace + reload annotations so issuer flips re-push SSL into etcd.
+  assert.match(tls, /argocd\.argoproj\.io\/sync-options: Replace=true/);
+  assert.match(tls, /intelligent\.blooo\.io\/tls-issuer/);
+  assert.match(tls, /intelligent\.blooo\.io\/tls-reload/);
 
   const chartValues = await readFile(
     "deploy/charts/apisix-gateway/values.yaml",
@@ -93,6 +97,8 @@ test("gateway TLS templates gate Certificate and ApisixTls (INT-168)", async () 
   );
   assert.match(chartValues, /issuerRef:/);
   assert.match(chartValues, /letsencrypt-prod/);
+  assert.match(chartValues, /reloadGeneration:/);
+  assert.match(chartValues, /sslVerify:\s*true/);
 
   const dev = await readFile(
     "deploy/envs/dev/apisix-gateway-values.yaml",
@@ -100,6 +106,7 @@ test("gateway TLS templates gate Certificate and ApisixTls (INT-168)", async () 
   );
   assert.match(dev, /tls:\s*\n\s*enabled:\s*true/);
   assert.match(dev, /letsencrypt-prod/);
+  assert.match(dev, /reloadGeneration:/);
 });
 
 test("letsencrypt production issuer enabled after staging smoke (INT-173)", async () => {
@@ -127,11 +134,13 @@ test("letsencrypt production issuer enabled after staging smoke (INT-173)", asyn
   assert.match(tpl, /ingressClassName/);
 });
 
-test("platform README documents gateway routes (INT-114 / INT-173)", async () => {
+test("platform README documents gateway routes (INT-114 / INT-173 / INT-174)", async () => {
   const text = await readFile("deploy/platform/README.md", "utf8");
   assert.match(text, /INT-114/);
   assert.match(text, /apisix-gateway/);
   assert.match(text, /letsencrypt-issuer/);
   assert.match(text, /letsencrypt-prod/);
   assert.match(text, /INT-173/);
+  assert.match(text, /INT-174/);
+  assert.match(text, /reloadGeneration/);
 });

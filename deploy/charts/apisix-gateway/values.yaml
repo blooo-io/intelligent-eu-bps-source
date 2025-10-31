@@ -14,8 +14,8 @@ oidc:
   discoveryHost: auth.intelligent-eu-bp.blooo.dev
   bearerOnly: true
   clientId: apisix-gateway
-  # TLS on auth host is Let's Encrypt (staging/prod); verify once prod issuer is on.
-  sslVerify: false
+  # INT-174 — production Let's Encrypt on auth; verify TLS to Keycloak discovery.
+  sslVerify: true
   # Secret keys merge into plugin config (must include client_secret — APISIX 3.14).
   secretName: apisix-oidc
   storeName: openbao
@@ -63,4 +63,8 @@ tls:
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
+  # INT-174 — bump when Certificates rotate issuer so ApisixTls is replaced and
+  # the ingress controller re-pushes tls.crt into APISIX etcd (Secret-only updates
+  # were left Accepted with a stale SSL object after staging→prod).
+  reloadGeneration: "2"
 

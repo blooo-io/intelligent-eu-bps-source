@@ -1,6 +1,8 @@
 {{- /*
-  INT-168 / INT-114 — TLS after DNS → LoadBalancer.
+  INT-168 / INT-114 / INT-174 — TLS after DNS → LoadBalancer.
   Certificate (cert-manager HTTP-01) + ApisixTls bind the Secret to each host.
+  reloadGeneration + Replace forces ApisixTls recreate when the issuer flips so
+  APISIX etcd picks up the new tls.crt (INT-174).
 */ -}}
 {{- if .Values.tls.enabled }}
 {{- $hosts := list
@@ -31,6 +33,10 @@ metadata:
   labels:
     app.kubernetes.io/name: apisix-gateway
     app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
+    intelligent.blooo.io/tls-issuer: {{ $.Values.tls.issuerRef.name | quote }}
+    intelligent.blooo.io/tls-reload: {{ $.Values.tls.reloadGeneration | default "1" | quote }}
 spec:
   ingressClassName: {{ $.Values.ingressClassName | quote }}
   hosts:

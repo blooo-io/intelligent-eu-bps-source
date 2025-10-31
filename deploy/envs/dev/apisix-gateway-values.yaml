@@ -16,4 +16,7 @@ tls:
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
+  # INT-174 — staging→prod Secret was Ready while APISIX still served staging until
+  # ApisixTls was replaced; keep in sync with chart default after issuer flips.
+  reloadGeneration: "2"
 

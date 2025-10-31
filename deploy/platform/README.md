@@ -28,7 +28,7 @@ Values: `deploy/platform/apisix/values.yaml`. Admin API keys from OpenBao path `
 | Let's Encrypt ClusterIssuer | local `deploy/charts/letsencrypt-issuer` | `cert-manager` | `platform-letsencrypt-issuer` | 3 |
 | Public ApisixRoutes + ExternalName backends | local `deploy/charts/apisix-gateway` | `ingress` | `dev-apisix-gateway` | 4 |
 
-Env hosts: `deploy/envs/<env>/apisix-gateway-values.yaml`. Webhook `POST /webhooks/payment-provider` is rate-limited and unauthenticated; `/v1/*` uses `openid-connect` (Keycloak realm per env; `client_secret` via ExternalSecret `apisix-oidc`, INT-169). Depends on platform APISIX (INT-161) and Keycloak (INT-160). TLS (INT-168 / INT-173): `Certificate` + `ApisixTls` per host; issuer `letsencrypt-prod` (`useProduction: true`). Staging ClusterIssuer remains for debug.
+Env hosts: `deploy/envs/<env>/apisix-gateway-values.yaml`. Webhook `POST /webhooks/payment-provider` is rate-limited and unauthenticated; `/v1/*` uses `openid-connect` (Keycloak realm per env; `client_secret` via ExternalSecret `apisix-oidc`, INT-169). Depends on platform APISIX (INT-161) and Keycloak (INT-160). TLS (INT-168 / INT-173 / INT-174): `Certificate` + `ApisixTls` per host; issuer `letsencrypt-prod` (`useProduction: true`). Staging ClusterIssuer remains for debug. After an issuer flip, bump `tls.reloadGeneration` so ApisixTls is replaced and APISIX etcd reloads `tls.crt` (Secret-only updates can leave a stale SSL object).
 
 ## Databases (TD-6 / INT-158)
 

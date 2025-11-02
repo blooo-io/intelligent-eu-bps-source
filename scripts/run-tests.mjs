@@ -97,6 +97,10 @@ const installArgs = (await exists(path.join(root, "pnpm-lock.yaml")))
   : ["install"];
 await run("pnpm", installArgs, root);
 
+// INT-101 — needs workspace ajv from pnpm install (not available in the
+// pre-install script suite above).
+await run(process.execPath, ["--test", path.join(root, "scripts/validate-ewds-schemas.test.mjs")]);
+
 for (const [pkg, script] of commands) {
   console.log(`\n== ${pkg.name} ${script} ==`);
   await run("pnpm", ["--dir", pkg.directory, "run", script], root);

@@ -50,12 +50,9 @@ jobs:
             echo "No public contract at base commit $BASE_SHA"
           fi
       - name: Validate EWDS topic schemas against their examples
-        run: |
-          for t in billingInvoice billingPayment; do
-            npx --yes -p ajv-cli@5 -p ajv-formats@3 ajv validate --spec=draft2020 -c ajv-formats \
-              -s docs/architecture/ewds-topics/$t.v1.0.0.schema.json \
-              -d docs/architecture/ewds-topics/$t.example.json
-          done
+        # INT-101 — use workspace ajv (not npx ajv-cli): hoisted ajv-formats ESM
+        # breaks ajv-cli's CommonJS `-c ajv-formats` loader.
+        run: node scripts/validate-ewds-schemas.mjs
 
   test:
     runs-on: ubuntu-latest

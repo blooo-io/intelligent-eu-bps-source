@@ -101,6 +101,14 @@ await run("pnpm", installArgs, root);
 // pre-install script suite above).
 await run(process.execPath, ["--test", path.join(root, "scripts/validate-ewds-schemas.test.mjs")]);
 
+// INT-102 — workspace packages export dist/; build them before consumers' tests.
+for (const pkg of packages) {
+  if (pkg.scripts.build && (await hasExecutableSource(pkg.directory))) {
+    console.log(`\n== ${pkg.name} build ==`);
+    await run("pnpm", ["--dir", pkg.directory, "run", "build"], root);
+  }
+}
+
 for (const [pkg, script] of commands) {
   console.log(`\n== ${pkg.name} ${script} ==`);
   await run("pnpm", ["--dir", pkg.directory, "run", script], root);

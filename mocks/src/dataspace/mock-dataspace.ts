@@ -4,17 +4,25 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import Ajv2020 from "ajv/dist/2020.js";
-import addFormats from "ajv-formats";
-import type {
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+// CJS interop: ajv / ajv-formats ship dual packages; require keeps tsc + Node happy.
+const Ajv2020 = require("ajv/dist/2020.js") as new (opts?: object) => {
+  compile: (schema: object) => ((data: unknown) => boolean) & {
+    errors?: Array<{ instancePath?: string; message?: string }>;
+  };
+};
+const addFormats = require("ajv-formats") as (ajv: unknown) => unknown;import type {
   DataSpacePort,
   DataSpaceTopic,
   PublishResult,
 } from "../types.js";
 
+// Schemas live in-package so Docker builds need not copy docs/ (.dockerignore).
 const topicsRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  "../../../docs/architecture/ewds-topics",
+  "../../schemas",
 );
 
 function loadSchema(name: string): object {

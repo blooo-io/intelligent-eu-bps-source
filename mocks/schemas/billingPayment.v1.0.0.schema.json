@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-project.eu/schema/v1.0.0/billing/billingPayment",
+  "title": "billingPayment",
+  "description": "EWDS topic published by the Billing & Payment Service (Blooo, T5.6) at every payment status change. A payment settles one billingInvoice and goes directly from the consumer to the producer's payment-provider account. Derived from int:Payment (schemas/v1.0.0/billing/Payment.json) without PSP references (stripeIds). Contains no personal data. DRAFT proposed by Blooo to EWAG.",
+  "type": "object",
+  "properties": {
+    "paymentId": {
+      "description": "Primary identifier. IRI: int:paymentId. UUID v4.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "invoiceId": {
+      "description": "FK to billingInvoice. IRI: int:invoiceId. UUID v4.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "communityId": {
+      "description": "[Extension] FK to the Community. UUID v4.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "billingMode": {
+      "description": "[Extension] live or virtual (payment provider test environment).",
+      "type": "string",
+      "enum": [
+        "live",
+        "virtual"
+      ]
+    },
+    "payerId": {
+      "description": "[Extension] FK to the consumer Actor. UUID v4.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "payeeId": {
+      "description": "[Extension] FK to the producer Actor. UUID v4.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "paymentDate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "description": "Date and time the payment succeeded. IRI: int:paymentDate. ISO 8601 with timezone.",
+      "format": "date-time"
+    },
+    "paymentAmount": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null,
+      "description": "Payment amount, in the invoice currency. IRI: int:paymentAmount.",
+      "minimum": 0
+    },
+    "currency": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "description": "ISO 4217. IRI: int:currency.",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "paymentMethod": {
+      "description": "IRI: int:paymentMethod.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "card",
+        "sepa_debit",
+        "bank_transfer",
+        null
+      ],
+      "default": null
+    },
+    "paymentProvider": {
+      "description": "IRI: int:paymentProvider.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "stripe",
+        null
+      ],
+      "default": null
+    },
+    "paymentStatus": {
+      "description": "Payment lifecycle status. IRI: int:paymentStatus.",
+      "type": "string",
+      "enum": [
+        "pending",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "refunded"
+      ]
+    },
+    "failureCategory": {
+      "description": "[Extension] Non-personal failure category when paymentStatus = failed (supports KPI UE-3).",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "insufficient_funds",
+        "card_declined",
+        "authentication_required",
+        "mandate_invalid",
+        "provider_error",
+        "other",
+        null
+      ],
+      "default": null
+    },
+    "createdAt": {
+      "description": "IRI: int:createdAt. ISO 8601 with timezone.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null,
+      "description": "IRI: int:updatedAt. ISO 8601 with timezone.",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "paymentId",
+    "invoiceId",
+    "communityId",
+    "billingMode",
+    "payerId",
+    "payeeId",
+    "paymentStatus",
+    "createdAt"
+  ],
+  "additionalProperties": false
+}

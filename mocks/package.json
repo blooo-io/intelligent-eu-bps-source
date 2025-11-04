@@ -13,6 +13,7 @@
       "import": "./dist/index.js"
     }
   },
+  "files": ["dist", "schemas"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",

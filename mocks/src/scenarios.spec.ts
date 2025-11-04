@@ -173,6 +173,7 @@ describe("market / FX / data-space ports against scenarios", () => {
       path.dirname(fileURLToPath(import.meta.url)),
       "../../docs/architecture/ewds-topics",
     );
+    // Example payloads stay in docs/; schemas used at runtime are in mocks/schemas.
     const good = JSON.parse(
       await readFile(path.join(root, "billingInvoice.example.json"), "utf8"),
     );

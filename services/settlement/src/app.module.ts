@@ -1,0 +1,25 @@
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { ModuleTemplateModule } from "@intelligent/module-template";
+import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
+import { SettlementStore } from "./domain/store.js";
+import { FixtureTradeSource } from "./ports/fixture-trade-source.js";
+import { TRADE_SOURCE } from "./ports/trade-source.port.js";
+import { SettlementController } from "./settlement/settlement.controller.js";
+import { SettlementService } from "./settlement/settlement.service.js";
+
+@Module({
+  imports: [
+    ModuleTemplateModule.forRoot({ moduleName: "settlement" }),
+  ],
+  controllers: [SettlementController],
+  providers: [
+    SettlementStore,
+    SettlementService,
+    { provide: TRADE_SOURCE, useClass: FixtureTradeSource },
+  ],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(servicePrincipalMiddleware).forRoutes("*");
+  }
+}

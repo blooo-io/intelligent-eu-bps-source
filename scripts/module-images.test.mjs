@@ -73,3 +73,10 @@ test("cd-smoke Dockerfile is discovered and runs as non-root", async () => {
   assert.match(source, /nodejs22-debian13:nonroot/);
   assert.equal(source.includes("nodejs22-debian12"), false);
 });
+
+// INT-107 / INT-99: free runner disk between module image builds.
+test("module image build frees tags and builder cache between modules", async () => {
+  const text = await readFile(new URL("./module-images.mjs", import.meta.url), "utf8");
+  assert.match(text, /docker", \["rmi"/);
+  assert.match(text, /builder", "prune"/);
+});

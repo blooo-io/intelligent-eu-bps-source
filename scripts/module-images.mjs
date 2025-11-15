@@ -105,7 +105,23 @@ async function buildImages(root) {
       "1",
       tag,
     ], { cwd: root });
-    if (push) run("docker", ["push", tag], { cwd: root });
+    if (push) {
+      run("docker", ["push", tag], { cwd: root });
+    }
+    // Free runner disk between modules (INT-107 supply-chain: "No space left on device").
+    // Keep the tag only when pushing to GHCR; otherwise drop it after the scan.
+    if (!push) {
+      try {
+        run("docker", ["rmi", "-f", tag], { cwd: root });
+      } catch {
+        // Image may already be gone; continue with the next module.
+      }
+    }
+    try {
+      run("docker", ["builder", "prune", "-f"], { cwd: root });
+    } catch {
+      // Older Docker without buildx prune — ignore.
+    }
   }
 }
 

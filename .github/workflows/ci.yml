@@ -97,24 +97,5 @@ jobs:
             done
           '
 
-  # INT-99: Trivy on the filesystem and optional module image builds.
-  supply-chain:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-      - name: Scan dependencies for vulnerabilities and excluded licences
-        run: |
-          docker run --rm -v "$PWD:/work" -w /work \
-            ghcr.io/aquasecurity/trivy:0.75.0 \
-            fs --config /work/trivy.yaml --exit-code 1 /work
-      - name: Build and scan module images
-        env:
-          IMAGE_PUSH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/module-images.mjs --build
+  # INT-176: supply-chain (Trivy + module images) runs post-merge on develop
+  # only — see .github/workflows/supply-chain.yml. PR CI stays fast.

@@ -2,7 +2,7 @@ name: participants
 component: AC-03
 environment: dev
 dataNamespace: int-data
-replicaCount: 0
+replicaCount: 1
 image:
   repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-participants
   tag: "0.0.0"
@@ -14,4 +14,4 @@ ingressFrom:
   - trade-intake
 keycloakEgress: true
 stripeEgress: false
-namespaceIngress: false
+namespaceIngress: true

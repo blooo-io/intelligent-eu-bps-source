@@ -45,6 +45,10 @@ spec:
     spec:
       serviceAccountName: {{ .Values.name }}
       automountServiceAccountToken: false
+      {{- if .Values.image.pullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecret }}
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

@@ -1,0 +1,4 @@
+# INT-177 — dockerconfigjson from OpenBao platform/ghcr-pull
+name: ghcr-pull
+secretName: ghcr-pull
+openbaoKey: platform/ghcr-pull

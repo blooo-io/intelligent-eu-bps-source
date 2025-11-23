@@ -2,7 +2,7 @@ name: payments
 component: AC-07
 environment: dev
 dataNamespace: int-data
-replicaCount: 0
+replicaCount: 1
 image:
   repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-payments
   tag: "0.0.0"
@@ -12,4 +12,4 @@ egressModules:
 ingressFrom: []
 keycloakEgress: false
 stripeEgress: true
-namespaceIngress: false
+namespaceIngress: true

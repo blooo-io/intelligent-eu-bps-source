@@ -36,3 +36,7 @@ tilt_modules/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Helm packaged dependencies (built in CI)
+deploy/charts/*/charts/
+deploy/charts/*/Chart.lock

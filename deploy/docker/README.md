@@ -9,7 +9,10 @@ GitHub Actions builds and pushes images to **GHCR** (`scripts/module-images.mjs`
 - The final stage must set a non-root `USER` (not `root` / `0`). Prefer `gcr.io/distroless/nodejs22-debian13:nonroot` (or newer); do not use the frozen `nodejs22-debian12` family.
 - Listen on `PORT` (default `8080`) and expose `GET /health` for probes.
 - No secrets or personal data in the image layers.
-- CI: `trivy fs` (`trivy.yaml`) enforces TP-2 licences on linked dependencies; `trivy image` (`trivy-image.yaml`) enforces vulnerabilities only (OS package licences are not application deps).
+- CI: workflow `supply-chain` (INT-176) runs **after merge to `develop` only** — not on every PR. `trivy fs` (`trivy.yaml`) enforces TP-2 licences; `trivy image` (`trivy-image.yaml`) scans image vulns. Images are tagged with `$GITHUB_SHA` and pushed to GHCR.
+- GitOps pin (INT-177): the same workflow’s `pin-image-tag` job writes `deploy/envs/dev/values.yaml` `image.tag` to that SHA (`[skip ci]`). Argo CD syncs charts from `develop` and rolls pods.
+- Replicas: charts **with** a Dockerfile default to `replicaCount: 1`; charts without an image stay at `0`.
+- Pull: GHCR is private. Secret `ghcr-pull` in `int-apps` comes from OpenBao `platform/ghcr-pull` (`deploy/charts/ghcr-pull`). Seed with `GHCR_PULL_TOKEN=… node scripts/openbao-seed-ghcr-pull.mjs --apply` (token needs `read:packages`).
 
 ## First image: `services/cd-smoke`
 

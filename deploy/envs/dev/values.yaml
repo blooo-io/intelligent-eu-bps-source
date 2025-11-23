@@ -1,8 +1,11 @@
 environment: dev
 appsNamespace: int-apps
 dataNamespace: int-data
-replicaCount: 0
+# replicaCount lives on each chart (INT-177): only modules with a Dockerfile
+# ship at 1; charts without an image stay at 0.
 mailpit:
   enabled: true
 image:
+  # Pinned by supply-chain pin-image-tag job to GITHUB_SHA after GHCR push.
   tag: "0.0.0"
+  pullSecret: ghcr-pull

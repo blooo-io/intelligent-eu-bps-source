@@ -1,0 +1,62 @@
+# INT-176 / INT-99 / INT-177 — Trivy + module images after merge to develop,
+# then pin Helm image.tag so Argo rolls the SHA. Not on pull_request.
+# Failures fail this workflow (no continue-on-error).
+name: supply-chain
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  supply-chain:
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Scan dependencies for vulnerabilities and excluded licences
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work \
+            ghcr.io/aquasecurity/trivy:0.75.0 \
+            fs --config /work/trivy.yaml --exit-code 1 /work
+      - name: Build, scan and push module images
+        env:
+          IMAGE_PUSH: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/module-images.mjs --build
+
+  # INT-177 — write image.tag=<sha> into Git; Argo syncs from develop.
+  pin-image-tag:
+    needs: supply-chain
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Pin deploy/envs/dev image.tag to this commit
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -eu
+          node scripts/pin-dev-image-tag.mjs "$GITHUB_SHA"
+          if git diff --quiet -- deploy/envs/dev/values.yaml; then
+            echo "image.tag already $GITHUB_SHA"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deploy/envs/dev/values.yaml
+          git commit -m "chore(deploy): INT-177 pin image.tag ${GITHUB_SHA} [skip ci]"
+          git push origin HEAD:develop

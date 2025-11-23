@@ -2,7 +2,7 @@ name: settlement
 component: AC-05
 environment: dev
 dataNamespace: int-data
-replicaCount: 0
+replicaCount: 1
 image:
   repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-settlement
   tag: "0.0.0"
@@ -16,4 +16,4 @@ ingressFrom:
   - scheduler
 keycloakEgress: false
 stripeEgress: false
-namespaceIngress: false
+namespaceIngress: true

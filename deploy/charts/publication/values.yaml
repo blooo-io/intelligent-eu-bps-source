@@ -2,7 +2,7 @@ name: publication
 component: AC-10
 environment: dev
 dataNamespace: int-data
-replicaCount: 0
+replicaCount: 1
 image:
   repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-publication
   tag: "0.0.0"
@@ -11,4 +11,4 @@ egressModules: []
 ingressFrom: []
 keycloakEgress: false
 stripeEgress: false
-namespaceIngress: false
+namespaceIngress: true

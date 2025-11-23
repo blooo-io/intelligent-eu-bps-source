@@ -66,6 +66,10 @@ await run(process.execPath, ["--test", path.join(root, "scripts/argocd-repo-cred
 await run(process.execPath, ["--test", path.join(root, "scripts/openbao-dev-bootstrap.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/openbao-seed-dev-placeholders.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/module-images.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/pin-dev-image-tag.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/openbao-seed-ghcr-pull.test.mjs")]);
+
+
 await run(process.execPath, ["--test", path.join(root, "scripts/local-stack.test.mjs")]);
 
 const commands = [];

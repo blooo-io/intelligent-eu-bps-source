@@ -6,6 +6,8 @@ dataNamespace: int-data
 mailpit:
   enabled: true
 image:
-  # Pinned by supply-chain pin-image-tag job to GITHUB_SHA after GHCR push.
-  tag: "0.0.0"
+  # INT-178 — floating tag published by supply-chain (plus immutable :<sha>).
+  # Branch protection blocks bot commits that would pin the SHA in Git.
+  tag: "develop"
+  pullPolicy: Always
   pullSecret: ghcr-pull

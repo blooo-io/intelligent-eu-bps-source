@@ -87,7 +87,16 @@ async function buildImages(root) {
       throw new Error(`${dockerfile} must set a non-root USER`);
     }
     const tag = `ghcr.io/${repository}/${imageSuffix(dockerfile)}:${sha}`;
+    // INT-178 — also publish a floating tag for Argo on develop (branch
+    // protection blocks bot commits that would pin the SHA in Git).
+    const floating = process.env.IMAGE_FLOATING_TAG?.trim();
+    const floatingTag = floating
+      ? `ghcr.io/${repository}/${imageSuffix(dockerfile)}:${floating}`
+      : null;
     run("docker", ["build", "-f", dockerfile, "-t", tag, "."], { cwd: root });
+    if (floatingTag) {
+      run("docker", ["tag", tag, floatingTag], { cwd: root });
+    }
     run("docker", [
       "run",
       "--rm",
@@ -107,6 +116,9 @@ async function buildImages(root) {
     ], { cwd: root });
     if (push) {
       run("docker", ["push", tag], { cwd: root });
+      if (floatingTag) {
+        run("docker", ["push", floatingTag], { cwd: root });
+      }
     }
     // Free runner disk between modules (INT-107 supply-chain: "No space left on device").
     // Keep the tag only when pushing to GHCR; otherwise drop it after the scan.
@@ -115,6 +127,13 @@ async function buildImages(root) {
         run("docker", ["rmi", "-f", tag], { cwd: root });
       } catch {
         // Image may already be gone; continue with the next module.
+      }
+      if (floatingTag) {
+        try {
+          run("docker", ["rmi", "-f", floatingTag], { cwd: root });
+        } catch {
+          // optional floating tag may already be gone
+        }
       }
     }
     try {

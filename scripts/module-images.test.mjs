@@ -80,3 +80,10 @@ test("module image build frees tags and builder cache between modules", async ()
   assert.match(text, /docker", \["rmi"/);
   assert.match(text, /builder", "prune"/);
 });
+
+// INT-178: floating :develop tag for Argo when IMAGE_FLOATING_TAG is set.
+test("module image build can push a floating tag alongside the SHA", async () => {
+  const text = await readFile(new URL("./module-images.mjs", import.meta.url), "utf8");
+  assert.match(text, /IMAGE_FLOATING_TAG/);
+  assert.match(text, /floatingTag/);
+});

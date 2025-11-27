@@ -32,6 +32,7 @@ function kubectl(args) {
 }
 
 function rootToken() {
+  // Key matches openbao-dev-bootstrap.mjs / openbao-seed-dev-placeholders.mjs (root_token).
   const b64 = kubectl([
     "-n",
     NS,
@@ -39,7 +40,7 @@ function rootToken() {
     "secret",
     BOOTSTRAP_SECRET,
     "-o",
-    "jsonpath={.data.root-token}",
+    "jsonpath={.data.root_token}",
   ]);
   return Buffer.from(b64, "base64").toString("utf8");
 }
@@ -57,16 +58,19 @@ export function buildDockerConfigJson(username, token) {
   });
 }
 
+function bao(token, args) {
+  // Same pattern as openbao-seed-dev-placeholders: pass BAO_TOKEN via env, not shell quoting.
+  return kubectl(["-n", NS, "exec", POD, "--", "env", `BAO_TOKEN=${token}`, "bao", ...args]);
+}
+
 function apply(username, token) {
   const dockerconfigjson = buildDockerConfigJson(username, token);
   const baoToken = rootToken();
-  // Write via bao CLI in the pod (path already used by ESO ClusterSecretStore).
-  const script = [
-    `export BAO_TOKEN='${baoToken.replace(/'/g, `'\"'\"'`)}'`,
-    "export BAO_ADDR=http://127.0.0.1:8200",
-    `bao kv put secret/${PATH_KEY} dockerconfigjson='${dockerconfigjson.replace(/'/g, `'\"'\"'`)}'`,
-  ].join(" && ");
-  kubectl(["-n", NS, "exec", POD, "--", "sh", "-c", script]);
+  if (!baoToken) {
+    throw new Error(`empty root token from ${NS}/${BOOTSTRAP_SECRET} key root_token`);
+  }
+  // KV path already referenced by ExternalSecret ghcr-pull (ClusterSecretStore openbao).
+  bao(baoToken, ["kv", "put", `secret/${PATH_KEY}`, `dockerconfigjson=${dockerconfigjson}`]);
   return { path: PATH_KEY, username };
 }
 

@@ -126,6 +126,7 @@ export class InvoicingService {
       legalNumber: stripeInvoice.legalNumber,
       dueDate: due,
       communityId: settlement.communityId,
+      statusAudit: [],
     };
     this.store.put(record);
 
@@ -160,25 +161,158 @@ export class InvoicingService {
     let marked = 0;
     for (const row of this.store.list()) {
       if (row.status === "Open" && row.dueDate < asOf) {
-        const next: InvoiceRecord = { ...row, status: "Overdue" };
-        this.store.put(next);
-        marked += 1;
-        await this.outbox.append({
-          aggregateType: "Invoice",
-          aggregateId: row.invoiceId,
-          type: "InvoiceStatusChanged",
-          producer: PRODUCER,
-          communityId: row.communityId,
-          billingMode: "virtual",
-          data: {
-            invoiceId: row.invoiceId,
-            status: "Overdue",
-            reason: "past_due",
-            outstanding: row.total,
-          },
+        await this.applyStatus(row, {
+          status: "Overdue",
+          reason: "past_due",
+          actorId: "00000000-0000-4000-8000-000000000001",
+          source: "mark_overdue",
         });
+        marked += 1;
       }
     }
     return { accepted: true, marked };
   }
+
+  /**
+   * Manager manual status change (REQ-044 / UAT-055).
+   * Reason is mandatory; actor + reason go to statusAudit and AuditableActionPerformed.
+   */
+  async setInvoiceStatus(
+    invoiceId: string,
+    input: { status: InvoiceStatus; reason: string; actorId: string },
+  ): Promise<Record<string, unknown>> {
+    if (!input.reason?.trim()) {
+      throw new BadRequestException("reason is required");
+    }
+    if (!ALLOWED_STATUSES.has(input.status)) {
+      throw new BadRequestException(`unsupported status ${input.status}`);
+    }
+    const row = this.store.get(invoiceId);
+    if (!row) throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+
+    const next = await this.applyStatus(row, {
+      status: input.status,
+      reason: input.reason.trim(),
+      actorId: input.actorId,
+      source: "manual",
+    });
+    return this.toPublicInvoice(next);
+  }
+
+  /**
+   * Apply a Stripe webhook status into the rebuildable cache (TD-6 / INT-130).
+   * Stripe remains master; we store the mapped status locally.
+   */
+  async applyStripeStatus(input: {
+    stripeInvoiceId: string;
+    status: InvoiceStatus;
+    reason?: string;
+  }): Promise<InvoiceRecord | undefined> {
+    const row = this.store
+      .list()
+      .find((r) => r.stripeInvoiceId === input.stripeInvoiceId);
+    if (!row) return undefined;
+    return this.applyStatus(row, {
+      status: input.status,
+      reason: input.reason ?? `stripe:${input.status}`,
+      actorId: "00000000-0000-4000-8000-000000000002",
+      source: "stripe",
+    });
+  }
+
+  listStatusAudit(invoiceId: string) {
+    const row = this.store.get(invoiceId);
+    if (!row) throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    return row.statusAudit;
+  }
+
+  private async applyStatus(
+    row: InvoiceRecord,
+    input: {
+      status: InvoiceStatus;
+      reason: string;
+      actorId: string;
+      source: "manual" | "stripe" | "mark_overdue";
+    },
+  ): Promise<InvoiceRecord> {
+    const at = new Date().toISOString();
+    const next: InvoiceRecord = {
+      ...row,
+      status: input.status,
+      statusAudit: [
+        ...row.statusAudit,
+        {
+          actorId: input.actorId,
+          status: input.status,
+          reason: input.reason,
+          at,
+          source: input.source,
+        },
+      ],
+    };
+    this.store.put(next);
+
+    await this.outbox.append({
+      aggregateType: "Invoice",
+      aggregateId: row.invoiceId,
+      type: "InvoiceStatusChanged",
+      producer: PRODUCER,
+      communityId: row.communityId,
+      billingMode: "virtual",
+      data: {
+        invoiceId: row.invoiceId,
+        status: input.status,
+        reason: input.reason,
+        outstanding: input.status === "Paid" ? "0.00" : row.total,
+      },
+    });
+
+    // REQ-044 / REQ-030 — audit trail for AC-12 (identifiers only).
+    await this.outbox.append({
+      aggregateType: "Invoice",
+      aggregateId: row.invoiceId,
+      type: "AuditableActionPerformed",
+      producer: PRODUCER,
+      communityId: row.communityId,
+      billingMode: "virtual",
+      data: {
+        actorId: input.actorId,
+        action: `invoice.status.${input.source}`,
+        target: `invoice:${row.invoiceId}`,
+        timestamp: at,
+      },
+    });
+
+    return next;
+  }
+
+  private toPublicInvoice(row: InvoiceRecord): Record<string, unknown> {
+    return {
+      invoiceId: row.invoiceId,
+      legalNumber: row.legalNumber ?? undefined,
+      producerId: row.producerId,
+      consumerId: row.consumerId,
+      currency: row.currency,
+      status: row.status,
+      dueDate: row.dueDate,
+      pairSettlementId: row.settlementId,
+      tradeIds: row.tradeIds,
+      amounts: {
+        energy: row.total,
+        vat: "0.00",
+        total: row.total,
+      },
+      billingMode: "virtual",
+    };
+  }
 }
+
+const ALLOWED_STATUSES = new Set<InvoiceStatus>([
+  "Draft",
+  "Open",
+  "PartiallyPaid",
+  "Paid",
+  "Overdue",
+  "Void",
+  "Disputed",
+]);

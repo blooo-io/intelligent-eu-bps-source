@@ -76,4 +76,53 @@ describe("invoicing HTTP (INT-106)", () => {
     });
     expect(overdue.status).toBe(202);
   });
+
+  it("UAT-055 — only manager can set invoice status with reason", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s3333333-3333-4333-8333-333333333333",
+      runId: "r3333333-3333-4333-8333-333333333333",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x2"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.00",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    const memberDenied = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/status`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-intelligent-roles": "member",
+          "x-intelligent-sub": "member-1",
+        },
+        body: JSON.stringify({ status: "Paid", reason: "cash" }),
+      },
+    );
+    expect(memberDenied.status).toBe(403);
+
+    const ok = await fetch(`${base}/v1/invoices/${created!.invoiceId}/status`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "manager",
+        "x-intelligent-sub": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "x-intelligent-community": "c0ffee00-1234-4abc-8def-0123456789ab",
+      },
+      body: JSON.stringify({
+        status: "Paid",
+        reason: "paid outside the platform",
+      }),
+    });
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toMatchObject({
+      invoiceId: created!.invoiceId,
+      status: "Paid",
+    });
+  });
 });

@@ -21,6 +21,15 @@ export type PairSettlementInput = {
   communityId: string;
 };
 
+/** Manual / webhook status change with mandatory reason (REQ-044 / UAT-055). */
+export type InvoiceStatusAudit = {
+  actorId: string;
+  status: InvoiceStatus;
+  reason: string;
+  at: string;
+  source: "manual" | "stripe" | "mark_overdue";
+};
+
 export type InvoiceRecord = {
   invoiceId: string;
   settlementId: string;
@@ -36,4 +45,6 @@ export type InvoiceRecord = {
   legalNumber: string | null;
   dueDate: string;
   communityId: string;
+  /** Audit trail of status changes — identifiers + reason only (REQ-044). */
+  statusAudit: InvoiceStatusAudit[];
 };

@@ -3,6 +3,7 @@ import { ModuleTemplateModule } from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
 import { InvoiceStore } from "./domain/store.js";
 import { InvoicingController } from "./invoicing/invoicing.controller.js";
+import { PublicInvoicingController } from "./invoicing/public.controller.js";
 import { InvoicingService } from "./invoicing/invoicing.service.js";
 import {
   AlwaysReadyReadiness,
@@ -15,7 +16,7 @@ import { STRIPE_INVOICE_PORT } from "./stripe/stripe-invoice.port.js";
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "invoicing" }),
   ],
-  controllers: [InvoicingController],
+  controllers: [InvoicingController, PublicInvoicingController],
   providers: [
     InvoiceStore,
     InvoicingService,

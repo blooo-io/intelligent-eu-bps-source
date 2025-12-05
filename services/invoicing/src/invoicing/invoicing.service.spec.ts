@@ -99,4 +99,47 @@ describe("InvoicingService", () => {
     expect(result.marked).toBe(1);
     expect(service.getInvoice(invoice.invoiceId).status).toBe("Overdue");
   });
+
+  it("UAT-055 — manager sets Paid with reason and audit trail (REQ-044)", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    const actor = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const updated = await service.setInvoiceStatus(invoice.invoiceId, {
+      status: "Paid",
+      reason: "paid outside the platform",
+      actorId: actor,
+    });
+    expect(updated.status).toBe("Paid");
+    const audit = service.listStatusAudit(invoice.invoiceId);
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({
+      actorId: actor,
+      status: "Paid",
+      reason: "paid outside the platform",
+      source: "manual",
+    });
+    const events = await outboxStore.list();
+    expect(events.some((e) => e.event.type === "InvoiceStatusChanged")).toBe(
+      true,
+    );
+    expect(
+      events.some((e) => e.event.type === "AuditableActionPerformed"),
+    ).toBe(true);
+    await expect(
+      service.setInvoiceStatus(invoice.invoiceId, {
+        status: "Paid",
+        reason: "   ",
+        actorId: actor,
+      }),
+    ).rejects.toThrow(/reason/);
+  });
+
+  it("applies Stripe webhook status into the cache (TD-6)", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    const next = await service.applyStripeStatus({
+      stripeInvoiceId: invoice.stripeInvoiceId,
+      status: "Paid",
+    });
+    expect(next?.status).toBe("Paid");
+    expect(service.listStatusAudit(invoice.invoiceId)[0]?.source).toBe("stripe");
+  });
 });

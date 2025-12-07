@@ -1,8 +1,29 @@
 # apps/web (AC-01)
 
-Reference screens built with **Refine** (React, MIT). They consume **only the public API** `/v1` and serve as an accelerator: the project UI (R2M) can replace them without any server change.
+Reference screens built with **Refine** + **Ant Design** (MIT) on React (TD-5).
+They consume **only the public API** `/v1` and authenticate with **OIDC Authorization Code + PKCE** against Keycloak (REQ-033, NFR-011). The billing app never prompts for or stores a password.
 
-The screen list is in `docs/architecture/03-application-architecture.md` §6:
-- participant portal: profile, terms, payment setup, balances and "settle now", invoices and payment, privacy;
-- community-manager console;
-- operator views.
+## Screens (03 §6)
+
+| Issue | Screen | Status |
+|---|---|---|
+| INT-137 | Sign-in (IdP) + home readiness checklist (`GET /me`) | This package |
+| INT-138+ | Profile, terms, payment, balances, invoices, … | Follow-on |
+
+## Local
+
+```bash
+pnpm --filter @intelligent/web install
+pnpm --filter @intelligent/web dev
+```
+
+Vite defaults to `http://localhost:5173` (registered on the Keycloak `web` client).
+Optional env: `VITE_OIDC_AUTHORITY`, `VITE_OIDC_CLIENT_ID`, `VITE_API_BASE_URL`.
+
+## Container
+
+`Dockerfile` serves the Vite build with a small Node static server:
+
+- `GET /health` → probes (module chart)
+- `GET /config.json` → runtime OIDC/API config from env
+- SPA fallback to `index.html`

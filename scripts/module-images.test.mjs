@@ -74,6 +74,20 @@ test("cd-smoke Dockerfile is discovered and runs as non-root", async () => {
   assert.equal(source.includes("nodejs22-debian12"), false);
 });
 
+// INT-137: AC-01 web image is discoverable as apps-web and runs non-root.
+test("apps/web Dockerfile is discovered and runs as non-root", async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const dockerfiles = await findDockerfiles(root);
+  assert.ok(
+    dockerfiles.includes("apps/web/Dockerfile"),
+    `expected apps/web/Dockerfile in ${JSON.stringify(dockerfiles)}`,
+  );
+  const source = await readFile(path.join(root, "apps/web/Dockerfile"), "utf8");
+  assert.equal(dockerfileRunsAsNonRoot(source), true);
+  assert.equal(imageSuffix("apps/web/Dockerfile"), "apps-web");
+  assert.match(source, /nodejs22-debian13:nonroot/);
+});
+
 // INT-107 / INT-99: free runner disk between module image builds.
 test("module image build frees tags and builder cache between modules", async () => {
   const text = await readFile(new URL("./module-images.mjs", import.meta.url), "utf8");

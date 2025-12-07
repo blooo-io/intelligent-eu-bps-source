@@ -9,6 +9,7 @@ docs/project-context/
 # Node / TypeScript
 node_modules/
 dist/
+server-dist/
 build/
 coverage/
 .nx/

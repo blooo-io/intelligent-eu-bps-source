@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { HomePage } from "./home-page";
 import type { OidcFacade } from "../auth/oidc";
 import type { WebConfig } from "../api/config";
@@ -45,13 +46,18 @@ describe("HomePage (INT-137 / REQ-049)", () => {
       }),
     );
 
-    render(<HomePage config={config} oidc={oidc} />);
+    render(
+      <MemoryRouter>
+        <HomePage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText(/TermsAccepted/)).toBeInTheDocument();
     });
     expect(screen.getByText(/Complete payment setup/i)).toBeInTheDocument();
     expect(screen.getByText(/Roles from IdP: member/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /profile/i })).toBeInTheDocument();
   });
 
   it("shows an error when the access token is missing", async () => {
@@ -63,7 +69,11 @@ describe("HomePage (INT-137 / REQ-049)", () => {
       getAccessToken: vi.fn().mockResolvedValue(null),
     };
 
-    render(<HomePage config={config} oidc={oidc} />);
+    render(
+      <MemoryRouter>
+        <HomePage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText(/No access token/i)).toBeInTheDocument();

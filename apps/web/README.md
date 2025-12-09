@@ -1,14 +1,17 @@
 # apps/web (AC-01)
 
-Reference screens built with **Refine** + **Ant Design** (MIT) on React (TD-5).
+Reference screens built with **Refine** (`@refinedev/core`) + **Ant Design** (MIT) on React (TD-5).
 They consume **only the public API** `/v1` and authenticate with **OIDC Authorization Code + PKCE** against Keycloak (REQ-033, NFR-011). The billing app never prompts for or stores a password.
+
+`@refinedev/antd` is intentionally not used yet: it pulls `@ant-design/pro-layout` → `path-to-regexp@8.2.0` (CVE-2026-4926). Screens use `antd` directly with a local theme.
 
 ## Screens (03 §6)
 
 | Issue | Screen | Status |
 |---|---|---|
-| INT-137 | Sign-in (IdP) + home readiness checklist (`GET /me`) | This package |
-| INT-138+ | Profile, terms, payment, balances, invoices, … | Follow-on |
+| INT-137 | Sign-in (IdP) + home readiness checklist (`GET /me`) | Done |
+| INT-138 | Profile (`PUT /me/profile`) | This package |
+| INT-139+ | Terms, payment, balances, invoices, … | Follow-on |
 
 ## Local
 

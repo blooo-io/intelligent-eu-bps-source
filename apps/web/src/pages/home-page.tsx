@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, Card, List, Space, Spin, Typography, Button } from "antd";
 import { CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import { useGetIdentity, useLogout } from "@refinedev/core";
+import { Link } from "react-router";
 import { fetchMe, type Me } from "../api/me";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
@@ -79,7 +80,10 @@ export function HomePage({
           <Title level={2} style={{ margin: 0 }}>
             INTELLIGENT billing
           </Title>
-          <Button onClick={() => logout()}>Sign out</Button>
+          <Space>
+            <Link to="/profile">Profile</Link>
+            <Button onClick={() => logout()}>Sign out</Button>
+          </Space>
         </Space>
 
         {identity?.roles && identity.roles.length > 0 && (

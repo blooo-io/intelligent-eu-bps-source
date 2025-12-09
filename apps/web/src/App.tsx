@@ -1,5 +1,4 @@
 import { Authenticated, Refine } from "@refinedev/core";
-import { RefineThemes } from "@refinedev/antd";
 import { ConfigProvider, App as AntApp } from "antd";
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
 import { createAuthProvider } from "./auth/auth-provider";
@@ -8,17 +7,19 @@ import type { WebConfig } from "./api/config";
 import { LoginPage } from "./pages/login-page";
 import { CallbackPage } from "./pages/callback-page";
 import { HomePage } from "./pages/home-page";
+import { ProfilePage } from "./pages/profile-page";
+import { appTheme } from "./theme";
 
 /**
  * AC-01 shell (TD-5): Refine + Ant Design + OIDC auth + public API.
- * INT-137: sign-in and readiness home only; further screens are INT-138+.
+ * Screens: INT-137 sign-in/home, INT-138 profile; further screens INT-139+.
  */
 export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
   const authProvider = createAuthProvider(oidc);
 
   return (
     <BrowserRouter>
-      <ConfigProvider theme={RefineThemes.Blue}>
+      <ConfigProvider theme={appTheme}>
         <AntApp>
           <Refine
             authProvider={authProvider}
@@ -38,6 +39,7 @@ export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
                 }
               >
                 <Route index element={<HomePage config={config} oidc={oidc} />} />
+                <Route path="profile" element={<ProfilePage config={config} oidc={oidc} />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

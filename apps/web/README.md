@@ -10,8 +10,9 @@ They consume **only the public API** `/v1` and authenticate with **OIDC Authoriz
 | Issue | Screen | Status |
 |---|---|---|
 | INT-137 | Sign-in (IdP) + home readiness checklist (`GET /me`) | Done |
-| INT-138 | Profile (`PUT /me/profile`) | This package |
-| INT-139+ | Terms, payment, balances, invoices, … | Follow-on |
+| INT-138 | Profile (`PUT /me/profile`) | Done |
+| INT-139 | Terms + self-billing mandate | This package |
+| INT-140+ | Payment, balances, invoices, … | Follow-on |
 
 ## Local
 

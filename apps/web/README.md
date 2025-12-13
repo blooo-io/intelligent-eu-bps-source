@@ -11,8 +11,9 @@ They consume **only the public API** `/v1` and authenticate with **OIDC Authoriz
 |---|---|---|
 | INT-137 | Sign-in (IdP) + home readiness checklist (`GET /me`) | Done |
 | INT-138 | Profile (`PUT /me/profile`) | Done |
-| INT-139 | Terms + self-billing mandate | This package |
-| INT-140+ | Payment, balances, invoices, … | Follow-on |
+| INT-139 | Terms + self-billing mandate | Done |
+| INT-140 | Payment setup (Stripe onboarding) | This package |
+| INT-141+ | Balances, invoices, … | Follow-on |
 
 ## Local
 

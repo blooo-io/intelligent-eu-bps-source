@@ -9,11 +9,12 @@ import { CallbackPage } from "./pages/callback-page";
 import { HomePage } from "./pages/home-page";
 import { ProfilePage } from "./pages/profile-page";
 import { TermsPage } from "./pages/terms-page";
+import { PaymentSetupPage } from "./pages/payment-setup-page";
 import { appTheme } from "./theme";
 
 /**
  * AC-01 shell (TD-5): Refine + Ant Design + OIDC auth + public API.
- * Screens: INT-137 home, INT-138 profile, INT-139 terms; further INT-140+.
+ * Screens through INT-140 payment setup; further screens INT-141+.
  */
 export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
   const authProvider = createAuthProvider(oidc);
@@ -42,6 +43,7 @@ export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
                 <Route index element={<HomePage config={config} oidc={oidc} />} />
                 <Route path="profile" element={<ProfilePage config={config} oidc={oidc} />} />
                 <Route path="terms" element={<TermsPage config={config} oidc={oidc} />} />
+                <Route path="payment-setup" element={<PaymentSetupPage config={config} oidc={oidc} />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -83,6 +83,7 @@ export function HomePage({
           <Space>
             <Link to="/profile">Profile</Link>
             <Link to="/terms">Terms</Link>
+            <Link to="/payment-setup">Payment setup</Link>
             <Button onClick={() => logout()}>Sign out</Button>
           </Space>
         </Space>

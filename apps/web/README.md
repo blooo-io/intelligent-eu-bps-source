@@ -13,8 +13,9 @@ They consume **only the public API** `/v1` and authenticate with **OIDC Authoriz
 | INT-138 | Profile (`PUT /me/profile`) | Done |
 | INT-139 | Terms + self-billing mandate | Done |
 | INT-140 | Payment setup (Stripe onboarding) | Done |
-| INT-141 | Balances + settle now | This package |
-| INT-142+ | Invoices, privacy, manager screens, … | Follow-on |
+| INT-141 | Balances + settle now | Done |
+| INT-142 | Invoices (list, detail, PDF, pay) | This package |
+| INT-143+ | Privacy, manager screens, … | Follow-on |
 
 ## Local
 

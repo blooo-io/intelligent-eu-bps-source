@@ -86,6 +86,7 @@ export function HomePage({
             <Link to="/payment-setup">Payment setup</Link>
             <Link to="/balances">Balances</Link>
             <Link to="/invoices">Invoices</Link>
+            <Link to="/privacy">Privacy</Link>
             <Button onClick={() => logout()}>Sign out</Button>
           </Space>
         </Space>

@@ -14,11 +14,12 @@ import { BalancesPage } from "./pages/balances-page";
 import { InvoicesPage } from "./pages/invoices-page";
 import { PrivacyPage } from "./pages/privacy-page";
 import { CommunitySettingsPage } from "./pages/community-settings-page";
+import { ParticipantsPage } from "./pages/participants-page";
 import { appTheme } from "./theme";
 
 /**
  * AC-01 shell (TD-5): Refine + Ant Design + OIDC auth + public API.
- * Screens through INT-144 community settings; further screens INT-145+.
+ * Screens through INT-145 participants; further screens INT-146+.
  */
 export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
   const authProvider = createAuthProvider(oidc);
@@ -54,6 +55,10 @@ export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
                 <Route
                   path="community-settings"
                   element={<CommunitySettingsPage config={config} oidc={oidc} />}
+                />
+                <Route
+                  path="participants"
+                  element={<ParticipantsPage config={config} oidc={oidc} />}
                 />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

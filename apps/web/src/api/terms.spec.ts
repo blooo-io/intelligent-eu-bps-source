@@ -52,6 +52,13 @@ describe("terms API (REQ-050)", () => {
   it("throws ApiError on failure", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 400 });
     await expect(
+      fetchCurrentTerms(
+        "https://api.example",
+        "tok",
+        fetchImpl as unknown as typeof fetch,
+      ),
+    ).rejects.toBeInstanceOf(ApiError);
+    await expect(
       acceptTerms(
         "https://api.example",
         "tok",
@@ -61,3 +68,4 @@ describe("terms API (REQ-050)", () => {
     ).rejects.toBeInstanceOf(ApiError);
   });
 });
+

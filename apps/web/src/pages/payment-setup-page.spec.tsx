@@ -53,4 +53,27 @@ describe("PaymentSetupPage (INT-140 / UAT-063)", () => {
       "https://connect.stripe.com/setup/test_abc",
     );
   });
+
+  it("shows an error when the access token is missing", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue(null),
+    };
+
+    render(
+      <MemoryRouter>
+        <PaymentSetupPage config={config} oidc={oidc} openUrl={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /continue to stripe/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/No access token/i)).toBeInTheDocument();
+    });
+  });
 });
+

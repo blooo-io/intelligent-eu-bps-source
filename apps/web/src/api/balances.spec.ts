@@ -54,6 +54,13 @@ describe("balances API (REQ-057 / BR-05)", () => {
   it("throws on failure", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 400 });
     await expect(
+      fetchMyBalances(
+        "https://api.example",
+        "tok",
+        fetchImpl as unknown as typeof fetch,
+      ),
+    ).rejects.toBeInstanceOf(ApiError);
+    await expect(
       createEarlySettlement(
         "https://api.example",
         "tok",
@@ -63,3 +70,4 @@ describe("balances API (REQ-057 / BR-05)", () => {
     ).rejects.toBeInstanceOf(ApiError);
   });
 });
+

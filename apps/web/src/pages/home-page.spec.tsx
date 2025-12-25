@@ -65,6 +65,7 @@ describe("HomePage (INT-137 / REQ-049)", () => {
     expect(screen.getByRole("link", { name: /privacy/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /community settings/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /participants/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /billing runs/i })).toBeInTheDocument();
   });
 
   it("shows an error when the access token is missing", async () => {

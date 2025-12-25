@@ -1,0 +1,208 @@
+import { useEffect, useState } from "react";
+import {
+  Alert,
+  Button,
+  Card,
+  Form,
+  Input,
+  Radio,
+  Space,
+  Spin,
+  Typography,
+} from "antd";
+import { Link } from "react-router";
+import { fetchMe } from "../api/me";
+import {
+  getBillingRun,
+  startBillingRun,
+  type BillingRun,
+  type BillingRunType,
+} from "../api/billing-runs";
+import type { WebConfig } from "../api/config";
+import type { OidcFacade } from "../auth/oidc";
+
+const { Title, Paragraph, Text } = Typography;
+
+type FormValues = {
+  type: BillingRunType;
+  period?: string;
+};
+
+/**
+ * Billing runs screen (INT-146 / REQ-006 / UAT-006).
+ * Manager starts a run and refreshes status.
+ */
+export function BillingRunsPage({
+  config,
+  oidc,
+}: {
+  config: WebConfig;
+  oidc: OidcFacade;
+}) {
+  const [communityId, setCommunityId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [current, setCurrent] = useState<BillingRun | null>(null);
+  const [form] = Form.useForm<FormValues>();
+  const runType = Form.useWatch("type", form);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await oidc.getAccessToken();
+        if (!token) throw new Error("No access token");
+        const me = await fetchMe(config.apiBaseUrl, token);
+        if (!cancelled) {
+          setCommunityId(me.communityId);
+          form.setFieldsValue({ type: "periodic", period: "" });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [config.apiBaseUrl, oidc, form]);
+
+  async function onStart(values: FormValues) {
+    if (!communityId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await oidc.getAccessToken();
+      if (!token) throw new Error("No access token");
+      const body =
+        values.type === "periodic"
+          ? { type: values.type, period: values.period?.trim() || undefined }
+          : { type: values.type };
+      // REQ-006: manager triggers a billing run for the community period.
+      const run = await startBillingRun(
+        config.apiBaseUrl,
+        token,
+        communityId,
+        body,
+      );
+      setCurrent(run);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Start failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRefresh() {
+    if (!current) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await oidc.getAccessToken();
+      if (!token) throw new Error("No access token");
+      setCurrent(await getBillingRun(config.apiBaseUrl, token, current.runId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Refresh failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+        <Spin size="large" />
+      </main>
+    );
+  }
+
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        padding: 24,
+        background: "linear-gradient(180deg, #f4faf7 0%, #ffffff 40%)",
+      }}
+    >
+      <Space direction="vertical" size="large" style={{ width: "100%", maxWidth: 640 }}>
+        <Space style={{ width: "100%", justifyContent: "space-between" }}>
+          <Title level={2} style={{ margin: 0 }}>
+            Billing runs
+          </Title>
+          <Link to="/">Back to home</Link>
+        </Space>
+
+        {communityId && (
+          <Paragraph type="secondary">
+            Community <Text code>{communityId}</Text>
+          </Paragraph>
+        )}
+
+        {error && <Alert type="error" message={error} showIcon />}
+
+        <Card title="Start a run">
+          <Form form={form} layout="vertical" onFinish={onStart}>
+            <Form.Item
+              label="Type"
+              name="type"
+              rules={[{ required: true, message: "Type is required" }]}
+            >
+              <Radio.Group>
+                <Radio.Button value="periodic">Periodic</Radio.Button>
+                <Radio.Button value="early">Early</Radio.Button>
+                <Radio.Button value="final">Final</Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+            {runType === "periodic" && (
+              <Form.Item
+                label="Period"
+                name="period"
+                rules={[
+                  { required: true, message: "Period is required for periodic runs" },
+                ]}
+              >
+                <Input placeholder="2026-09" aria-label="Billing period" />
+              </Form.Item>
+            )}
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={busy}>
+                Start run
+              </Button>
+            </Form.Item>
+          </Form>
+        </Card>
+
+        {current && (
+          <Card
+            title="Run status"
+            extra={
+              <Button onClick={onRefresh} loading={busy}>
+                Refresh
+              </Button>
+            }
+          >
+            <Paragraph>
+              Type <Text code>{current.type}</Text>
+              {current.period ? (
+                <>
+                  {" "}
+                  · Period <Text code>{current.period}</Text>
+                </>
+              ) : null}
+            </Paragraph>
+            <Paragraph>
+              Status <Text code>{current.status}</Text> · version {current.version}
+            </Paragraph>
+            <Paragraph type="secondary">
+              Run <Text code>{current.runId}</Text>
+            </Paragraph>
+          </Card>
+        )}
+      </Space>
+    </main>
+  );
+}

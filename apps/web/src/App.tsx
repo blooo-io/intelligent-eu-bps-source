@@ -16,11 +16,12 @@ import { PrivacyPage } from "./pages/privacy-page";
 import { CommunitySettingsPage } from "./pages/community-settings-page";
 import { ParticipantsPage } from "./pages/participants-page";
 import { BillingRunsPage } from "./pages/billing-runs-page";
+import { PaymentsOverviewPage } from "./pages/payments-overview-page";
 import { appTheme } from "./theme";
 
 /**
  * AC-01 shell (TD-5): Refine + Ant Design + OIDC auth + public API.
- * Screens through INT-146 billing runs; further screens INT-147+.
+ * Screens through INT-147 payments overview; further screens INT-148+.
  */
 export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
   const authProvider = createAuthProvider(oidc);
@@ -64,6 +65,10 @@ export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
                 <Route
                   path="billing-runs"
                   element={<BillingRunsPage config={config} oidc={oidc} />}
+                />
+                <Route
+                  path="payments-overview"
+                  element={<PaymentsOverviewPage config={config} oidc={oidc} />}
                 />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

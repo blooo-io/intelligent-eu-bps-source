@@ -3,10 +3,9 @@ import {
   Alert,
   Button,
   Card,
-  Form,
   Input,
   List,
-  Select,
+  Radio,
   Space,
   Spin,
   Typography,
@@ -27,12 +26,6 @@ import type { OidcFacade } from "../auth/oidc";
 
 const { Title, Paragraph, Text } = Typography;
 
-const ROLE_OPTIONS: { value: ParticipantRole; label: string }[] = [
-  { value: "consumer", label: "Consumer" },
-  { value: "producer", label: "Producer" },
-  { value: "prosumer", label: "Prosumer" },
-];
-
 /**
  * Manager participant registry (INT-145 / REQ-008, REQ-012, REQ-058).
  * CSV import, list, patch attribution ids, offboard.
@@ -47,6 +40,9 @@ export function ParticipantsPage({
   const [communityId, setCommunityId] = useState<string | null>(null);
   const [rows, setRows] = useState<Participant[]>([]);
   const [selected, setSelected] = useState<Participant | null>(null);
+  const [editActorId, setEditActorId] = useState("");
+  const [editMeterId, setEditMeterId] = useState("");
+  const [editRole, setEditRole] = useState<ParticipantRole>("consumer");
   const [csvText, setCsvText] = useState(
     "email,marketActorId,meterId,role\n",
   );
@@ -54,11 +50,6 @@ export function ParticipantsPage({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [form] = Form.useForm<{
-    marketActorId?: string;
-    meterId?: string;
-    role?: ParticipantRole;
-  }>();
 
   const reload = useCallback(
     async (cid: string) => {
@@ -121,18 +112,12 @@ export function ParticipantsPage({
   function openEdit(row: Participant) {
     setSelected(row);
     setMessage(null);
-    form.setFieldsValue({
-      marketActorId: row.marketActorId,
-      meterId: row.meterId,
-      role: row.role,
-    });
+    setEditActorId(row.marketActorId ?? "");
+    setEditMeterId(row.meterId ?? "");
+    setEditRole(row.role);
   }
 
-  async function onPatch(values: {
-    marketActorId?: string;
-    meterId?: string;
-    role?: ParticipantRole;
-  }) {
+  async function onPatch() {
     if (!selected || !communityId) return;
     setBusy(true);
     setError(null);
@@ -145,7 +130,11 @@ export function ParticipantsPage({
         config.apiBaseUrl,
         token,
         selected.participantId,
-        values,
+        {
+          marketActorId: editActorId,
+          meterId: editMeterId,
+          role: editRole,
+        },
       );
       setSelected(updated);
       setRows(await reload(communityId));
@@ -263,18 +252,30 @@ export function ParticipantsPage({
             <Paragraph type="secondary">
               Participant <Text code>{selected.participantId}</Text>
             </Paragraph>
-            <Form form={form} layout="vertical" onFinish={onPatch}>
-              <Form.Item label="Market actor id" name="marketActorId">
-                <Input />
-              </Form.Item>
-              <Form.Item label="Meter id" name="meterId">
-                <Input />
-              </Form.Item>
-              <Form.Item label="Role" name="role">
-                <Select options={ROLE_OPTIONS} />
-              </Form.Item>
+            <Space direction="vertical" style={{ width: "100%" }}>
+              <Input
+                aria-label="Market actor id"
+                value={editActorId}
+                onChange={(e) => setEditActorId(e.target.value)}
+                placeholder="Market actor id"
+              />
+              <Input
+                aria-label="Meter id"
+                value={editMeterId}
+                onChange={(e) => setEditMeterId(e.target.value)}
+                placeholder="Meter id"
+              />
+              <Radio.Group
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value)}
+                aria-label="Participant role"
+              >
+                <Radio.Button value="consumer">Consumer</Radio.Button>
+                <Radio.Button value="producer">Producer</Radio.Button>
+                <Radio.Button value="prosumer">Prosumer</Radio.Button>
+              </Radio.Group>
               <Space>
-                <Button type="primary" htmlType="submit" loading={busy}>
+                <Button type="primary" loading={busy} onClick={onPatch}>
                   Save
                 </Button>
                 <Button
@@ -286,7 +287,7 @@ export function ParticipantsPage({
                   Offboard
                 </Button>
               </Space>
-            </Form>
+            </Space>
           </Card>
         )}
       </Space>

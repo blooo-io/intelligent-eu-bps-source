@@ -129,7 +129,7 @@ describe("ParticipantsPage (INT-145 / UAT-008 / UAT-012)", () => {
     ).toBe(true);
   });
 
-  it("patches attribution and offboards", async () => {
+  it("patches attribution", async () => {
     const registry = [{ ...existing }];
     const fetchImpl = meAndList(registry);
     vi.stubGlobal("fetch", fetchImpl);
@@ -150,13 +150,34 @@ describe("ParticipantsPage (INT-145 / UAT-008 / UAT-012)", () => {
       expect(screen.getByDisplayValue("actor-1")).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByDisplayValue("actor-1"), {
+    fireEvent.change(screen.getByLabelText(/Market actor id/i), {
       target: { value: "actor-updated" },
     });
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/Participant updated/i)).toBeInTheDocument();
+    });
+  });
+
+  it("offboards a selected participant", async () => {
+    const registry = [{ ...existing }];
+    const fetchImpl = meAndList(registry);
+    vi.stubGlobal("fetch", fetchImpl);
+
+    render(
+      <MemoryRouter>
+        <ParticipantsPage config={config} oidc={stubOidc()} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/actor-1/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /offboard/i })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /offboard/i }));

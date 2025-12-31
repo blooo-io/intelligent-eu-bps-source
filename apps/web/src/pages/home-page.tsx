@@ -92,6 +92,7 @@ export function HomePage({
             <Link to="/billing-runs">Billing runs</Link>
             <Link to="/payments-overview">Payments overview</Link>
             <Link to="/reports">Reports</Link>
+            <Link to="/operator">Operator</Link>
             <Button onClick={() => logout()}>Sign out</Button>
           </Space>
         </Space>

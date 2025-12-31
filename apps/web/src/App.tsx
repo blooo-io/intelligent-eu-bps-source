@@ -18,11 +18,12 @@ import { ParticipantsPage } from "./pages/participants-page";
 import { BillingRunsPage } from "./pages/billing-runs-page";
 import { PaymentsOverviewPage } from "./pages/payments-overview-page";
 import { ReportsPage } from "./pages/reports-page";
+import { OperatorPage } from "./pages/operator-page";
 import { appTheme } from "./theme";
 
 /**
  * AC-01 shell (TD-5): Refine + Ant Design + OIDC auth + public API.
- * Screens through INT-148 reports; further screens INT-149+.
+ * Screens through INT-149 operator ops (AC-01 factory screens complete).
  */
 export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
   const authProvider = createAuthProvider(oidc);
@@ -72,6 +73,7 @@ export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
                   element={<PaymentsOverviewPage config={config} oidc={oidc} />}
                 />
                 <Route path="reports" element={<ReportsPage config={config} oidc={oidc} />} />
+                <Route path="operator" element={<OperatorPage config={config} oidc={oidc} />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

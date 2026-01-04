@@ -25,7 +25,7 @@ When a UAT passes, the same change updates `status` in its note. The test name a
 | Unit and component | The module test script, 80% statements, branches, functions and lines | GitHub Actions is green; consolidated snapshot in [`v1-unit-component-evidence.md`](v1-unit-component-evidence.md) (INT-73) |
 | Contract | `contracts/`, Spectral, Redocly, AsyncAPI and oasdiff | No unannounced breaking change |
 | Acceptance | `docs/requirements/items/uat/`, `scope_d55: in` | The note status is `Pass` |
-| Integration scenarios | [`docs/architecture/03-application-architecture.md`](../architecture/03-application-architecture.md) §8, S1–S13, mocks and Stripe test mode | Prepared and executed by the later testing tasks, against the UAT notes those scenarios validate |
+| Integration scenarios | [`docs/architecture/03-application-architecture.md`](../architecture/03-application-architecture.md) §8, S1–S13, mocks and Stripe test mode; prep in [`v1-integration-scenarios.md`](v1-integration-scenarios.md) (INT-74) | Prepared cases + environment ready; execution and UAT updates under INT-75 |
 
 Requirements with priority **W**, and UAT notes with `scope_d55: out`, stay in the catalogue for traceability and are not executed for D5.5. V1 external systems other than Stripe test mode go through the mocks (assumption A32).
 

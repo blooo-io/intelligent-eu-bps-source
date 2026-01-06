@@ -48,6 +48,13 @@ test("integration prep lists every S1–S13 scenario with UAT links (INT-74)", a
   assert.match(prep, /createMockSuite/);
   assert.match(prep, /Stripe test/);
   assert.match(plan, /v1-integration-scenarios\.md/);
+  assert.match(plan, /v1-integration-execution\.md/);
+  const execution = await readFile(
+    "docs/testing/v1-integration-execution.md",
+    "utf8",
+  );
+  assert.match(execution, /INT-75/);
+  assert.match(execution, /D-INT-75-01/);
 
   for (const id of SCENARIOS) {
     assert.match(prep, new RegExp(`\\b${id}\\b`), `prep missing ${id}`);

@@ -93,6 +93,22 @@ describe("IntakeService", () => {
     ).toHaveLength(0);
   });
 
+  it("S7 / UAT-001 — duplicate tradeId in one feed is stored once (REQ-001)", async () => {
+    const suite = createMockSuite("S7");
+    const actors = new Set(
+      suite.scenario.trades.flatMap((t) => [t.buyerActorId, t.sellerActorId]),
+    );
+    service = new IntakeService(
+      store,
+      new OutboxService(outboxStore),
+      new FixturePartyResolver(suite.scenario.communityId, actors),
+    );
+    service.useSuite(suite);
+    const result = await service.refreshIntake(WINDOW);
+    expect(result.ingested).toBe(1);
+    expect(store.size()).toBe(1);
+  });
+
   it("emits IntakeAnomalyDetected for unknown parties (S4)", async () => {
     const suite = createMockSuite("S4");
     const known = new Set(

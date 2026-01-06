@@ -97,6 +97,23 @@ describe("SettlementService", () => {
     expect(s.carriedForwardOut).toBe("0.00");
   });
 
+  it("S8 / UAT-002 — CHF community uses ECB fixture rate (REQ-002)", async () => {
+    service.useFixtureScenario("S8", { threshold: 0.01 });
+    communityId = trades.communityId();
+    const { runId } = await service.startRun({
+      communityId,
+      type: "periodic",
+      period: "2026-11",
+    });
+    const run = store.getRun(runId)!;
+    expect(run.settlementIds.length).toBeGreaterThan(0);
+    const s = service.getPairSettlement(run.settlementIds[0]);
+    expect(s.currency).toBe("CHF");
+    // Fixture ECB rate 0.9412 from AC-15 S8, stored to two decimals (formatRate).
+    expect(s.rate).toBe("0.94");
+    expect(Number(s.energyAmount)).toBeGreaterThan(0);
+  });
+
   it("does not overwrite a computed settlement (BR-13)", async () => {
     const { runId } = await service.startRun({
       communityId,

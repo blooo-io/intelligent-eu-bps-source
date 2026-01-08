@@ -23,6 +23,8 @@ export type PaymentProjection = {
   status: string;
   method?: string;
   failureCategory?: string;
+  /** End-to-end processing time in ms (REQ-046 / KPI TE-2). */
+  processingTimeMs?: number;
   /** Participant who paid / was paid (for overview filtering). */
   participantId?: string;
 };

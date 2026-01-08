@@ -113,12 +113,14 @@ export class PaymentsService {
     status: string;
     method?: string;
     failureCategory?: string;
+    processingTimeMs?: number;
   }> {
     // BR-12 — only test-mode PSP calls.
     const account = this.store.getAccount(input.participantId);
     if (!account?.paymentMethodId) {
       throw new BadRequestException("Consumer payment method required");
     }
+    const started = Date.now();
     const pspResult = await this.psp.createPayment({
       invoiceId: input.invoiceId,
       amount: input.amount,
@@ -126,6 +128,7 @@ export class PaymentsService {
       producerStripeAccountId: input.producerStripeAccountId,
       consumerPaymentMethodId: account.paymentMethodId,
     });
+    const processingTimeMs = Math.max(0, Date.now() - started);
     const paymentId = randomUUID();
     this.store.putPayment({
       paymentId,
@@ -137,6 +140,8 @@ export class PaymentsService {
       stripePaymentId: pspResult.stripePaymentId,
       failureCategory: pspResult.failureCategory,
       communityId: input.communityId,
+      method: "card",
+      processingTimeMs,
     });
     await this.outbox.append({
       aggregateType: "Payment",
@@ -150,6 +155,8 @@ export class PaymentsService {
         invoiceId: input.invoiceId,
         status: pspResult.status,
         failureCategory: pspResult.failureCategory,
+        method: "card",
+        processingTimeMs,
       },
     });
     return {
@@ -160,6 +167,7 @@ export class PaymentsService {
       status: pspResult.status,
       method: "card",
       failureCategory: pspResult.failureCategory,
+      processingTimeMs,
     };
   }
 

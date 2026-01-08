@@ -111,6 +111,14 @@ components:
                       - "refunded"
                   failureCategory:
                     type: "string"
+                    description: Cause of a failed payment (REQ-046 / KPI UE-3).
+                  method:
+                    type: "string"
+                    description: Payment method used (REQ-046 / KPI TE-2).
+                  processingTimeMs:
+                    type: integer
+                    minimum: 0
+                    description: End-to-end processing time in milliseconds (REQ-046 / KPI TE-2).
     ErasureCompleted:
       name: ErasureCompleted
       contentType: application/json

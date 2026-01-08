@@ -20,7 +20,7 @@ Environment: module test runners with AC-15 fixtures (`createMockSuite`); Stripe
 | S8 | UAT-002 | Pass | `services/settlement` CHF + ECB fixture rate `0.94` |
 | S9 | UAT-074 | Pass (prior) | Early settlement ignores threshold |
 | S10 | UAT-016 | Pass | `services/payments` failure categories on pay / webhook path |
-| S10 KPIs | UAT-057 | Blocked | KPI CSV lacks failure cause, corrective action, processing time (REQ-046) — defect logged |
+| S10 KPIs | UAT-057 | Pass | Fixed on INT-82 — KPI CSV includes cause, corrective action, processingTimeMs |
 | S11 | UAT-056 | Pass | `services/invoicing` holds until producer readiness (BR-09 / KYC gate) |
 | S12 | UAT-013 | Pass (prior) | `services/compliance` erasure propagation |
 | S13 | UAT-070 | Pass | `mocks` data-space schema validation + `services/publication` |
@@ -29,7 +29,7 @@ Environment: module test runners with AC-15 fixtures (`createMockSuite`); Stripe
 
 | Id | Severity | Summary | Related |
 |---|---|---|---|
-| D-INT-75-01 | Medium | KPI export CSV (`GET /v1/kpi-exports/{period}`) does not include failed-transaction cause, suggested corrective action, or processing time per payment method required by REQ-046 / UAT-057. Payments overview carries `failureCategory` only. | UAT-057, INT-82 |
+| D-INT-75-01 | Medium | ~~KPI CSV missing REQ-046 fields~~ — fixed in INT-82 (`recordType=payment` rows). | UAT-057 |
 
 ## Commands run (this execution)
 

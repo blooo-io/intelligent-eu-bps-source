@@ -656,8 +656,9 @@ paths:
       tags: [Reports]
       summary: KPI export for a period
       description: >
-        File export of the period (REQ-047). The file format is the V1 file export;
-        the later channel is still open in the architecture (03 §7, port P-KPI).
+        CSV file export of the period (REQ-047 invoice amounts/kWh plus REQ-046
+        payment failure causes, suggested corrective actions and processing times
+        per method). The later channel is still open in the architecture (03 §7, port P-KPI).
       x-served-by: AC-09
       parameters:
         - name: period

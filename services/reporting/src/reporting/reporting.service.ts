@@ -10,11 +10,12 @@ import type {
   PaymentProjection,
   PeriodicSummary,
 } from "../domain/types.js";
+import { suggestedCorrectiveAction } from "./corrective-action.js";
 import { sumMoney } from "./money.js";
 
 /**
- * AC-09 reporting — read models from projected billing events (INT-112).
- * REQ-018 overview, REQ-031 history, REQ-032 summary, REQ-047 KPI export.
+ * AC-09 reporting — read models from projected billing events (INT-112 / INT-82).
+ * REQ-018 overview, REQ-031 history, REQ-032 summary, REQ-046/047 KPI export.
  */
 @Injectable()
 export class ReportingService {
@@ -197,21 +198,60 @@ export class ReportingService {
     };
   }
 
+  /**
+   * KPI CSV — invoice rows (REQ-047) and payment rows (REQ-046 / UAT-057).
+   * recordType distinguishes the two line shapes in one file.
+   */
   private buildKpiCsv(communityId: string, period: string): string {
     const header =
-      "communityId,period,participantId,invoiceId,amount,energyKwh,currency";
+      "recordType,communityId,period,participantId,invoiceId,paymentId,amount,energyKwh,currency,status,method,processingTimeMs,failureCategory,correctiveAction";
     const lines = [header];
-    for (const inv of this.store.listInvoices({ communityId, period })) {
+    const invoices = this.store.listInvoices({ communityId, period });
+    for (const inv of invoices) {
       // One row per consumer; producer side is the same invoice id (identifiers only).
       lines.push(
         [
+          "invoice",
           inv.communityId,
           inv.period,
           inv.consumerId,
           inv.invoiceId,
+          "",
           inv.total,
           inv.energyKwh ?? "0.00",
           inv.currency,
+          inv.status,
+          "",
+          "",
+          "",
+          "",
+        ].join(","),
+      );
+    }
+    const invoiceIds = new Set(invoices.map((i) => i.invoiceId));
+    for (const pay of this.store.listPayments({ communityId, invoiceIds })) {
+      const corrective =
+        pay.status === "failed"
+          ? suggestedCorrectiveAction(pay.failureCategory)
+          : "";
+      lines.push(
+        [
+          "payment",
+          pay.communityId,
+          period,
+          pay.participantId ?? "",
+          pay.invoiceId,
+          pay.paymentId,
+          pay.amount,
+          "",
+          pay.currency,
+          pay.status,
+          pay.method ?? "",
+          pay.processingTimeMs !== undefined
+            ? String(pay.processingTimeMs)
+            : "",
+          pay.failureCategory ?? "",
+          escapeCsv(corrective),
         ].join(","),
       );
     }
@@ -234,4 +274,12 @@ export class ReportingService {
       },
     };
   }
+}
+
+/** Escape commas/quotes in CSV fields (corrective action text). */
+function escapeCsv(value: string): string {
+  if (!value.includes(",") && !value.includes('"') && !value.includes("\n")) {
+    return value;
+  }
+  return `"${value.replace(/"/g, '""')}"`;
 }

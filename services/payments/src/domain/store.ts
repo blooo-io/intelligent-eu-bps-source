@@ -8,6 +8,10 @@ export type PaymentRecord = {
   stripePaymentId: string;
   failureCategory?: string;
   communityId: string;
+  /** Payment method label for KPI TE-2 (REQ-046). */
+  method?: string;
+  /** End-to-end processing time in ms (REQ-046 / KPI TE-2). */
+  processingTimeMs?: number;
 };
 
 export type AccountRecord = {

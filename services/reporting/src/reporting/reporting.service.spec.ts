@@ -1,5 +1,5 @@
 /**
- * INT-112 — AC-09 reporting (REQ-018/031/032/047, UAT-018/031/032/058).
+ * INT-112 / INT-82 — AC-09 reporting (REQ-018/031/032/046/047, UAT-018/031/032/057/058).
  */
 import "reflect-metadata";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -52,6 +52,8 @@ describe("ReportingService", () => {
       currency: "EUR",
       status: "succeeded",
       method: "card",
+      processingTimeMs: 420,
+      participantId: CONSUMER,
     });
     service.projectPayment({
       paymentId: PAY_FAIL,
@@ -60,7 +62,10 @@ describe("ReportingService", () => {
       amount: "5.50",
       currency: "EUR",
       status: "failed",
+      method: "card",
       failureCategory: "card_declined",
+      processingTimeMs: 180,
+      participantId: CONSUMER,
     });
   });
 
@@ -102,12 +107,25 @@ describe("ReportingService", () => {
     await service.exportKpi({ communityId: COMMUNITY, period: PERIOD });
     const file = service.getKpiExport(PERIOD, COMMUNITY);
     const text = file.body.toString("utf8");
-    expect(text).toContain(
-      "communityId,period,participantId,invoiceId,amount,energyKwh,currency",
-    );
-    expect(text).toContain(`${INV1},10.00,4.50,EUR`);
-    expect(text).toContain(`${INV2},5.50,2.00,EUR`);
+    expect(text).toContain("recordType,communityId,period,participantId,invoiceId");
+    expect(text).toContain(`invoice,${COMMUNITY},${PERIOD},${CONSUMER},${INV1},,10.00,4.50,EUR`);
+    expect(text).toContain(`invoice,${COMMUNITY},${PERIOD},${CONSUMER},${INV2},,5.50,2.00,EUR`);
     expect(text).toContain(CONSUMER);
+  });
+
+  it("UAT-057 — KPI CSV logs failure cause, corrective action and processing time (REQ-046)", async () => {
+    await service.exportKpi({ communityId: COMMUNITY, period: PERIOD });
+    const text = service.getKpiExport(PERIOD, COMMUNITY).body.toString("utf8");
+    expect(text).toContain("failureCategory,correctiveAction");
+    expect(text).toContain(
+      `payment,${COMMUNITY},${PERIOD},${CONSUMER},${INV2},${PAY_FAIL},5.50,,EUR,failed,card,180,card_declined,`,
+    );
+    expect(text).toMatch(
+      /Ask the consumer to use another card or contact their bank/,
+    );
+    expect(text).toContain(
+      `payment,${COMMUNITY},${PERIOD},${CONSUMER},${INV1},${PAY_OK},10.00,,EUR,succeeded,card,420,,`,
+    );
   });
 
   it("computes live summary without prior BuildReport and empty history", () => {

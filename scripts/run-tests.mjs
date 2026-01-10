@@ -53,7 +53,9 @@ await run(process.execPath, ["--test", path.join(root, "scripts/commit-attributi
 await run(process.execPath, ["--test", path.join(root, "scripts/test-plan.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/unit-component-evidence.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/integration-scenarios.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/functional-cases.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/deploy-layout.test.mjs")]);
+
 
 
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-layout.test.mjs")]);

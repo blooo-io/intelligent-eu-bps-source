@@ -9,17 +9,17 @@ See also: [`v1-test-plan.md`](v1-test-plan.md), [`v1-integration-scenarios.md`](
 
 Count: **64** in-scope UAT notes.
 
-| UAT | Requirement | Status at INT-76 |
+| UAT | Requirement | Status (latest) |
 |---|---|---|
 | UAT-001 | REQ-001 | Pass |
 | UAT-002 | REQ-002 | Pass |
-| UAT-003 | REQ-003 | Not Run |
-| UAT-005 | REQ-005 | Not Run |
+| UAT-003 | REQ-003 | Pass |
+| UAT-005 | REQ-005 | Pass |
 | UAT-006 | REQ-006 | Pass |
 | UAT-007 | REQ-007 | Pass |
 | UAT-008 | REQ-008 | Pass |
 | UAT-009 | REQ-009 | Pass |
-| UAT-010 | REQ-010 | Not Run |
+| UAT-010 | REQ-010 | Pass |
 | UAT-011 | REQ-011 | Pass |
 | UAT-012 | REQ-012 | Pass |
 | UAT-013 | REQ-013 | Pass |
@@ -33,16 +33,16 @@ Count: **64** in-scope UAT notes.
 | UAT-030 | REQ-030 | Pass |
 | UAT-031 | REQ-031 | Pass |
 | UAT-032 | REQ-032 | Pass |
-| UAT-033 | NFR-001 | Not Run |
-| UAT-034 | NFR-002 | Not Run |
-| UAT-035 | NFR-003 | Not Run |
+| UAT-033 | NFR-001 | Pass |
+| UAT-034 | NFR-002 | Pass |
+| UAT-035 | NFR-003 | Pass |
 | UAT-036 | NFR-004 | Not Run |
-| UAT-037 | NFR-005 | Not Run |
-| UAT-038 | NFR-006 | Not Run |
-| UAT-039 | NFR-007 | Not Run |
+| UAT-037 | NFR-005 | Pass |
+| UAT-038 | NFR-006 | Pass |
+| UAT-039 | NFR-007 | Pass |
 | UAT-040 | NFR-008 | Not Run |
-| UAT-041 | NFR-009 | Not Run |
-| UAT-042 | NFR-010 | Not Run |
+| UAT-041 | NFR-009 | Pass |
+| UAT-042 | NFR-010 | Pass |
 | UAT-043 | REQ-033 | Pass |
 | UAT-044 | REQ-034 | Not Run |
 | UAT-045 | REQ-035 | Not Run |
@@ -58,14 +58,14 @@ Count: **64** in-scope UAT notes.
 | UAT-056 | REQ-045 | Pass |
 | UAT-057 | REQ-046 | Pass |
 | UAT-058 | REQ-047 | Pass |
-| UAT-059 | NFR-012 | Not Run |
+| UAT-059 | NFR-012 | Pass |
 | UAT-060 | REQ-049 | Pass |
 | UAT-061 | NFR-013 | Not Run |
 | UAT-062 | REQ-050 | Pass |
 | UAT-063 | REQ-051 | Pass |
 | UAT-064 | REQ-052 | Not Run |
-| UAT-065 | NFR-014 | Not Run |
-| UAT-066 | NFR-015 | Not Run |
+| UAT-065 | NFR-014 | Pass |
+| UAT-066 | NFR-015 | Pass |
 | UAT-067 | NFR-016 | Not Run |
 | UAT-068 | NFR-017 | Not Run |
 | UAT-069 | REQ-053 | Pass |

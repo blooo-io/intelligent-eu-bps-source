@@ -54,7 +54,9 @@ await run(process.execPath, ["--test", path.join(root, "scripts/test-plan.test.m
 await run(process.execPath, ["--test", path.join(root, "scripts/unit-component-evidence.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/integration-scenarios.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/functional-cases.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/nfr-traceability.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/deploy-layout.test.mjs")]);
+
 
 
 

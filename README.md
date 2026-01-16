@@ -23,6 +23,7 @@ It then publishes invoices and payments to the project data space (EWDS).
 | `packages/` | Shared module template, generated clients, common libraries |
 | `mocks/` | Mock suite (AC-15) and scenario datasets S1–S13 |
 | `deploy/` | Helm charts, helmfile, environment values (`dev`, `demo`) for the Scaleway Kapsule cluster |
+| `docs/release/` | D5.5 operator release notes: deploy, API integration, known limitations |
 | `AGENTS.md` | Instructions for contributors and coding agents |
 
 ## Working on this repository

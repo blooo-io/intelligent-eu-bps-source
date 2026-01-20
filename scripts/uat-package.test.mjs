@@ -2,23 +2,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+/** Remaining Not Run cases listed in docs/testing/v1-uat-package.md (INT-80). */
 const REMAINING = [
   "UAT-015",
   "UAT-028",
-  "UAT-036",
   "UAT-040",
   "UAT-044",
-  "UAT-045",
-  "UAT-046",
   "UAT-047",
-  "UAT-049",
   "UAT-050",
   "UAT-051",
   "UAT-053",
   "UAT-061",
   "UAT-064",
   "UAT-067",
-  "UAT-068",
 ];
 
 test("UAT package lists remaining cases without copying note text (INT-79)", async () => {

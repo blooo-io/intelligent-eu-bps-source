@@ -28,19 +28,27 @@ Confirmed set: [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76).
 | UAT-065 | NFR-014 | No direct `stripe` SDK import under `services/` (adapter/mock only) |
 | UAT-066 | NFR-015 | Invalid webhook signature rejected without hanging (`payments` spec) |
 
+## INT-80 batch (2026-10-17)
+
+| UAT | Requirement | Evidence |
+|---|---|---|
+| UAT-036 | NFR-004 | Ontology mapping review — functional §5 + EWDS schemas + market mock types |
+| UAT-045 | REQ-035 | Manual PKCE login on `app.dev` (S256 `code_challenge`; session after `/auth/callback`) |
+| UAT-046 | REQ-036 | `config.json` issuer/clientId only; OIDC secret via OpenBao ExternalSecret |
+| UAT-049 | NFR-011 | APISIX JWKS OIDC; forged foreign-issuer JWT → 401 on `/v1/me` |
+| UAT-068 | NFR-017 | V1 mock CG (A32) + cluster region `nl-ams` (EU) |
+
 ## Still Not Run (needs further work or pilots)
 
 | UAT | Requirement | Reason |
 |---|---|---|
-| UAT-015 | REQ-015 | Live Stripe Connect payout to bank not exercised in this run |
+| UAT-015 | REQ-015 | Stripe Connect payout — OpenBao Stripe keys not seeded (`payments` Secret is placeholder) |
 | UAT-028 | REQ-028 | Full trade→balance end-to-end trace API not smoked on cluster |
-| UAT-036 | NFR-004 | Formal personal-data inventory walkthrough not recorded |
 | UAT-040 | NFR-008 | Performance window TBD with pilots |
-| UAT-044–047, UAT-049, UAT-061 | IdP REQs/NFRs | Multi-community IdP / PKCE / config-only IdP swap need dedicated auth e2e |
-| UAT-050, UAT-051, UAT-053 | Invoice PDF / onboarding / numbering | Stripe artefacts not pulled in this run |
+| UAT-044, UAT-047, UAT-061 | IdP REQs/NFRs | Second / multi-community IdP not provisioned; vendor swap not live-tested |
+| UAT-050, UAT-051, UAT-053 | Invoice PDF / onboarding / numbering | Stripe artefacts blocked on missing test keys |
 | UAT-064 | REQ-052 | Documented API journey + screens end-to-end not completed |
 | UAT-067 | NFR-016 | UX step-count needs pilot observation |
-| UAT-068 | NFR-017 | Stripe EU API-mode residency attestation not captured |
 
 Prior Pass rows from INT-75 / portal work remain Pass (see functional-cases inventory).
 

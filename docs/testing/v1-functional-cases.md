@@ -36,7 +36,7 @@ Count: **64** in-scope UAT notes.
 | UAT-033 | NFR-001 | Pass |
 | UAT-034 | NFR-002 | Pass |
 | UAT-035 | NFR-003 | Pass |
-| UAT-036 | NFR-004 | Not Run |
+| UAT-036 | NFR-004 | Pass |
 | UAT-037 | NFR-005 | Pass |
 | UAT-038 | NFR-006 | Pass |
 | UAT-039 | NFR-007 | Pass |
@@ -45,10 +45,10 @@ Count: **64** in-scope UAT notes.
 | UAT-042 | NFR-010 | Pass |
 | UAT-043 | REQ-033 | Pass |
 | UAT-044 | REQ-034 | Not Run |
-| UAT-045 | REQ-035 | Not Run |
-| UAT-046 | REQ-036 | Not Run |
+| UAT-045 | REQ-035 | Pass |
+| UAT-046 | REQ-036 | Pass |
 | UAT-047 | REQ-037 | Not Run |
-| UAT-049 | NFR-011 | Not Run |
+| UAT-049 | NFR-011 | Pass |
 | UAT-050 | REQ-039 | Not Run |
 | UAT-051 | REQ-040 | Not Run |
 | UAT-052 | REQ-041 | Pass |
@@ -67,7 +67,7 @@ Count: **64** in-scope UAT notes.
 | UAT-065 | NFR-014 | Pass |
 | UAT-066 | NFR-015 | Pass |
 | UAT-067 | NFR-016 | Not Run |
-| UAT-068 | NFR-017 | Not Run |
+| UAT-068 | NFR-017 | Pass |
 | UAT-069 | REQ-053 | Pass |
 | UAT-070 | REQ-048 | Pass |
 | UAT-071 | REQ-054 | Pass |

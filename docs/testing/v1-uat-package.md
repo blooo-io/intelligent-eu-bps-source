@@ -25,28 +25,23 @@ Assemble acceptance for partners from the existing UAT notes. **Case text stays 
 
 ## Already accepted (do not re-run unless regressing)
 
-See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. At INT-79 freeze: **48 Pass**, **16 Not Run**.
+See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-80 batch: **53 Pass**, **11 Not Run**.
 
 ## Remaining cases for INT-80
 
 | UAT | Requirement | Suggested runner |
 |---|---|---|
-| UAT-015 | REQ-015 | Blooo + Stripe test Connect payout |
+| UAT-015 | REQ-015 | Blooo + Stripe test Connect payout (needs OpenBao Stripe seed) |
 | UAT-028 | REQ-028 | Blooo operator (end-to-end trace) |
-| UAT-036 | NFR-004 | Blooo (personal-data inventory walkthrough) |
 | UAT-040 | NFR-008 | Pilot (agreed time window) |
 | UAT-044 | REQ-034 | Blooo operator (multi-community IdP redirect) |
-| UAT-045 | REQ-035 | Blooo operator (PKCE login) |
-| UAT-046 | REQ-036 | Blooo (config review — no secrets in client) |
 | UAT-047 | REQ-037 | Blooo (IdP swap without redeploy) |
-| UAT-049 | NFR-011 | Blooo operator (token audience/issuer checks) |
 | UAT-050 | REQ-039 | Blooo + Stripe test PDF |
 | UAT-051 | REQ-040 | Blooo operator (embedded onboarding) |
 | UAT-053 | REQ-042 | Blooo + Stripe numbering |
-| UAT-061 | NFR-013 | Blooo (IdP-vendor-agnostic review) |
+| UAT-061 | NFR-013 | Blooo (IdP-vendor-agnostic review + second IdP) |
 | UAT-064 | REQ-052 | Blooo operator + partner (API + screens journey) |
 | UAT-067 | NFR-016 | Pilot (journey step count) |
-| UAT-068 | NFR-017 | Blooo (Stripe EU API-mode attestation) |
 
 ## How to record a result (INT-80)
 

@@ -1,8 +1,8 @@
 # V1 validation summary (INT-81)
 
-Interim traceability / validation snapshot for D5.5. Source of truth remains the UAT item notes and [`traceability-dashboard.md`](../requirements/traceability-dashboard.md). Refresh after INT-80 partner acceptance.
+Interim traceability / validation snapshot for D5.5. Source of truth remains the UAT item notes and [`traceability-dashboard.md`](../requirements/traceability-dashboard.md). Refresh after remaining INT-80 partner / Stripe cases.
 
-**As of 2026-10-17** (`develop`): **64** in-scope UATs — **48 Pass**, **16 Not Run**, **0 Fail**, **0 Blocked**.
+**As of 2026-10-17** (`develop` + INT-80 batch): **64** in-scope UATs — **53 Pass**, **11 Not Run**, **0 Fail**, **0 Blocked**.
 
 ## Evidence index
 
@@ -45,7 +45,7 @@ Interim traceability / validation snapshot for D5.5. Source of truth remains the
 | UAT-033 | NFR-001 | Pass |
 | UAT-034 | NFR-002 | Pass |
 | UAT-035 | NFR-003 | Pass |
-| UAT-036 | NFR-004 | Not Run |
+| UAT-036 | NFR-004 | Pass |
 | UAT-037 | NFR-005 | Pass |
 | UAT-038 | NFR-006 | Pass |
 | UAT-039 | NFR-007 | Pass |
@@ -54,10 +54,10 @@ Interim traceability / validation snapshot for D5.5. Source of truth remains the
 | UAT-042 | NFR-010 | Pass |
 | UAT-043 | REQ-033 | Pass |
 | UAT-044 | REQ-034 | Not Run |
-| UAT-045 | REQ-035 | Not Run |
-| UAT-046 | REQ-036 | Not Run |
+| UAT-045 | REQ-035 | Pass |
+| UAT-046 | REQ-036 | Pass |
 | UAT-047 | REQ-037 | Not Run |
-| UAT-049 | NFR-011 | Not Run |
+| UAT-049 | NFR-011 | Pass |
 | UAT-050 | REQ-039 | Not Run |
 | UAT-051 | REQ-040 | Not Run |
 | UAT-052 | REQ-041 | Pass |
@@ -76,7 +76,7 @@ Interim traceability / validation snapshot for D5.5. Source of truth remains the
 | UAT-065 | NFR-014 | Pass |
 | UAT-066 | NFR-015 | Pass |
 | UAT-067 | NFR-016 | Not Run |
-| UAT-068 | NFR-017 | Not Run |
+| UAT-068 | NFR-017 | Pass |
 | UAT-069 | REQ-053 | Pass |
 | UAT-070 | REQ-048 | Pass |
 | UAT-071 | REQ-054 | Pass |
@@ -87,5 +87,7 @@ Interim traceability / validation snapshot for D5.5. Source of truth remains the
 
 ## Open for INT-80
 
-All rows with status `Not Run` in the table above. Do not close INT-81 permanently until INT-80 updates those notes; this file is the working validation summary for the freeze review.
+Remaining `Not Run` rows: UAT-015, UAT-028, UAT-040, UAT-044, UAT-047, UAT-050, UAT-051, UAT-053, UAT-061, UAT-064, UAT-067.
+
+Blockers: Stripe test keys not seeded in OpenBao (`payments`/`invoicing` Secrets only have `seeded`); multi-community / second IdP not provisioned; pilot lead for NFR-008 / NFR-016. Refresh INT-81 after those land.
 

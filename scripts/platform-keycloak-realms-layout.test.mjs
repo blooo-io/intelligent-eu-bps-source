@@ -20,6 +20,10 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(intRealm, /"clientId": "apisix-gateway"/);
   assert.match(intRealm, /"clientId": "web"/);
   assert.match(intRealm, /dev-only-replace-me/);
+  // INT-179 — community_id claim + billing roles for portal principal headers.
+  assert.match(intRealm, /"claim.name": "community_id"/);
+  assert.match(intRealm, /"name": "member"/);
+  assert.match(intRealm, /"name": "operator"/);
 
   const demoRealm = await readFile(
     "deploy/charts/keycloak-realms/realms/demo-realm.json",
@@ -27,4 +31,5 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   );
   assert.match(demoRealm, /"realm": "demo"/);
   assert.match(demoRealm, /"clientId": "apisix-gateway"/);
+  assert.match(demoRealm, /"claim.name": "community_id"/);
 });

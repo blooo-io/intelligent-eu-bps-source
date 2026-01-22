@@ -45,6 +45,12 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   // INT-169 — client_secret via Secret, never inlined in the route.
   assert.match(helpers, /secretRef:/);
   assert.equal(/client_secret:/.test(helpers), false);
+  // INT-179 — map validated JWT claims to Nest principal headers.
+  assert.match(helpers, /serverless-pre-function/);
+  assert.match(helpers, /x-intelligent-sub/);
+  assert.match(helpers, /x-intelligent-roles/);
+  assert.match(helpers, /x-intelligent-community/);
+  assert.match(helpers, /phase:\s*access/);
 
   const oidcEs = await readFile(
     "deploy/charts/apisix-gateway/templates/oidc-secret.yaml",
@@ -143,4 +149,6 @@ test("platform README documents gateway routes (INT-114 / INT-173 / INT-174)", a
   assert.match(text, /INT-173/);
   assert.match(text, /INT-174/);
   assert.match(text, /reloadGeneration/);
+  assert.match(text, /INT-179/);
+  assert.match(text, /x-intelligent-/);
 });

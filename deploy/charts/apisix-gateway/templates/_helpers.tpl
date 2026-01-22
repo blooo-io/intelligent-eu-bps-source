@@ -10,4 +10,81 @@
     realm: {{ .Values.oidc.realm | quote }}
     use_jwks: true
     ssl_verify: {{ .Values.oidc.sslVerify }}
+# INT-179 — after JWKS validation (openid-connect priority 2599 runs first in access),
+# map JWT claims to the x-intelligent-* headers Nest principal middleware expects.
+# serverless-pre-function priority -2000 runs later in the same phase.
+- name: serverless-pre-function
+  enable: true
+  config:
+    phase: access
+    functions:
+      - |
+        return function(conf, ctx)
+          local core = require("apisix.core")
+          -- Overwrite any client-supplied principal headers (never trust the browser).
+          core.request.set_header(ctx, "x-intelligent-sub", "")
+          core.request.set_header(ctx, "x-intelligent-roles", "")
+          core.request.set_header(ctx, "x-intelligent-community", "")
+          core.request.set_header(ctx, "x-intelligent-token-use", "")
+          local auth = core.request.header(ctx, "Authorization")
+          if not auth then
+            return
+          end
+          local m = ngx.re.match(auth, [[^[Bb]earer\s+(.+)$]], "jo")
+          if not m then
+            return
+          end
+          local parts = {}
+          for part in string.gmatch(m[1], "[^.]+") do
+            parts[#parts + 1] = part
+          end
+          if #parts < 2 then
+            return
+          end
+          local b64 = parts[2]:gsub("-", "+"):gsub("_", "/")
+          local pad = #b64 % 4
+          if pad > 0 then
+            b64 = b64 .. string.rep("=", 4 - pad)
+          end
+          local raw = ngx.decode_base64(b64)
+          if not raw then
+            return
+          end
+          local claims, err = core.json.decode(raw)
+          if not claims then
+            core.log.warn("INT-179 principal decode failed: ", err)
+            return
+          end
+          core.request.set_header(ctx, "x-intelligent-sub", tostring(claims.sub or ""))
+          local roles = {}
+          local function push_roles(list)
+            if type(list) ~= "table" then
+              return
+            end
+            for _, r in ipairs(list) do
+              if type(r) == "string" and r ~= "" then
+                roles[#roles + 1] = r
+              end
+            end
+          end
+          if type(claims.realm_access) == "table" then
+            push_roles(claims.realm_access.roles)
+          end
+          if type(claims.resource_access) == "table" then
+            for _, client in pairs(claims.resource_access) do
+              if type(client) == "table" then
+                push_roles(client.roles)
+              end
+            end
+          end
+          core.request.set_header(ctx, "x-intelligent-roles", table.concat(roles, ","))
+          local community = claims.community_id or claims.communityId or ""
+          if type(community) == "table" then
+            community = community[1] or ""
+          end
+          core.request.set_header(ctx, "x-intelligent-community", tostring(community))
+          if claims.token_use == "service" or claims.tokenUse == "service" then
+            core.request.set_header(ctx, "x-intelligent-token-use", "service")
+          end
+        end
 {{- end -}}

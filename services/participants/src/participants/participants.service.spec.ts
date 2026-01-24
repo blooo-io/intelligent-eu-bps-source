@@ -50,6 +50,26 @@ describe("ParticipantsService", () => {
     });
   });
 
+  it("imports with existingIdpSubject binds Keycloak sub without creating IdP user (INT-180)", async () => {
+    const existingSub = "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f";
+    const [created] = await service.importParticipants(communityId, [
+      {
+        email: "uat-member@example.invalid",
+        marketActorId: "actor-existing-1",
+        meterId: "meter-existing-1",
+        role: "consumer",
+        existingIdpSubject: existingSub,
+      },
+    ]);
+    expect(idp.created.size).toBe(0);
+    expect(idp.invitations.size).toBe(0);
+    const row = store.getParticipant(created.participantId)!;
+    expect(row.idpUserId).toBe(existingSub);
+    expect(service.getMe(existingSub, ["member"]).participantId).toBe(
+      created.participantId,
+    );
+  });
+
   it("resolves community settings and rejects live mode in V1 (REQ-043)", () => {
     const settings = service.getCommunitySettings(communityId);
     expect(settings.vatRate).toBe("0.00");

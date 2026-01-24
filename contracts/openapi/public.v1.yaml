@@ -1011,6 +1011,12 @@ components:
           type: string
         role:
           $ref: './components/schemas.yaml#/components/schemas/ParticipantRole'
+        existingIdpSubject:
+          type: string
+          format: uuid
+          description: >
+            When set, bind the participant to this already-provisioned IdP subject
+            instead of creating a new IdP user (INT-180 / V1 Keycloak portal users).
     Participant:
       type: object
       additionalProperties: false

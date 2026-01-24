@@ -162,13 +162,25 @@ export class ParticipantsService {
           `marketActorId already registered: ${row.marketActorId}`,
         );
       }
-      // REQ-008: create participant, IdP account, invitation.
-      const idpUser = await this.idp.createUser({
-        email: row.email,
-        communityId,
-        role: row.role,
-      });
-      await this.idp.sendInvitation(idpUser.userId);
+      // REQ-008: create participant, IdP account, invitation —
+      // or bind an already-provisioned IdP subject (INT-180).
+      let idpUserId: string;
+      if (row.existingIdpSubject) {
+        if (this.store.findByIdpSub(row.existingIdpSubject)) {
+          throw new BadRequestException(
+            `existingIdpSubject already registered: ${row.existingIdpSubject}`,
+          );
+        }
+        idpUserId = row.existingIdpSubject;
+      } else {
+        const idpUser = await this.idp.createUser({
+          email: row.email,
+          communityId,
+          role: row.role,
+        });
+        await this.idp.sendInvitation(idpUser.userId);
+        idpUserId = idpUser.userId;
+      }
       const participantId = randomUUID();
       const record: ParticipantRecord = {
         participantId,
@@ -177,7 +189,7 @@ export class ParticipantsService {
         status: "Invited",
         marketActorId: row.marketActorId,
         meterId: row.meterId,
-        idpUserId: idpUser.userId,
+        idpUserId,
         profile: {
           name: "",
           address: "",

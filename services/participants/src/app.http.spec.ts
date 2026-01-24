@@ -134,6 +134,46 @@ describe("participants HTTP (INT-103)", () => {
     expect(await list.json()).toHaveLength(1);
   });
 
+  it("manager import with existingIdpSubject then GET /v1/me (INT-180)", async () => {
+    const existingSub = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const res = await fetch(
+      `${base}/v1/communities/${SEED_COMMUNITY_ID}/participants:import`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-intelligent-roles": "manager",
+          "x-intelligent-community": SEED_COMMUNITY_ID,
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": "manager-1",
+        },
+        body: JSON.stringify({
+          participants: [
+            {
+              email: "linked@example.com",
+              marketActorId: "mkt-linked-1",
+              meterId: "m-linked",
+              role: "consumer",
+              existingIdpSubject: existingSub,
+            },
+          ],
+        }),
+      },
+    );
+    expect(res.status).toBe(201);
+    const me = await fetch(`${base}/v1/me`, {
+      headers: {
+        "x-intelligent-roles": "member",
+        "x-intelligent-token-use": "user",
+        "x-intelligent-sub": existingSub,
+        "x-intelligent-community": SEED_COMMUNITY_ID,
+      },
+    });
+    expect(me.status).toBe(200);
+    const body = (await me.json()) as { participantId: string };
+    expect(body.participantId).toBeTruthy();
+  });
+
   it("GET /v1/terms/current returns current terms (REQ-050)", async () => {
     const res = await fetch(`${base}/v1/terms/current`, {
       headers: {

@@ -52,6 +52,11 @@ export type ParticipantImportRow = {
   marketActorId: string;
   meterId: string;
   role: ParticipantRole;
+  /**
+   * Optional IdP subject already provisioned (e.g. Keycloak user).
+   * When set, skip IdP createUser / invitation (INT-180).
+   */
+  existingIdpSubject?: string;
 };
 
 export type ParticipantPatch = {

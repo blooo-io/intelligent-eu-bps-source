@@ -14,12 +14,15 @@ export function createAuthProvider(oidc: OidcFacade): AuthProvider {
     },
     logout: async () => {
       await oidc.logout();
-      return { success: true, redirectTo: "/" };
+      // Land on the public sign-in screen, not on Authenticated `/` (INT-181).
+      return { success: true, redirectTo: "/login" };
     },
     check: async () => {
       const user = await oidc.getUser();
       if (!user || user.expired) {
-        return { authenticated: false, redirectTo: "/login", logout: true };
+        // Do not set logout:true here — that re-enters logout → redirect and
+        // can leave `/` blank when the router provider is missing (INT-181).
+        return { authenticated: false, redirectTo: "/login" };
       }
       return { authenticated: true };
     },

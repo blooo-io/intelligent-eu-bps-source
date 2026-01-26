@@ -1,7 +1,8 @@
-import { Authenticated, Refine } from "@refinedev/core";
+import { Refine } from "@refinedev/core";
 import { ConfigProvider, App as AntApp } from "antd";
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { createAuthProvider } from "./auth/auth-provider";
+import { ProtectedOutlet } from "./auth/protected-outlet";
 import type { OidcFacade } from "./auth/oidc";
 import type { WebConfig } from "./api/config";
 import { LoginPage } from "./pages/login-page";
@@ -24,6 +25,9 @@ import { appTheme } from "./theme";
 /**
  * AC-01 shell (TD-5): Refine + Ant Design + OIDC auth + public API.
  * Screens through INT-149 operator ops (AC-01 factory screens complete).
+ *
+ * Auth gate uses react-router `<Navigate>` (INT-181) — not Refine
+ * `<Authenticated>` / `useGo`, which no-ops without a routerProvider.
  */
 export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
   const authProvider = createAuthProvider(oidc);
@@ -37,18 +41,13 @@ export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
             options={{
               syncWithLocation: true,
               warnWhenUnsavedChanges: false,
+              disableRouteChangeHandler: true,
             }}
           >
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/auth/callback" element={<CallbackPage oidc={oidc} />} />
-              <Route
-                element={
-                  <Authenticated key="auth" redirectOnFail="/login" appendCurrentPathToQuery={false}>
-                    <Outlet />
-                  </Authenticated>
-                }
-              >
+              <Route element={<ProtectedOutlet />}>
                 <Route index element={<HomePage config={config} oidc={oidc} />} />
                 <Route path="profile" element={<ProfilePage config={config} oidc={oidc} />} />
                 <Route path="terms" element={<TermsPage config={config} oidc={oidc} />} />

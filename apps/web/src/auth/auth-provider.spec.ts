@@ -64,12 +64,19 @@ describe("createAuthProvider", () => {
     expect(result.error).toBe(err);
   });
 
-  it("logout redirects to the IdP end-session", async () => {
+  it("logout redirects to the IdP end-session then /login (INT-181)", async () => {
     const oidc = facade({ logout: vi.fn().mockResolvedValue(undefined) });
     const provider = createAuthProvider(oidc);
     const result = await provider.logout({} as never);
     expect(oidc.logout).toHaveBeenCalled();
-    expect(result.success).toBe(true);
+    expect(result).toMatchObject({ success: true, redirectTo: "/login" });
+  });
+
+  it("check does not request logout when there is no session (INT-181)", async () => {
+    const provider = createAuthProvider(facade());
+    const result = await provider.check();
+    expect(result).toEqual({ authenticated: false, redirectTo: "/login" });
+    expect(result).not.toHaveProperty("logout", true);
   });
 
   it("check accepts a valid session", async () => {

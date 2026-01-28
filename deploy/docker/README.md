@@ -10,7 +10,8 @@ GitHub Actions builds and pushes images to **GHCR** (`scripts/module-images.mjs`
 - Listen on `PORT` (default `8080`) and expose `GET /health` for probes.
 - No secrets or personal data in the image layers.
 - CI: workflow `supply-chain` (INT-176) runs **after merge to `develop` only** — not on every PR. `trivy fs` / `trivy image` scan; images push as `:$GITHUB_SHA` (provenance) and `:develop` (INT-178 floating tag for Argo).
-- Rollout (INT-177/178): `deploy/envs/dev/values.yaml` uses `image.tag: develop` + `pullPolicy: Always`. Branch protection forbids bot commits on `develop`, so we do not pin the SHA in Git.
+- Selective builds (INT-183): `scripts/module-images.mjs` with `IMAGE_CHANGED_ONLY=true` rebuilds only images whose trees changed between `IMAGE_DIFF_BASE` (`github.event.before`) and `IMAGE_DIFF_HEAD` (`github.sha`). Examples: `apps/web/**` → `apps-web` only; `services/<name>/**` → that service only; `pnpm-lock.yaml` / `packages/**` / `config/**` → all images; `docs/**` + `deploy/**` + `contracts/**` only → skip image build (fs scan still runs). Unreachable base → rebuild all (safe default).
+- Rollout (INT-177/178): `deploy/envs/dev/values.yaml` uses `image.tag: develop` + `pullPolicy: Always`. Branch protection forbids bot commits on `develop`, so we do not pin the SHA in Git. After a floating-tag push, restart the Deployment (`kubectl -n int-apps rollout restart deploy/<name>`) so nodes pull the new digest.
 - Replicas: charts **with** a Dockerfile default to `replicaCount: 1`; charts without an image stay at `0`.
 - Pull: GHCR is private. Secret `ghcr-pull` in `int-apps` comes from OpenBao `platform/ghcr-pull` (`deploy/charts/ghcr-pull`). Seed with `GHCR_PULL_TOKEN=… node scripts/openbao-seed-ghcr-pull.mjs --apply` (token needs `read:packages`).
 

@@ -1,8 +1,13 @@
-# INT-176 / INT-99 / INT-177 / INT-178 — Trivy + module images after merge to
-# develop. Not on pull_request. Failures fail this workflow (no continue-on-error).
+# INT-176 / INT-99 / INT-177 / INT-178 / INT-183 — Trivy + module images after
+# merge to develop. Not on pull_request. Failures fail this workflow (no
+# continue-on-error).
 #
 # Images are pushed as :<sha> (provenance) and :develop (floating tag for Argo).
 # develop branch protection blocks bot commits, so we do not pin the SHA in Git.
+#
+# INT-183: only rebuild images whose module trees (or shared inputs) changed
+# between github.event.before and github.sha. Docs/deploy/contracts-only pushes
+# skip the image build; lockfile / packages / config still rebuild all.
 name: supply-chain
 
 on:
@@ -19,6 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Need the previous develop tip so IMAGE_DIFF_BASE is reachable.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -27,9 +35,12 @@ jobs:
           docker run --rm -v "$PWD:/work" -w /work \
             ghcr.io/aquasecurity/trivy:0.75.0 \
             fs --config /work/trivy.yaml --exit-code 1 /work
-      - name: Build, scan and push module images
+      - name: Build, scan and push changed module images
         env:
           IMAGE_PUSH: "true"
           IMAGE_FLOATING_TAG: develop
+          IMAGE_CHANGED_ONLY: "true"
+          IMAGE_DIFF_BASE: ${{ github.event.before }}
+          IMAGE_DIFF_HEAD: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/module-images.mjs --build

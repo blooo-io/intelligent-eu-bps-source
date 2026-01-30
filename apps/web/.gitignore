@@ -1,0 +1,5 @@
+# Playwright (INT-182)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

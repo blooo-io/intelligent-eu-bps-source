@@ -5,14 +5,20 @@
   "license": "Apache-2.0",
   "description": "AC-01 reference web app — Refine portal (INT-137 / INT-115, TD-5)",
   "type": "module",
-  "files": ["dist", "server-dist"],
+  "files": [
+    "dist",
+    "server-dist"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.app.json --noEmit && vite build && tsc -p tsconfig.server.json",
     "preview": "vite preview",
     "start": "node server-dist/main.js",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
+    "test:e2e:dev": "E2E_BASE_URL=https://app.dev.intelligent-eu-bp.blooo.dev playwright test"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
@@ -26,6 +32,7 @@
     "react-router-dom": "^7.9.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.55.0",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",

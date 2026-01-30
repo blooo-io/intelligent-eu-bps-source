@@ -14,6 +14,11 @@ const SKIPPED_TEST_SCRIPTS = new Set([
   "test:debug",
 ]);
 
+/** INT-182 — Playwright targets the deployed cluster; never run from PR unit CI. */
+function isSkippedTestScript(script) {
+  return SKIPPED_TEST_SCRIPTS.has(script) || script === "test:e2e" || script.startsWith("test:e2e:");
+}
+
 const thresholds = JSON.parse(
   await readFile(path.join(root, "config/coverage-thresholds.json"), "utf8"),
 );
@@ -92,7 +97,7 @@ for (const pkg of packages) {
   }
   for (const script of Object.keys(pkg.scripts).sort()) {
     if (script !== "test" && !script.startsWith("test:")) continue;
-    if (SKIPPED_TEST_SCRIPTS.has(script)) continue;
+    if (isSkippedTestScript(script)) continue;
     if (script === "test" && pkg.scripts["test:coverage"]) continue;
     if (!hasSource && script === "test:coverage") continue;
     commands.push([pkg, script]);

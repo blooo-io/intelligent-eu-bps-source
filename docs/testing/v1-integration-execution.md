@@ -1,7 +1,7 @@
 # V1 integration execution log (INT-75)
 
 Prepared cases: [`v1-integration-scenarios.md`](v1-integration-scenarios.md) (INT-74).  
-Environment: module test runners with AC-15 fixtures (`createMockSuite`); Stripe paths via mock PSP / test-mode adapters. Cluster-wide authenticated e2e remains a follow-up where OIDC test users are required.
+Environment: module test runners with AC-15 fixtures (`createMockSuite`); Stripe paths via mock PSP / test-mode adapters. Unauthenticated AC-01 browser smoke is in [`ac01-e2e.md`](ac01-e2e.md) (INT-182). Cluster-wide authenticated e2e (OIDC test users) remains a follow-up.
 
 **Run date:** 2026-10-17  
 **Tester:** automated (agent)  

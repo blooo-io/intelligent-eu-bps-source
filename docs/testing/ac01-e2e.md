@@ -26,6 +26,8 @@ E2E_BASE_URL=https://app.dev.intelligent-eu-bp.blooo.dev \
 
 `E2E_BASE_URL` is **required**. There is no localhost webServer fallback.
 
-## CI
+## CI / CD
 
-No PR job. Any `test:e2e` / `test:e2e:*` script is skipped by `scripts/run-tests.mjs`. Operators run the suite after GitOps deploy + image rollout; post-Healthy automation is tracked in INT-184.
+No PR job. Any `test:e2e` / `test:e2e:*` script is skipped by `scripts/run-tests.mjs`.
+
+Post-deploy verification (after `supply-chain` on `develop`): see [`ac01-e2e-cd.md`](ac01-e2e-cd.md) (INT-184) — workflow `e2e-dev` rolls `deploy/web` then runs this suite against `app.dev`.

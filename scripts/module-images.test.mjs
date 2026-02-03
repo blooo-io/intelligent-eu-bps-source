@@ -133,11 +133,7 @@ test("selectDockerfilesForChangedPaths rebuilds one service for its tree", () =>
   );
 });
 
-test("selectDockerfilesForChangedPaths rebuilds all on lockfile or packages change", () => {
-  assert.deepEqual(
-    selectDockerfilesForChangedPaths(["pnpm-lock.yaml"], ALL),
-    ALL,
-  );
+test("selectDockerfilesForChangedPaths rebuilds all on packages or config change", () => {
   assert.deepEqual(
     selectDockerfilesForChangedPaths(["packages/module-template/src/index.ts"], ALL),
     ALL,
@@ -148,10 +144,43 @@ test("selectDockerfilesForChangedPaths rebuilds all on lockfile or packages chan
   );
 });
 
-test("selectDockerfilesForChangedPaths skips docs/deploy/contracts-only pushes", () => {
+// INT-185: lockfile + web-only (Playwright devDependency) → apps-web only
+test("selectDockerfilesForChangedPaths keeps web-only lockfile changes selective", () => {
   assert.deepEqual(
     selectDockerfilesForChangedPaths(
-      ["docs/testing/v1-test-plan.md", "deploy/envs/dev/values.yaml", "contracts/openapi/public.v1.yaml"],
+      [
+        "apps/web/package.json",
+        "apps/web/e2e/auth-gate.spec.ts",
+        "pnpm-lock.yaml",
+        "scripts/run-tests.mjs",
+        "docs/testing/ac01-e2e.md",
+      ],
+      ALL,
+    ),
+    ["apps/web/Dockerfile"],
+  );
+});
+
+test("selectDockerfilesForChangedPaths rebuilds all when lockfile pairs with a service package.json", () => {
+  assert.deepEqual(
+    selectDockerfilesForChangedPaths(
+      ["services/participants/package.json", "pnpm-lock.yaml"],
+      ALL,
+    ),
+    ALL,
+  );
+});
+
+test("selectDockerfilesForChangedPaths skips docs/deploy/contracts/scripts pushes", () => {
+  assert.deepEqual(
+    selectDockerfilesForChangedPaths(
+      [
+        "docs/testing/v1-test-plan.md",
+        "deploy/envs/dev/values.yaml",
+        "contracts/openapi/public.v1.yaml",
+        "scripts/run-tests.mjs",
+        ".github/workflows/e2e-dev.yml",
+      ],
       ALL,
     ),
     [],
@@ -172,9 +201,12 @@ test("dockerfileForModulePath and path classifiers", () => {
   assert.equal(dockerfileForModulePath("apps/web/src/App.tsx"), "apps/web/Dockerfile");
   assert.equal(dockerfileForModulePath("services/foo/bar.ts"), "services/foo/Dockerfile");
   assert.equal(dockerfileForModulePath("docs/readme.md"), null);
-  assert.equal(isGlobalImageRebuildPath("pnpm-lock.yaml"), true);
+  assert.equal(isGlobalImageRebuildPath("pnpm-lock.yaml"), false);
+  assert.equal(isGlobalImageRebuildPath("scripts/module-images.mjs"), true);
   assert.equal(isGlobalImageRebuildPath("apps/web/src/x.ts"), false);
   assert.equal(isSkipOnlyPath("deploy/charts/web/values.yaml"), true);
+  assert.equal(isSkipOnlyPath("scripts/run-tests.mjs"), true);
+  assert.equal(isSkipOnlyPath("scripts/module-images.mjs"), false);
   assert.equal(isSkipOnlyPath("apps/web/src/x.ts"), false);
 });
 

@@ -8,12 +8,14 @@ import { fileURLToPath } from "node:url";
 
 const IMAGE_ROOTS = ["services", "apps", "packages", "mocks"];
 
-/** Paths that invalidate every module image (shared lockfile / base / template). */
+/**
+ * Paths that invalidate every module image (shared workspace / base image).
+ * INT-185: `pnpm-lock.yaml` is NOT global — see selectDockerfilesForChangedPaths.
+ */
 const GLOBAL_REBUILD_PREFIXES = [
   "packages/",
   "config/",
   "scripts/module-images.mjs",
-  "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "package.json",
   "trivy.yaml",
@@ -21,7 +23,10 @@ const GLOBAL_REBUILD_PREFIXES = [
   "Dockerfile",
 ];
 
-/** Paths that never affect module image layers on their own. */
+/**
+ * Paths that never affect module image layers on their own.
+ * INT-185: `scripts/**` except `scripts/module-images.mjs` (handled as global).
+ */
 const SKIP_ONLY_PREFIXES = [
   "deploy/",
   "docs/",
@@ -29,7 +34,10 @@ const SKIP_ONLY_PREFIXES = [
   "brain/",
   ".cursor/",
   ".github/",
+  "scripts/",
 ];
+
+const LOCKFILE_PATH = "pnpm-lock.yaml";
 
 export async function findDockerfiles(root) {
   const found = [];
@@ -56,11 +64,15 @@ export function dockerfileRunsAsNonRoot(source) {
 }
 
 /**
- * INT-183 — map git-changed paths to Dockerfiles that must be rebuilt.
+ * INT-183 / INT-185 — map git-changed paths to Dockerfiles that must be rebuilt.
  * Returns:
  * - allDockerfiles when a shared/global path changed, or when selection is unsafe
- * - [] when every change is under skip-only prefixes (docs/deploy/contracts/…)
+ * - [] when every change is under skip-only prefixes (docs/deploy/contracts/scripts…)
  * - the intersection of matched module Dockerfiles otherwise
+ *
+ * Lockfile (INT-185): `pnpm-lock.yaml` alone does not force FULL. Combined with
+ * only `apps/<name>/` changes → that app image; with a service package.json
+ * or anything under packages/ → FULL.
  *
  * @param {string[]} changedPaths
  * @param {string[]} allDockerfiles
@@ -80,10 +92,15 @@ export function selectDockerfilesForChangedPaths(changedPaths, allDockerfiles) {
     return [...normalizedAll];
   }
 
+  const lockfileChanged = paths.includes(LOCKFILE_PATH);
   const selected = new Set();
   let sawNonSkip = false;
 
   for (const filePath of paths) {
+    if (filePath === LOCKFILE_PATH) {
+      sawNonSkip = true;
+      continue;
+    }
     if (isSkipOnlyPath(filePath)) continue;
     sawNonSkip = true;
     const dockerfile = dockerfileForModulePath(filePath);
@@ -95,6 +112,16 @@ export function selectDockerfilesForChangedPaths(changedPaths, allDockerfiles) {
     }
   }
 
+  if (lockfileChanged) {
+    const lockDecision = lockfileRebuildScope(paths, known);
+    if (lockDecision === "all") {
+      return [...normalizedAll];
+    }
+    for (const dockerfile of lockDecision) {
+      selected.add(dockerfile);
+    }
+  }
+
   if (!sawNonSkip) {
     return [];
   }
@@ -102,8 +129,52 @@ export function selectDockerfilesForChangedPaths(changedPaths, allDockerfiles) {
   return [...selected].sort();
 }
 
+/**
+ * INT-185 — interpret pnpm-lock.yaml with companion package.json changes.
+ * @returns {"all" | string[]}
+ */
+export function lockfileRebuildScope(changedPaths, knownDockerfiles) {
+  const manifests = changedPaths.filter(
+    (p) => p === "package.json" || p.endsWith("/package.json"),
+  );
+
+  if (
+    manifests.some(
+      (p) =>
+        p === "package.json" ||
+        p.startsWith("packages/") ||
+        p.startsWith("services/") ||
+        p.startsWith("mocks/"),
+    )
+  ) {
+    return "all";
+  }
+
+  const fromApps = [];
+  for (const manifest of manifests) {
+    const match = manifest.match(/^apps\/([^/]+)\/package\.json$/);
+    if (!match) continue;
+    const dockerfile = `apps/${match[1]}/Dockerfile`;
+    if (knownDockerfiles.has(dockerfile)) fromApps.push(dockerfile);
+  }
+
+  // Lockfile + only app manifests (or lockfile + app sources already selected):
+  // rebuild those apps. Lockfile with no manifests → rely on module source hits;
+  // if none, FULL (unsafe to skip a lockfile-only push).
+  if (fromApps.length > 0) return fromApps;
+  if (manifests.length === 0) {
+    const moduleHits = changedPaths
+      .map((p) => dockerfileForModulePath(p))
+      .filter((d) => d && knownDockerfiles.has(d));
+    if (moduleHits.length > 0) return [...new Set(moduleHits)];
+    return "all";
+  }
+  return "all";
+}
+
 export function isGlobalImageRebuildPath(filePath) {
   const normalized = filePath.split(path.sep).join("/");
+  if (normalized === LOCKFILE_PATH) return false;
   if (normalized === "Dockerfile") return true;
   return GLOBAL_REBUILD_PREFIXES.some((prefix) => {
     if (prefix.endsWith("/")) return normalized.startsWith(prefix);
@@ -113,9 +184,10 @@ export function isGlobalImageRebuildPath(filePath) {
 
 export function isSkipOnlyPath(filePath) {
   const normalized = filePath.split(path.sep).join("/");
+  // scripts/module-images.mjs is global, not skip.
+  if (normalized === "scripts/module-images.mjs") return false;
   return SKIP_ONLY_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 }
-
 /**
  * Map a changed file to its module Dockerfile when the path is under a
  * single-module tree (services|apps|mocks/<name>/…).

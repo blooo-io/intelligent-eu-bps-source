@@ -110,7 +110,18 @@ KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
 
    Replace those paths later with Stripe test keys / webhook secret under `secret/data/<env>/<module>` — still never in Git.
 
-4. `ClusterIssuer` for Let's Encrypt (public hosts) lands when DNS + APISIX exist; cert-manager itself is enough for INT-133 packaging.
+4. **Stripe test credentials (INT-186):** after placeholders exist, seed real **test** keys (never live, never in Git):
+
+```bash
+STRIPE_SECRET_KEY=sk_test_… \
+STRIPE_WEBHOOK_SECRET=whsec_… \
+STRIPE_CONNECT_WEBHOOK_SECRET=whsec_… \
+KUBECONFIG=… node scripts/openbao-seed-stripe-test.mjs --apply
+```
+
+   Writes `secret/dev/payments` and `secret/dev/invoicing` (`stripe_secret_key`, `stripe_webhook_secret`, optional `stripe_connect_webhook_secret`). Webhook URL for the sandbox account: `https://api.dev.intelligent-eu-bp.blooo.dev/webhooks/payment-provider`.
+
+5. `ClusterIssuer` for Let's Encrypt (public hosts) lands when DNS + APISIX exist; cert-manager itself is enough for INT-133 packaging.
 
 ## Observability (TD-10 / INT-134)
 

@@ -117,6 +117,24 @@ KUBECONFIG=… node scripts/openbao-seed-stripe-test.mjs --apply
 `;
 }
 
+/** Apps namespace where ExternalSecrets `payments` / `invoicing` live (dev). */
+export const ESO_NAMESPACE = "int-apps";
+
+/** Force ESO to re-read OpenBao immediately (refreshInterval is otherwise 1h). */
+export function forceExternalSecretSync(secretNames = ["payments", "invoicing"], ns = ESO_NAMESPACE) {
+  const stamp = String(Math.floor(Date.now() / 1000));
+  kubectl([
+    "-n",
+    ns,
+    "annotate",
+    "externalsecret",
+    ...secretNames,
+    `force-sync=${stamp}`,
+    "--overwrite",
+  ]);
+  return { namespace: ns, secrets: secretNames, forceSync: stamp };
+}
+
 export function applyStripeSeed(env = process.env) {
   if (!env.KUBECONFIG) {
     throw new Error("KUBECONFIG is required for --apply");
@@ -135,7 +153,15 @@ export function applyStripeSeed(env = process.env) {
     bao(token, ["kv", "put", "-mount=secret", kvPath, ...fields]);
     written.push(kvPath);
   }
-  return { written, mount: "secret", fieldNames: STRIPE_SEED_FIELD_NAMES.filter((n) => n !== "stripe_connect_webhook_secret" || Boolean(env.STRIPE_CONNECT_WEBHOOK_SECRET)) };
+  const eso = forceExternalSecretSync();
+  return {
+    written,
+    mount: "secret",
+    fieldNames: STRIPE_SEED_FIELD_NAMES.filter(
+      (n) => n !== "stripe_connect_webhook_secret" || Boolean(env.STRIPE_CONNECT_WEBHOOK_SECRET),
+    ),
+    eso,
+  };
 }
 
 const isDirectRun =

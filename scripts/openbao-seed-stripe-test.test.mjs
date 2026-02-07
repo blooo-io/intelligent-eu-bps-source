@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   STRIPE_SEED_PATHS,
+  ESO_NAMESPACE,
   buildStripeKvFields,
   checkStripeSeedLayout,
   printStripeSeedSteps,
@@ -48,6 +49,14 @@ test("INT-186 seed script reads bootstrap root_token key", async () => {
   assert.match(source, /jsonpath=\{\.data\.root_token\}/);
   assert.doesNotMatch(source, /sk_test_[A-Za-z0-9]{20,}/);
   assert.doesNotMatch(source, /whsec_[A-Za-z0-9]{20,}/);
+});
+
+test("INT-186 seed apply force-syncs ExternalSecrets in int-apps", async () => {
+  assert.equal(ESO_NAMESPACE, "int-apps");
+  const source = await readFile(new URL("./openbao-seed-stripe-test.mjs", import.meta.url), "utf8");
+  assert.match(source, /force-sync=/);
+  assert.match(source, /forceExternalSecretSync/);
+  assert.match(source, /externalsecret/);
 });
 
 test("INT-186 print and README layout", async () => {

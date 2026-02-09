@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Card, List, Space, Spin, Typography } from "antd";
-import { Link } from "react-router";
+import { Alert, Button, Card, List, Typography } from "antd";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
+import { PageFrame } from "../layout/page-frame";
 import {
   createEarlySettlement,
   fetchMyBalances,
@@ -10,7 +10,7 @@ import {
   type BillingRun,
 } from "../api/balances";
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 /**
  * Unbilled balances + settle-now (INT-141 / REQ-057 / UAT-074 / BR-05).
@@ -71,30 +71,12 @@ export function BalancesPage({
     }
   }
 
-  if (loading) {
-    return (
-      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-        <Spin size="large" />
-      </main>
-    );
+    if (loading) {
+    return <PageFrame title="Balances" loading />;
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: 24,
-        background: "linear-gradient(180deg, #f4faf7 0%, #ffffff 40%)",
-      }}
-    >
-      <Space direction="vertical" size="large" style={{ width: "100%", maxWidth: 720 }}>
-        <Space style={{ width: "100%", justifyContent: "space-between" }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Balances
-          </Title>
-          <Link to="/">Back to home</Link>
-        </Space>
-
+    <PageFrame title="Balances">
         <Paragraph type="secondary">
           Unbilled amounts per counterpart. Settle now issues an invoice immediately
           (threshold does not apply — BR-05).
@@ -142,7 +124,6 @@ export function BalancesPage({
             />
           )}
         </Card>
-      </Space>
-    </main>
+    </PageFrame>
   );
 }

@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import { Alert, Card, List, Space, Spin, Typography, Button } from "antd";
+import { Alert, Card, List, Space, Typography } from "antd";
 import { CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
-import { useGetIdentity, useLogout } from "@refinedev/core";
-import { Link } from "react-router";
+import { useGetIdentity } from "@refinedev/core";
 import { fetchMe, type Me } from "../api/me";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
+import { PageFrame } from "../layout/page-frame";
 import { readinessChecklist, readinessHeadline } from "../readiness/checklist";
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 type Identity = {
   id?: string;
@@ -20,6 +20,7 @@ type Identity = {
 /**
  * Home with readiness checklist after IdP sign-in (INT-137).
  * Loads GET /v1/me with the OIDC access token (REQ-049).
+ * Navigation lives in AppShell (INT-187).
  */
 export function HomePage({
   config,
@@ -29,7 +30,6 @@ export function HomePage({
   oidc: OidcFacade;
 }) {
   const { data: identity } = useGetIdentity<Identity>();
-  const { mutate: logout } = useLogout();
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,79 +57,40 @@ export function HomePage({
     };
   }, [config.apiBaseUrl, oidc]);
 
-  if (loading) {
-    return (
-      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-        <Spin size="large" />
-      </main>
-    );
-  }
-
-  const items = me ? readinessChecklist(me.readiness) : [];
+  const roleLine =
+    identity?.roles && identity.roles.length > 0
+      ? `Roles from IdP: ${identity.roles.join(", ")}${
+          identity.communityId ? ` · community ${identity.communityId}` : ""
+        }`
+      : undefined;
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: 24,
-        background: "linear-gradient(180deg, #f4faf7 0%, #ffffff 40%)",
-      }}
-    >
-      <Space direction="vertical" size="large" style={{ width: "100%", maxWidth: 720 }}>
-        <Space style={{ width: "100%", justifyContent: "space-between" }}>
-          <Title level={2} style={{ margin: 0 }}>
-            INTELLIGENT billing
-          </Title>
-          <Space>
-            <Link to="/profile">Profile</Link>
-            <Link to="/terms">Terms</Link>
-            <Link to="/payment-setup">Payment setup</Link>
-            <Link to="/balances">Balances</Link>
-            <Link to="/invoices">Invoices</Link>
-            <Link to="/privacy">Privacy</Link>
-            <Link to="/community-settings">Community settings</Link>
-            <Link to="/participants">Participants</Link>
-            <Link to="/billing-runs">Billing runs</Link>
-            <Link to="/payments-overview">Payments overview</Link>
-            <Link to="/reports">Reports</Link>
-            <Link to="/operator">Operator</Link>
-            <Button onClick={() => logout()}>Sign out</Button>
-          </Space>
-        </Space>
+    <PageFrame title="Home" description={roleLine} loading={loading}>
+      {error && <Alert type="error" message={error} showIcon />}
 
-        {identity?.roles && identity.roles.length > 0 && (
-          <Text type="secondary">
-            Roles from IdP: {identity.roles.join(", ")}
-            {identity.communityId ? ` · community ${identity.communityId}` : ""}
-          </Text>
-        )}
-
-        {error && <Alert type="error" message={error} showIcon />}
-
-        {me && (
-          <Card title="Readiness">
-            <Paragraph>{readinessHeadline(me.readiness)}</Paragraph>
-            <Paragraph type="secondary">
-              Status: <Text code>{me.readiness}</Text>
-            </Paragraph>
-            <List
-              dataSource={items}
-              renderItem={(item) => (
-                <List.Item>
-                  <Space>
-                    {item.done ? (
-                      <CheckCircleOutlined style={{ color: "#389e0d" }} aria-label="done" />
-                    ) : (
-                      <CloseCircleOutlined style={{ color: "#cf1322" }} aria-label="todo" />
-                    )}
-                    <span>{item.label}</span>
-                  </Space>
-                </List.Item>
-              )}
-            />
-          </Card>
-        )}
-      </Space>
-    </main>
+      {me && (
+        <Card title="Readiness">
+          <Paragraph>{readinessHeadline(me.readiness)}</Paragraph>
+          <Paragraph type="secondary">
+            Status: <Text code>{me.readiness}</Text>
+          </Paragraph>
+          <List
+            dataSource={readinessChecklist(me.readiness)}
+            renderItem={(item) => (
+              <List.Item>
+                <Space>
+                  {item.done ? (
+                    <CheckCircleOutlined style={{ color: "#389e0d" }} aria-label="done" />
+                  ) : (
+                    <CloseCircleOutlined style={{ color: "#cf1322" }} aria-label="todo" />
+                  )}
+                  <span>{item.label}</span>
+                </Space>
+              </List.Item>
+            )}
+          />
+        </Card>
+      )}
+    </PageFrame>
   );
 }

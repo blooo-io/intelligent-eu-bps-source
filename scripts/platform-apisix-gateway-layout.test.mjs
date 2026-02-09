@@ -51,6 +51,10 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(helpers, /x-intelligent-roles/);
   assert.match(helpers, /x-intelligent-community/);
   assert.match(helpers, /phase:\s*access/);
+  // INT-187 — CORS before OIDC so OPTIONS preflight succeeds for the SPA.
+  assert.match(helpers, /name:\s*cors/);
+  assert.match(helpers, /allow_origins/);
+  assert.match(helpers, /apisix-gateway\.corsPlugin/);
 
   const oidcEs = await readFile(
     "deploy/charts/apisix-gateway/templates/oidc-secret.yaml",
@@ -80,6 +84,9 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.equal(values.includes("stringData:"), false);
   // Property name oidc_client_secret is fine; never inline a secret value in values.
   assert.equal(/\bclient_secret:\s*['\"]?\w+/.test(values), false);
+  assert.match(values, /cors:/);
+  assert.match(values, /allowOrigins:/);
+  assert.match(values, /app\.dev\.intelligent-eu-bp\.blooo\.dev/);
 });
 
 test("gateway TLS templates gate Certificate and ApisixTls (INT-168)", async () => {

@@ -4,6 +4,9 @@ hosts:
   api: api.demo.intelligent-eu-bp.blooo.dev
   auth: auth.intelligent-eu-bp.blooo.dev
   app: app.demo.intelligent-eu-bp.blooo.dev
+# INT-187 — SPA origin for CORS (comma-separated).
+cors:
+  allowOrigins: "https://app.demo.intelligent-eu-bp.blooo.dev,http://localhost:5173"
 oidc:
   realm: demo
   discoveryHost: auth.intelligent-eu-bp.blooo.dev

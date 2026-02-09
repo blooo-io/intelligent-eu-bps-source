@@ -1,16 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Alert,
-  Button,
-  Card,
-  Form,
-  Input,
-  Radio,
-  Space,
-  Spin,
-  Typography,
-} from "antd";
-import { Link } from "react-router";
+import { Alert, Button, Card, Form, Input, Radio, Typography } from "antd";
 import { fetchMe } from "../api/me";
 import {
   getBillingRun,
@@ -20,8 +9,9 @@ import {
 } from "../api/billing-runs";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
+import { PageFrame } from "../layout/page-frame";
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 type FormValues = {
   type: BillingRunType;
@@ -112,30 +102,12 @@ export function BillingRunsPage({
     }
   }
 
-  if (loading) {
-    return (
-      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-        <Spin size="large" />
-      </main>
-    );
+    if (loading) {
+    return <PageFrame title="Billing runs" loading />;
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: 24,
-        background: "linear-gradient(180deg, #f4faf7 0%, #ffffff 40%)",
-      }}
-    >
-      <Space direction="vertical" size="large" style={{ width: "100%", maxWidth: 640 }}>
-        <Space style={{ width: "100%", justifyContent: "space-between" }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Billing runs
-          </Title>
-          <Link to="/">Back to home</Link>
-        </Space>
-
+    <PageFrame title="Billing runs">
         {communityId && (
           <Paragraph type="secondary">
             Community <Text code>{communityId}</Text>
@@ -202,7 +174,6 @@ export function BillingRunsPage({
             </Paragraph>
           </Card>
         )}
-      </Space>
-    </main>
+    </PageFrame>
   );
 }

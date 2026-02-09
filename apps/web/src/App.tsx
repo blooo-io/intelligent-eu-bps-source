@@ -20,6 +20,7 @@ import { BillingRunsPage } from "./pages/billing-runs-page";
 import { PaymentsOverviewPage } from "./pages/payments-overview-page";
 import { ReportsPage } from "./pages/reports-page";
 import { OperatorPage } from "./pages/operator-page";
+import { AppShell } from "./layout/app-shell";
 import { appTheme } from "./theme";
 
 /**
@@ -48,31 +49,36 @@ export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/auth/callback" element={<CallbackPage oidc={oidc} />} />
               <Route element={<ProtectedOutlet />}>
-                <Route index element={<HomePage config={config} oidc={oidc} />} />
-                <Route path="profile" element={<ProfilePage config={config} oidc={oidc} />} />
-                <Route path="terms" element={<TermsPage config={config} oidc={oidc} />} />
-                <Route path="payment-setup" element={<PaymentSetupPage config={config} oidc={oidc} />} />
-                <Route path="balances" element={<BalancesPage config={config} oidc={oidc} />} />
-                <Route path="invoices" element={<InvoicesPage config={config} oidc={oidc} />} />
-                <Route path="privacy" element={<PrivacyPage config={config} oidc={oidc} />} />
-                <Route
-                  path="community-settings"
-                  element={<CommunitySettingsPage config={config} oidc={oidc} />}
-                />
-                <Route
-                  path="participants"
-                  element={<ParticipantsPage config={config} oidc={oidc} />}
-                />
-                <Route
-                  path="billing-runs"
-                  element={<BillingRunsPage config={config} oidc={oidc} />}
-                />
-                <Route
-                  path="payments-overview"
-                  element={<PaymentsOverviewPage config={config} oidc={oidc} />}
-                />
-                <Route path="reports" element={<ReportsPage config={config} oidc={oidc} />} />
-                <Route path="operator" element={<OperatorPage config={config} oidc={oidc} />} />
+                <Route element={<AppShell />}>
+                  <Route index element={<HomePage config={config} oidc={oidc} />} />
+                  <Route path="profile" element={<ProfilePage config={config} oidc={oidc} />} />
+                  <Route path="terms" element={<TermsPage config={config} oidc={oidc} />} />
+                  <Route
+                    path="payment-setup"
+                    element={<PaymentSetupPage config={config} oidc={oidc} />}
+                  />
+                  <Route path="balances" element={<BalancesPage config={config} oidc={oidc} />} />
+                  <Route path="invoices" element={<InvoicesPage config={config} oidc={oidc} />} />
+                  <Route path="privacy" element={<PrivacyPage config={config} oidc={oidc} />} />
+                  <Route
+                    path="community-settings"
+                    element={<CommunitySettingsPage config={config} oidc={oidc} />}
+                  />
+                  <Route
+                    path="participants"
+                    element={<ParticipantsPage config={config} oidc={oidc} />}
+                  />
+                  <Route
+                    path="billing-runs"
+                    element={<BillingRunsPage config={config} oidc={oidc} />}
+                  />
+                  <Route
+                    path="payments-overview"
+                    element={<PaymentsOverviewPage config={config} oidc={oidc} />}
+                  />
+                  <Route path="reports" element={<ReportsPage config={config} oidc={oidc} />} />
+                  <Route path="operator" element={<OperatorPage config={config} oidc={oidc} />} />
+                </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

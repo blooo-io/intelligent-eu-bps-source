@@ -1,19 +1,11 @@
 import { useEffect, useState } from "react";
-import {
-  Alert,
-  Button,
-  Card,
-  Checkbox,
-  Space,
-  Spin,
-  Typography,
-} from "antd";
-import { Link } from "react-router";
+import { Alert, Button, Card, Checkbox, Typography } from "antd";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
+import { PageFrame } from "../layout/page-frame";
 import { acceptTerms, fetchCurrentTerms, type Terms, type TermsAcceptance } from "../api/terms";
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 /**
  * Terms & self-billing mandate screen (INT-139 / REQ-050 / UAT-062).
@@ -73,30 +65,12 @@ export function TermsPage({
     }
   }
 
-  if (loading) {
-    return (
-      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-        <Spin size="large" />
-      </main>
-    );
+    if (loading) {
+    return <PageFrame title="Terms & conditions" loading />;
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: 24,
-        background: "linear-gradient(180deg, #f4faf7 0%, #ffffff 40%)",
-      }}
-    >
-      <Space direction="vertical" size="large" style={{ width: "100%", maxWidth: 720 }}>
-        <Space style={{ width: "100%", justifyContent: "space-between" }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Terms &amp; conditions
-          </Title>
-          <Link to="/">Back to home</Link>
-        </Space>
-
+    <PageFrame title="Terms & conditions">
         {error && <Alert type="error" message={error} showIcon />}
 
         {acceptance && (
@@ -145,7 +119,6 @@ export function TermsPage({
             </div>
           </Card>
         )}
-      </Space>
-    </main>
+    </PageFrame>
   );
 }

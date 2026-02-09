@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Card, List, Space, Spin, Typography } from "antd";
-import { Link } from "react-router";
+import { Alert, Button, Card, List, Space, Typography } from "antd";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
+import { PageFrame } from "../layout/page-frame";
 import {
   fetchInvoice,
   fetchInvoicePdfBlob,
@@ -12,7 +12,7 @@ import {
   type Payment,
 } from "../api/invoices";
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 /**
  * Invoice list, detail, PDF and pay (INT-142 / REQ-007, REQ-014, REQ-039).
@@ -110,30 +110,12 @@ export function InvoicesPage({
     }
   }
 
-  if (loading) {
-    return (
-      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-        <Spin size="large" />
-      </main>
-    );
+    if (loading) {
+    return <PageFrame title="Invoices" loading />;
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: 24,
-        background: "linear-gradient(180deg, #f4faf7 0%, #ffffff 40%)",
-      }}
-    >
-      <Space direction="vertical" size="large" style={{ width: "100%", maxWidth: 800 }}>
-        <Space style={{ width: "100%", justifyContent: "space-between" }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Invoices
-          </Title>
-          <Link to="/">Back to home</Link>
-        </Space>
-
+    <PageFrame title="Invoices">
         {error && <Alert type="error" message={error} showIcon />}
         {payment && (
           <Alert
@@ -210,7 +192,6 @@ export function InvoicesPage({
             </Space>
           </Card>
         )}
-      </Space>
-    </main>
+    </PageFrame>
   );
 }

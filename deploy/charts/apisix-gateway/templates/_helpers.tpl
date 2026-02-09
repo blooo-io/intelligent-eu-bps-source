@@ -1,4 +1,22 @@
+{{- /*
+  INT-187 / TD-8 — CORS for the Refine SPA (app host → api host).
+  Plugin priority 4000 runs before openid-connect (2599), so OPTIONS preflight
+  is answered with ACAO without requiring a bearer token.
+*/ -}}
+{{- define "apisix-gateway.corsPlugin" -}}
+- name: cors
+  enable: true
+  config:
+    allow_origins: {{ .Values.cors.allowOrigins | quote }}
+    allow_methods: {{ .Values.cors.allowMethods | quote }}
+    allow_headers: {{ .Values.cors.allowHeaders | quote }}
+    expose_headers: {{ .Values.cors.exposeHeaders | quote }}
+    allow_credential: {{ .Values.cors.allowCredential }}
+    max_age: {{ .Values.cors.maxAge }}
+{{- end -}}
+
 {{- define "apisix-gateway.oidcPlugin" -}}
+{{ include "apisix-gateway.corsPlugin" . }}
 - name: openid-connect
   enable: true
   # INT-169 — client_secret comes from ExternalSecret (OpenBao); APISIX requires the field.

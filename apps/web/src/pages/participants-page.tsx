@@ -1,16 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  Alert,
-  Button,
-  Card,
-  Input,
-  List,
-  Radio,
-  Space,
-  Spin,
-  Typography,
-} from "antd";
-import { Link } from "react-router";
+import { Alert, Button, Card, Input, List, Radio, Space, Typography } from "antd";
 import { fetchMe } from "../api/me";
 import {
   importParticipants,
@@ -23,8 +12,9 @@ import {
 } from "../api/participants";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
+import { PageFrame } from "../layout/page-frame";
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 /**
  * Manager participant registry (INT-145 / REQ-008, REQ-012, REQ-058).
@@ -170,30 +160,12 @@ export function ParticipantsPage({
     }
   }
 
-  if (loading) {
-    return (
-      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-        <Spin size="large" />
-      </main>
-    );
+    if (loading) {
+    return <PageFrame title="Participants" loading />;
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: 24,
-        background: "linear-gradient(180deg, #f4faf7 0%, #ffffff 40%)",
-      }}
-    >
-      <Space direction="vertical" size="large" style={{ width: "100%", maxWidth: 800 }}>
-        <Space style={{ width: "100%", justifyContent: "space-between" }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Participants
-          </Title>
-          <Link to="/">Back to home</Link>
-        </Space>
-
+    <PageFrame title="Participants">
         {error && <Alert type="error" message={error} showIcon />}
         {message && <Alert type="success" message={message} showIcon />}
 
@@ -290,7 +262,6 @@ export function ParticipantsPage({
             </Space>
           </Card>
         )}
-      </Space>
-    </main>
+    </PageFrame>
   );
 }

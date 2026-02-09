@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Alert, Button, Card, Radio, Space, Typography } from "antd";
-import { Link } from "react-router";
+import { Alert, Button, Card, Radio, Typography } from "antd";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
+import { PageFrame } from "../layout/page-frame";
 import {
   createDataSubjectRequest,
   getDataSubjectRequest,
@@ -10,7 +10,7 @@ import {
   type DataSubjectRequestType,
 } from "../api/privacy";
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 /**
  * Privacy screen: export or erasure request (INT-143 / REQ-013 / UAT-013).
@@ -65,21 +65,7 @@ export function PrivacyPage({
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: 24,
-        background: "linear-gradient(180deg, #f4faf7 0%, #ffffff 40%)",
-      }}
-    >
-      <Space direction="vertical" size="large" style={{ width: "100%", maxWidth: 720 }}>
-        <Space style={{ width: "100%", justifyContent: "space-between" }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Privacy request
-          </Title>
-          <Link to="/">Back to home</Link>
-        </Space>
-
+    <PageFrame title="Privacy request">
         <Paragraph type="secondary">
           Request an export of your personal data or ask for erasure (REQ-013).
           Accounting records under legal retention are kept.
@@ -124,7 +110,6 @@ export function PrivacyPage({
             </Paragraph>
           </Card>
         )}
-      </Space>
-    </main>
+    </PageFrame>
   );
 }

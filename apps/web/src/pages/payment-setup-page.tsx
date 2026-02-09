@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Alert, Button, Card, Space, Typography } from "antd";
-import { Link } from "react-router";
+import { Alert, Button, Card, Typography } from "antd";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
+import { PageFrame } from "../layout/page-frame";
 import { createPaymentOnboarding } from "../api/payment";
 
-const { Title, Paragraph } = Typography;
+const { Paragraph } = Typography;
 
 /**
  * Payment setup via Stripe-hosted onboarding (INT-140 / REQ-051 / UAT-063).
@@ -44,21 +44,7 @@ export function PaymentSetupPage({
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: 24,
-        background: "linear-gradient(180deg, #f4faf7 0%, #ffffff 40%)",
-      }}
-    >
-      <Space direction="vertical" size="large" style={{ width: "100%", maxWidth: 640 }}>
-        <Space style={{ width: "100%", justifyContent: "space-between" }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Payment setup
-          </Title>
-          <Link to="/">Back to home</Link>
-        </Space>
-
+    <PageFrame title="Payment setup">
         {error && <Alert type="error" message={error} showIcon />}
 
         <Card>
@@ -80,7 +66,6 @@ export function PaymentSetupPage({
             </Paragraph>
           )}
         </Card>
-      </Space>
-    </main>
+    </PageFrame>
   );
 }

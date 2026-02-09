@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Card, Form, Input, Space, Spin, Typography } from "antd";
-import { Link } from "react-router";
+import { Alert, Button, Card, Form, Input, Typography } from "antd";
 import { fetchMe, type BillingProfile, type Me } from "../api/me";
 import { putMyProfile } from "../api/profile";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
+import { PageFrame } from "../layout/page-frame";
 
-const { Title, Paragraph, Text } = Typography;
+const { Paragraph, Text } = Typography;
 
 /**
  * Participant billing profile screen (INT-138 / REQ-009 / UAT-009).
@@ -74,30 +74,12 @@ export function ProfilePage({
     }
   }
 
-  if (loading) {
-    return (
-      <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-        <Spin size="large" />
-      </main>
-    );
+    if (loading) {
+    return <PageFrame title="Billing profile" loading />;
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: 24,
-        background: "linear-gradient(180deg, #f4faf7 0%, #ffffff 40%)",
-      }}
-    >
-      <Space direction="vertical" size="large" style={{ width: "100%", maxWidth: 640 }}>
-        <Space style={{ width: "100%", justifyContent: "space-between" }}>
-          <Title level={2} style={{ margin: 0 }}>
-            Billing profile
-          </Title>
-          <Link to="/">Back to home</Link>
-        </Space>
-
+    <PageFrame title="Billing profile">
         {error && <Alert type="error" message={error} showIcon />}
         {saved && <Alert type="success" message="Profile saved" showIcon />}
 
@@ -149,7 +131,6 @@ export function ProfilePage({
             </Form>
           </Card>
         )}
-      </Space>
-    </main>
+    </PageFrame>
   );
 }

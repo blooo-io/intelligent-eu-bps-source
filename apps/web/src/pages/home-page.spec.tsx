@@ -9,7 +9,6 @@ vi.mock("@refinedev/core", () => ({
   useGetIdentity: () => ({
     data: { id: "u1", roles: ["member"], communityId: "c1" },
   }),
-  useLogout: () => ({ mutate: vi.fn() }),
 }));
 
 const config: WebConfig = {
@@ -57,18 +56,8 @@ describe("HomePage (INT-137 / REQ-049)", () => {
     });
     expect(screen.getByText(/Complete payment setup/i)).toBeInTheDocument();
     expect(screen.getByText(/Roles from IdP: member/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /profile/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /terms/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /payment setup/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /balances/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /invoices/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /privacy/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /community settings/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /participants/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /billing runs/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /payments overview/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /reports/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /operator/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^home$/i })).toBeInTheDocument();
+    expect(screen.queryByText(/back to home/i)).not.toBeInTheDocument();
   });
 
   it("shows an error when the access token is missing", async () => {

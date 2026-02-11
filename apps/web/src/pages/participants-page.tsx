@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Card, Input, List, Radio, Space, Typography } from "antd";
+import { Alert, Button, Card, Input, Radio, Space, Table, Typography } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import { fetchMe } from "../api/me";
 import {
   importParticipants,
@@ -18,7 +19,7 @@ const { Paragraph, Text } = Typography;
 
 /**
  * Manager participant registry (INT-145 / REQ-008, REQ-012, REQ-058).
- * CSV import, list, patch attribution ids, offboard.
+ * CSV import, compact table, patch attribution ids, offboard (INT-188).
  */
 export function ParticipantsPage({
   config,
@@ -160,108 +161,133 @@ export function ParticipantsPage({
     }
   }
 
-    if (loading) {
+  const columns: ColumnsType<Participant> = [
+    {
+      title: "Participant",
+      dataIndex: "participantId",
+      key: "participantId",
+      render: (id: string) => <Text code>{id}</Text>,
+    },
+    {
+      title: "Role",
+      dataIndex: "role",
+      key: "role",
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status: string) => <Text code>{status}</Text>,
+    },
+    {
+      title: "Attribution",
+      key: "attribution",
+      render: (_, row) =>
+        `actor ${row.marketActorId ?? "—"} · meter ${row.meterId ?? "—"}`,
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 88,
+      render: (_, row) => (
+        <Button size="small" onClick={() => openEdit(row)} loading={busy}>
+          Edit
+        </Button>
+      ),
+    },
+  ];
+
+  if (loading) {
     return <PageFrame title="Participants" loading />;
   }
 
   return (
     <PageFrame title="Participants">
-        {error && <Alert type="error" message={error} showIcon />}
-        {message && <Alert type="success" message={message} showIcon />}
+      {error && <Alert type="error" message={error} showIcon />}
+      {message && <Alert type="success" message={message} showIcon />}
 
-        <Card title="Import (CSV)">
-          <Paragraph type="secondary">
-            Columns: email, marketActorId, meterId, role (consumer | producer |
-            prosumer). Creates IdP accounts and invitations (REQ-008).
-          </Paragraph>
-          <Input.TextArea
-            rows={5}
-            value={csvText}
-            onChange={(e) => setCsvText(e.target.value)}
-            aria-label="Participant CSV"
+      <Card title="Import (CSV)" size="small">
+        <Paragraph type="secondary">
+          Columns: email, marketActorId, meterId, role (consumer | producer |
+          prosumer). Creates IdP accounts and invitations (REQ-008).
+        </Paragraph>
+        <Input.TextArea
+          rows={4}
+          value={csvText}
+          onChange={(e) => setCsvText(e.target.value)}
+          aria-label="Participant CSV"
+        />
+        <div style={{ marginTop: 12 }}>
+          <Button type="primary" size="small" loading={busy} onClick={onImport}>
+            Import
+          </Button>
+        </div>
+      </Card>
+
+      <Card title="Registry" size="small">
+        {rows.length === 0 ? (
+          <Paragraph type="secondary">No participants yet.</Paragraph>
+        ) : (
+          <Table
+            size="small"
+            rowKey="participantId"
+            columns={columns}
+            dataSource={rows}
+            pagination={false}
           />
-          <div style={{ marginTop: 12 }}>
-            <Button type="primary" loading={busy} onClick={onImport}>
-              Import
-            </Button>
-          </div>
-        </Card>
-
-        <Card title="Registry">
-          {rows.length === 0 ? (
-            <Paragraph type="secondary">No participants yet.</Paragraph>
-          ) : (
-            <List
-              dataSource={rows}
-              renderItem={(row) => (
-                <List.Item
-                  actions={[
-                    <Button key="edit" onClick={() => openEdit(row)} loading={busy}>
-                      Edit
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={
-                      <span>
-                        <Text code>{row.participantId}</Text> · {row.role} ·{" "}
-                        <Text code>{row.status}</Text>
-                      </span>
-                    }
-                    description={`actor ${row.marketActorId ?? "—"} · meter ${row.meterId ?? "—"}`}
-                  />
-                </List.Item>
-              )}
-            />
-          )}
-        </Card>
-
-        {selected && (
-          <Card
-            title="Edit attribution"
-            extra={<Text code>{selected.status}</Text>}
-          >
-            <Paragraph type="secondary">
-              Participant <Text code>{selected.participantId}</Text>
-            </Paragraph>
-            <Space direction="vertical" style={{ width: "100%" }}>
-              <Input
-                aria-label="Market actor id"
-                value={editActorId}
-                onChange={(e) => setEditActorId(e.target.value)}
-                placeholder="Market actor id"
-              />
-              <Input
-                aria-label="Meter id"
-                value={editMeterId}
-                onChange={(e) => setEditMeterId(e.target.value)}
-                placeholder="Meter id"
-              />
-              <Radio.Group
-                value={editRole}
-                onChange={(e) => setEditRole(e.target.value)}
-                aria-label="Participant role"
-              >
-                <Radio.Button value="consumer">Consumer</Radio.Button>
-                <Radio.Button value="producer">Producer</Radio.Button>
-                <Radio.Button value="prosumer">Prosumer</Radio.Button>
-              </Radio.Group>
-              <Space>
-                <Button type="primary" loading={busy} onClick={onPatch}>
-                  Save
-                </Button>
-                <Button
-                  danger
-                  loading={busy}
-                  onClick={onOffboard}
-                  disabled={selected.status === "Offboarded"}
-                >
-                  Offboard
-                </Button>
-              </Space>
-            </Space>
-          </Card>
         )}
+      </Card>
+
+      {selected && (
+        <Card
+          size="small"
+          title="Edit attribution"
+          extra={<Text code>{selected.status}</Text>}
+        >
+          <Paragraph type="secondary">
+            Participant <Text code>{selected.participantId}</Text>
+          </Paragraph>
+          <Space direction="vertical" style={{ width: "100%" }} size="small">
+            <Input
+              aria-label="Market actor id"
+              value={editActorId}
+              onChange={(e) => setEditActorId(e.target.value)}
+              placeholder="Market actor id"
+            />
+            <Input
+              aria-label="Meter id"
+              value={editMeterId}
+              onChange={(e) => setEditMeterId(e.target.value)}
+              placeholder="Meter id"
+            />
+            <Radio.Group
+              value={editRole}
+              onChange={(e) => setEditRole(e.target.value)}
+              aria-label="Participant role"
+              optionType="button"
+              size="small"
+            >
+              <Radio.Button value="consumer">Consumer</Radio.Button>
+              <Radio.Button value="producer">Producer</Radio.Button>
+              <Radio.Button value="prosumer">Prosumer</Radio.Button>
+            </Radio.Group>
+            <Space>
+              <Button type="primary" size="small" loading={busy} onClick={onPatch}>
+                Save
+              </Button>
+              <Button
+                danger
+                size="small"
+                loading={busy}
+                onClick={onOffboard}
+                disabled={selected.status === "Offboarded"}
+              >
+                Offboard
+              </Button>
+            </Space>
+          </Space>
+        </Card>
+      )}
     </PageFrame>
   );
 }

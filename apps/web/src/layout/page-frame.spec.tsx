@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PageFrame } from "./page-frame";
 
-describe("PageFrame (INT-187)", () => {
+describe("PageFrame (INT-187 / INT-188)", () => {
   it("renders title, description, actions and children", () => {
     render(
       <PageFrame title="Invoices" description="Your billing documents" actions={<button type="button">Export</button>}>

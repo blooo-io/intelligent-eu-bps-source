@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App as AntApp, Spin } from "antd";
 import "antd/dist/reset.css";
+import "./styles/global.css";
 import { loadConfig } from "./api/config";
 import { createOidcFacade, createUserManager } from "./auth/oidc";
 import { App } from "./App";

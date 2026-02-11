@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Button, Layout, Menu, Typography, theme } from "antd";
 import { useLogout } from "@refinedev/core";
 import { Link, Outlet, useLocation } from "react-router";
+import { brand } from "../theme";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -23,8 +24,8 @@ const NAV_ITEMS = [
 ] as const;
 
 /**
- * Authenticated shell (INT-187).
- * Replaces the home-page flex row that squeezed the brand into a vertical column.
+ * Authenticated shell (INT-187 / INT-188).
+ * Dark forest sider (Gridline Energy) with compact Night Operator density.
  */
 export function AppShell() {
   const location = useLocation();
@@ -51,24 +52,45 @@ export function AppShell() {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         breakpoint="lg"
-        width={240}
-        style={{ background: token.colorBgContainer }}
+        width={220}
+        collapsedWidth={64}
+        theme="dark"
+        style={{ background: brand.sider }}
       >
         <div
           style={{
-            padding: collapsed ? "16px 8px" : "16px 20px",
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: collapsed ? "14px 8px" : "14px 16px",
+            borderBottom: `1px solid ${brand.siderHover}`,
+            minHeight: 48,
           }}
         >
-          <Text strong style={{ display: "block", whiteSpace: "nowrap" }}>
-            {collapsed ? "INT" : "INTELLIGENT billing"}
-          </Text>
+          <span className="ge-brand-mark" aria-hidden>
+            INT
+          </span>
+          {!collapsed ? (
+            <Text
+              strong
+              style={{
+                color: brand.mist,
+                display: "block",
+                whiteSpace: "nowrap",
+                fontSize: 13,
+                letterSpacing: "0.02em",
+              }}
+            >
+              INTELLIGENT billing
+            </Text>
+          ) : null}
         </div>
         <Menu
+          theme="dark"
           mode="inline"
           selectedKeys={selected}
           items={menuItems}
-          style={{ borderInlineEnd: 0 }}
+          style={{ borderInlineEnd: 0, background: brand.sider }}
         />
       </Sider>
       <Layout>
@@ -79,15 +101,17 @@ export function AppShell() {
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
-            paddingInline: 24,
-            height: 56,
-            lineHeight: "56px",
+            paddingInline: 20,
+            height: 48,
+            lineHeight: "48px",
           }}
         >
-          <Button onClick={() => logout()}>Sign out</Button>
+          <Button size="small" onClick={() => logout()}>
+            Sign out
+          </Button>
         </Header>
-        <Content style={{ padding: 24, background: token.colorBgLayout }}>
-          <div style={{ maxWidth: 960, margin: "0 auto" }}>
+        <Content style={{ padding: "16px 20px", background: token.colorBgLayout }}>
+          <div style={{ maxWidth: 1280, margin: "0 auto" }}>
             <Outlet />
           </div>
         </Content>

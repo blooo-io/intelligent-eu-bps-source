@@ -4,7 +4,8 @@ import { Space, Spin, Typography } from "antd";
 const { Title, Paragraph } = Typography;
 
 /**
- * Content chrome inside AppShell (INT-187).
+ * Content chrome inside AppShell (INT-187 / INT-188).
+ * Compact page header so ops tables and lists keep vertical room.
  * Pages must not use full-viewport `<main>` wrappers or a "Back to home" link —
  * navigation lives in the sider.
  */
@@ -23,29 +24,29 @@ export function PageFrame({
 }) {
   if (loading) {
     return (
-      <div style={{ display: "grid", placeItems: "center", minHeight: 240 }} data-testid="page-loading">
+      <div style={{ display: "grid", placeItems: "center", minHeight: 200 }} data-testid="page-loading">
         <Spin size="large" />
       </div>
     );
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: "100%" }} data-testid="page-frame">
+    <Space direction="vertical" size="middle" style={{ width: "100%" }} data-testid="page-frame">
       <div
         style={{
           display: "flex",
           flexWrap: "wrap",
-          gap: 12,
+          gap: 8,
           alignItems: "flex-start",
           justifyContent: "space-between",
         }}
       >
-        <div style={{ minWidth: 0, flex: "1 1 240px" }}>
-          <Title level={2} style={{ margin: 0 }}>
+        <div style={{ minWidth: 0, flex: "1 1 220px" }}>
+          <Title level={3} style={{ margin: 0 }}>
             {title}
           </Title>
           {description ? (
-            <Paragraph type="secondary" style={{ margin: "8px 0 0" }}>
+            <Paragraph type="secondary" style={{ margin: "4px 0 0", fontSize: 13 }}>
               {description}
             </Paragraph>
           ) : null}

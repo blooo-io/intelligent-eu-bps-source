@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Card, Input, List, Space, Typography } from "antd";
+import { Alert, Button, Card, Input, Space, Table, Typography } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import { fetchMe } from "../api/me";
 import {
   fetchParticipantHistory,
@@ -13,8 +14,12 @@ import { PageFrame } from "../layout/page-frame";
 
 const { Paragraph, Text } = Typography;
 
+type HistoryInvoice = MemberHistory["invoices"][number];
+type HistoryPayment = MemberHistory["payments"][number];
+
 /**
  * Member history + periodic summary (INT-148 / REQ-031, REQ-032).
+ * Compact tables for ops density (INT-188).
  */
 export function ReportsPage({
   config,
@@ -100,96 +105,135 @@ export function ReportsPage({
     }
   }
 
-    if (loading) {
+  const invoiceColumns: ColumnsType<HistoryInvoice> = [
+    {
+      title: "Invoice",
+      dataIndex: "invoiceId",
+      key: "invoiceId",
+      render: (id: string) => <Text code>{id}</Text>,
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+    },
+    {
+      title: "Amount",
+      key: "amount",
+      render: (_, inv) => `${inv.amounts?.total ?? ""} ${inv.currency ?? ""}`.trim(),
+    },
+  ];
+
+  const paymentColumns: ColumnsType<HistoryPayment> = [
+    {
+      title: "Payment",
+      dataIndex: "paymentId",
+      key: "paymentId",
+      render: (id: string) => <Text code>{id}</Text>,
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+    },
+    {
+      title: "Amount",
+      key: "amount",
+      render: (_, pay) => `${pay.amount} ${pay.currency}`,
+    },
+  ];
+
+  if (loading) {
     return <PageFrame title="Reports" loading />;
   }
 
   return (
     <PageFrame title="Reports">
-        {error && <Alert type="error" message={error} showIcon />}
+      {error && <Alert type="error" message={error} showIcon />}
 
-        <Card title="Member history">
-          <Paragraph type="secondary">
-            Invoices and payments for one participant (REQ-031).
-          </Paragraph>
-          <Space direction="vertical" style={{ width: "100%" }}>
-            <Input
-              aria-label="Participant id"
-              value={participantId}
-              onChange={(e) => setParticipantId(e.target.value)}
-              placeholder="Participant UUID"
-            />
-            <Button type="primary" loading={busy} onClick={onLoadHistory}>
-              Load history
-            </Button>
-          </Space>
-          {history && (
-            <>
-              <Paragraph style={{ marginTop: 16 }}>
-                Participant <Text code>{history.participantId}</Text> ·{" "}
-                {history.invoices.length} invoice(s) · {history.payments.length}{" "}
-                payment(s)
-              </Paragraph>
-              <List
-                header="Invoices"
-                dataSource={history.invoices}
-                locale={{ emptyText: "No invoices" }}
-                renderItem={(inv) => (
-                  <List.Item>
-                    <Text code>{inv.invoiceId}</Text> · {inv.status} ·{" "}
-                    {inv.amounts?.total} {inv.currency}
-                  </List.Item>
-                )}
-              />
-              <List
-                header="Payments"
-                dataSource={history.payments}
-                locale={{ emptyText: "No payments" }}
-                renderItem={(pay) => (
-                  <List.Item>
-                    <Text code>{pay.paymentId}</Text> · {pay.status} · {pay.amount}{" "}
-                    {pay.currency}
-                  </List.Item>
-                )}
-              />
-            </>
-          )}
-        </Card>
-
-        <Card title="Periodic summary">
-          <Paragraph type="secondary">
-            Community totals for one billing period (REQ-032)
-            {communityId ? (
-              <>
-                {" "}
-                · community <Text code>{communityId}</Text>
-              </>
-            ) : null}
-            .
-          </Paragraph>
-          <Space direction="vertical" style={{ width: "100%" }}>
-            <Input
-              aria-label="Summary period"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              placeholder="2026-09"
-            />
-            <Button type="primary" loading={busy} onClick={onLoadSummary}>
-              Load summary
-            </Button>
-          </Space>
-          {summary && (
-            <Paragraph style={{ marginTop: 16 }}>
-              Period <Text code>{summary.period}</Text> · invoices{" "}
-              <Text code>{summary.invoiceCount}</Text> · payments{" "}
-              <Text code>{summary.paymentCount}</Text> · total{" "}
-              <Text strong>
-                {summary.total}
-                {summary.currency ? ` ${summary.currency}` : ""}
-              </Text>
+      <Card title="Member history" size="small">
+        <Paragraph type="secondary">
+          Invoices and payments for one participant (REQ-031).
+        </Paragraph>
+        <Space direction="vertical" style={{ width: "100%" }} size="small">
+          <Input
+            aria-label="Participant id"
+            value={participantId}
+            onChange={(e) => setParticipantId(e.target.value)}
+            placeholder="Participant UUID"
+          />
+          <Button type="primary" size="small" loading={busy} onClick={onLoadHistory}>
+            Load history
+          </Button>
+        </Space>
+        {history && (
+          <>
+            <Paragraph style={{ marginTop: 12 }}>
+              Participant <Text code>{history.participantId}</Text> ·{" "}
+              {history.invoices.length} invoice(s) · {history.payments.length}{" "}
+              payment(s)
             </Paragraph>
-          )}
-        </Card>
+            <Paragraph type="secondary" style={{ marginBottom: 4 }}>
+              Invoices
+            </Paragraph>
+            <Table
+              size="small"
+              rowKey="invoiceId"
+              columns={invoiceColumns}
+              dataSource={history.invoices}
+              pagination={false}
+              locale={{ emptyText: "No invoices" }}
+              style={{ marginBottom: 12 }}
+            />
+            <Paragraph type="secondary" style={{ marginBottom: 4 }}>
+              Payments
+            </Paragraph>
+            <Table
+              size="small"
+              rowKey="paymentId"
+              columns={paymentColumns}
+              dataSource={history.payments}
+              pagination={false}
+              locale={{ emptyText: "No payments" }}
+            />
+          </>
+        )}
+      </Card>
+
+      <Card title="Periodic summary" size="small">
+        <Paragraph type="secondary">
+          Community totals for one billing period (REQ-032)
+          {communityId ? (
+            <>
+              {" "}
+              · community <Text code>{communityId}</Text>
+            </>
+          ) : null}
+          .
+        </Paragraph>
+        <Space direction="vertical" style={{ width: "100%" }} size="small">
+          <Input
+            aria-label="Summary period"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            placeholder="2026-09"
+          />
+          <Button type="primary" size="small" loading={busy} onClick={onLoadSummary}>
+            Load summary
+          </Button>
+        </Space>
+        {summary && (
+          <Paragraph style={{ marginTop: 12 }}>
+            Period <Text code>{summary.period}</Text> · invoices{" "}
+            <Text code>{summary.invoiceCount}</Text> · payments{" "}
+            <Text code>{summary.paymentCount}</Text> · total{" "}
+            <Text strong>
+              {summary.total}
+              {summary.currency ? ` ${summary.currency}` : ""}
+            </Text>
+          </Paragraph>
+        )}
+      </Card>
     </PageFrame>
   );
 }

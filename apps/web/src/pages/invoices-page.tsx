@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Card, List, Space, Typography } from "antd";
+import { Alert, Button, Card, Space, Table, Typography } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
@@ -16,7 +17,8 @@ const { Paragraph, Text } = Typography;
 
 /**
  * Invoice list, detail, PDF and pay (INT-142 / REQ-007, REQ-014, REQ-039).
- * PDF is fetched with bearer then opened; payment goes to the producer (TD-6).
+ * Compact table chrome (INT-188). PDF is fetched with bearer then opened;
+ * payment goes to the producer (TD-6).
  */
 export function InvoicesPage({
   config,
@@ -95,6 +97,7 @@ export function InvoicesPage({
   async function onPay(invoiceId: string) {
     setBusy(true);
     setError(null);
+    setPayment(null);
     try {
       const token = await oidc.getAccessToken();
       if (!token) throw new Error("No access token");
@@ -110,88 +113,103 @@ export function InvoicesPage({
     }
   }
 
-    if (loading) {
+  const columns: ColumnsType<Invoice> = [
+    {
+      title: "Invoice",
+      key: "invoice",
+      render: (_, row) => row.legalNumber ?? row.invoiceId,
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status: string) => <Text code>{status}</Text>,
+    },
+    {
+      title: "Amount",
+      key: "amount",
+      render: (_, row) => `${row.amounts.total} ${row.currency}`,
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 88,
+      render: (_, row) => (
+        <Button size="small" onClick={() => openDetail(row.invoiceId)} loading={busy}>
+          View
+        </Button>
+      ),
+    },
+  ];
+
+  if (loading) {
     return <PageFrame title="Invoices" loading />;
   }
 
   return (
     <PageFrame title="Invoices">
-        {error && <Alert type="error" message={error} showIcon />}
-        {payment && (
-          <Alert
-            type="success"
-            showIcon
-            message={`Payment ${payment.paymentId}`}
-            description={`Status: ${payment.status} · ${payment.amount} ${payment.currency}`}
+      {error && <Alert type="error" message={error} showIcon />}
+      {payment && (
+        <Alert
+          type="success"
+          showIcon
+          message={`Payment ${payment.paymentId}`}
+          description={`Status: ${payment.status} · ${payment.amount} ${payment.currency}`}
+        />
+      )}
+
+      <Card title="Your invoices" size="small">
+        {invoices.length === 0 ? (
+          <Paragraph type="secondary">No invoices yet.</Paragraph>
+        ) : (
+          <Table
+            size="small"
+            rowKey="invoiceId"
+            columns={columns}
+            dataSource={invoices}
+            pagination={false}
           />
         )}
+      </Card>
 
-        <Card title="Your invoices">
-          {invoices.length === 0 ? (
-            <Paragraph type="secondary">No invoices yet.</Paragraph>
-          ) : (
-            <List
-              dataSource={invoices}
-              renderItem={(row) => (
-                <List.Item
-                  actions={[
-                    <Button key="view" onClick={() => openDetail(row.invoiceId)} loading={busy}>
-                      View
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={
-                      <span>
-                        {row.legalNumber ?? row.invoiceId} · <Text code>{row.status}</Text>
-                      </span>
-                    }
-                    description={`${row.amounts.total} ${row.currency}`}
-                  />
-                </List.Item>
-              )}
-            />
+      {selected && (
+        <Card
+          size="small"
+          title={`Invoice ${selected.legalNumber ?? selected.invoiceId}`}
+          extra={<Text code>{selected.status}</Text>}
+        >
+          <Paragraph>
+            Energy {selected.amounts.energy} · VAT {selected.amounts.vat} · Total{" "}
+            <Text strong>
+              {selected.amounts.total} {selected.currency}
+            </Text>
+          </Paragraph>
+          <Paragraph type="secondary">
+            Producer <Text code>{selected.producerId}</Text> · Consumer{" "}
+            <Text code>{selected.consumerId}</Text>
+          </Paragraph>
+          {selected.tradeIds && selected.tradeIds.length > 0 && (
+            <Paragraph>Trades: {selected.tradeIds.join(", ")}</Paragraph>
           )}
+          <Paragraph type="secondary">
+            No grid-fee lines on P2P invoices (A20 / REQ-007).
+          </Paragraph>
+          <Space>
+            <Button size="small" onClick={() => openPdf(selected.invoiceId)} loading={busy}>
+              Open PDF
+            </Button>
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => onPay(selected.invoiceId)}
+              loading={busy}
+              disabled={selected.status === "Paid"}
+            >
+              Pay
+            </Button>
+          </Space>
         </Card>
-
-        {selected && (
-          <Card
-            title={`Invoice ${selected.legalNumber ?? selected.invoiceId}`}
-            extra={<Text code>{selected.status}</Text>}
-          >
-            <Paragraph>
-              Energy {selected.amounts.energy} · VAT {selected.amounts.vat} · Total{" "}
-              <Text strong>
-                {selected.amounts.total} {selected.currency}
-              </Text>
-            </Paragraph>
-            <Paragraph type="secondary">
-              Producer <Text code>{selected.producerId}</Text> · Consumer{" "}
-              <Text code>{selected.consumerId}</Text>
-            </Paragraph>
-            {selected.tradeIds && selected.tradeIds.length > 0 && (
-              <Paragraph>
-                Trades: {selected.tradeIds.join(", ")}
-              </Paragraph>
-            )}
-            <Paragraph type="secondary">
-              No grid-fee lines on P2P invoices (A20 / REQ-007).
-            </Paragraph>
-            <Space>
-              <Button onClick={() => openPdf(selected.invoiceId)} loading={busy}>
-                Open PDF
-              </Button>
-              <Button
-                type="primary"
-                onClick={() => onPay(selected.invoiceId)}
-                loading={busy}
-                disabled={selected.status === "Paid"}
-              >
-                Pay
-              </Button>
-            </Space>
-          </Card>
-        )}
+      )}
     </PageFrame>
   );
 }

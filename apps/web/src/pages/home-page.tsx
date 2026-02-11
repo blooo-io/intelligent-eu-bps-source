@@ -80,9 +80,9 @@ export function HomePage({
               <List.Item>
                 <Space>
                   {item.done ? (
-                    <CheckCircleOutlined style={{ color: "#389e0d" }} aria-label="done" />
+                    <CheckCircleOutlined style={{ color: "#3d8b6e" }} aria-label="done" />
                   ) : (
-                    <CloseCircleOutlined style={{ color: "#cf1322" }} aria-label="todo" />
+                    <CloseCircleOutlined style={{ color: "#c53d3d" }} aria-label="todo" />
                   )}
                   <span>{item.label}</span>
                 </Space>

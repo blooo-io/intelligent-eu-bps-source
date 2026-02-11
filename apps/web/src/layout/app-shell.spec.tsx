@@ -23,8 +23,8 @@ const NAV_LABELS = [
   /operator/i,
 ];
 
-describe("AppShell (INT-187)", () => {
-  it("renders a sider with brand and every protected nav link", () => {
+describe("AppShell (INT-187 / INT-188)", () => {
+  it("renders a dark sider with brand mark and every protected nav link", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Routes>
@@ -36,11 +36,13 @@ describe("AppShell (INT-187)", () => {
     );
 
     expect(screen.getByText("INTELLIGENT billing")).toBeInTheDocument();
+    expect(document.querySelector(".ge-brand-mark")).toBeTruthy();
     expect(screen.getByText("Home body")).toBeInTheDocument();
     for (const label of NAV_LABELS) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     }
     expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+    expect(document.querySelector(".ant-menu-dark")).toBeTruthy();
   });
 
   it("highlights the active route in the sider", () => {

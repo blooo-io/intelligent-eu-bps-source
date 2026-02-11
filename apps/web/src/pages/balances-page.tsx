@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Card, List, Typography } from "antd";
+import { Alert, Button, Card, Table, Typography } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
@@ -14,7 +15,7 @@ const { Paragraph, Text } = Typography;
 
 /**
  * Unbilled balances + settle-now (INT-141 / REQ-057 / UAT-074 / BR-05).
- * Early settlement ignores the community threshold.
+ * Compact table chrome (INT-188). Early settlement ignores the community threshold.
  */
 export function BalancesPage({
   config,
@@ -71,59 +72,71 @@ export function BalancesPage({
     }
   }
 
-    if (loading) {
+  const columns: ColumnsType<Balance> = [
+    {
+      title: "Counterpart",
+      dataIndex: "counterpartId",
+      key: "counterpartId",
+      render: (id: string) => (
+        <span>
+          Counterpart <Text code>{id}</Text>
+        </span>
+      ),
+    },
+    {
+      title: "Amount",
+      key: "amount",
+      render: (_, row) => `${row.amount} ${row.currency}`,
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 120,
+      render: (_, row) => (
+        <Button
+          type="primary"
+          size="small"
+          loading={settlingId === row.counterpartId}
+          onClick={() => settleNow(row.counterpartId)}
+        >
+          Settle now
+        </Button>
+      ),
+    },
+  ];
+
+  if (loading) {
     return <PageFrame title="Balances" loading />;
   }
 
   return (
-    <PageFrame title="Balances">
-        <Paragraph type="secondary">
-          Unbilled amounts per counterpart. Settle now issues an invoice immediately
-          (threshold does not apply — BR-05).
-        </Paragraph>
+    <PageFrame
+      title="Balances"
+      description="Unbilled amounts per counterpart. Settle now issues an invoice immediately (threshold does not apply — BR-05)."
+    >
+      {error && <Alert type="error" message={error} showIcon />}
+      {lastRun && (
+        <Alert
+          type="success"
+          showIcon
+          message={`Early settlement run ${lastRun.runId}`}
+          description={`Status: ${lastRun.status} · type: ${lastRun.type}`}
+        />
+      )}
 
-        {error && <Alert type="error" message={error} showIcon />}
-        {lastRun && (
-          <Alert
-            type="success"
-            showIcon
-            message={`Early settlement run ${lastRun.runId}`}
-            description={`Status: ${lastRun.status} · type: ${lastRun.type}`}
+      <Card size="small">
+        {balances.length === 0 ? (
+          <Paragraph type="secondary">No unbilled balances.</Paragraph>
+        ) : (
+          <Table
+            size="small"
+            rowKey="counterpartId"
+            columns={columns}
+            dataSource={balances}
+            pagination={false}
           />
         )}
-
-        <Card>
-          {balances.length === 0 ? (
-            <Paragraph type="secondary">No unbilled balances.</Paragraph>
-          ) : (
-            <List
-              dataSource={balances}
-              renderItem={(row) => (
-                <List.Item
-                  actions={[
-                    <Button
-                      key="settle"
-                      type="primary"
-                      loading={settlingId === row.counterpartId}
-                      onClick={() => settleNow(row.counterpartId)}
-                    >
-                      Settle now
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={
-                      <span>
-                        Counterpart <Text code>{row.counterpartId}</Text>
-                      </span>
-                    }
-                    description={`${row.amount} ${row.currency}`}
-                  />
-                </List.Item>
-              )}
-            />
-          )}
-        </Card>
+      </Card>
     </PageFrame>
   );
 }

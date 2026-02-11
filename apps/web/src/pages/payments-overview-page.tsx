@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Card, Form, Input, List, Radio, Typography } from "antd";
+import { Alert, Button, Card, Form, Input, Radio, Table, Typography } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import { fetchMe } from "../api/me";
 import {
   fetchPaymentsOverview,
@@ -25,7 +26,7 @@ const STATUS_OPTIONS: InvoiceStatus[] = [
 
 /**
  * Manager payments overview + manual invoice status (INT-147 / REQ-018, REQ-044).
- * Lists use the Stripe read cache (TD-6).
+ * Dense table over the Stripe read cache (TD-6 / INT-188).
  */
 export function PaymentsOverviewPage({
   config,
@@ -107,7 +108,53 @@ export function PaymentsOverviewPage({
     }
   }
 
-    if (loading) {
+  const columns: ColumnsType<OverviewPayment> = [
+    {
+      title: "Amount",
+      key: "amount",
+      render: (_, row) => `${row.amount} ${row.currency}`,
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status: string) => <Text code>{status}</Text>,
+    },
+    {
+      title: "Payment",
+      dataIndex: "paymentId",
+      key: "paymentId",
+      render: (id: string) => <Text code>{id}</Text>,
+    },
+    {
+      title: "Invoice",
+      dataIndex: "invoiceId",
+      key: "invoiceId",
+      render: (id: string) => <Text code>{id}</Text>,
+    },
+    {
+      title: "Failure",
+      dataIndex: "failureCategory",
+      key: "failureCategory",
+      render: (cat?: string) => (cat ? `failure ${cat}` : "—"),
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 148,
+      render: (_, row) => (
+        <Button
+          size="small"
+          onClick={() => openStatus(row.invoiceId)}
+          loading={busy}
+        >
+          Set invoice status
+        </Button>
+      ),
+    },
+  ];
+
+  if (loading) {
     return <PageFrame title="Payments overview" loading />;
   }
 
@@ -116,96 +163,71 @@ export function PaymentsOverviewPage({
 
   return (
     <PageFrame title="Payments overview">
-        {communityId && (
+      {communityId && (
+        <Paragraph type="secondary">
+          Community <Text code>{communityId}</Text> · Stripe read cache (TD-6 / REQ-018)
+        </Paragraph>
+      )}
+
+      {error && <Alert type="error" message={error} showIcon />}
+      {message && <Alert type="success" message={message} showIcon />}
+
+      <Card title="Summary" size="small">
+        <Paragraph style={{ margin: 0 }}>
+          {payments.length} payment(s) · succeeded <Text code>{succeeded}</Text> · failed{" "}
+          <Text code>{failed}</Text>
+        </Paragraph>
+      </Card>
+
+      <Card title="Payments" size="small">
+        {payments.length === 0 ? (
+          <Paragraph type="secondary">No payments yet.</Paragraph>
+        ) : (
+          <Table
+            size="small"
+            rowKey="paymentId"
+            columns={columns}
+            dataSource={payments}
+            pagination={false}
+            scroll={{ x: true }}
+          />
+        )}
+      </Card>
+
+      {selectedInvoiceId && (
+        <Card title={`Manual status · ${selectedInvoiceId}`} size="small">
           <Paragraph type="secondary">
-            Community <Text code>{communityId}</Text> · Stripe read cache (TD-6 / REQ-018)
+            Reason is mandatory and audited (REQ-044 / UAT-055).
           </Paragraph>
-        )}
-
-        {error && <Alert type="error" message={error} showIcon />}
-        {message && <Alert type="success" message={message} showIcon />}
-
-        <Card title="Summary">
-          <Paragraph>
-            {payments.length} payment(s) · succeeded <Text code>{succeeded}</Text> · failed{" "}
-            <Text code>{failed}</Text>
-          </Paragraph>
+          <Form form={form} layout="vertical" onFinish={onSetStatus} size="small">
+            <Form.Item
+              label="Status"
+              name="status"
+              rules={[{ required: true, message: "Status is required" }]}
+            >
+              <Radio.Group optionType="button" size="small">
+                {STATUS_OPTIONS.map((s) => (
+                  <Radio.Button key={s} value={s}>
+                    {s}
+                  </Radio.Button>
+                ))}
+              </Radio.Group>
+            </Form.Item>
+            <Form.Item
+              label="Reason"
+              name="reason"
+              rules={[{ required: true, message: "Reason is required" }]}
+            >
+              <Input.TextArea rows={2} aria-label="Status reason" />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={busy} size="small">
+                Update status
+              </Button>
+            </Form.Item>
+          </Form>
         </Card>
-
-        <Card title="Payments">
-          {payments.length === 0 ? (
-            <Paragraph type="secondary">No payments yet.</Paragraph>
-          ) : (
-            <List
-              dataSource={payments}
-              renderItem={(row) => (
-                <List.Item
-                  actions={[
-                    <Button
-                      key="status"
-                      onClick={() => openStatus(row.invoiceId)}
-                      loading={busy}
-                    >
-                      Set invoice status
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={
-                      <span>
-                        {row.amount} {row.currency} · <Text code>{row.status}</Text>
-                      </span>
-                    }
-                    description={
-                      <>
-                        Payment <Text code>{row.paymentId}</Text> · invoice{" "}
-                        <Text code>{row.invoiceId}</Text>
-                        {row.failureCategory
-                          ? ` · failure ${row.failureCategory}`
-                          : ""}
-                      </>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          )}
-        </Card>
-
-        {selectedInvoiceId && (
-          <Card title={`Manual status · ${selectedInvoiceId}`}>
-            <Paragraph type="secondary">
-              Reason is mandatory and audited (REQ-044 / UAT-055).
-            </Paragraph>
-            <Form form={form} layout="vertical" onFinish={onSetStatus}>
-              <Form.Item
-                label="Status"
-                name="status"
-                rules={[{ required: true, message: "Status is required" }]}
-              >
-                <Radio.Group>
-                  {STATUS_OPTIONS.map((s) => (
-                    <Radio.Button key={s} value={s}>
-                      {s}
-                    </Radio.Button>
-                  ))}
-                </Radio.Group>
-              </Form.Item>
-              <Form.Item
-                label="Reason"
-                name="reason"
-                rules={[{ required: true, message: "Reason is required" }]}
-              >
-                <Input.TextArea rows={2} aria-label="Status reason" />
-              </Form.Item>
-              <Form.Item>
-                <Button type="primary" htmlType="submit" loading={busy}>
-                  Update status
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
-        )}
+      )}
     </PageFrame>
   );
 }

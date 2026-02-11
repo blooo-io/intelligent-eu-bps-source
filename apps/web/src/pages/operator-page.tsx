@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Card, List, Typography } from "antd";
+import { Alert, Button, Card, Table, Typography } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import { fetchMe } from "../api/me";
 import {
   listDiscrepancies,
@@ -18,6 +19,7 @@ const { Paragraph, Text } = Typography;
 
 /**
  * Operator ops: anomalies, discrepancies, jobs (INT-149 / REQ-029, REQ-041).
+ * Dense tabular layout (INT-188 Night Operator data density).
  */
 export function OperatorPage({
   config,
@@ -86,111 +88,142 @@ export function OperatorPage({
     }
   }
 
-    if (loading) {
+  const anomalyColumns: ColumnsType<IntakeAnomaly> = [
+    {
+      title: "Type",
+      dataIndex: "type",
+      key: "type",
+    },
+    {
+      title: "Market",
+      dataIndex: "marketId",
+      key: "marketId",
+      render: (id: string) => <Text code>{id}</Text>,
+    },
+    {
+      title: "Details",
+      dataIndex: "details",
+      key: "details",
+      render: (details?: string) => details ?? "—",
+    },
+  ];
+
+  const discrepancyColumns: ColumnsType<Discrepancy> = [
+    {
+      title: "Scope",
+      dataIndex: "scope",
+      key: "scope",
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status?: string) => (status ? <Text code>{status}</Text> : "—"),
+    },
+    {
+      title: "Expected / actual",
+      key: "delta",
+      render: (_, row) => `expected ${row.expected} · actual ${row.actual}`,
+    },
+  ];
+
+  const jobColumns: ColumnsType<Job> = [
+    {
+      title: "Job",
+      key: "name",
+      render: (_, row) => (
+        <span>
+          {row.name} · <Text code>{row.jobId}</Text>
+        </span>
+      ),
+    },
+    {
+      title: "Outcome",
+      key: "outcome",
+      render: (_, row) => (
+        <>
+          {row.outcome ? `Outcome ${row.outcome}` : "No outcome yet"}
+          {row.lastRunAt ? ` · last ${row.lastRunAt}` : ""}
+        </>
+      ),
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 88,
+      render: (_, row) => (
+        <Button
+          type="primary"
+          size="small"
+          loading={busy}
+          onClick={() => onRunJob(row.jobId)}
+        >
+          Run
+        </Button>
+      ),
+    },
+  ];
+
+  if (loading) {
     return <PageFrame title="Operator" loading />;
   }
 
   return (
     <PageFrame title="Operator">
-        {communityId && (
-          <Paragraph type="secondary">
-            Scoped to community <Text code>{communityId}</Text>
-          </Paragraph>
+      {communityId && (
+        <Paragraph type="secondary">
+          Scoped to community <Text code>{communityId}</Text>
+        </Paragraph>
+      )}
+
+      {error && <Alert type="error" message={error} showIcon />}
+      {message && <Alert type="success" message={message} showIcon />}
+
+      <Card title="Intake anomalies" size="small" extra={<Text type="secondary">REQ-029</Text>}>
+        {anomalies.length === 0 ? (
+          <Paragraph type="secondary">No anomalies.</Paragraph>
+        ) : (
+          <Table
+            size="small"
+            rowKey={(row) => `${row.type}-${row.marketId}`}
+            columns={anomalyColumns}
+            dataSource={anomalies}
+            pagination={false}
+          />
         )}
+      </Card>
 
-        {error && <Alert type="error" message={error} showIcon />}
-        {message && <Alert type="success" message={message} showIcon />}
+      <Card
+        title="Reconciliation discrepancies"
+        size="small"
+        extra={<Text type="secondary">REQ-041</Text>}
+      >
+        {discrepancies.length === 0 ? (
+          <Paragraph type="secondary">No discrepancies.</Paragraph>
+        ) : (
+          <Table
+            size="small"
+            rowKey={(row) => `${row.scope}-${row.expected}-${row.actual}`}
+            columns={discrepancyColumns}
+            dataSource={discrepancies}
+            pagination={false}
+          />
+        )}
+      </Card>
 
-        <Card title="Intake anomalies">
-          <Paragraph type="secondary">Trade-intake flags (REQ-029).</Paragraph>
-          {anomalies.length === 0 ? (
-            <Paragraph type="secondary">No anomalies.</Paragraph>
-          ) : (
-            <List
-              dataSource={anomalies}
-              renderItem={(row) => (
-                <List.Item>
-                  <List.Item.Meta
-                    title={
-                      <span>
-                        {row.type} · market <Text code>{row.marketId}</Text>
-                      </span>
-                    }
-                    description={row.details ?? "—"}
-                  />
-                </List.Item>
-              )}
-            />
-          )}
-        </Card>
-
-        <Card title="Reconciliation discrepancies">
-          <Paragraph type="secondary">Payment / market mismatches (REQ-041).</Paragraph>
-          {discrepancies.length === 0 ? (
-            <Paragraph type="secondary">No discrepancies.</Paragraph>
-          ) : (
-            <List
-              dataSource={discrepancies}
-              renderItem={(row) => (
-                <List.Item>
-                  <List.Item.Meta
-                    title={
-                      <span>
-                        {row.scope}
-                        {row.status ? (
-                          <>
-                            {" "}
-                            · <Text code>{row.status}</Text>
-                          </>
-                        ) : null}
-                      </span>
-                    }
-                    description={`expected ${row.expected} · actual ${row.actual}`}
-                  />
-                </List.Item>
-              )}
-            />
-          )}
-        </Card>
-
-        <Card title="Jobs">
-          <Paragraph type="secondary">Scheduled jobs — run now (02 §4.5).</Paragraph>
-          {jobs.length === 0 ? (
-            <Paragraph type="secondary">No jobs.</Paragraph>
-          ) : (
-            <List
-              dataSource={jobs}
-              renderItem={(row) => (
-                <List.Item
-                  actions={[
-                    <Button
-                      key="run"
-                      type="primary"
-                      loading={busy}
-                      onClick={() => onRunJob(row.jobId)}
-                    >
-                      Run
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={
-                      <span>
-                        {row.name} · <Text code>{row.jobId}</Text>
-                      </span>
-                    }
-                    description={
-                      <>
-                        {row.outcome ? `Outcome ${row.outcome}` : "No outcome yet"}
-                        {row.lastRunAt ? ` · last ${row.lastRunAt}` : ""}
-                      </>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          )}
-        </Card>
+      <Card title="Jobs" size="small" extra={<Text type="secondary">02 §4.5</Text>}>
+        {jobs.length === 0 ? (
+          <Paragraph type="secondary">No jobs.</Paragraph>
+        ) : (
+          <Table
+            size="small"
+            rowKey="jobId"
+            columns={jobColumns}
+            dataSource={jobs}
+            pagination={false}
+          />
+        )}
+      </Card>
     </PageFrame>
   );
 }

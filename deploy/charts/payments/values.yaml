@@ -13,3 +13,7 @@ ingressFrom: []
 keycloakEgress: false
 stripeEgress: true
 namespaceIngress: true
+# INT-189 — select Stripe test adapter when OpenBao secrets are present;
+# explicit override keeps AD-6 configuration-driven.
+env:
+  PSP_PROVIDER: stripe

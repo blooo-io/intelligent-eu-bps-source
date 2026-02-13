@@ -225,6 +225,9 @@ importers:
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
+      stripe:
+        specifier: 23.0.0
+        version: 23.0.0(@types/node@22.20.5)
     devDependencies:
       '@types/express':
         specifier: ^5.0.3
@@ -336,6 +339,9 @@ importers:
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
+      stripe:
+        specifier: 23.0.0
+        version: 23.0.0(@types/node@22.20.5)
     devDependencies:
       '@types/express':
         specifier: ^5.0.3
@@ -7700,6 +7706,15 @@ packages:
   strip-outer@1.0.1:
     resolution: {integrity: sha512-k55yxKHwaXnpYGsOzg4Vl8+tDrWylxDEpknGjhTiZB8dFRU5rTo9CAzeycivxV3s+zlTKwrs6WxMxR95n26kwg==}
     engines: {node: '>=0.10.0'}
+
+  stripe@23.0.0:
+    resolution: {integrity: sha512-MDE2A5ZVVluYURORaZEVghSmnLJc3w6aHAlZSxDQMsOjOb3V0O6ro/CiaeFlJS4N7uIVmsg98ocRsPmUK6YfyA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@types/node': '>=20'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
 
   strnum@2.5.1:
     resolution: {integrity: sha512-UM4nTLWzQiDBseVxUGxN0wJzIk0UU89Qi7pKXz9qISo+lhviJikTuikBsK/oFRlpvYHvSdz0TVoLyQ+sEpYwxA==}
@@ -17274,6 +17289,10 @@ snapshots:
   strip-outer@1.0.1:
     dependencies:
       escape-string-regexp: 1.0.5
+
+  stripe@23.0.0(@types/node@22.20.5):
+    optionalDependencies:
+      '@types/node': 22.20.5
 
   strnum@2.5.1:
     dependencies:

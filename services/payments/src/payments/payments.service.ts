@@ -186,25 +186,41 @@ export class PaymentsService {
         await this.completeProducerKyc(participantId);
       }
     }
-    if (verified.eventType === "payment_intent.succeeded") {
+    if (
+      verified.eventType === "payment_intent.succeeded" ||
+      verified.eventType === "payment_intent.payment_failed"
+    ) {
       const stripePaymentId = String(verified.payload?.stripePaymentId ?? "");
       const row = this.store.findByStripePaymentId(stripePaymentId);
-      if (row && row.status !== "succeeded") {
-        this.store.putPayment({ ...row, status: "succeeded" });
-        await this.outbox.append({
-          aggregateType: "Payment",
-          aggregateId: row.paymentId,
-          type: "PaymentStatusChanged",
-          producer: PRODUCER,
-          communityId: row.communityId,
-          billingMode: "virtual",
-          data: {
-            paymentId: row.paymentId,
-            invoiceId: row.invoiceId,
-            status: "succeeded",
-          },
-        });
+      if (!row) {
+        return;
       }
+      const status =
+        verified.eventType === "payment_intent.succeeded" ? "succeeded" : "failed";
+      if (row.status === status) {
+        return;
+      }
+      this.store.putPayment({
+        ...row,
+        status,
+        failureCategory:
+          status === "failed"
+            ? String(verified.payload?.failureCategory ?? row.failureCategory ?? "declined")
+            : row.failureCategory,
+      });
+      await this.outbox.append({
+        aggregateType: "Payment",
+        aggregateId: row.paymentId,
+        type: "PaymentStatusChanged",
+        producer: PRODUCER,
+        communityId: row.communityId,
+        billingMode: "virtual",
+        data: {
+          paymentId: row.paymentId,
+          invoiceId: row.invoiceId,
+          status,
+        },
+      });
     }
   }
 

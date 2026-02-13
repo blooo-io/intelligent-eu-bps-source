@@ -176,6 +176,31 @@ describe("PaymentsService", () => {
     expect(store.getPayment(payment.paymentId)?.status).toBe("succeeded");
   });
 
+  it("marks payment failed on payment_intent.payment_failed webhook", async () => {
+    service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    const payment = await service.payInvoice({
+      invoiceId: "inv-fail-hook",
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      amount: "1.00",
+      currency: "EUR",
+      producerStripeAccountId: "acct_x",
+    });
+    const row = store.getPayment(payment.paymentId)!;
+    store.putPayment({ ...row, status: "pending" });
+    const body = JSON.stringify({
+      type: "payment_intent.payment_failed",
+      data: { stripePaymentId: row.stripePaymentId, failureCategory: "declined" },
+    });
+    await service.receiveWebhook(body, MockPspAdapter.sign(body));
+    expect(store.getPayment(payment.paymentId)?.status).toBe("failed");
+  });
+
   it("rejects webhook without signature and malformed JSON body", async () => {
     await expect(service.receiveWebhook("{}", undefined as unknown as string)).rejects.toThrow(
       /Missing Stripe-Signature/,

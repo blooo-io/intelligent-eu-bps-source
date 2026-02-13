@@ -66,6 +66,13 @@ spec:
             - secretRef:
                 name: {{ .Values.name }}
                 optional: true
+          {{- with .Values.env }}
+          env:
+            {{- range $k, $v := . }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

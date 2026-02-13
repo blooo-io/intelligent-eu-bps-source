@@ -11,6 +11,18 @@ import {
 } from "./ports/readiness.port.js";
 import { MockStripeInvoiceAdapter } from "./stripe/mock-stripe-invoice.js";
 import { STRIPE_INVOICE_PORT } from "./stripe/stripe-invoice.port.js";
+import { StripeInvoiceAdapter } from "./stripe/stripe-invoice.adapter.js";
+
+function resolveInvoiceProvider(): "stripe" | "mock" {
+  const explicit = (
+    process.env.STRIPE_INVOICE_PROVIDER ??
+    process.env.stripe_invoice_provider ??
+    process.env.PSP_PROVIDER ??
+    process.env.psp_provider ??
+    ""
+  ).toLowerCase();
+  return explicit === "stripe" ? "stripe" : "mock";
+}
 
 @Module({
   imports: [
@@ -20,7 +32,18 @@ import { STRIPE_INVOICE_PORT } from "./stripe/stripe-invoice.port.js";
   providers: [
     InvoiceStore,
     InvoicingService,
-    { provide: STRIPE_INVOICE_PORT, useClass: MockStripeInvoiceAdapter },
+    MockStripeInvoiceAdapter,
+    {
+      provide: STRIPE_INVOICE_PORT,
+      // AD-6 — configuration selects mock vs Stripe test (INT-189).
+      useFactory: (mock: MockStripeInvoiceAdapter) => {
+        if (resolveInvoiceProvider() === "stripe") {
+          return new StripeInvoiceAdapter();
+        }
+        return mock;
+      },
+      inject: [MockStripeInvoiceAdapter],
+    },
     { provide: READINESS_PORT, useClass: AlwaysReadyReadiness },
   ],
 })

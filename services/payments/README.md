@@ -1,11 +1,12 @@
-# `services/payments` (AC-07)
+# AC-07 Payments
 
-Stripe Connect **test mode** payments (INT-107 / BR-12 / P-PSP).
+Stripe Connect **test mode** (BR-12 / AD-6 / INT-107 / INT-189).
 
-| Operation | Path | Spec |
-|---|---|---|
-| Onboarding | `POST /v1/me/payment-account/onboarding` | REQ-040, REQ-051 |
-| Pay invoice | `POST /v1/invoices/{id}/payments` | REQ-014 |
-| Webhook | `POST /webhooks/payment-provider` | NFR-015 |
+## PSP selection
 
-Port methods: `createProducerAccount`, `onboardingLink`, `attachPaymentMethod`, `createPayment`, `refund`, `verifyWebhook`. Stripe is master of accounts/payments (TP-7); V1 uses a mock PSP adapter in tests.
+| `PSP_PROVIDER` | Behaviour |
+|---|---|
+| unset / `mock` | `MockPspAdapter` (unit tests / local) |
+| `stripe` | `StripePspAdapter` (dev Helm sets this; needs OpenBao secrets) |
+
+Secrets come from OpenBao `dev/payments` via External Secrets (`stripe_secret_key`, `stripe_webhook_secret`, `stripe_connect_webhook_secret`). Webhook route: `POST /webhooks/payment-provider` (raw body + Stripe-Signature).

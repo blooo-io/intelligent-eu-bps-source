@@ -9,4 +9,13 @@ Maps pair settlements to Stripe invoices on the producer's Connect account (INT-
 | SetInvoiceStatus | `POST /v1/invoices/{id}/status` | REQ-044, UAT-055 |
 | createFromSettlement | domain (SettlementCompleted) | TD-2, BR-09, BR-10 |
 
-Stripe remains master of numbering, PDF and e-mail (BR-10 / TP-7). V1 uses a mock Stripe invoice adapter for tests; live `stripe-node` wiring follows with secrets from OpenBao.
+Stripe remains master of numbering, PDF and e-mail (BR-10 / TP-7).
+
+## Adapter selection (INT-189 / AD-6)
+
+| `STRIPE_INVOICE_PROVIDER` / `PSP_PROVIDER` | Behaviour |
+|---|---|
+| unset / `mock` | `MockStripeInvoiceAdapter` (unit tests) |
+| `stripe` | `StripeInvoiceAdapter` (dev Helm; test-mode secrets required) |
+
+Secrets: OpenBao `dev/invoicing` → External Secrets (`stripe_secret_key`, …). NetworkPolicy `stripeEgress: true`.

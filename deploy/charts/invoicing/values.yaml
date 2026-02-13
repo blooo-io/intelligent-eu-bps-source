@@ -13,5 +13,9 @@ egressModules:
 ingressFrom: 
   - payments
 keycloakEgress: false
-stripeEgress: false
+stripeEgress: true
 namespaceIngress: true
+# INT-189 — Stripe test invoices on producer Connect accounts (AD-6).
+env:
+  STRIPE_INVOICE_PROVIDER: stripe
+  PSP_PROVIDER: stripe

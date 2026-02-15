@@ -25,7 +25,7 @@ Confirmed set: [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76).
 | UAT-041 | NFR-009 | Same as UAT-039 — crypto not required for V1 journeys |
 | UAT-042 | NFR-010 | Every in-scope REQ/NFR has a linked `scope_d55: in` UAT with non-empty status |
 | UAT-059 | NFR-012 | `LICENSE` + `NOTICE` present; Apache-2.0 |
-| UAT-065 | NFR-014 | No direct `stripe` SDK import under `services/` (adapter/mock only) |
+| UAT-065 | NFR-014 | Mock PSP default in CI; Stripe SDK only behind adapters (INT-189) |
 | UAT-066 | NFR-015 | Invalid webhook signature rejected without hanging (`payments` spec) |
 
 ## INT-80 batch (2026-10-17)
@@ -38,19 +38,23 @@ Confirmed set: [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76).
 | UAT-049 | NFR-011 | APISIX JWKS OIDC; forged foreign-issuer JWT → 401 on `/v1/me` |
 | UAT-068 | NFR-017 | V1 mock CG (A32) + cluster region `nl-ams` (EU) |
 
-## Still Not Run (needs further work or pilots)
+## INT-80 batch (2026-10-18)
 
-| UAT | Requirement | Reason |
-|---|---|---|
-| UAT-015 | REQ-015 | Stripe Connect payout — OpenBao Stripe keys not seeded (`payments` Secret is placeholder) |
-| UAT-028 | REQ-028 | Full trade→balance end-to-end trace API not smoked on cluster |
-| UAT-040 | NFR-008 | Performance window TBD with pilots |
-| UAT-044, UAT-047, UAT-061 | IdP REQs/NFRs | Second / multi-community IdP not provisioned; vendor swap not live-tested |
-| UAT-050, UAT-051, UAT-053 | Invoice PDF / onboarding / numbering | Stripe artefacts blocked on missing test keys |
-| UAT-064 | REQ-052 | Documented API journey + screens end-to-end not completed |
-| UAT-067 | NFR-016 | UX step-count needs pilot observation |
+| UAT | Requirement | Result | Evidence |
+|---|---|---|---|
+| UAT-061 | NFR-013 | Pass | Code review — `oidc-client-ts` + config issuer; no Keycloak Admin API in web |
+| UAT-064 | REQ-052 | Pass | Manual `app.dev` screens for onboarding / invoices / balances / operator |
+| UAT-015 | REQ-015 | Blocked | Connect platform profile (losses) not accepted in Dashboard |
+| UAT-028 | REQ-028 | Blocked | No seeded payment/trade for operator drill-down |
+| UAT-040 | NFR-008 | Blocked | Pilot time window TBD |
+| UAT-044 | REQ-034 | Blocked | Second community IdP not provisioned |
+| UAT-047 | REQ-037 | Blocked | No alternate IdP instance to switch to |
+| UAT-050 | REQ-039 | Blocked | Depends on Connect accounts (platform profile) |
+| UAT-051 | REQ-040 | Blocked | Consumer fixture CTA OK; producer Account Link needs platform profile |
+| UAT-053 | REQ-042 | Blocked | Depends on Connect invoice numbering |
+| UAT-067 | NFR-016 | Blocked | Needs pilot UX observation |
 
-Prior Pass rows from INT-75 / portal work remain Pass (see functional-cases inventory).
+**Totals after this batch:** **55 Pass**, **0 Not Run**, **9 Blocked**, **0 Fail** (64 in-scope).
 
 ## Commands / probes
 

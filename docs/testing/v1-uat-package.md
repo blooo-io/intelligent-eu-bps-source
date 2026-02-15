@@ -25,23 +25,21 @@ Assemble acceptance for partners from the existing UAT notes. **Case text stays 
 
 ## Already accepted (do not re-run unless regressing)
 
-See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-80 batch: **53 Pass**, **11 Not Run**.
+See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-80 (2026-10-18): **55 Pass**, **9 Blocked**, **0 Not Run**.
 
-## Remaining cases for INT-80
+## Remaining Blocked cases (INT-80)
 
-| UAT | Requirement | Suggested runner |
+| UAT | Requirement | Blocker |
 |---|---|---|
-| UAT-015 | REQ-015 | Blooo + Stripe test Connect payout (needs OpenBao Stripe seed) |
-| UAT-028 | REQ-028 | Blooo operator (end-to-end trace) |
-| UAT-040 | NFR-008 | Pilot (agreed time window) |
-| UAT-044 | REQ-034 | Blooo operator (multi-community IdP redirect) |
-| UAT-047 | REQ-037 | Blooo (IdP swap without redeploy) |
-| UAT-050 | REQ-039 | Blooo + Stripe test PDF |
-| UAT-051 | REQ-040 | Blooo operator (embedded onboarding) |
-| UAT-053 | REQ-042 | Blooo + Stripe numbering |
-| UAT-061 | NFR-013 | Blooo (IdP-vendor-agnostic review + second IdP) |
-| UAT-064 | REQ-052 | Blooo operator + partner (API + screens journey) |
-| UAT-067 | NFR-016 | Pilot (journey step count) |
+| UAT-015 | REQ-015 | Stripe Connect platform profile (losses) — Dashboard human step |
+| UAT-028 | REQ-028 | Seeded trade→payment for operator trace (after Connect) |
+| UAT-040 | NFR-008 | Pilot-agreed performance window |
+| UAT-044 | REQ-034 | Second community IdP not provisioned |
+| UAT-047 | REQ-037 | Alternate OIDC IdP instance not provisioned |
+| UAT-050 | REQ-039 | Stripe invoice PDF — depends on Connect accounts |
+| UAT-051 | REQ-040 | Producer Connect Account Link — depends on platform profile |
+| UAT-053 | REQ-042 | Stripe numbering — depends on Connect invoices |
+| UAT-067 | NFR-016 | Pilot UX step-count observation |
 
 ## How to record a result (INT-80)
 

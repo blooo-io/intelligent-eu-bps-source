@@ -1,6 +1,7 @@
 # V1 release notes (INT-95)
 
 **Deliverable:** D5.5 — Billing & Payment Service V1  
+**Source tag:** `v1.0.0` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-92)  
 **Project:** Horizon Europe INTELLIGENT (GA 101160678), Task T5.6, led by Blooo  
 **Licence:** Apache License 2.0 — see [`LICENSE`](../../LICENSE) and [`NOTICE`](../../NOTICE)
 

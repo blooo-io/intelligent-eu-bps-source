@@ -27,3 +27,30 @@ test("D5.5 release docs point at architecture, contracts and licence (INT-93/94/
   await access("NOTICE");
   await access("contracts/openapi/public.v1.yaml");
 });
+
+test("INT-92 source release note matches package version 1.0.0", async () => {
+  const index = await readFile("docs/release/README.md", "utf8");
+  const source = await readFile("docs/release/SOURCE-RELEASE.md", "utf8");
+  const pkg = JSON.parse(await readFile("package.json", "utf8"));
+
+  assert.match(index, /INT-92/);
+  assert.match(index, /SOURCE-RELEASE\.md/);
+  assert.match(source, /INT-92/);
+  assert.match(source, /v1\.0\.0/);
+  assert.equal(pkg.version, "1.0.0");
+});
+
+test("INT-96 / INT-97 consistency and freeze notes are linked", async () => {
+  const index = await readFile("docs/release/README.md", "utf8");
+  const consistency = await readFile("docs/release/PACKAGE-CONSISTENCY.md", "utf8");
+  const freeze = await readFile("docs/release/FREEZE.md", "utf8");
+
+  assert.match(index, /INT-96/);
+  assert.match(index, /PACKAGE-CONSISTENCY\.md/);
+  assert.match(index, /INT-97/);
+  assert.match(index, /FREEZE\.md/);
+  assert.match(consistency, /55 Pass/);
+  assert.match(consistency, /9 Blocked/);
+  assert.match(freeze, /v1\.0\.0/);
+  assert.match(freeze, /INT-90|INT-91/);
+});

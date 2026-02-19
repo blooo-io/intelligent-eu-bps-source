@@ -4,10 +4,38 @@
 
 - Editable matrix views: [[traceability.base]] (Obsidian Bases, Obsidian ≥ 1.9).
 - The checks below need the **Dataview** community plugin.
-- On GitHub (where Bases and Dataview do not render), read the static tables in `requirements.md`, `user-stories.md` and `uat-test-cases.md`, regenerated from the item notes.
+- On GitHub (where Bases and Dataview do not render), read the static tables in `requirements.md`, `user-stories.md` and `uat-test-cases.md`, regenerated from the item notes, plus the **INT-81 snapshot** below.
+- Full validation narrative: [`../testing/v1-validation-summary.md`](../testing/v1-validation-summary.md).
 - `traceability-matrix.xlsx` is an export, not the source of truth.
 
 ![[traceability.base]]
+
+## INT-81 snapshot (GitHub-readable)
+
+**As of 2026-10-18** (`develop` after INT-80 / INT-189): **64** in-scope UATs (`scope_d55: in`).
+
+| UAT status | Count |
+|---|---|
+| Pass | 55 |
+| Blocked | 9 |
+| Fail | 0 |
+| Not Run | 0 |
+
+Blocked (explicit external blockers; see UAT notes and [`../testing/v1-uat-package.md`](../testing/v1-uat-package.md)):
+
+| UAT | Requirement | Blocker class |
+|---|---|---|
+| UAT-015 | REQ-015 | Stripe Connect platform profile (Dashboard) |
+| UAT-028 | REQ-028 | Seeded trade→payment (after Connect) |
+| UAT-040 | NFR-008 | Pilot performance window |
+| UAT-044 | REQ-034 | Second community IdP |
+| UAT-047 | REQ-037 | Alternate OIDC IdP |
+| UAT-050 | REQ-039 | Stripe invoice PDF (Connect) |
+| UAT-051 | REQ-040 | Producer Account Link (Connect) |
+| UAT-053 | REQ-042 | Stripe numbering (Connect) |
+| UAT-067 | NFR-016 | Pilot UX step-count |
+
+No Fail rows. Freeze (INT-97) may proceed with these Blocked items listed as known limitations.
 
 ## Counts
 

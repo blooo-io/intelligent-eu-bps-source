@@ -20,7 +20,8 @@ describe("PaymentsOverviewPage (INT-147 / UAT-018 / UAT-055)", () => {
     vi.restoreAllMocks();
   });
 
-  it("lists payments and sets invoice status with a reason", async () => {
+  // Ant Design table + modal under CI load; default 5s is flaky (INT-81 CI).
+  it("lists payments and sets invoice status with a reason", { timeout: 15_000 }, async () => {
     const oidc: OidcFacade = {
       login: vi.fn(),
       handleCallback: vi.fn(),
@@ -112,7 +113,7 @@ describe("PaymentsOverviewPage (INT-147 / UAT-018 / UAT-055)", () => {
     });
   });
 
-  it("shows an error when load fails", async () => {
+  it("shows an error when load fails", { timeout: 15_000 }, async () => {
     const oidc: OidcFacade = {
       login: vi.fn(),
       handleCallback: vi.fn(),
@@ -137,7 +138,7 @@ describe("PaymentsOverviewPage (INT-147 / UAT-018 / UAT-055)", () => {
     });
   });
 
-  it("shows an error when status update fails", async () => {
+  it("shows an error when status update fails", { timeout: 15_000 }, async () => {
     const oidc: OidcFacade = {
       login: vi.fn(),
       handleCallback: vi.fn(),

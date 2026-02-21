@@ -136,19 +136,51 @@ paths:
       tags: [Payments]
       summary: Start payment-account onboarding
       description: >
-        Returns the provider link for producer KYC or for a consumer payment method (REQ-051, REQ-040).
+        Producer/prosumer: creates a Stripe Connect account if needed and returns
+        outstanding KYC requirements for in-platform collection (INT-190, REQ-051, UAT-051).
+        Consumer: returns a provider setup link (`mode: link`) for the payment method (REQ-040).
       x-served-by: AC-07
       responses:
         '200':
-          description: Provider onboarding link.
+          description: Onboarding session (requirements or link).
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OnboardingLink'
+                $ref: '#/components/schemas/OnboardingSession'
         '401':
           $ref: './components/schemas.yaml#/components/responses/Unauthorized'
         '403':
           $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /me/payment-account/onboarding/requirements:
+    post:
+      operationId: submitPaymentOnboardingRequirements
+      tags: [Payments]
+      summary: Submit Connect KYC requirements
+      description: >
+        Forwards producer KYC fields to Stripe Accounts API and returns the refreshed
+        onboarding session (INT-190, REQ-051). Personal data is not retained by billing.
+      x-served-by: AC-07
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingRequirementsSubmission'
+      responses:
+        '200':
+          description: Refreshed onboarding session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSession'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
   /me/balances:
     get:
       operationId: listMyBalances
@@ -866,15 +898,113 @@ components:
           type: string
           format: date-time
           readOnly: true
-    OnboardingLink:
+    OnboardingSession:
       type: object
       additionalProperties: false
-      required: [url]
+      required: [mode, status]
+      description: >
+        INT-190 — producer uses `mode: requirements` (in-platform KYC);
+        consumer uses `mode: link` (hosted payment-method setup).
       properties:
+        mode:
+          type: string
+          enum: [requirements, link]
+        status:
+          type: string
+          enum: [requirements_due, pending_verification, complete]
+        stripeAccountId:
+          type: string
+          description: Connect account id when mode is requirements.
+        currentlyDue:
+          type: array
+          items:
+            type: string
+          description: Stripe requirement keys still due (REQ-051).
+        eventuallyDue:
+          type: array
+          items:
+            type: string
         url:
           type: string
           format: uri
-          description: Provider onboarding link (REQ-051).
+          description: Present when mode is link (consumer payment-method setup).
+    OnboardingRequirementsSubmission:
+      type: object
+      additionalProperties: false
+      description: KYC payload forwarded to Stripe; not stored by billing (INT-190).
+      properties:
+        businessType:
+          type: string
+          enum: [individual, company]
+        businessProfileUrl:
+          type: string
+          format: uri
+        businessProfileMcc:
+          type: string
+          description: Merchant category code (e.g. 5734).
+        representative:
+          type: object
+          additionalProperties: false
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+            dob:
+              type: object
+              additionalProperties: false
+              required: [day, month, year]
+              properties:
+                day:
+                  type: integer
+                  minimum: 1
+                  maximum: 31
+                month:
+                  type: integer
+                  minimum: 1
+                  maximum: 12
+                year:
+                  type: integer
+                  minimum: 1900
+            address:
+              type: object
+              additionalProperties: false
+              properties:
+                line1:
+                  type: string
+                city:
+                  type: string
+                postalCode:
+                  type: string
+                country:
+                  type: string
+                  minLength: 2
+                  maxLength: 2
+        externalAccount:
+          type: object
+          additionalProperties: false
+          description: Test-mode bank account for Connect payouts (BR-12).
+          properties:
+            country:
+              type: string
+              minLength: 2
+              maxLength: 2
+            currency:
+              type: string
+              minLength: 3
+              maxLength: 3
+            accountNumber:
+              type: string
+            routingNumber:
+              type: string
+        tosAccepted:
+          type: boolean
+          description: Caller accepted Stripe Connected Account Agreement.
     Balance:
       type: object
       additionalProperties: false

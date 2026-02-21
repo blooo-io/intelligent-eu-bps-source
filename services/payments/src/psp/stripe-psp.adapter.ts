@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import type {
-  OnboardingLink,
+  OnboardingRequirementsSubmission,
+  OnboardingSession,
   PaymentMethodRef,
   ProducerAccount,
   PspPaymentResult,
@@ -10,8 +11,9 @@ import type {
 import { readStripeEnv, toMinorUnits, type StripeEnv } from "./stripe-env.js";
 
 /**
- * Real Stripe test-mode P-PSP adapter (INT-189 / AD-6 / BR-12).
+ * Real Stripe test-mode P-PSP adapter (INT-189 / INT-190 / AD-6 / BR-12).
  * Destination charges to the producer Connect account (TD-6).
+ * Producer KYC via Accounts API (no Account Links).
  */
 export class StripePspAdapter implements PspPort {
   private readonly stripe: Stripe;
@@ -48,17 +50,69 @@ export class StripePspAdapter implements PspPort {
     return { stripeAccountId: account.id };
   }
 
-  async onboardingLink(
+  async getAccountSession(stripeAccountId: string): Promise<OnboardingSession> {
+    const account = await this.stripe.accounts.retrieve(stripeAccountId);
+    return sessionFromAccount(account);
+  }
+
+  async submitAccountRequirements(
     stripeAccountId: string,
-    returnUrl: string,
-  ): Promise<OnboardingLink> {
-    const link = await this.stripe.accountLinks.create({
-      account: stripeAccountId,
-      refresh_url: returnUrl,
-      return_url: returnUrl,
-      type: "account_onboarding",
-    });
-    return { url: link.url };
+    submission: OnboardingRequirementsSubmission,
+    clientIp: string,
+  ): Promise<OnboardingSession> {
+    const params: Stripe.AccountUpdateParams = {};
+    if (submission.businessType) {
+      params.business_type = submission.businessType;
+    }
+    if (submission.businessProfileUrl || submission.businessProfileMcc) {
+      params.business_profile = {};
+      if (submission.businessProfileUrl) {
+        params.business_profile.url = submission.businessProfileUrl;
+      }
+      if (submission.businessProfileMcc) {
+        params.business_profile.mcc = submission.businessProfileMcc;
+      }
+    }
+    const rep = submission.representative;
+    if (rep) {
+      // Individual producers map representative → individual (Stripe Accounts API).
+      params.individual = {
+        first_name: rep.firstName,
+        last_name: rep.lastName,
+        email: rep.email,
+        phone: rep.phone,
+        dob: rep.dob
+          ? { day: rep.dob.day, month: rep.dob.month, year: rep.dob.year }
+          : undefined,
+        address: rep.address
+          ? {
+              line1: rep.address.line1,
+              city: rep.address.city,
+              postal_code: rep.address.postalCode,
+              country: rep.address.country,
+            }
+          : undefined,
+      };
+    }
+    if (submission.externalAccount?.accountNumber && submission.externalAccount.country) {
+      params.external_account = {
+        object: "bank_account",
+        country: submission.externalAccount.country,
+        currency: (submission.externalAccount.currency ?? "eur").toLowerCase(),
+        account_number: submission.externalAccount.accountNumber,
+        ...(submission.externalAccount.routingNumber
+          ? { routing_number: submission.externalAccount.routingNumber }
+          : {}),
+      };
+    }
+    if (submission.tosAccepted) {
+      params.tos_acceptance = {
+        date: Math.floor(Date.now() / 1000),
+        ip: clientIp || "127.0.0.1",
+      };
+    }
+    const account = await this.stripe.accounts.update(stripeAccountId, params);
+    return sessionFromAccount(account);
   }
 
   async attachPaymentMethod(
@@ -181,4 +235,22 @@ function mapFailureCategory(code: string): string {
   if (lower.includes("insufficient")) return "insufficient_funds";
   if (lower.includes("authenticat")) return "authentication_required";
   return "declined";
+}
+
+function sessionFromAccount(account: Stripe.Account): OnboardingSession {
+  const currentlyDue = account.requirements?.currently_due ?? [];
+  const pending = account.requirements?.pending_verification ?? [];
+  let status: OnboardingSession["status"] = "requirements_due";
+  if (currentlyDue.length === 0 && pending.length > 0) {
+    status = "pending_verification";
+  } else if (currentlyDue.length === 0 && (account.details_submitted || account.charges_enabled)) {
+    status = "complete";
+  }
+  return {
+    mode: "requirements",
+    status,
+    stripeAccountId: account.id,
+    currentlyDue: [...currentlyDue],
+    eventuallyDue: [...(account.requirements?.eventually_due ?? [])],
+  };
 }

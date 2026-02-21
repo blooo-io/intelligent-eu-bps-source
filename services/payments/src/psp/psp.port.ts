@@ -4,8 +4,40 @@ export type ProducerAccount = {
   stripeAccountId: string;
 };
 
-export type OnboardingLink = {
-  url: string;
+/** INT-190 — in-platform Connect KYC session (no Account Link for producers). */
+export type OnboardingSession = {
+  mode: "requirements" | "link";
+  status: "requirements_due" | "pending_verification" | "complete";
+  stripeAccountId?: string;
+  currentlyDue?: string[];
+  eventuallyDue?: string[];
+  url?: string;
+};
+
+export type OnboardingRequirementsSubmission = {
+  businessType?: "individual" | "company";
+  businessProfileUrl?: string;
+  businessProfileMcc?: string;
+  representative?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    dob?: { day: number; month: number; year: number };
+    address?: {
+      line1?: string;
+      city?: string;
+      postalCode?: string;
+      country?: string;
+    };
+  };
+  externalAccount?: {
+    country?: string;
+    currency?: string;
+    accountNumber?: string;
+    routingNumber?: string;
+  };
+  tosAccepted?: boolean;
 };
 
 export type PaymentMethodRef = {
@@ -26,7 +58,14 @@ export type WebhookVerification = {
 
 export interface PspPort {
   createProducerAccount(participantId: string): Promise<ProducerAccount>;
-  onboardingLink(stripeAccountId: string, returnUrl: string): Promise<OnboardingLink>;
+  /** INT-190 — read Connect requirements for an existing account. */
+  getAccountSession(stripeAccountId: string): Promise<OnboardingSession>;
+  /** INT-190 — push KYC fields to Stripe; returns refreshed session. */
+  submitAccountRequirements(
+    stripeAccountId: string,
+    submission: OnboardingRequirementsSubmission,
+    clientIp: string,
+  ): Promise<OnboardingSession>;
   attachPaymentMethod(
     participantId: string,
     paymentMethodId: string,

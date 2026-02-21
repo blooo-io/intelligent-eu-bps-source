@@ -112,7 +112,7 @@ describe("payments HTTP (INT-107)", () => {
     expect(ok.status).toBe(204);
   });
 
-  it("producer and prosumer onboarding paths", async () => {
+  it("producer and prosumer onboarding return requirements sessions (INT-190)", async () => {
     const producer = "66666666-7777-4888-9999-aaaaaaaaaaaa";
     const res = await fetch(`${base}/v1/me/payment-account/onboarding`, {
       method: "POST",
@@ -124,7 +124,9 @@ describe("payments HTTP (INT-107)", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({
-      url: expect.stringContaining("connect.stripe.com"),
+      mode: "requirements",
+      status: "requirements_due",
+      stripeAccountId: expect.stringMatching(/^acct_test_/),
     });
 
     const prosumer = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
@@ -138,7 +140,40 @@ describe("payments HTTP (INT-107)", () => {
     });
     expect(res2.status).toBe(200);
     expect(await res2.json()).toMatchObject({
-      url: expect.stringContaining("connect.stripe.com"),
+      mode: "requirements",
+      status: "requirements_due",
     });
+
+    const submit = await fetch(
+      `${base}/v1/me/payment-account/onboarding/requirements`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-intelligent-roles": "member,producer",
+          "x-intelligent-sub": producer,
+          "x-intelligent-community": COMMUNITY,
+          "x-forwarded-for": "203.0.113.40",
+        },
+        body: JSON.stringify({
+          businessType: "individual",
+          businessProfileUrl: "https://producer.example",
+          businessProfileMcc: "5734",
+          representative: {
+            firstName: "Ada",
+            lastName: "Lovelace",
+            email: "ada@example.com",
+          },
+          externalAccount: {
+            country: "DE",
+            currency: "eur",
+            accountNumber: "DE89370400440532013000",
+          },
+          tosAccepted: true,
+        }),
+      },
+    );
+    expect(submit.status).toBe(200);
+    expect(await submit.json()).toMatchObject({ status: "complete" });
   });
 });

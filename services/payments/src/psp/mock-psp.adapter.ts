@@ -1,6 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
 import type {
-  OnboardingLink,
+  OnboardingRequirementsSubmission,
+  OnboardingSession,
   PaymentMethodRef,
   ProducerAccount,
   PspPaymentResult,
@@ -18,20 +19,56 @@ export class MockPspAdapter implements PspPort {
   readonly accounts = new Map<string, string>();
   readonly methods = new Map<string, string>();
   readonly payments: PspPaymentResult[] = [];
+  readonly dueByAccount = new Map<string, string[]>();
 
   async createProducerAccount(participantId: string): Promise<ProducerAccount> {
     const stripeAccountId = `acct_test_${participantId.replace(/-/g, "").slice(0, 16)}`;
     this.accounts.set(participantId, stripeAccountId);
+    this.dueByAccount.set(stripeAccountId, [
+      "business_type",
+      "business_profile.url",
+      "business_profile.mcc",
+      "representative.first_name",
+      "representative.last_name",
+      "representative.email",
+      "external_account",
+      "tos_acceptance.date",
+    ]);
     return { stripeAccountId };
   }
 
-  async onboardingLink(
-    stripeAccountId: string,
-    returnUrl: string,
-  ): Promise<OnboardingLink> {
+  async getAccountSession(stripeAccountId: string): Promise<OnboardingSession> {
+    const due = this.dueByAccount.get(stripeAccountId) ?? [];
     return {
-      url: `https://connect.stripe.com/setup/s/${stripeAccountId}?return=${encodeURIComponent(returnUrl)}`,
+      mode: "requirements",
+      status: due.length === 0 ? "complete" : "requirements_due",
+      stripeAccountId,
+      currentlyDue: [...due],
+      eventuallyDue: [],
     };
+  }
+
+  async submitAccountRequirements(
+    stripeAccountId: string,
+    submission: OnboardingRequirementsSubmission,
+    clientIp: string,
+  ): Promise<OnboardingSession> {
+    void clientIp;
+    // Mock: a complete-looking payload clears all due keys (unit stand-in for Stripe).
+    const complete =
+      Boolean(submission.businessType) &&
+      Boolean(submission.businessProfileUrl) &&
+      Boolean(submission.businessProfileMcc) &&
+      Boolean(submission.representative?.firstName) &&
+      Boolean(submission.representative?.lastName) &&
+      Boolean(submission.representative?.email) &&
+      Boolean(submission.externalAccount?.accountNumber) &&
+      Boolean(submission.tosAccepted);
+    this.dueByAccount.set(
+      stripeAccountId,
+      complete ? [] : (this.dueByAccount.get(stripeAccountId) ?? []),
+    );
+    return this.getAccountSession(stripeAccountId);
   }
 
   async attachPaymentMethod(

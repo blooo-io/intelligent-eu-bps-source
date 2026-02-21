@@ -32,16 +32,86 @@ describe("PaymentsService", () => {
     );
   });
 
-  it("creates producer Connect account and onboarding link (REQ-051)", async () => {
-    const link = await service.startOnboarding({
+  it("creates producer Connect account and requirements session (INT-190 / REQ-051)", async () => {
+    const session = await service.startOnboarding({
       participantId: PRODUCER,
       communityId: COMMUNITY,
       role: "producer",
-      returnUrl: "https://app.example/me",
     });
-    expect(link.url).toContain("connect.stripe.com");
+    expect(session.mode).toBe("requirements");
+    expect(session.status).toBe("requirements_due");
+    expect(session.currentlyDue?.length).toBeGreaterThan(0);
     expect(store.getAccount(PRODUCER)?.stripeAccountId).toMatch(/^acct_test_/);
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("pending");
+  });
+
+  it("submits producer KYC requirements until complete (INT-190 / UAT-051)", async () => {
+    await service.startOnboarding({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    const session = await service.submitOnboardingRequirements({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      clientIp: "203.0.113.9",
+      submission: {
+        businessType: "individual",
+        businessProfileUrl: "https://producer.example",
+        businessProfileMcc: "5734",
+        representative: {
+          firstName: "Ada",
+          lastName: "Lovelace",
+          email: "ada@example.com",
+        },
+        externalAccount: {
+          country: "DE",
+          currency: "eur",
+          accountNumber: "DE89370400440532013000",
+        },
+        tosAccepted: true,
+      },
+    });
+    expect(session.status).toBe("complete");
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
+  });
+
+  it("rejects consumer requirements submit and creates account on first submit", async () => {
+    await expect(
+      service.submitOnboardingRequirements({
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+        role: "consumer",
+        clientIp: "127.0.0.1",
+        submission: { tosAccepted: true },
+      }),
+    ).rejects.toThrow(/Consumers use payment-method/);
+
+    const session = await service.submitOnboardingRequirements({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "prosumer",
+      clientIp: "127.0.0.1",
+      submission: {
+        businessType: "individual",
+        businessProfileUrl: "https://p.example",
+        businessProfileMcc: "5734",
+        representative: {
+          firstName: "A",
+          lastName: "B",
+          email: "a@b.co",
+        },
+        externalAccount: {
+          country: "DE",
+          currency: "eur",
+          accountNumber: "DE89370400440532013000",
+        },
+        tosAccepted: true,
+      },
+    });
+    expect(session.status).toBe("complete");
+    expect(store.getAccount(PRODUCER)?.stripeAccountId).toMatch(/^acct_test_/);
   });
 
   it("attaches payment method and emits PaymentAccountStatusChanged (REQ-040)", async () => {
@@ -119,7 +189,6 @@ describe("PaymentsService", () => {
       participantId: PRODUCER,
       communityId: COMMUNITY,
       role: "producer",
-      returnUrl: "https://app.example/me",
     });
     const body = JSON.stringify({
       type: "account.updated",
@@ -130,13 +199,13 @@ describe("PaymentsService", () => {
   });
 
   it("returns consumer setup link and rejects pay without method", async () => {
-    const link = await service.startOnboarding({
+    const session = await service.startOnboarding({
       participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",
-      returnUrl: "https://app.example/me",
     });
-    expect(link.url).toContain("checkout.stripe.com");
+    expect(session.mode).toBe("link");
+    expect(session.url).toContain("checkout.stripe.com");
     await expect(
       service.payInvoice({
         invoiceId: "inv-x",

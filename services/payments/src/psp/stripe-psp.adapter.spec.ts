@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   accountsCreate,
-  accountLinksCreate,
+  accountsRetrieve,
+  accountsUpdate,
   paymentMethodsRetrieve,
   paymentIntentsCreate,
   refundsCreate,
@@ -20,7 +21,8 @@ const {
   }
   return {
     accountsCreate: vi.fn(),
-    accountLinksCreate: vi.fn(),
+    accountsRetrieve: vi.fn(),
+    accountsUpdate: vi.fn(),
     paymentMethodsRetrieve: vi.fn(),
     paymentIntentsCreate: vi.fn(),
     refundsCreate: vi.fn(),
@@ -32,8 +34,11 @@ const {
 vi.mock("stripe", () => {
   function Stripe() {
     return {
-      accounts: { create: accountsCreate },
-      accountLinks: { create: accountLinksCreate },
+      accounts: {
+        create: accountsCreate,
+        retrieve: accountsRetrieve,
+        update: accountsUpdate,
+      },
       paymentMethods: { retrieve: paymentMethodsRetrieve },
       paymentIntents: { create: paymentIntentsCreate },
       refunds: { create: refundsCreate },
@@ -80,15 +85,150 @@ describe("StripePspAdapter (INT-189)", () => {
     );
   });
 
-  it("creates onboarding Account Link", async () => {
-    accountLinksCreate.mockResolvedValue({ url: "https://connect.stripe.com/setup/e/x" });
+  it("reads Connect requirements session (INT-190)", async () => {
+    accountsRetrieve.mockResolvedValue({
+      id: "acct_1",
+      details_submitted: false,
+      charges_enabled: false,
+      requirements: {
+        currently_due: ["business_type", "tos_acceptance.date"],
+        eventually_due: [],
+        pending_verification: [],
+      },
+    });
     const adapter = new StripePspAdapter(creds);
-    const link = await adapter.onboardingLink("acct_1", "https://app.example/return");
-    expect(link.url).toContain("connect.stripe.com");
-    expect(accountLinksCreate).toHaveBeenCalledWith(
+    const session = await adapter.getAccountSession("acct_1");
+    expect(session).toEqual({
+      mode: "requirements",
+      status: "requirements_due",
+      stripeAccountId: "acct_1",
+      currentlyDue: ["business_type", "tos_acceptance.date"],
+      eventuallyDue: [],
+    });
+  });
+
+  it("submits KYC requirements via accounts.update (INT-190)", async () => {
+    accountsUpdate.mockResolvedValue({
+      id: "acct_1",
+      details_submitted: true,
+      charges_enabled: true,
+      requirements: { currently_due: [], eventually_due: [], pending_verification: [] },
+    });
+    const adapter = new StripePspAdapter(creds);
+    const session = await adapter.submitAccountRequirements(
+      "acct_1",
+      {
+        businessType: "individual",
+        businessProfileUrl: "https://example.com",
+        businessProfileMcc: "5734",
+        representative: {
+          firstName: "Ada",
+          lastName: "Lovelace",
+          email: "ada@example.com",
+          phone: "+491234",
+          dob: { day: 1, month: 12, year: 1990 },
+          address: {
+            line1: "1 St",
+            city: "Berlin",
+            postalCode: "10115",
+            country: "DE",
+          },
+        },
+        externalAccount: {
+          country: "DE",
+          currency: "EUR",
+          accountNumber: "DE89370400440532013000",
+          routingNumber: "110000000",
+        },
+        tosAccepted: true,
+      },
+      "203.0.113.10",
+    );
+    expect(session.status).toBe("complete");
+    expect(accountsUpdate).toHaveBeenCalledWith(
+      "acct_1",
       expect.objectContaining({
-        account: "acct_1",
-        type: "account_onboarding",
+        business_type: "individual",
+        business_profile: { url: "https://example.com", mcc: "5734" },
+        individual: expect.objectContaining({
+          first_name: "Ada",
+          dob: { day: 1, month: 12, year: 1990 },
+        }),
+        external_account: expect.objectContaining({
+          routing_number: "110000000",
+        }),
+        tos_acceptance: expect.objectContaining({ ip: "203.0.113.10" }),
+      }),
+    );
+  });
+
+  it("maps pending_verification and defaults empty client IP (INT-190)", async () => {
+    accountsRetrieve.mockResolvedValue({
+      id: "acct_2",
+      details_submitted: false,
+      charges_enabled: false,
+      requirements: {
+        currently_due: [],
+        eventually_due: ["individual.verification.document"],
+        pending_verification: ["individual.verification.document"],
+      },
+    });
+    const adapter = new StripePspAdapter(creds);
+    await expect(adapter.getAccountSession("acct_2")).resolves.toMatchObject({
+      status: "pending_verification",
+    });
+
+    accountsUpdate.mockResolvedValue({
+      id: "acct_2",
+      details_submitted: false,
+      charges_enabled: false,
+      requirements: {
+        currently_due: ["business_profile.mcc"],
+        eventually_due: [],
+        pending_verification: [],
+      },
+    });
+    await adapter.submitAccountRequirements(
+      "acct_2",
+      { businessProfileMcc: "5734" },
+      "",
+    );
+    expect(accountsUpdate).toHaveBeenCalledWith(
+      "acct_2",
+      expect.objectContaining({
+        business_profile: { mcc: "5734" },
+      }),
+    );
+
+    accountsUpdate.mockResolvedValue({
+      id: "acct_3",
+      details_submitted: false,
+      charges_enabled: false,
+      requirements: { currently_due: ["tos_acceptance.date"], eventually_due: [], pending_verification: [] },
+    });
+    await adapter.submitAccountRequirements("acct_3", { tosAccepted: true }, "");
+    expect(accountsUpdate).toHaveBeenCalledWith(
+      "acct_3",
+      expect.objectContaining({
+        tos_acceptance: expect.objectContaining({ ip: "127.0.0.1" }),
+      }),
+    );
+
+    accountsUpdate.mockResolvedValue({
+      id: "acct_4",
+      details_submitted: false,
+      charges_enabled: false,
+      requirements: { currently_due: ["business_profile.url"], eventually_due: [], pending_verification: [] },
+    });
+    await adapter.submitAccountRequirements(
+      "acct_4",
+      { businessProfileUrl: "https://only-url.example" },
+      "1.2.3.4",
+    );
+    expect(accountsUpdate).toHaveBeenCalledWith(
+      "acct_4",
+      expect.objectContaining({
+        business_profile: { url: "https://only-url.example" },
       }),
     );
   });

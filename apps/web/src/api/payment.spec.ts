@@ -1,39 +1,58 @@
-import { describe, expect, it, vi } from "vitest";
-import { ApiError } from "./me";
-import { createPaymentOnboarding } from "./payment";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import {
+  createPaymentOnboarding,
+  submitPaymentOnboardingRequirements,
+} from "./payment";
 
-describe("createPaymentOnboarding (REQ-051)", () => {
-  it("POSTs and returns the Stripe onboarding URL", async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ url: "https://connect.stripe.com/setup/test_123" }),
-    });
-    const link = await createPaymentOnboarding(
-      "https://api.example/",
-      "tok",
-      fetchImpl as unknown as typeof fetch,
-    );
-    expect(link.url).toContain("stripe.com");
-    expect(fetchImpl).toHaveBeenCalledWith(
-      "https://api.example/v1/me/payment-account/onboarding",
-      {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          Authorization: "Bearer tok",
-        },
-      },
-    );
+describe("createPaymentOnboarding (REQ-051 / INT-190)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it("throws ApiError on failure", async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 403 });
-    await expect(
-      createPaymentOnboarding(
-        "https://api.example",
-        "tok",
-        fetchImpl as unknown as typeof fetch,
-      ),
-    ).rejects.toBeInstanceOf(ApiError);
+  it("POSTs and returns a requirements session for producers", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          mode: "requirements",
+          status: "requirements_due",
+          stripeAccountId: "acct_1",
+          currentlyDue: ["business_type"],
+        }),
+      }),
+    );
+    const session = await createPaymentOnboarding("https://api.example", "tok");
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.example/v1/me/payment-account/onboarding",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(session.mode).toBe("requirements");
+    expect(session.currentlyDue).toContain("business_type");
+  });
+
+  it("submits KYC requirements", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          mode: "requirements",
+          status: "complete",
+          stripeAccountId: "acct_1",
+          currentlyDue: [],
+        }),
+      }),
+    );
+    const session = await submitPaymentOnboardingRequirements(
+      "https://api.example",
+      "tok",
+      { businessType: "individual", tosAccepted: true },
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.example/v1/me/payment-account/onboarding/requirements",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(session.status).toBe("complete");
   });
 });

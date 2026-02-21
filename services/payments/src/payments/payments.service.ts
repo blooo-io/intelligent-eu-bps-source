@@ -8,7 +8,12 @@ import {
 import { randomUUID } from "node:crypto";
 import { OutboxService } from "@intelligent/module-template";
 import { PaymentsStore } from "../domain/store.js";
-import { PSP_PORT, type PspPort } from "../psp/psp.port.js";
+import {
+  PSP_PORT,
+  type OnboardingRequirementsSubmission,
+  type OnboardingSession,
+  type PspPort,
+} from "../psp/psp.port.js";
 
 const PRODUCER = "AC-07";
 
@@ -48,8 +53,7 @@ export class PaymentsService {
     participantId: string;
     communityId: string;
     role: "consumer" | "producer" | "prosumer";
-    returnUrl: string;
-  }): Promise<{ url: string }> {
+  }): Promise<OnboardingSession> {
     this.ensureParticipant(input);
     const account = this.store.getAccount(input.participantId)!;
 
@@ -64,13 +68,50 @@ export class PaymentsService {
           kycStatus: "pending",
         });
       }
-      const link = await this.psp.onboardingLink(stripeAccountId, input.returnUrl);
-      return { url: link.url };
+      // INT-190 — in-platform requirements (no Account Link).
+      return this.psp.getAccountSession(stripeAccountId);
     }
 
     // Consumer — hosted payment-method setup link (fixture URL).
     const url = `https://checkout.stripe.com/c/pay/setup_${input.participantId.slice(0, 8)}`;
-    return { url };
+    return { mode: "link", status: "requirements_due", url };
+  }
+
+  async submitOnboardingRequirements(input: {
+    participantId: string;
+    communityId: string;
+    role: "consumer" | "producer" | "prosumer";
+    submission: OnboardingRequirementsSubmission;
+    clientIp: string;
+  }): Promise<OnboardingSession> {
+    if (input.role === "consumer") {
+      throw new BadRequestException("Consumers use payment-method link onboarding");
+    }
+    this.ensureParticipant(input);
+    const account = this.store.getAccount(input.participantId)!;
+    let stripeAccountId = account.stripeAccountId;
+    if (!stripeAccountId) {
+      const created = await this.psp.createProducerAccount(input.participantId);
+      stripeAccountId = created.stripeAccountId;
+      this.store.putAccount({
+        ...account,
+        stripeAccountId,
+        kycStatus: "pending",
+      });
+    }
+    const session = await this.psp.submitAccountRequirements(
+      stripeAccountId,
+      input.submission,
+      input.clientIp,
+    );
+    if (session.status === "complete") {
+      this.store.putAccount({
+        ...this.store.getAccount(input.participantId)!,
+        kycStatus: "verified",
+      });
+      await this.emitAccountStatus(input.participantId);
+    }
+    return session;
   }
 
   async attachPaymentMethod(

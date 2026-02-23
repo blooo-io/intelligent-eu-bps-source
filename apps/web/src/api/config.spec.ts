@@ -13,12 +13,14 @@ describe("loadConfig", () => {
         oidcAuthority: "https://auth.example/realms/int",
         oidcClientId: "web",
         apiBaseUrl: "https://api.example",
+        stripePublishableKey: "pk_test_cfg",
       }),
     });
 
     const cfg = await loadConfig(fetchImpl as unknown as typeof fetch);
     expect(cfg.oidcAuthority).toBe("https://auth.example/realms/int");
     expect(cfg.apiBaseUrl).toBe("https://api.example");
+    expect(cfg.stripePublishableKey).toBe("pk_test_cfg");
     expect(fetchImpl).toHaveBeenCalledWith("/config.json", {
       credentials: "same-origin",
     });

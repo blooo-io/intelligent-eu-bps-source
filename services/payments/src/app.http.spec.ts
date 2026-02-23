@@ -112,7 +112,7 @@ describe("payments HTTP (INT-107)", () => {
     expect(ok.status).toBe(204);
   });
 
-  it("producer and prosumer onboarding return requirements sessions (INT-190)", async () => {
+  it("producer and prosumer onboarding use Account Tokens (INT-191)", async () => {
     const producer = "66666666-7777-4888-9999-aaaaaaaaaaaa";
     const res = await fetch(`${base}/v1/me/payment-account/onboarding`, {
       method: "POST",
@@ -123,11 +123,12 @@ describe("payments HTTP (INT-107)", () => {
       },
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({
+    const started = await res.json();
+    expect(started).toMatchObject({
       mode: "requirements",
       status: "requirements_due",
-      stripeAccountId: expect.stringMatching(/^acct_test_/),
     });
+    expect(started.stripeAccountId).toBeUndefined();
 
     const prosumer = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
     const res2 = await fetch(`${base}/v1/me/payment-account/onboarding`, {
@@ -156,6 +157,8 @@ describe("payments HTTP (INT-107)", () => {
           "x-forwarded-for": "203.0.113.40",
         },
         body: JSON.stringify({
+          accountToken: "ct_test_http",
+          country: "FR",
           businessType: "individual",
           businessProfileUrl: "https://producer.example",
           businessProfileMcc: "5734",
@@ -165,15 +168,18 @@ describe("payments HTTP (INT-107)", () => {
             email: "ada@example.com",
           },
           externalAccount: {
-            country: "DE",
+            country: "FR",
             currency: "eur",
-            accountNumber: "DE89370400440532013000",
+            accountNumber: "FR1420041010050500013M02606",
           },
           tosAccepted: true,
         }),
       },
     );
     expect(submit.status).toBe(200);
-    expect(await submit.json()).toMatchObject({ status: "complete" });
+    expect(await submit.json()).toMatchObject({
+      status: "complete",
+      stripeAccountId: expect.stringMatching(/^acct_test_/),
+    });
   });
 });

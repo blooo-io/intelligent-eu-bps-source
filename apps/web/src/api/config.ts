@@ -11,12 +11,18 @@ export type WebConfig = {
   oidcClientId: string;
   /** Public API origin (APISIX /v1). */
   apiBaseUrl: string;
+  /**
+   * Stripe test publishable key for Account Tokens (INT-191 / BR-12).
+   * Public by design (`pk_test_…`); never a secret key.
+   */
+  stripePublishableKey?: string;
 };
 
 const DEFAULTS: WebConfig = {
   oidcAuthority: "https://auth.intelligent-eu-bp.blooo.dev/realms/int",
   oidcClientId: "web",
   apiBaseUrl: "https://api.dev.intelligent-eu-bp.blooo.dev",
+  stripePublishableKey: undefined,
 };
 
 let cached: WebConfig | null = null;
@@ -33,6 +39,8 @@ export async function loadConfig(fetchImpl: typeof fetch = fetch): Promise<WebCo
         oidcAuthority: body.oidcAuthority ?? DEFAULTS.oidcAuthority,
         oidcClientId: body.oidcClientId ?? DEFAULTS.oidcClientId,
         apiBaseUrl: body.apiBaseUrl ?? DEFAULTS.apiBaseUrl,
+        stripePublishableKey:
+          body.stripePublishableKey ?? DEFAULTS.stripePublishableKey,
       };
       return cached;
     }
@@ -44,6 +52,8 @@ export async function loadConfig(fetchImpl: typeof fetch = fetch): Promise<WebCo
     oidcAuthority: import.meta.env.VITE_OIDC_AUTHORITY ?? DEFAULTS.oidcAuthority,
     oidcClientId: import.meta.env.VITE_OIDC_CLIENT_ID ?? DEFAULTS.oidcClientId,
     apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? DEFAULTS.apiBaseUrl,
+    stripePublishableKey:
+      import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? DEFAULTS.stripePublishableKey,
   };
   return cached;
 }

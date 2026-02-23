@@ -25,7 +25,7 @@ pnpm --filter @intelligent/web dev
 ```
 
 Vite defaults to `http://localhost:5173` (registered on the Keycloak `web` client).
-Optional env: `VITE_OIDC_AUTHORITY`, `VITE_OIDC_CLIENT_ID`, `VITE_API_BASE_URL`.
+Optional env: `VITE_OIDC_AUTHORITY`, `VITE_OIDC_CLIENT_ID`, `VITE_API_BASE_URL`, `VITE_STRIPE_PUBLISHABLE_KEY` (INT-191 Account Tokens, `pk_test_…` only).
 
 ## Container
 

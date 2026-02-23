@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * INT-186 — seed OpenBao with Stripe **test** credentials for AC-07 / AC-06.
+ * INT-186 / INT-191 — seed OpenBao with Stripe **test** credentials for AC-07 / AC-06 / AC-01.
  *
  * Never commit secret values. Operator / cloud agent (after merge — INT-157):
  *   STRIPE_SECRET_KEY=sk_test_… \
+ *   STRIPE_PUBLISHABLE_KEY=pk_test_… \
  *   STRIPE_WEBHOOK_SECRET=whsec_… \
  *   STRIPE_CONNECT_WEBHOOK_SECRET=whsec_… \   # optional Connect endpoint secret
  *   KUBECONFIG=… node scripts/openbao-seed-stripe-test.mjs --apply
@@ -11,6 +12,7 @@
  * Writes KV paths referenced by ExternalSecret extract:
  *   secret/dev/payments
  *   secret/dev/invoicing
+ *   secret/dev/web          (publishable key only — INT-191 Account Tokens)
  */
 
 import { access, readFile } from "node:fs/promises";
@@ -24,11 +26,13 @@ const POD = "platform-openbao-0";
 const BOOTSTRAP_SECRET = "openbao-dev-bootstrap";
 
 export const STRIPE_SEED_PATHS = ["dev/payments", "dev/invoicing"];
+export const STRIPE_WEB_SEED_PATH = "dev/web";
 
 export const STRIPE_SEED_FIELD_NAMES = [
   "stripe_secret_key",
   "stripe_webhook_secret",
   "stripe_connect_webhook_secret",
+  "stripe_publishable_key",
   "seeded",
 ];
 
@@ -63,7 +67,7 @@ function bao(token, args) {
   return kubectl(["-n", NS, "exec", POD, "--", "env", `BAO_TOKEN=${token}`, "bao", ...args]);
 }
 
-/** Build kv put field args; never log values. */
+/** Build kv put field args for payments/invoicing; never log values. */
 export function buildStripeKvFields(input) {
   const secretKey = input.stripeSecretKey?.trim() ?? "";
   const webhookSecret = input.stripeWebhookSecret?.trim() ?? "";
@@ -90,6 +94,17 @@ export function buildStripeKvFields(input) {
   return fields;
 }
 
+/** Build kv put field args for web publishable key (INT-191). */
+export function buildStripeWebKvFields(input) {
+  const publishableKey = input.stripePublishableKey?.trim() ?? "";
+  if (!publishableKey.startsWith("pk_test_")) {
+    throw new Error(
+      "STRIPE_PUBLISHABLE_KEY must be a Stripe test publishable key (pk_test_…)",
+    );
+  }
+  return [`stripe_publishable_key=${publishableKey}`, "seeded=true"];
+}
+
 export async function checkStripeSeedLayout(repoRoot = root) {
   await access(path.join(repoRoot, "deploy/platform/README.md"));
   const readme = await readFile(path.join(repoRoot, "deploy/platform/README.md"), "utf8");
@@ -100,28 +115,36 @@ export async function checkStripeSeedLayout(repoRoot = root) {
   if (!source.includes("jsonpath={.data.root_token}")) {
     throw new Error("seed script must read bootstrap root_token");
   }
-  return { paths: STRIPE_SEED_PATHS.length, fields: STRIPE_SEED_FIELD_NAMES.length };
+  if (!source.includes("stripe_publishable_key")) {
+    throw new Error("seed script must write stripe_publishable_key for INT-191");
+  }
+  return { paths: STRIPE_SEED_PATHS.length + 1, fields: STRIPE_SEED_FIELD_NAMES.length };
 }
 
 export function printStripeSeedSteps() {
-  return `# INT-186 — seed Stripe test credentials into OpenBao (dev)
+  return `# INT-186 / INT-191 — seed Stripe test credentials into OpenBao (dev)
 # Requires prior: openbao-dev-bootstrap + openbao-seed-dev-placeholders (or equivalent paths).
 # Run only after this script is on the merged branch (INT-157). Never commit env values.
 
 STRIPE_SECRET_KEY=sk_test_… \\
+STRIPE_PUBLISHABLE_KEY=pk_test_… \\
 STRIPE_WEBHOOK_SECRET=whsec_… \\
 STRIPE_CONNECT_WEBHOOK_SECRET=whsec_… \\
 KUBECONFIG=… node scripts/openbao-seed-stripe-test.mjs --apply
 
-# Writes secret/dev/payments and secret/dev/invoicing (ExternalSecret extract → K8s Secrets).
+# Writes secret/dev/payments and secret/dev/invoicing (secret + webhook).
+# Writes secret/dev/web (stripe_publishable_key for AC-01 Account Tokens).
 `;
 }
 
-/** Apps namespace where ExternalSecrets `payments` / `invoicing` live (dev). */
+/** Apps namespace where ExternalSecrets `payments` / `invoicing` / `web` live (dev). */
 export const ESO_NAMESPACE = "int-apps";
 
 /** Force ESO to re-read OpenBao immediately (refreshInterval is otherwise 1h). */
-export function forceExternalSecretSync(secretNames = ["payments", "invoicing"], ns = ESO_NAMESPACE) {
+export function forceExternalSecretSync(
+  secretNames = ["payments", "invoicing", "web"],
+  ns = ESO_NAMESPACE,
+) {
   const stamp = String(Math.floor(Date.now() / 1000));
   kubectl([
     "-n",
@@ -139,10 +162,13 @@ export function applyStripeSeed(env = process.env) {
   if (!env.KUBECONFIG) {
     throw new Error("KUBECONFIG is required for --apply");
   }
-  const fields = buildStripeKvFields({
+  const secretFields = buildStripeKvFields({
     stripeSecretKey: env.STRIPE_SECRET_KEY,
     stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
     stripeConnectWebhookSecret: env.STRIPE_CONNECT_WEBHOOK_SECRET,
+  });
+  const webFields = buildStripeWebKvFields({
+    stripePublishableKey: env.STRIPE_PUBLISHABLE_KEY,
   });
   const token = rootToken();
   if (!token) {
@@ -150,9 +176,11 @@ export function applyStripeSeed(env = process.env) {
   }
   const written = [];
   for (const kvPath of STRIPE_SEED_PATHS) {
-    bao(token, ["kv", "put", "-mount=secret", kvPath, ...fields]);
+    bao(token, ["kv", "put", "-mount=secret", kvPath, ...secretFields]);
     written.push(kvPath);
   }
+  bao(token, ["kv", "put", "-mount=secret", STRIPE_WEB_SEED_PATH, ...webFields]);
+  written.push(STRIPE_WEB_SEED_PATH);
   const eso = forceExternalSecretSync();
   return {
     written,

@@ -114,12 +114,13 @@ KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
 
 ```bash
 STRIPE_SECRET_KEY=sk_test_… \
+STRIPE_PUBLISHABLE_KEY=pk_test_… \
 STRIPE_WEBHOOK_SECRET=whsec_… \
 STRIPE_CONNECT_WEBHOOK_SECRET=whsec_… \
 KUBECONFIG=… node scripts/openbao-seed-stripe-test.mjs --apply
 ```
 
-   Writes `secret/dev/payments` and `secret/dev/invoicing` (`stripe_secret_key`, `stripe_webhook_secret`, optional `stripe_connect_webhook_secret`). Webhook URL for the sandbox account: `https://api.dev.intelligent-eu-bp.blooo.dev/webhooks/payment-provider`.
+   Writes `secret/dev/payments` and `secret/dev/invoicing` (`stripe_secret_key`, `stripe_webhook_secret`, optional `stripe_connect_webhook_secret`). Writes `secret/dev/web` (`stripe_publishable_key` for AC-01 Account Tokens — INT-191). Webhook URL for the sandbox account: `https://api.dev.intelligent-eu-bp.blooo.dev/webhooks/payment-provider`. Test mode only (`sk_test_` / `pk_test_`, no live money — BR-12).
 
 5. `ClusterIssuer` for Let's Encrypt (public hosts) lands when DNS + APISIX exist; cert-manager itself is enough for INT-133 packaging.
 

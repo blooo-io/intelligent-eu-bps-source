@@ -4,6 +4,7 @@ const {
   accountsCreate,
   accountsRetrieve,
   accountsUpdate,
+  tokensCreate,
   paymentMethodsRetrieve,
   paymentIntentsCreate,
   refundsCreate,
@@ -23,6 +24,7 @@ const {
     accountsCreate: vi.fn(),
     accountsRetrieve: vi.fn(),
     accountsUpdate: vi.fn(),
+    tokensCreate: vi.fn(),
     paymentMethodsRetrieve: vi.fn(),
     paymentIntentsCreate: vi.fn(),
     refundsCreate: vi.fn(),
@@ -39,6 +41,7 @@ vi.mock("stripe", () => {
         retrieve: accountsRetrieve,
         update: accountsUpdate,
       },
+      tokens: { create: tokensCreate },
       paymentMethods: { retrieve: paymentMethodsRetrieve },
       paymentIntents: { create: paymentIntentsCreate },
       refunds: { create: refundsCreate },
@@ -51,7 +54,7 @@ vi.mock("stripe", () => {
 
 import { StripePspAdapter } from "./stripe-psp.adapter.js";
 
-describe("StripePspAdapter (INT-189)", () => {
+describe("StripePspAdapter (INT-189 / INT-191)", () => {
   const creds = {
     secretKey: "sk_test_123",
     webhookSecret: "whsec_platform",
@@ -73,15 +76,74 @@ describe("StripePspAdapter (INT-189)", () => {
     ).toThrow(/non-test/);
   });
 
-  it("creates Connect account with participant metadata", async () => {
+  it("creates Custom Connect account with account_token (INT-191)", async () => {
     accountsCreate.mockResolvedValue({ id: "acct_1" });
     const adapter = new StripePspAdapter(creds);
-    const created = await adapter.createProducerAccount("part-1");
+    const created = await adapter.createProducerAccount({
+      participantId: "part-1",
+      accountToken: "ct_test_abc",
+      country: "FR",
+    });
     expect(created.stripeAccountId).toBe("acct_1");
     expect(accountsCreate).toHaveBeenCalledWith(
       expect.objectContaining({
+        country: "FR",
+        account_token: "ct_test_abc",
+        controller: expect.objectContaining({
+          stripe_dashboard: { type: "none" },
+          fees: { payer: "application" },
+          losses: { payments: "application" },
+          requirement_collection: "application",
+        }),
         metadata: { participantId: "part-1" },
       }),
+    );
+  });
+
+  it("defaults Custom account country to FR (INT-191)", async () => {
+    accountsCreate.mockResolvedValue({ id: "acct_fr" });
+    const adapter = new StripePspAdapter(creds);
+    await adapter.createProducerAccount({
+      participantId: "part-2",
+      accountToken: "ct_x",
+    });
+    expect(accountsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ country: "FR" }),
+    );
+  });
+
+  it("creates account token from KYC fields (INT-191)", async () => {
+    tokensCreate.mockResolvedValue({ id: "ct_from_server" });
+    const adapter = new StripePspAdapter(creds);
+    const id = await adapter.createAccountToken({
+      businessType: "individual",
+      tosAccepted: true,
+      representative: {
+        firstName: "Ada",
+        lastName: "Lovelace",
+        email: "ada@example.com",
+        address: { line1: "1 Rue", city: "Paris", postalCode: "75001", country: "FR" },
+      },
+    });
+    expect(id).toBe("ct_from_server");
+    expect(tokensCreate).toHaveBeenCalledWith({
+      account: expect.objectContaining({
+        business_type: "individual",
+        tos_shown_and_accepted: true,
+        individual: expect.objectContaining({ first_name: "Ada" }),
+      }),
+    });
+  });
+
+  it("creates ToS-only account token and rejects empty token id (INT-191)", async () => {
+    tokensCreate.mockResolvedValueOnce({ id: "ct_tos" });
+    const adapter = new StripePspAdapter(creds);
+    await expect(
+      adapter.createAccountToken({ tosAccepted: true }),
+    ).resolves.toBe("ct_tos");
+    tokensCreate.mockResolvedValueOnce({});
+    await expect(adapter.createAccountToken({ tosAccepted: true })).rejects.toThrow(
+      /no id/,
     );
   });
 
@@ -107,7 +169,8 @@ describe("StripePspAdapter (INT-189)", () => {
     });
   });
 
-  it("submits KYC requirements via accounts.update (INT-190)", async () => {
+  it("submits KYC via account_token + business_profile (INT-191)", async () => {
+    tokensCreate.mockResolvedValue({ id: "ct_built" });
     accountsUpdate.mockResolvedValue({
       id: "acct_1",
       details_submitted: true,
@@ -125,44 +188,104 @@ describe("StripePspAdapter (INT-189)", () => {
           firstName: "Ada",
           lastName: "Lovelace",
           email: "ada@example.com",
-          phone: "+491234",
+          phone: "+331234",
           dob: { day: 1, month: 12, year: 1990 },
           address: {
-            line1: "1 St",
-            city: "Berlin",
-            postalCode: "10115",
-            country: "DE",
+            line1: "1 Rue",
+            city: "Paris",
+            postalCode: "75001",
+            country: "FR",
           },
         },
         externalAccount: {
-          country: "DE",
+          country: "FR",
           currency: "EUR",
-          accountNumber: "DE89370400440532013000",
-          routingNumber: "110000000",
+          accountNumber: "FR1420041010050500013M02606",
         },
         tosAccepted: true,
       },
       "203.0.113.10",
     );
     expect(session.status).toBe("complete");
+    expect(tokensCreate).toHaveBeenCalled();
     expect(accountsUpdate).toHaveBeenCalledWith(
       "acct_1",
       expect.objectContaining({
-        business_type: "individual",
+        account_token: "ct_built",
         business_profile: { url: "https://example.com", mcc: "5734" },
-        individual: expect.objectContaining({
-          first_name: "Ada",
-          dob: { day: 1, month: 12, year: 1990 },
-        }),
         external_account: expect.objectContaining({
-          routing_number: "110000000",
+          country: "FR",
+          account_number: "FR1420041010050500013M02606",
         }),
-        tos_acceptance: expect.objectContaining({ ip: "203.0.113.10" }),
       }),
     );
   });
 
-  it("maps pending_verification and defaults empty client IP (INT-190)", async () => {
+  it("uses supplied accountToken without calling tokens.create (INT-191)", async () => {
+    accountsUpdate.mockResolvedValue({
+      id: "acct_2",
+      details_submitted: false,
+      charges_enabled: false,
+      requirements: {
+        currently_due: ["business_profile.mcc"],
+        eventually_due: [],
+        pending_verification: [],
+      },
+    });
+    const adapter = new StripePspAdapter(creds);
+    await adapter.submitAccountRequirements(
+      "acct_2",
+      { accountToken: "ct_client", businessProfileMcc: "5734" },
+      "",
+    );
+    expect(tokensCreate).not.toHaveBeenCalled();
+    expect(accountsUpdate).toHaveBeenCalledWith(
+      "acct_2",
+      expect.objectContaining({
+        account_token: "ct_client",
+        business_profile: { mcc: "5734" },
+      }),
+    );
+  });
+
+  it("updates business_profile url only and bank with routing number (INT-191)", async () => {
+    accountsUpdate.mockResolvedValue({
+      id: "acct_3",
+      details_submitted: false,
+      charges_enabled: false,
+      requirements: {
+        currently_due: ["business_profile.url"],
+        eventually_due: [],
+        pending_verification: [],
+      },
+    });
+    const adapter = new StripePspAdapter(creds);
+    await adapter.submitAccountRequirements(
+      "acct_3",
+      {
+        businessProfileUrl: "https://only-url.example",
+        externalAccount: {
+          country: "FR",
+          accountNumber: "FR1420041010050500013M02606",
+          routingNumber: "110000000",
+        },
+      },
+      "1.2.3.4",
+    );
+    expect(tokensCreate).not.toHaveBeenCalled();
+    expect(accountsUpdate).toHaveBeenCalledWith(
+      "acct_3",
+      expect.objectContaining({
+        business_profile: { url: "https://only-url.example" },
+        external_account: expect.objectContaining({
+          routing_number: "110000000",
+          currency: "eur",
+        }),
+      }),
+    );
+  });
+
+  it("maps pending_verification session status (INT-190)", async () => {
     accountsRetrieve.mockResolvedValue({
       id: "acct_2",
       details_submitted: false,
@@ -177,60 +300,6 @@ describe("StripePspAdapter (INT-189)", () => {
     await expect(adapter.getAccountSession("acct_2")).resolves.toMatchObject({
       status: "pending_verification",
     });
-
-    accountsUpdate.mockResolvedValue({
-      id: "acct_2",
-      details_submitted: false,
-      charges_enabled: false,
-      requirements: {
-        currently_due: ["business_profile.mcc"],
-        eventually_due: [],
-        pending_verification: [],
-      },
-    });
-    await adapter.submitAccountRequirements(
-      "acct_2",
-      { businessProfileMcc: "5734" },
-      "",
-    );
-    expect(accountsUpdate).toHaveBeenCalledWith(
-      "acct_2",
-      expect.objectContaining({
-        business_profile: { mcc: "5734" },
-      }),
-    );
-
-    accountsUpdate.mockResolvedValue({
-      id: "acct_3",
-      details_submitted: false,
-      charges_enabled: false,
-      requirements: { currently_due: ["tos_acceptance.date"], eventually_due: [], pending_verification: [] },
-    });
-    await adapter.submitAccountRequirements("acct_3", { tosAccepted: true }, "");
-    expect(accountsUpdate).toHaveBeenCalledWith(
-      "acct_3",
-      expect.objectContaining({
-        tos_acceptance: expect.objectContaining({ ip: "127.0.0.1" }),
-      }),
-    );
-
-    accountsUpdate.mockResolvedValue({
-      id: "acct_4",
-      details_submitted: false,
-      charges_enabled: false,
-      requirements: { currently_due: ["business_profile.url"], eventually_due: [], pending_verification: [] },
-    });
-    await adapter.submitAccountRequirements(
-      "acct_4",
-      { businessProfileUrl: "https://only-url.example" },
-      "1.2.3.4",
-    );
-    expect(accountsUpdate).toHaveBeenCalledWith(
-      "acct_4",
-      expect.objectContaining({
-        business_profile: { url: "https://only-url.example" },
-      }),
-    );
   });
 
   it("retrieves payment method on attach", async () => {

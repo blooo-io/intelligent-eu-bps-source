@@ -16,13 +16,17 @@ import {
   submitPaymentOnboardingRequirements,
   type OnboardingSession,
 } from "../api/payment";
+import {
+  createAccountToken,
+  type LoadStripeFn,
+} from "../api/stripe-account-token";
 import { PageFrame } from "../layout/page-frame";
 
 const { Paragraph, Text } = Typography;
 
 /**
- * Payment setup (INT-140 / INT-190 / REQ-051 / UAT-051 / UAT-063).
- * Producer: in-platform Connect KYC form (Accounts API).
+ * Payment setup (INT-140 / INT-190 / INT-191 / REQ-051 / UAT-051 / UAT-063).
+ * Producer: in-platform Connect KYC via Account Tokens (Custom accounts, FR).
  * Consumer: redirect to provider payment-method setup link.
  * Card/bank numbers are forwarded to Stripe only — never logged (TD-6).
  */
@@ -33,10 +37,13 @@ export function PaymentSetupPage({
   openUrl = (url: string) => {
     window.location.assign(url);
   },
+  /** Test seam — Stripe.js loader (defaults to @stripe/stripe-js). */
+  loadStripe,
 }: {
   config: WebConfig;
   oidc: OidcFacade;
   openUrl?: (url: string) => void;
+  loadStripe?: LoadStripeFn;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,10 +89,34 @@ export function PaymentSetupPage({
     try {
       const token = await oidc.getAccessToken();
       if (!token) throw new Error("No access token");
+
+      let accountToken: string | undefined;
+      if (config.stripePublishableKey) {
+        // INT-191 — tokenize PII in the browser (FR Custom Connect).
+        accountToken = await createAccountToken(
+          config.stripePublishableKey,
+          {
+            businessType: values.businessType,
+            firstName: values.firstName,
+            lastName: values.lastName,
+            email: values.email,
+            phone: values.phone,
+            line1: values.line1,
+            city: values.city,
+            postalCode: values.postalCode,
+            country: values.country,
+            tosAccepted: values.tosAccepted,
+          },
+          loadStripe,
+        );
+      }
+
       const next = await submitPaymentOnboardingRequirements(
         config.apiBaseUrl,
         token,
         {
+          accountToken,
+          country: values.country,
           businessType: values.businessType,
           businessProfileUrl: values.businessProfileUrl,
           businessProfileMcc: values.businessProfileMcc,
@@ -127,8 +158,9 @@ export function PaymentSetupPage({
       <Card>
         <Paragraph>
           Producers complete Stripe Connect identity and bank details in this
-          form (INT-190). Consumers add a payment method via Stripe-hosted setup.
-          This app never logs card or bank numbers (REQ-051, TD-6).
+          form (INT-191 Account Tokens). Consumers add a payment method via
+          Stripe-hosted setup. This app never logs card or bank numbers
+          (REQ-051, TD-6, BR-12 test mode).
         </Paragraph>
 
         {!session && (
@@ -174,7 +206,7 @@ export function PaymentSetupPage({
               initialValues={{
                 businessType: "individual",
                 businessProfileMcc: "5734",
-                country: "DE",
+                country: "FR",
                 currency: "eur",
                 tosAccepted: false,
               }}
@@ -235,7 +267,7 @@ export function PaymentSetupPage({
                 <Input />
               </Form.Item>
               <Form.Item name="country" label="Country" rules={[{ required: true }]}>
-                <Input maxLength={2} placeholder="DE" />
+                <Input maxLength={2} placeholder="FR" />
               </Form.Item>
               <Form.Item name="currency" label="Bank currency" rules={[{ required: true }]}>
                 <Input maxLength={3} placeholder="eur" />
@@ -260,7 +292,14 @@ export function PaymentSetupPage({
                 ]}
               >
                 <Checkbox>
-                  I accept the Stripe Connected Account Agreement
+                  I accept the{" "}
+                  <a
+                    href="https://stripe.com/connect-account/legal"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Stripe Connected Account Agreement
+                  </a>
                 </Checkbox>
               </Form.Item>
               <Button type="primary" htmlType="submit" loading={loading}>

@@ -136,8 +136,9 @@ paths:
       tags: [Payments]
       summary: Start payment-account onboarding
       description: >
-        Producer/prosumer: creates a Stripe Connect account if needed and returns
-        outstanding KYC requirements for in-platform collection (INT-190, REQ-051, UAT-051).
+        Producer/prosumer: returns outstanding KYC requirements for in-platform
+        collection (INT-190 / INT-191, REQ-051, UAT-051). The Custom Connect
+        account is created on the first requirements submit with an Account Token.
         Consumer: returns a provider setup link (`mode: link`) for the payment method (REQ-040).
       x-served-by: AC-07
       responses:
@@ -157,8 +158,9 @@ paths:
       tags: [Payments]
       summary: Submit Connect KYC requirements
       description: >
-        Forwards producer KYC fields to Stripe Accounts API and returns the refreshed
-        onboarding session (INT-190, REQ-051). Personal data is not retained by billing.
+        Creates or updates a Custom Connect account using an Account Token
+        (INT-191, REQ-051) and returns the refreshed onboarding session.
+        Personal data is not retained by billing.
       x-served-by: AC-07
       requestBody:
         required: true
@@ -903,8 +905,10 @@ components:
       additionalProperties: false
       required: [mode, status]
       description: >
-        INT-190 — producer uses `mode: requirements` (in-platform KYC);
-        consumer uses `mode: link` (hosted payment-method setup).
+        INT-190 / INT-191 — producer uses `mode: requirements` (in-platform KYC
+        via Account Tokens + Custom Connect); consumer uses `mode: link`
+        (hosted payment-method setup). `stripeAccountId` is absent until the
+        first successful requirements submit creates the Custom account.
       properties:
         mode:
           type: string
@@ -914,7 +918,7 @@ components:
           enum: [requirements_due, pending_verification, complete]
         stripeAccountId:
           type: string
-          description: Connect account id when mode is requirements.
+          description: Connect account id once created (Custom + account_token).
         currentlyDue:
           type: array
           items:
@@ -931,8 +935,21 @@ components:
     OnboardingRequirementsSubmission:
       type: object
       additionalProperties: false
-      description: KYC payload forwarded to Stripe; not stored by billing (INT-190).
+      description: >
+        KYC payload for Connect Custom accounts (INT-190 / INT-191).
+        French platforms must supply `accountToken` (Stripe.js or tokens API);
+        PII is not stored by billing.
       properties:
+        accountToken:
+          type: string
+          description: >
+            Stripe Account Token id (`ct_…` / `tok_…`) from Stripe.js
+            `createToken('account', …)` or server-side `tokens.create` (INT-191).
+        country:
+          type: string
+          minLength: 2
+          maxLength: 2
+          description: Connected-account country (outside the token). Default FR.
         businessType:
           type: string
           enum: [individual, company]

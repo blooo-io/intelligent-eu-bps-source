@@ -30,16 +30,18 @@ describe("static-server", () => {
     expect(resolvePort("9090")).toBe(9090);
   });
 
-  it("buildConfigJson uses env overrides", () => {
+  it("buildConfigJson uses env overrides including publishable key (INT-191)", () => {
     const json = JSON.parse(
       buildConfigJson({
         OIDC_AUTHORITY: "https://auth.test/realms/int",
         API_BASE_URL: "https://api.test",
+        stripe_publishable_key: "pk_test_from_bao",
       }),
     );
     expect(json.oidcAuthority).toBe("https://auth.test/realms/int");
     expect(json.apiBaseUrl).toBe("https://api.test");
     expect(json.oidcClientId).toBe("web");
+    expect(json.stripePublishableKey).toBe("pk_test_from_bao");
   });
 
   it("serves /health and /config.json", async () => {

@@ -9,9 +9,10 @@ const config: WebConfig = {
   oidcAuthority: "https://auth.example/realms/int",
   oidcClientId: "web",
   apiBaseUrl: "https://api.example",
+  stripePublishableKey: "pk_test_fixture",
 };
 
-describe("PaymentSetupPage (INT-140 / INT-190 / UAT-063)", () => {
+describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -54,7 +55,7 @@ describe("PaymentSetupPage (INT-140 / INT-190 / UAT-063)", () => {
     ).toHaveAttribute("href", "https://checkout.stripe.com/c/pay/setup_abc");
   });
 
-  it("shows in-platform KYC form for producer requirements (INT-190)", async () => {
+  it("tokenizes KYC with Stripe.js then submits accountToken (INT-191)", async () => {
     const oidc: OidcFacade = {
       login: vi.fn(),
       handleCallback: vi.fn(),
@@ -69,7 +70,6 @@ describe("PaymentSetupPage (INT-140 / INT-190 / UAT-063)", () => {
         json: async () => ({
           mode: "requirements",
           status: "requirements_due",
-          stripeAccountId: "acct_1",
           currentlyDue: ["business_type", "tos_acceptance.date"],
         }),
       })
@@ -83,10 +83,18 @@ describe("PaymentSetupPage (INT-140 / INT-190 / UAT-063)", () => {
         }),
       });
     vi.stubGlobal("fetch", fetchImpl);
+    const loadStripe = vi.fn().mockResolvedValue({
+      createToken: vi.fn().mockResolvedValue({ token: { id: "ct_from_js" } }),
+    });
 
     render(
       <MemoryRouter>
-        <PaymentSetupPage config={config} oidc={oidc} openUrl={vi.fn()} />
+        <PaymentSetupPage
+          config={config}
+          oidc={oidc}
+          openUrl={vi.fn()}
+          loadStripe={loadStripe}
+        />
       </MemoryRouter>,
     );
 
@@ -110,16 +118,16 @@ describe("PaymentSetupPage (INT-140 / INT-190 / UAT-063)", () => {
       target: { value: "ada@example.com" },
     });
     fireEvent.change(screen.getByLabelText(/^address/i), {
-      target: { value: "1 Example St" },
+      target: { value: "1 Rue Example" },
     });
     fireEvent.change(screen.getByLabelText(/^city/i), {
-      target: { value: "Berlin" },
+      target: { value: "Paris" },
     });
     fireEvent.change(screen.getByLabelText(/postal code/i), {
-      target: { value: "10115" },
+      target: { value: "75001" },
     });
     fireEvent.change(screen.getByLabelText(/bank account/i), {
-      target: { value: "DE89370400440532013000" },
+      target: { value: "FR1420041010050500013M02606" },
     });
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.click(screen.getByRole("button", { name: /submit kyc/i }));
@@ -127,7 +135,13 @@ describe("PaymentSetupPage (INT-140 / INT-190 / UAT-063)", () => {
     await waitFor(() => {
       expect(screen.getByText(/payment account ready/i)).toBeInTheDocument();
     });
+    expect(loadStripe).toHaveBeenCalledWith("pk_test_fixture");
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const submitCall = fetchImpl.mock.calls[1];
+    expect(submitCall[0]).toContain("/onboarding/requirements");
+    const body = JSON.parse(submitCall[1].body as string);
+    expect(body.accountToken).toBe("ct_from_js");
+    expect(body.country).toBe("FR");
   });
 
   it("shows an error when onboarding fails", async () => {

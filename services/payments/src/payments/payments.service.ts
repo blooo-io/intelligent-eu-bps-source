@@ -10,6 +10,7 @@ import { OutboxService } from "@intelligent/module-template";
 import { PaymentsStore } from "../domain/store.js";
 import {
   PSP_PORT,
+  PRODUCER_ONBOARDING_DUE,
   type OnboardingRequirementsSubmission,
   type OnboardingSession,
   type PspPort,
@@ -58,18 +59,17 @@ export class PaymentsService {
     const account = this.store.getAccount(input.participantId)!;
 
     if (input.role === "producer" || input.role === "prosumer") {
-      let stripeAccountId = account.stripeAccountId;
-      if (!stripeAccountId) {
-        const created = await this.psp.createProducerAccount(input.participantId);
-        stripeAccountId = created.stripeAccountId;
-        this.store.putAccount({
-          ...account,
-          stripeAccountId,
-          kycStatus: "pending",
-        });
+      const stripeAccountId = account.stripeAccountId;
+      if (stripeAccountId) {
+        return this.psp.getAccountSession(stripeAccountId);
       }
-      // INT-190 — in-platform requirements (no Account Link).
-      return this.psp.getAccountSession(stripeAccountId);
+      // INT-191 — defer Custom account create until Account Token is available.
+      return {
+        mode: "requirements",
+        status: "requirements_due",
+        currentlyDue: [...PRODUCER_ONBOARDING_DUE],
+        eventuallyDue: [],
+      };
     }
 
     // Consumer — hosted payment-method setup link (fixture URL).
@@ -90,15 +90,49 @@ export class PaymentsService {
     this.ensureParticipant(input);
     const account = this.store.getAccount(input.participantId)!;
     let stripeAccountId = account.stripeAccountId;
+
     if (!stripeAccountId) {
-      const created = await this.psp.createProducerAccount(input.participantId);
+      // INT-191 — create Custom account with account_token (client or server-side).
+      let accountToken = input.submission.accountToken;
+      if (!accountToken) {
+        accountToken = await this.psp.createAccountToken(input.submission);
+      }
+      const country =
+        input.submission.country ??
+        input.submission.representative?.address?.country ??
+        input.submission.externalAccount?.country ??
+        "FR";
+      const created = await this.psp.createProducerAccount({
+        participantId: input.participantId,
+        accountToken,
+        country,
+      });
       stripeAccountId = created.stripeAccountId;
       this.store.putAccount({
         ...account,
         stripeAccountId,
         kycStatus: "pending",
       });
+      // Account tokens are single-use — only non-token fields on the follow-up update.
+      const session = await this.psp.submitAccountRequirements(
+        stripeAccountId,
+        {
+          businessProfileUrl: input.submission.businessProfileUrl,
+          businessProfileMcc: input.submission.businessProfileMcc,
+          externalAccount: input.submission.externalAccount,
+        },
+        input.clientIp,
+      );
+      if (session.status === "complete") {
+        this.store.putAccount({
+          ...this.store.getAccount(input.participantId)!,
+          kycStatus: "verified",
+        });
+        await this.emitAccountStatus(input.participantId);
+      }
+      return session;
     }
+
     const session = await this.psp.submitAccountRequirements(
       stripeAccountId,
       input.submission,

@@ -13,6 +13,9 @@ export type ServerEnv = {
   OIDC_AUTHORITY?: string;
   OIDC_CLIENT_ID?: string;
   API_BASE_URL?: string;
+  /** OpenBao extract key (lowercase) or operator override. */
+  stripe_publishable_key?: string;
+  STRIPE_PUBLISHABLE_KEY?: string;
   STATIC_ROOT?: string;
 };
 
@@ -33,11 +36,16 @@ export function resolvePort(envPort = process.env.PORT): number {
 }
 
 export function buildConfigJson(env: ServerEnv = process.env): string {
+  const stripePublishableKey =
+    env.stripe_publishable_key ?? env.STRIPE_PUBLISHABLE_KEY ?? "";
   return JSON.stringify({
     oidcAuthority:
       env.OIDC_AUTHORITY ?? "https://auth.intelligent-eu-bp.blooo.dev/realms/int",
     oidcClientId: env.OIDC_CLIENT_ID ?? "web",
     apiBaseUrl: env.API_BASE_URL ?? "https://api.dev.intelligent-eu-bp.blooo.dev",
+    ...(stripePublishableKey
+      ? { stripePublishableKey }
+      : {}),
   });
 }
 

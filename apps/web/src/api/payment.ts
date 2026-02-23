@@ -13,6 +13,9 @@ export type OnboardingSession = {
 };
 
 export type OnboardingRequirementsSubmission = {
+  /** INT-191 — Stripe Account Token id from Stripe.js. */
+  accountToken?: string;
+  country?: string;
   businessType?: "individual" | "company";
   businessProfileUrl?: string;
   businessProfileMcc?: string;

@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import type {
+  CreateProducerAccountInput,
   OnboardingRequirementsSubmission,
   OnboardingSession,
   PaymentMethodRef,
@@ -11,9 +12,9 @@ import type {
 import { readStripeEnv, toMinorUnits, type StripeEnv } from "./stripe-env.js";
 
 /**
- * Real Stripe test-mode P-PSP adapter (INT-189 / INT-190 / AD-6 / BR-12).
+ * Real Stripe test-mode P-PSP adapter (INT-189 / INT-190 / INT-191 / AD-6 / BR-12).
  * Destination charges to the producer Connect account (TD-6).
- * Producer KYC via Accounts API (no Account Links).
+ * FR Custom accounts via Account Tokens (requirement_collection=application).
  */
 export class StripePspAdapter implements PspPort {
   private readonly stripe: Stripe;
@@ -33,19 +34,60 @@ export class StripePspAdapter implements PspPort {
     );
   }
 
-  async createProducerAccount(participantId: string): Promise<ProducerAccount> {
-    // Controller properties (Accounts v1) — Express-style dashboard for producers.
+  async createAccountToken(
+    submission: OnboardingRequirementsSubmission,
+  ): Promise<string> {
+    const account: Stripe.TokenCreateParams.Account = {
+      tos_shown_and_accepted: Boolean(submission.tosAccepted),
+    };
+    if (submission.businessType) {
+      account.business_type = submission.businessType;
+    }
+    const rep = submission.representative;
+    if (submission.businessType === "individual" || rep) {
+      account.individual = {
+        first_name: rep?.firstName,
+        last_name: rep?.lastName,
+        email: rep?.email,
+        phone: rep?.phone,
+        dob: rep?.dob
+          ? { day: rep.dob.day, month: rep.dob.month, year: rep.dob.year }
+          : undefined,
+        address: rep?.address
+          ? {
+              line1: rep.address.line1,
+              city: rep.address.city,
+              postal_code: rep.address.postalCode,
+              country: rep.address.country,
+            }
+          : undefined,
+      };
+    }
+    const token = await this.stripe.tokens.create({ account });
+    if (!token.id) {
+      throw new Error("Stripe tokens.create returned no id");
+    }
+    return token.id;
+  }
+
+  async createProducerAccount(
+    input: CreateProducerAccountInput,
+  ): Promise<ProducerAccount> {
+    // INT-191 — Custom Connect with controller properties + account_token (FR PSD2).
     const account = await this.stripe.accounts.create({
+      country: (input.country ?? "FR").toUpperCase(),
+      account_token: input.accountToken,
       controller: {
-        stripe_dashboard: { type: "express" },
+        stripe_dashboard: { type: "none" },
         fees: { payer: "application" },
         losses: { payments: "application" },
+        requirement_collection: "application",
       },
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
       },
-      metadata: { participantId },
+      metadata: { participantId: input.participantId },
     });
     return { stripeAccountId: account.id };
   }
@@ -60,10 +102,19 @@ export class StripePspAdapter implements PspPort {
     submission: OnboardingRequirementsSubmission,
     clientIp: string,
   ): Promise<OnboardingSession> {
+    void clientIp;
     const params: Stripe.AccountUpdateParams = {};
-    if (submission.businessType) {
-      params.business_type = submission.businessType;
+
+    // INT-191 — legal entity / ToS via account_token (required for FR platforms).
+    let accountToken = submission.accountToken;
+    if (!accountToken && hasTokenizableKyc(submission)) {
+      accountToken = await this.createAccountToken(submission);
     }
+    if (accountToken) {
+      params.account_token = accountToken;
+    }
+
+    // business_profile and external_account are outside the token (Stripe docs).
     if (submission.businessProfileUrl || submission.businessProfileMcc) {
       params.business_profile = {};
       if (submission.businessProfileUrl) {
@@ -72,27 +123,6 @@ export class StripePspAdapter implements PspPort {
       if (submission.businessProfileMcc) {
         params.business_profile.mcc = submission.businessProfileMcc;
       }
-    }
-    const rep = submission.representative;
-    if (rep) {
-      // Individual producers map representative → individual (Stripe Accounts API).
-      params.individual = {
-        first_name: rep.firstName,
-        last_name: rep.lastName,
-        email: rep.email,
-        phone: rep.phone,
-        dob: rep.dob
-          ? { day: rep.dob.day, month: rep.dob.month, year: rep.dob.year }
-          : undefined,
-        address: rep.address
-          ? {
-              line1: rep.address.line1,
-              city: rep.address.city,
-              postal_code: rep.address.postalCode,
-              country: rep.address.country,
-            }
-          : undefined,
-      };
     }
     if (submission.externalAccount?.accountNumber && submission.externalAccount.country) {
       params.external_account = {
@@ -105,12 +135,7 @@ export class StripePspAdapter implements PspPort {
           : {}),
       };
     }
-    if (submission.tosAccepted) {
-      params.tos_acceptance = {
-        date: Math.floor(Date.now() / 1000),
-        ip: clientIp || "127.0.0.1",
-      };
-    }
+
     const account = await this.stripe.accounts.update(stripeAccountId, params);
     return sessionFromAccount(account);
   }
@@ -195,6 +220,16 @@ export class StripePspAdapter implements PspPort {
     }
     return normalizeStripeEvent(event);
   }
+}
+
+function hasTokenizableKyc(submission: OnboardingRequirementsSubmission): boolean {
+  return Boolean(
+    submission.tosAccepted ||
+      submission.businessType ||
+      submission.representative?.firstName ||
+      submission.representative?.lastName ||
+      submission.representative?.email,
+  );
 }
 
 function normalizeStripeEvent(event: Stripe.Event): WebhookVerification {

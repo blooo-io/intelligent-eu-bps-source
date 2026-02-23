@@ -2,7 +2,7 @@
  * INT-107 — P-PSP Stripe test mode (BR-12, REQ-014, REQ-040, REQ-051, NFR-015).
  */
 import "reflect-metadata";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   InMemoryOutboxStore,
   OutboxService,
@@ -32,7 +32,7 @@ describe("PaymentsService", () => {
     );
   });
 
-  it("creates producer Connect account and requirements session (INT-190 / REQ-051)", async () => {
+  it("defers Custom account create until KYC submit (INT-191 / REQ-051)", async () => {
     const session = await service.startOnboarding({
       participantId: PRODUCER,
       communityId: COMMUNITY,
@@ -41,11 +41,99 @@ describe("PaymentsService", () => {
     expect(session.mode).toBe("requirements");
     expect(session.status).toBe("requirements_due");
     expect(session.currentlyDue?.length).toBeGreaterThan(0);
-    expect(store.getAccount(PRODUCER)?.stripeAccountId).toMatch(/^acct_test_/);
-    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("pending");
+    expect(session.stripeAccountId).toBeUndefined();
+    expect(store.getAccount(PRODUCER)?.stripeAccountId).toBeNull();
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("none");
   });
 
-  it("submits producer KYC requirements until complete (INT-190 / UAT-051)", async () => {
+  it("reuses existing Connect account on startOnboarding (INT-191)", async () => {
+    await service.submitOnboardingRequirements({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      clientIp: "127.0.0.1",
+      submission: {
+        accountToken: "ct_existing",
+        country: "FR",
+        businessType: "individual",
+        businessProfileUrl: "https://p.example",
+        businessProfileMcc: "5734",
+        representative: { firstName: "A", lastName: "B", email: "a@b.co" },
+        externalAccount: {
+          country: "FR",
+          currency: "eur",
+          accountNumber: "FR1420041010050500013M02606",
+        },
+        tosAccepted: true,
+      },
+    });
+    const session = await service.startOnboarding({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    expect(session.stripeAccountId).toMatch(/^acct_test_/);
+    expect(session.status).toBe("complete");
+  });
+
+  it("updates existing account on subsequent KYC submit (INT-191)", async () => {
+    await service.submitOnboardingRequirements({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      clientIp: "127.0.0.1",
+      submission: {
+        accountToken: "ct_first",
+        businessProfileUrl: "https://p.example",
+        businessProfileMcc: "5734",
+        externalAccount: {
+          country: "FR",
+          currency: "eur",
+          accountNumber: "FR1420041010050500013M02606",
+        },
+        tosAccepted: true,
+      },
+    });
+    // Force remaining due then clear via update path.
+    const id = store.getAccount(PRODUCER)!.stripeAccountId!;
+    psp.dueByAccount.set(id, ["business_profile.mcc"]);
+    store.putAccount({ ...store.getAccount(PRODUCER)!, kycStatus: "pending" });
+    const session = await service.submitOnboardingRequirements({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      clientIp: "127.0.0.1",
+      submission: { businessProfileMcc: "5734" },
+    });
+    expect(session.status).toBe("complete");
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
+  });
+
+  it("defaults country to FR when omitted (INT-191)", async () => {
+    const createSpy = vi.spyOn(psp, "createProducerAccount");
+    await service.submitOnboardingRequirements({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      clientIp: "127.0.0.1",
+      submission: {
+        accountToken: "ct_fr_default",
+        businessProfileUrl: "https://p.example",
+        businessProfileMcc: "5734",
+        externalAccount: {
+          currency: "eur",
+          accountNumber: "FR1420041010050500013M02606",
+        },
+        tosAccepted: true,
+      },
+    });
+    expect(createSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ country: "FR", accountToken: "ct_fr_default" }),
+    );
+    expect(store.getAccount(PRODUCER)?.stripeAccountId).toMatch(/^acct_test_/);
+  });
+
+  it("creates Custom account with token on first KYC submit (INT-191 / UAT-051)", async () => {
     await service.startOnboarding({
       participantId: PRODUCER,
       communityId: COMMUNITY,
@@ -57,6 +145,8 @@ describe("PaymentsService", () => {
       role: "producer",
       clientIp: "203.0.113.9",
       submission: {
+        accountToken: "ct_test_client",
+        country: "FR",
         businessType: "individual",
         businessProfileUrl: "https://producer.example",
         businessProfileMcc: "5734",
@@ -66,18 +156,20 @@ describe("PaymentsService", () => {
           email: "ada@example.com",
         },
         externalAccount: {
-          country: "DE",
+          country: "FR",
           currency: "eur",
-          accountNumber: "DE89370400440532013000",
+          accountNumber: "FR1420041010050500013M02606",
         },
         tosAccepted: true,
       },
     });
     expect(session.status).toBe("complete");
+    expect(store.getAccount(PRODUCER)?.stripeAccountId).toMatch(/^acct_test_/);
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
+    expect(psp.tokens).toEqual([]);
   });
 
-  it("rejects consumer requirements submit and creates account on first submit", async () => {
+  it("rejects consumer requirements submit and mints server token when missing (INT-191)", async () => {
     await expect(
       service.submitOnboardingRequirements({
         participantId: CONSUMER,
@@ -101,17 +193,19 @@ describe("PaymentsService", () => {
           firstName: "A",
           lastName: "B",
           email: "a@b.co",
+          address: { country: "FR" },
         },
         externalAccount: {
-          country: "DE",
+          country: "FR",
           currency: "eur",
-          accountNumber: "DE89370400440532013000",
+          accountNumber: "FR1420041010050500013M02606",
         },
         tosAccepted: true,
       },
     });
     expect(session.status).toBe("complete");
     expect(store.getAccount(PRODUCER)?.stripeAccountId).toMatch(/^acct_test_/);
+    expect(psp.tokens.length).toBe(1);
   });
 
   it("attaches payment method and emits PaymentAccountStatusChanged (REQ-040)", async () => {
@@ -185,11 +279,29 @@ describe("PaymentsService", () => {
   });
 
   it("accepts signed account.updated webhook and verifies KYC", async () => {
-    await service.startOnboarding({
+    await service.submitOnboardingRequirements({
       participantId: PRODUCER,
       communityId: COMMUNITY,
       role: "producer",
+      clientIp: "127.0.0.1",
+      submission: {
+        accountToken: "ct_hook",
+        country: "FR",
+        businessType: "individual",
+        businessProfileUrl: "https://p.example",
+        businessProfileMcc: "5734",
+        representative: { firstName: "A", lastName: "B", email: "a@b.co" },
+        externalAccount: {
+          country: "FR",
+          currency: "eur",
+          accountNumber: "FR1420041010050500013M02606",
+        },
+        tosAccepted: true,
+      },
     });
+    // Reset verified → pending so webhook can flip KYC again.
+    const row = store.getAccount(PRODUCER)!;
+    store.putAccount({ ...row, kycStatus: "pending" });
     const body = JSON.stringify({
       type: "account.updated",
       data: { participantId: PRODUCER },

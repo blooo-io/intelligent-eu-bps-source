@@ -12,12 +12,12 @@
 
 ## INT-81 snapshot (GitHub-readable)
 
-**As of 2026-10-18** (`develop` after INT-80 / INT-189): **64** in-scope UATs (`scope_d55: in`).
+**As of 2026-10-18** (INT-191 / INT-192): **62** in-scope UATs (`scope_d55: in`).
 
 | UAT status | Count |
 |---|---|
-| Pass | 55 |
-| Blocked | 9 |
+| Pass | 56 |
+| Blocked | 6 |
 | Fail | 0 |
 | Not Run | 0 |
 
@@ -25,17 +25,14 @@ Blocked (explicit external blockers; see UAT notes and [`../testing/v1-uat-packa
 
 | UAT | Requirement | Blocker class |
 |---|---|---|
-| UAT-015 | REQ-015 | Stripe Connect platform profile (Dashboard) |
-| UAT-028 | REQ-028 | Seeded trade→payment (after Connect) |
-| UAT-040 | NFR-008 | Pilot performance window |
-| UAT-044 | REQ-034 | Second community IdP |
-| UAT-047 | REQ-037 | Alternate OIDC IdP |
-| UAT-050 | REQ-039 | Stripe invoice PDF (Connect) |
-| UAT-051 | REQ-040 | Producer Account Link (Connect) |
-| UAT-053 | REQ-042 | Stripe numbering (Connect) |
-| UAT-067 | NFR-016 | Pilot UX step-count |
+| UAT-015 | REQ-015 | Connect `charges_enabled` / destination payout (test) |
+| UAT-028 | REQ-028 | Seeded trade→payment (after Connect pay) |
+| UAT-040 | NFR-008 | Billing-run duration target TBD |
+| UAT-050 | REQ-039 | Stripe invoice PDF (Connect charges) |
+| UAT-053 | REQ-042 | Stripe numbering (Connect invoices) |
+| UAT-067 | NFR-016 | UX step-count target TBD |
 
-No Fail rows. Freeze (INT-97) may proceed with these Blocked items listed as known limitations.
+REQ-034 / REQ-037 and UAT-044 / UAT-047 are **out of D5.5 scope** (INT-192 — single project IdP). UAT-051 Pass (INT-191). No Fail rows.
 
 ## Counts
 

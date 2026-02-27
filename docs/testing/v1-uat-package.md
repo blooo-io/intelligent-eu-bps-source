@@ -7,7 +7,7 @@ Assemble acceptance for partners from the existing UAT notes. **Case text stays 
 | Item | Location |
 |---|---|
 | Test plan | [`v1-test-plan.md`](v1-test-plan.md) |
-| Confirmed functional set | [`v1-functional-cases.md`](v1-functional-cases.md) (64 `scope_d55: in` notes) |
+| Confirmed functional set | [`v1-functional-cases.md`](v1-functional-cases.md) (62 `scope_d55: in` notes) |
 | Integration scenarios S1–S13 | [`v1-integration-scenarios.md`](v1-integration-scenarios.md) |
 | Integration execution | [`v1-integration-execution.md`](v1-integration-execution.md) |
 | Functional execution | [`v1-functional-execution.md`](v1-functional-execution.md) |
@@ -20,26 +20,23 @@ Assemble acceptance for partners from the existing UAT notes. **Case text stays 
 |---|---|---|
 | Blooo engineering (agent / developer) | Module suites, GitOps smoke, record Pass/Fail/Blocked in UAT notes | Yes — INT-75 / INT-78 |
 | Blooo operator | Authenticated portal checks on `dev` with Keycloak test users | Pending credentials |
-| Pilot / partner UAT lead | Remaining Not Run cases below; UX step counts (NFR-016); performance window (NFR-008) | To confirm before INT-80 |
+| Pilot / partner UAT lead | Optional: UX step counts (NFR-016 / UAT-067); performance window (NFR-008 / UAT-040) | Criteria TBD or waive |
 | Steven Lin (assignee) | Owns recording acceptance in Jira INT-80 | Yes |
 
 ## Already accepted (do not re-run unless regressing)
 
-See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-80 (2026-10-18): **55 Pass**, **9 Blocked**, **0 Not Run**.
+See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-191 / INT-192 (2026-10-18): **56 Pass**, **6 Blocked** in-scope, **0 Fail**. UAT-051 Pass (Custom Account Tokens); UAT-044 / UAT-047 (and REQ-034 / REQ-037) moved to `scope_d55: out`.
 
-## Remaining Blocked cases (INT-80)
+## Remaining Blocked cases (in-scope)
 
 | UAT | Requirement | Blocker |
 |---|---|---|
-| UAT-015 | REQ-015 | Stripe Connect platform profile (losses) — Dashboard human step |
-| UAT-028 | REQ-028 | Seeded trade→payment for operator trace (after Connect) |
-| UAT-040 | NFR-008 | Pilot-agreed performance window |
-| UAT-044 | REQ-034 | Second community IdP not provisioned |
-| UAT-047 | REQ-037 | Alternate OIDC IdP instance not provisioned |
-| UAT-050 | REQ-039 | Stripe invoice PDF — depends on Connect accounts |
-| UAT-051 | REQ-040 | Producer Connect Account Link — depends on platform profile |
+| UAT-015 | REQ-015 | Connect account `charges_enabled` + destination payout (test mode) |
+| UAT-028 | REQ-028 | Seeded trade→payment for operator trace (after Connect pay) |
+| UAT-040 | NFR-008 | Agreed billing-run duration target (or waive) |
+| UAT-050 | REQ-039 | Stripe invoice PDF — depends on Connect charges |
 | UAT-053 | REQ-042 | Stripe numbering — depends on Connect invoices |
-| UAT-067 | NFR-016 | Pilot UX step-count observation |
+| UAT-067 | NFR-016 | Agreed UX step-count target (or waive) |
 
 ## How to record a result (INT-80)
 

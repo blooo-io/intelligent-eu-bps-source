@@ -7,7 +7,7 @@ See also: [`v1-test-plan.md`](v1-test-plan.md), [`v1-integration-scenarios.md`](
 
 ## Confirmed set
 
-Count: **64** in-scope UAT notes.
+Count: **62** in-scope UAT notes.
 
 | UAT | Requirement | Status (latest) |
 |---|---|---|
@@ -24,11 +24,11 @@ Count: **64** in-scope UAT notes.
 | UAT-012 | REQ-012 | Pass |
 | UAT-013 | REQ-013 | Pass |
 | UAT-014 | REQ-014 | Pass |
-| UAT-015 | REQ-015 | Not Run |
+| UAT-015 | REQ-015 | Blocked |
 | UAT-016 | REQ-016 | Pass |
 | UAT-017 | REQ-017 | Pass |
 | UAT-018 | REQ-018 | Pass |
-| UAT-028 | REQ-028 | Not Run |
+| UAT-028 | REQ-028 | Blocked |
 | UAT-029 | REQ-029 | Pass |
 | UAT-030 | REQ-030 | Pass |
 | UAT-031 | REQ-031 | Pass |
@@ -40,19 +40,17 @@ Count: **64** in-scope UAT notes.
 | UAT-037 | NFR-005 | Pass |
 | UAT-038 | NFR-006 | Pass |
 | UAT-039 | NFR-007 | Pass |
-| UAT-040 | NFR-008 | Not Run |
+| UAT-040 | NFR-008 | Blocked |
 | UAT-041 | NFR-009 | Pass |
 | UAT-042 | NFR-010 | Pass |
 | UAT-043 | REQ-033 | Pass |
-| UAT-044 | REQ-034 | Not Run |
 | UAT-045 | REQ-035 | Pass |
 | UAT-046 | REQ-036 | Pass |
-| UAT-047 | REQ-037 | Not Run |
 | UAT-049 | NFR-011 | Pass |
-| UAT-050 | REQ-039 | Not Run |
-| UAT-051 | REQ-040 | Not Run |
+| UAT-050 | REQ-039 | Blocked |
+| UAT-051 | REQ-040 | Pass |
 | UAT-052 | REQ-041 | Pass |
-| UAT-053 | REQ-042 | Not Run |
+| UAT-053 | REQ-042 | Blocked |
 | UAT-054 | REQ-043 | Pass |
 | UAT-055 | REQ-044 | Pass |
 | UAT-056 | REQ-045 | Pass |
@@ -60,13 +58,13 @@ Count: **64** in-scope UAT notes.
 | UAT-058 | REQ-047 | Pass |
 | UAT-059 | NFR-012 | Pass |
 | UAT-060 | REQ-049 | Pass |
-| UAT-061 | NFR-013 | Not Run |
+| UAT-061 | NFR-013 | Pass |
 | UAT-062 | REQ-050 | Pass |
 | UAT-063 | REQ-051 | Pass |
-| UAT-064 | REQ-052 | Not Run |
+| UAT-064 | REQ-052 | Pass |
 | UAT-065 | NFR-014 | Pass |
 | UAT-066 | NFR-015 | Pass |
-| UAT-067 | NFR-016 | Not Run |
+| UAT-067 | NFR-016 | Blocked |
 | UAT-068 | NFR-017 | Pass |
 | UAT-069 | REQ-053 | Pass |
 | UAT-070 | REQ-048 | Pass |

@@ -2,7 +2,7 @@
 
 Traceability / validation snapshot for D5.5. Source of truth remains the UAT item notes and [`traceability-dashboard.md`](../requirements/traceability-dashboard.md).
 
-**As of 2026-10-18** (`develop` + INT-189 Stripe adapters + INT-80 execution): **64** in-scope UATs — **55 Pass**, **9 Blocked**, **0 Not Run**, **0 Fail**.
+**As of 2026-10-18** (INT-191 / INT-192): **62** in-scope UATs — **56 Pass**, **6 Blocked**, **0 Not Run**, **0 Fail**.
 
 ## Evidence index
 
@@ -54,13 +54,13 @@ Traceability / validation snapshot for D5.5. Source of truth remains the UAT ite
 | UAT-041 | NFR-009 | Pass |
 | UAT-042 | NFR-010 | Pass |
 | UAT-043 | REQ-033 | Pass |
-| UAT-044 | REQ-034 | Blocked |
+| UAT-044 | REQ-034 | Out of scope (INT-192) |
 | UAT-045 | REQ-035 | Pass |
 | UAT-046 | REQ-036 | Pass |
-| UAT-047 | REQ-037 | Blocked |
+| UAT-047 | REQ-037 | Out of scope (INT-192) |
 | UAT-049 | NFR-011 | Pass |
 | UAT-050 | REQ-039 | Blocked |
-| UAT-051 | REQ-040 | Blocked |
+| UAT-051 | REQ-040 | Pass |
 | UAT-052 | REQ-041 | Pass |
 | UAT-053 | REQ-042 | Blocked |
 | UAT-054 | REQ-043 | Pass |
@@ -88,10 +88,9 @@ Traceability / validation snapshot for D5.5. Source of truth remains the UAT ite
 
 ## Open blockers
 
-1. **Stripe Connect platform profile** — accept losses / platform responsibilities at https://dashboard.stripe.com/settings/connect/platform-profile for `acct_1URp85FDSWgmDDqh` (unblocks UAT-015, 050, 051, 053 and operator seed for UAT-028).
-2. **Second / pilot IdP** — unblocks UAT-044, 047.
-3. **Pilot lead** — unblocks UAT-040 (perf window) and UAT-067 (UX steps).
+1. **Stripe Connect test KYC / charges_enabled** — Custom Account Tokens work (INT-191, UAT-051 Pass); destination payouts and Stripe invoices still need a Connect account with `charges_enabled` (UAT-015, 050, 053) and a seeded trade→payment for UAT-028.
+2. **Pilot lead criteria** — UAT-040 (billing-run duration target) and UAT-067 (UX step-count target) need an agreed number or an out-of-scope decision.
 
-## INT-81 note
+## INT-81 / INT-192 note
 
-Validation summary refreshed from INT-80 note statuses. No Fail rows. D5.5 freeze (INT-97) can proceed with Blocked items explicitly listed as known limitations in release notes.
+Validation summary refreshed after INT-191 (UAT-051 Pass) and INT-192 (UAT-044 / UAT-047 out of D5.5 scope — single project IdP only). No Fail rows. In-scope tally: **56 Pass / 6 Blocked / 0 Fail**.

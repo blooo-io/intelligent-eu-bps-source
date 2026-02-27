@@ -17,7 +17,7 @@
 
 ## Carried known limitations
 
-See [`RELEASE-NOTES.md`](RELEASE-NOTES.md). In-scope UAT: **55 Pass / 9 Blocked / 0 Fail**. Blocked rows are not silent gaps; they are listed with external blockers (Stripe Connect platform profile, second IdP, pilot UX/perf).
+See [`RELEASE-NOTES.md`](RELEASE-NOTES.md). In-scope UAT: **56 Pass / 6 Blocked / 0 Fail** (INT-191 / INT-192). Blocked rows are not silent gaps; they are listed with external blockers (Connect test charges/payouts, optional pilot perf/UX criteria).
 
 ## Change control after freeze
 

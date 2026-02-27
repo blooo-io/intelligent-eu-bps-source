@@ -23,9 +23,9 @@
 | Market / data space / FX | GSY DEX, EWDS Client Gateway and ECB are **mocked** (assumption A32) |
 | Crypto / AMM / stablecoin | Out of D5.5 scope (deferred to D5.10) |
 | Grid fees / taxes on P2P invoices | Not on P2P invoices (A20) |
-| Acceptance | **55 Pass / 9 Blocked** in-scope UATs (INT-80, 2026-10-18). Blockers: Stripe Connect platform profile, second IdP, pilot UX/perf — see [`docs/testing/v1-uat-package.md`](../testing/v1-uat-package.md) |
-| Partner IdP | Multi-issuer live swap not provisioned on `dev` (config-only path Pass on UAT-061) |
-| Stripe Connect | Test adapters live (INT-189); Dashboard platform-profile acceptance still required before Connect accounts / destination payouts |
+| Acceptance | **56 Pass / 6 Blocked** in-scope UATs (INT-191 / INT-192, 2026-10-18). Blockers: Connect test `charges_enabled`/payouts, optional pilot perf/UX — see [`docs/testing/v1-uat-package.md`](../testing/v1-uat-package.md) |
+| Partner IdP | V1 = single project IdP only (REQ-034 / REQ-037 and UAT-044 / UAT-047 out of scope, INT-192). Config-only issuer path Pass on UAT-061 |
+| Stripe Connect | Custom Account Tokens live (INT-191, UAT-051 Pass); destination payouts / invoices still need `charges_enabled` in test |
 
 ## Licensing
 

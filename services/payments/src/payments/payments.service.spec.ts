@@ -9,6 +9,8 @@ import {
 } from "@intelligent/module-template";
 import { PaymentsStore } from "../domain/store.js";
 import { MockPspAdapter } from "../psp/mock-psp.adapter.js";
+import { InMemoryInvoiceLookup } from "../ports/invoice-lookup.port.js";
+import { NoopParticipantsNotifier } from "../ports/participants-notifier.port.js";
 import { PaymentsService } from "./payments.service.js";
 
 const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
@@ -19,16 +21,20 @@ describe("PaymentsService", () => {
   let store: PaymentsStore;
   let outboxStore: InMemoryOutboxStore;
   let psp: MockPspAdapter;
+  let invoices: InMemoryInvoiceLookup;
   let service: PaymentsService;
 
   beforeEach(() => {
     store = new PaymentsStore();
     outboxStore = new InMemoryOutboxStore();
     psp = new MockPspAdapter();
+    invoices = new InMemoryInvoiceLookup();
     service = new PaymentsService(
       store,
       new OutboxService(outboxStore),
       psp,
+      invoices,
+      new NoopParticipantsNotifier(),
     );
   });
 
@@ -229,15 +235,22 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    invoices.put({
+      invoiceId: "inv-1",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "2.00",
+      producerStripeAccountId: "acct_test_producer",
+    });
     const payment = await service.payInvoice({
       invoiceId: "inv-1",
       participantId: CONSUMER,
       communityId: COMMUNITY,
-      amount: "2.00",
-      currency: "EUR",
-      producerStripeAccountId: "acct_test_producer",
     });
     expect(payment.status).toBe("succeeded");
+    expect(payment.amount).toBe("2.00");
     const events = await outboxStore.list();
     expect(events.map((e) => e.event.type)).toContain("PaymentStatusChanged");
   });
@@ -249,25 +262,37 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_fail_insufficient");
+    invoices.put({
+      invoiceId: "inv-2",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "2.00",
+      producerStripeAccountId: "acct_test_producer",
+    });
     const payment = await service.payInvoice({
       invoiceId: "inv-2",
       participantId: CONSUMER,
       communityId: COMMUNITY,
-      amount: "2.00",
-      currency: "EUR",
-      producerStripeAccountId: "acct_test_producer",
     });
     expect(payment.status).toBe("failed");
     expect(payment.failureCategory).toBe("insufficient_funds");
 
     await service.attachPaymentMethod(CONSUMER, "pm_fail_generic");
+    invoices.put({
+      invoiceId: "inv-3",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "2.00",
+      producerStripeAccountId: "acct_test_producer",
+    });
     const declined = await service.payInvoice({
       invoiceId: "inv-3",
       participantId: CONSUMER,
       communityId: COMMUNITY,
-      amount: "2.00",
-      currency: "EUR",
-      producerStripeAccountId: "acct_test_producer",
     });
     expect(declined.failureCategory).toBe("declined");
   });
@@ -310,22 +335,19 @@ describe("PaymentsService", () => {
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
   });
 
-  it("returns consumer setup link and rejects pay without method", async () => {
+  it("returns consumer SetupIntent elements session and rejects pay without method (INT-193)", async () => {
     const session = await service.startOnboarding({
       participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",
     });
-    expect(session.mode).toBe("link");
-    expect(session.url).toContain("checkout.stripe.com");
+    expect(session.mode).toBe("elements");
+    expect(session.clientSecret).toMatch(/^seti_test_/);
     await expect(
       service.payInvoice({
         invoiceId: "inv-x",
         participantId: CONSUMER,
         communityId: COMMUNITY,
-        amount: "1.00",
-        currency: "EUR",
-        producerStripeAccountId: "acct_x",
       }),
     ).rejects.toThrow(/payment method/);
   });
@@ -338,14 +360,19 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
-    // Force a pending row then succeed via webhook.
+    invoices.put({
+      invoiceId: "inv-pending",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "1.00",
+      producerStripeAccountId: "acct_x",
+    });
     const payment = await service.payInvoice({
       invoiceId: "inv-pending",
       participantId: CONSUMER,
       communityId: COMMUNITY,
-      amount: "1.00",
-      currency: "EUR",
-      producerStripeAccountId: "acct_x",
     });
     const row = store.getPayment(payment.paymentId)!;
     store.putPayment({ ...row, status: "pending" });
@@ -364,13 +391,19 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    invoices.put({
+      invoiceId: "inv-fail-hook",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "1.00",
+      producerStripeAccountId: "acct_x",
+    });
     const payment = await service.payInvoice({
       invoiceId: "inv-fail-hook",
       participantId: CONSUMER,
       communityId: COMMUNITY,
-      amount: "1.00",
-      currency: "EUR",
-      producerStripeAccountId: "acct_x",
     });
     const row = store.getPayment(payment.paymentId)!;
     store.putPayment({ ...row, status: "pending" });

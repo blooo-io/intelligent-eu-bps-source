@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Alert, Card, List, Space, Typography } from "antd";
+import { Alert, Button, Card, List, Space, Typography } from "antd";
 import { CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import { useGetIdentity } from "@refinedev/core";
+import { Link } from "react-router";
 import { fetchMe, type Me } from "../api/me";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
@@ -69,7 +70,20 @@ export function HomePage({
       {error && <Alert type="error" message={error} showIcon />}
 
       {me && (
-        <Card title="Readiness">
+        <Card
+          title="Readiness"
+          extra={
+            me.readiness !== "Ready" ? (
+              <Link to="/onboarding">
+                <Button type="primary">Continue wizard</Button>
+              </Link>
+            ) : (
+              <Link to="/onboarding?step=pay">
+                <Button>Pay invoices</Button>
+              </Link>
+            )
+          }
+        >
           <Paragraph>{readinessHeadline(me.readiness)}</Paragraph>
           <Paragraph type="secondary">
             Status: <Text code>{me.readiness}</Text>
@@ -84,7 +98,7 @@ export function HomePage({
                   ) : (
                     <CloseCircleOutlined style={{ color: "#c53d3d" }} aria-label="todo" />
                   )}
-                  <span>{item.label}</span>
+                  <Link to={item.to}>{item.label}</Link>
                 </Space>
               </List.Item>
             )}

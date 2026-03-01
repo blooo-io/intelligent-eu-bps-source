@@ -9,11 +9,15 @@ image:
 port: 8080
 egressModules: 
   - invoicing
+  - participants
 ingressFrom: []
 keycloakEgress: false
 stripeEgress: true
 namespaceIngress: true
 # INT-189 — select Stripe test adapter when OpenBao secrets are present;
 # explicit override keeps AD-6 configuration-driven.
+# INT-193 — sync GetInvoice + payment-account readiness until NATS consumers land.
 env:
   PSP_PROVIDER: stripe
+  INVOICING_INTERNAL_URL: http://invoicing:8080
+  PARTICIPANTS_INTERNAL_URL: http://participants:8080

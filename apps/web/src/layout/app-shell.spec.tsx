@@ -9,6 +9,7 @@ vi.mock("@refinedev/core", () => ({
 
 const NAV_LABELS = [
   /^home$/i,
+  /get ready/i,
   /profile/i,
   /terms/i,
   /payment setup/i,

@@ -25,7 +25,7 @@ Assemble acceptance for partners from the existing UAT notes. **Case text stays 
 
 ## Already accepted (do not re-run unless regressing)
 
-See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-191 / INT-192 (2026-10-18): **56 Pass**, **6 Blocked** in-scope, **0 Fail**. UAT-051 Pass (Custom Account Tokens); UAT-044 / UAT-047 (and REQ-034 / REQ-037) moved to `scope_d55: out`.
+See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-193 (2026-10-18): **57 Pass**, **5 Blocked** in-scope, **0 Fail**. UAT-067 Pass (wizard journey; step-count deferred). UAT-051 Pass; UAT-044 / UAT-047 out.
 
 ## Remaining Blocked cases (in-scope)
 
@@ -36,7 +36,6 @@ See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the 
 | UAT-040 | NFR-008 | Agreed billing-run duration target (or waive) |
 | UAT-050 | REQ-039 | Stripe invoice PDF — depends on Connect charges |
 | UAT-053 | REQ-042 | Stripe numbering — depends on Connect invoices |
-| UAT-067 | NFR-016 | Agreed UX step-count target (or waive) |
 
 ## How to record a result (INT-80)
 

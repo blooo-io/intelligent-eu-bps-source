@@ -55,6 +55,8 @@ export class InvoicingService {
     currency: string;
     status: InvoiceStatus;
     total: string;
+    producerStripeAccountId?: string;
+    hostedInvoiceUrl?: string;
   } {
     const row = this.store.get(invoiceId);
     if (!row) {
@@ -67,7 +69,61 @@ export class InvoicingService {
       currency: row.currency,
       status: row.status,
       total: row.total,
+      ...(row.producerStripeAccountId
+        ? { producerStripeAccountId: row.producerStripeAccountId }
+        : {}),
+      ...(row.hostedInvoiceUrl ? { hostedInvoiceUrl: row.hostedInvoiceUrl } : {}),
     };
+  }
+
+  /** Public list for the authenticated caller (REQ-007 / INT-193). */
+  listInvoicesForParticipant(participantId: string): Record<string, unknown>[] {
+    return this.store
+      .list()
+      .filter(
+        (row) =>
+          row.producerId === participantId || row.consumerId === participantId,
+      )
+      .map((row) => this.toPublicInvoice(row));
+  }
+
+  /** Public detail when the caller is producer or consumer (REQ-007). */
+  getPublicInvoiceForParticipant(
+    invoiceId: string,
+    participantId: string,
+  ): Record<string, unknown> {
+    const row = this.store.get(invoiceId);
+    if (!row) {
+      throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    }
+    if (
+      row.producerId !== participantId &&
+      row.consumerId !== participantId
+    ) {
+      throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    }
+    return this.toPublicInvoice(row);
+  }
+
+  /** Hosted PDF / invoice URL (REQ-039). */
+  getDocumentUrlForParticipant(
+    invoiceId: string,
+    participantId: string,
+  ): { url: string } {
+    const row = this.store.get(invoiceId);
+    if (!row) {
+      throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    }
+    if (
+      row.producerId !== participantId &&
+      row.consumerId !== participantId
+    ) {
+      throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    }
+    if (!row.hostedInvoiceUrl) {
+      throw new NotFoundException(`No document for invoice ${invoiceId}`);
+    }
+    return { url: row.hostedInvoiceUrl };
   }
 
   /**
@@ -124,6 +180,10 @@ export class InvoicingService {
       tradeIds: settlement.tradeIds,
       stripeInvoiceId: stripeInvoice.stripeInvoiceId,
       legalNumber: stripeInvoice.legalNumber,
+      hostedInvoiceUrl: stripeInvoice.hostedInvoiceUrl || null,
+      energyAmount: settlement.energyAmount,
+      vatAmount: settlement.vat,
+      producerStripeAccountId: stripeAccountId,
       dueDate: due,
       communityId: settlement.communityId,
       statusAudit: [],
@@ -298,8 +358,8 @@ export class InvoicingService {
       pairSettlementId: row.settlementId,
       tradeIds: row.tradeIds,
       amounts: {
-        energy: row.total,
-        vat: "0.00",
+        energy: row.energyAmount ?? row.total,
+        vat: row.vatAmount ?? "0.00",
         total: row.total,
       },
       billingMode: "virtual",

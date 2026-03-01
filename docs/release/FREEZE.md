@@ -17,7 +17,7 @@
 
 ## Carried known limitations
 
-See [`RELEASE-NOTES.md`](RELEASE-NOTES.md). In-scope UAT: **56 Pass / 6 Blocked / 0 Fail** (INT-191 / INT-192). Blocked rows are not silent gaps; they are listed with external blockers (Connect test charges/payouts, optional pilot perf/UX criteria).
+See [`RELEASE-NOTES.md`](RELEASE-NOTES.md). In-scope UAT: **57 Pass / 5 Blocked / 0 Fail** (INT-193). Blocked rows are not silent gaps; they are listed with external blockers (Connect test charges/payouts, optional pilot perf UAT-040).
 
 ## Change control after freeze
 

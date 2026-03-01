@@ -4,15 +4,19 @@ import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import { AppModule } from "./app.module.js";
 import { PaymentsService } from "./payments/payments.service.js";
+import { InMemoryInvoiceLookup } from "./ports/invoice-lookup.port.js";
 import { MockPspAdapter } from "./psp/mock-psp.adapter.js";
 
 const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
 const CONSUMER = "11111111-2222-4333-8444-555555555555";
+const PRODUCER = "66666666-7777-4888-9999-aaaaaaaaaaaa";
+const INVOICE = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 
 describe("payments HTTP (INT-107)", () => {
   let app: INestApplication;
   let base: string;
   let service: PaymentsService;
+  let invoices: InMemoryInvoiceLookup;
 
   beforeAll(async () => {
     app = await NestFactory.create(AppModule, { logger: false });
@@ -23,6 +27,7 @@ describe("payments HTTP (INT-107)", () => {
     }
     base = `http://127.0.0.1:${address.port}`;
     service = app.get(PaymentsService);
+    invoices = app.get(InMemoryInvoiceLookup);
   });
 
   beforeEach(() => {
@@ -56,7 +61,8 @@ describe("payments HTTP (INT-107)", () => {
     });
     expect(onboarding.status).toBe(200);
     expect(await onboarding.json()).toMatchObject({
-      url: expect.stringContaining("stripe.com"),
+      mode: "elements",
+      clientSecret: expect.stringMatching(/^seti_test_/),
     });
 
     service.ensureParticipant({
@@ -65,21 +71,27 @@ describe("payments HTTP (INT-107)", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    invoices.put({
+      invoiceId: INVOICE,
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "2.00",
+      producerStripeAccountId: "acct_test_producer",
+    });
 
-    const pay = await fetch(
-      `${base}/v1/invoices/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/payments`,
-      {
-        method: "POST",
-        headers: {
-          "x-intelligent-roles": "member",
-          "x-intelligent-token-use": "user",
-          "x-intelligent-sub": CONSUMER,
-          "x-intelligent-community": COMMUNITY,
-        },
+    const pay = await fetch(`${base}/v1/invoices/${INVOICE}/payments`, {
+      method: "POST",
+      headers: {
+        "x-intelligent-roles": "member",
+        "x-intelligent-token-use": "user",
+        "x-intelligent-sub": CONSUMER,
+        "x-intelligent-community": COMMUNITY,
       },
-    );
+    });
     expect(pay.status).toBe(201);
-    expect(await pay.json()).toMatchObject({ status: "succeeded" });
+    expect(await pay.json()).toMatchObject({ status: "succeeded", amount: "2.00" });
   });
 
   it("webhook accepts signed provider events", async () => {
@@ -110,6 +122,79 @@ describe("payments HTTP (INT-107)", () => {
       body,
     });
     expect(ok.status).toBe(204);
+  });
+
+  it("attaches consumer payment method over HTTP (INT-193)", async () => {
+    const missing = await fetch(`${base}/v1/me/payment-account/payment-method`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "member",
+        "x-intelligent-sub": CONSUMER,
+        "x-intelligent-community": COMMUNITY,
+      },
+      body: JSON.stringify({}),
+    });
+    expect(missing.status).toBe(400);
+
+    const ok = await fetch(`${base}/v1/me/payment-account/payment-method`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "member",
+        "x-intelligent-sub": CONSUMER,
+        "x-intelligent-community": COMMUNITY,
+      },
+      body: JSON.stringify({ paymentMethodId: "pm_card_visa" }),
+    });
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toMatchObject({
+      mode: "elements",
+      status: "complete",
+    });
+  });
+
+  it("submitRequirements falls back to request ip without x-forwarded-for", async () => {
+    const producer = "66666666-7777-4888-9999-aaaaaaaaaaaa";
+    await fetch(`${base}/v1/me/payment-account/onboarding`, {
+      method: "POST",
+      headers: {
+        "x-intelligent-roles": "member,producer",
+        "x-intelligent-sub": producer,
+        "x-intelligent-community": COMMUNITY,
+      },
+    });
+    const submit = await fetch(
+      `${base}/v1/me/payment-account/onboarding/requirements`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-intelligent-roles": "member,producer",
+          "x-intelligent-sub": producer,
+          "x-intelligent-community": COMMUNITY,
+        },
+        body: JSON.stringify({
+          accountToken: "ct_test_no_xff",
+          country: "FR",
+          businessType: "individual",
+          businessProfileUrl: "https://producer.example",
+          businessProfileMcc: "5734",
+          representative: {
+            firstName: "Ada",
+            lastName: "Lovelace",
+            email: "ada@example.com",
+          },
+          externalAccount: {
+            country: "FR",
+            currency: "eur",
+            accountNumber: "FR1420041010050500013M02606",
+          },
+          tosAccepted: true,
+        }),
+      },
+    );
+    expect(submit.status).toBe(200);
   });
 
   it("producer and prosumer onboarding use Account Tokens (INT-191)", async () => {

@@ -140,6 +140,25 @@ export class StripePspAdapter implements PspPort {
     return sessionFromAccount(account);
   }
 
+  async createSetupIntent(
+    participantId: string,
+  ): Promise<{ clientSecret: string }> {
+    // INT-193 — customer scoped by participant metadata for reuse.
+    const customer = await this.stripe.customers.create({
+      metadata: { participantId },
+    });
+    const intent = await this.stripe.setupIntents.create({
+      customer: customer.id,
+      usage: "off_session",
+      automatic_payment_methods: { enabled: true },
+      metadata: { participantId },
+    });
+    if (!intent.client_secret) {
+      throw new Error("SetupIntent missing client_secret");
+    }
+    return { clientSecret: intent.client_secret };
+  }
+
   async attachPaymentMethod(
     participantId: string,
     paymentMethodId: string,

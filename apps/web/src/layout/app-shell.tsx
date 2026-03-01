@@ -9,6 +9,7 @@ const { Text } = Typography;
 
 const NAV_ITEMS = [
   { key: "/", label: "Home", to: "/" },
+  { key: "/onboarding", label: "Get ready", to: "/onboarding" },
   { key: "/profile", label: "Profile", to: "/profile" },
   { key: "/terms", label: "Terms", to: "/terms" },
   { key: "/payment-setup", label: "Payment setup", to: "/payment-setup" },

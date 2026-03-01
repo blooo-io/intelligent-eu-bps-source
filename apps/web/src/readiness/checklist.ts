@@ -9,6 +9,8 @@ export type ChecklistItem = {
   id: "profile" | "terms" | "payment";
   label: string;
   done: boolean;
+  /** Wizard deep link (INT-193). */
+  to: string;
 };
 
 const ORDER: ReadinessStatus[] = [
@@ -28,9 +30,24 @@ export function readinessChecklist(status: ReadinessStatus): ChecklistItem[] {
   // Restricted / Offboarded: show gates as incomplete plus sticky state.
   if (status === "Restricted" || status === "Offboarded") {
     return [
-      { id: "profile", label: "Complete billing profile", done: false },
-      { id: "terms", label: "Accept terms (and self-billing if producer)", done: false },
-      { id: "payment", label: "Complete payment setup", done: false },
+      {
+        id: "profile",
+        label: "Complete billing profile",
+        done: false,
+        to: "/onboarding?step=profile",
+      },
+      {
+        id: "terms",
+        label: "Accept terms (and self-billing if producer)",
+        done: false,
+        to: "/onboarding?step=terms",
+      },
+      {
+        id: "payment",
+        label: "Complete payment setup",
+        done: false,
+        to: "/onboarding?step=payment",
+      },
     ];
   }
 
@@ -40,16 +57,19 @@ export function readinessChecklist(status: ReadinessStatus): ChecklistItem[] {
       id: "profile",
       label: "Complete billing profile",
       done: r >= rank("ProfileCompleted"),
+      to: "/onboarding?step=profile",
     },
     {
       id: "terms",
       label: "Accept terms (and self-billing if producer)",
       done: r >= rank("TermsAccepted"),
+      to: "/onboarding?step=terms",
     },
     {
       id: "payment",
       label: "Complete payment setup",
       done: r >= rank("Ready"),
+      to: "/onboarding?step=payment",
     },
   ];
 }

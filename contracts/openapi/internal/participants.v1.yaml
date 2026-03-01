@@ -93,6 +93,51 @@ paths:
                     type: string
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants/{participantId}/payment-account-status:
+    post:
+      operationId: applyPaymentAccountStatus
+      tags: [Participants]
+      summary: Apply payment-account readiness from AC-07
+      description: >
+        Apply PaymentAccountStatusChanged (INT-193). Called by AC-07 after KYC
+        or payment-method attach until the NATS consumer is wired.
+      parameters:
+        - $ref: '#/components/parameters/ParticipantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ready]
+              properties:
+                ready:
+                  type: boolean
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Updated readiness.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [participantId, ready, status]
+                properties:
+                  participantId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  ready:
+                    type: boolean
+                  status:
+                    $ref: '../components/schemas.yaml#/components/schemas/ReadinessStatus'
+                  reason:
+                    type: string
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
 components:
   securitySchemes:
     serviceAuth:

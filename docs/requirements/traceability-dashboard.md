@@ -16,8 +16,8 @@
 
 | UAT status | Count |
 |---|---|
-| Pass | 56 |
-| Blocked | 6 |
+| Pass | 57 |
+| Blocked | 5 |
 | Fail | 0 |
 | Not Run | 0 |
 
@@ -30,9 +30,8 @@ Blocked (explicit external blockers; see UAT notes and [`../testing/v1-uat-packa
 | UAT-040 | NFR-008 | Billing-run duration target TBD |
 | UAT-050 | REQ-039 | Stripe invoice PDF (Connect charges) |
 | UAT-053 | REQ-042 | Stripe numbering (Connect invoices) |
-| UAT-067 | NFR-016 | UX step-count target TBD |
 
-REQ-034 / REQ-037 and UAT-044 / UAT-047 are **out of D5.5 scope** (INT-192 — single project IdP). UAT-051 Pass (INT-191). No Fail rows.
+REQ-034 / REQ-037 and UAT-044 / UAT-047 are **out of D5.5 scope** (INT-192 — single project IdP). UAT-051 Pass (INT-191). UAT-067 Pass (INT-193 wizard; step-count deferred). No Fail rows.
 
 ## Counts
 

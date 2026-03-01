@@ -139,11 +139,13 @@ paths:
         Producer/prosumer: returns outstanding KYC requirements for in-platform
         collection (INT-190 / INT-191, REQ-051, UAT-051). The Custom Connect
         account is created on the first requirements submit with an Account Token.
-        Consumer: returns a provider setup link (`mode: link`) for the payment method (REQ-040).
+        Consumer: returns a SetupIntent client secret (`mode: elements`) for
+        in-platform Payment Element collection (INT-193 / REQ-040), or a
+        provider setup link (`mode: link`) as fallback.
       x-served-by: AC-07
       responses:
         '200':
-          description: Onboarding session (requirements or link).
+          description: Onboarding session (requirements, elements, or link).
           content:
             application/json:
               schema:
@@ -152,6 +154,42 @@ paths:
           $ref: './components/schemas.yaml#/components/responses/Unauthorized'
         '403':
           $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /me/payment-account/payment-method:
+    post:
+      operationId: attachMyPaymentMethod
+      tags: [Payments]
+      summary: Attach consumer payment method after SetupIntent
+      description: >
+        Confirms the payment method collected via Stripe.js / Payment Element
+        (INT-193, REQ-040) and marks the payment account ready.
+      x-served-by: AC-07
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [paymentMethodId]
+              properties:
+                paymentMethodId:
+                  type: string
+                  description: Stripe PaymentMethod id (`pm_…`).
+      responses:
+        '200':
+          description: Updated onboarding session (status complete).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingSession'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
   /me/payment-account/onboarding/requirements:
     post:
       operationId: submitPaymentOnboardingRequirements
@@ -905,14 +943,15 @@ components:
       additionalProperties: false
       required: [mode, status]
       description: >
-        INT-190 / INT-191 — producer uses `mode: requirements` (in-platform KYC
-        via Account Tokens + Custom Connect); consumer uses `mode: link`
-        (hosted payment-method setup). `stripeAccountId` is absent until the
+        INT-190 / INT-191 / INT-193 — producer uses `mode: requirements`
+        (in-platform KYC via Account Tokens + Custom Connect); consumer uses
+        `mode: elements` (SetupIntent client secret for Payment Element) or
+        `mode: link` (hosted fallback). `stripeAccountId` is absent until the
         first successful requirements submit creates the Custom account.
       properties:
         mode:
           type: string
-          enum: [requirements, link]
+          enum: [requirements, link, elements]
         status:
           type: string
           enum: [requirements_due, pending_verification, complete]
@@ -932,6 +971,11 @@ components:
           type: string
           format: uri
           description: Present when mode is link (consumer payment-method setup).
+        clientSecret:
+          type: string
+          description: >
+            SetupIntent client secret when mode is elements (INT-193).
+            Used only with the platform publishable key (BR-12).
     OnboardingRequirementsSubmission:
       type: object
       additionalProperties: false

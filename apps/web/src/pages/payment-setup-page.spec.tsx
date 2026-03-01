@@ -17,7 +17,7 @@ describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
     vi.restoreAllMocks();
   });
 
-  it("starts consumer link mode and opens Stripe setup URL", async () => {
+  it("starts consumer elements mode with SetupIntent client secret (INT-193)", async () => {
     const oidc: OidcFacade = {
       login: vi.fn(),
       handleCallback: vi.fn(),
@@ -25,34 +25,43 @@ describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
       getUser: vi.fn(),
       getAccessToken: vi.fn().mockResolvedValue("tok"),
     };
-    const openUrl = vi.fn();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          mode: "link",
+          mode: "elements",
           status: "requirements_due",
-          url: "https://checkout.stripe.com/c/pay/setup_abc",
+          clientSecret: "seti_test_abc_secret_xyz",
         }),
       }),
     );
+    const loadStripe = vi.fn().mockResolvedValue({
+      elements: vi.fn().mockReturnValue({
+        create: vi.fn().mockReturnValue({
+          mount: vi.fn(),
+          unmount: vi.fn(),
+        }),
+      }),
+      confirmSetup: vi.fn(),
+    });
 
     render(
       <MemoryRouter>
-        <PaymentSetupPage config={config} oidc={oidc} openUrl={openUrl} />
+        <PaymentSetupPage
+          config={config}
+          oidc={oidc}
+          openUrl={vi.fn()}
+          loadStripeSetup={loadStripe}
+        />
       </MemoryRouter>,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /start payment setup/i }));
     await waitFor(() => {
-      expect(openUrl).toHaveBeenCalledWith(
-        "https://checkout.stripe.com/c/pay/setup_abc",
-      );
+      expect(screen.getByTestId("stripe-payment-element")).toBeInTheDocument();
     });
-    expect(
-      screen.getByRole("link", { name: /open stripe payment-method setup/i }),
-    ).toHaveAttribute("href", "https://checkout.stripe.com/c/pay/setup_abc");
+    expect(loadStripe).toHaveBeenCalledWith("pk_test_fixture");
   });
 
   it("tokenizes KYC with Stripe.js then submits accountToken (INT-191)", async () => {

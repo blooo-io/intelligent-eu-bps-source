@@ -8,6 +8,8 @@ const {
   paymentMethodsRetrieve,
   paymentIntentsCreate,
   refundsCreate,
+  customersCreate,
+  setupIntentsCreate,
   constructEvent,
   StripeCardError,
 } = vi.hoisted(() => {
@@ -28,6 +30,8 @@ const {
     paymentMethodsRetrieve: vi.fn(),
     paymentIntentsCreate: vi.fn(),
     refundsCreate: vi.fn(),
+    customersCreate: vi.fn(),
+    setupIntentsCreate: vi.fn(),
     constructEvent: vi.fn(),
     StripeCardError,
   };
@@ -45,6 +49,8 @@ vi.mock("stripe", () => {
       paymentMethods: { retrieve: paymentMethodsRetrieve },
       paymentIntents: { create: paymentIntentsCreate },
       refunds: { create: refundsCreate },
+      customers: { create: customersCreate },
+      setupIntents: { create: setupIntentsCreate },
       webhooks: { constructEvent },
     };
   }
@@ -63,6 +69,25 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("creates SetupIntent for consumer payment method (INT-193)", async () => {
+    customersCreate.mockResolvedValue({ id: "cus_1" });
+    setupIntentsCreate.mockResolvedValue({
+      id: "seti_1",
+      client_secret: "seti_1_secret_x",
+    });
+    const adapter = new StripePspAdapter(creds);
+    await expect(adapter.createSetupIntent("p-consumer")).resolves.toEqual({
+      clientSecret: "seti_1_secret_x",
+    });
+    expect(setupIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customer: "cus_1",
+        usage: "off_session",
+        metadata: { participantId: "p-consumer" },
+      }),
+    );
   });
 
   it("refuses non-test API keys (BR-12)", () => {

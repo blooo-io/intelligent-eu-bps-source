@@ -34,4 +34,18 @@ export class InternalParticipantsController {
   checkReadiness(@Param("participantId") participantId: string) {
     return this.participants.checkReadiness(participantId);
   }
+
+  /** INT-193 — AC-07 notifies KYC / payment-method readiness (sync until NATS). */
+  @Post("participants/:participantId/payment-account-status")
+  @HttpCode(200)
+  applyPaymentAccountStatus(
+    @Param("participantId") participantId: string,
+    @Body() body: { ready: boolean; reason?: string },
+  ) {
+    return this.participants.applyPaymentAccountStatus({
+      participantId,
+      ready: body.ready,
+      reason: body.reason,
+    });
+  }
 }

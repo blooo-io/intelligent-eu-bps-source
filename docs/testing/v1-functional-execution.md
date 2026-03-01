@@ -52,9 +52,9 @@ Confirmed set: [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76).
 | UAT-050 | REQ-039 | Blocked | Depends on Connect accounts (platform profile) |
 | UAT-051 | REQ-040 | Pass | INT-191 — Custom Account Tokens in-platform (producer KYC) |
 | UAT-053 | REQ-042 | Blocked | Depends on Connect invoice numbering |
-| UAT-067 | NFR-016 | Blocked | Needs pilot UX observation |
+| UAT-067 | NFR-016 | Pass | INT-193 — `/onboarding` wizard (step-count deferred) |
 
-**Totals after this batch:** **56 Pass**, **0 Not Run**, **6 Blocked**, **0 Fail** (62 in-scope; UAT-044 / UAT-047 out).
+**Totals after this batch:** **57 Pass**, **0 Not Run**, **5 Blocked**, **0 Fail** (62 in-scope; UAT-044 / UAT-047 out).
 
 ## Commands / probes
 

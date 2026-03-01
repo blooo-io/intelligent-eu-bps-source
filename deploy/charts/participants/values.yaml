@@ -12,6 +12,7 @@ ingressFrom:
   - invoicing
   - settlement
   - trade-intake
+  - payments
 keycloakEgress: true
 stripeEgress: false
 namespaceIngress: true

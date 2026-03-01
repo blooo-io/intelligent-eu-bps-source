@@ -35,7 +35,7 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [invoiceId, producerId, consumerId, currency, status]
+                required: [invoiceId, producerId, consumerId, currency, status, total]
                 properties:
                   invoiceId:
                     $ref: '../components/schemas.yaml#/components/schemas/Uuid'
@@ -49,6 +49,13 @@ paths:
                     $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
                   total:
                     $ref: '../components/schemas.yaml#/components/schemas/Money'
+                  producerStripeAccountId:
+                    type: string
+                    description: Connect account id for destination charges (AC-07).
+                  hostedInvoiceUrl:
+                    type: string
+                    format: uri
+                    description: Stripe hosted invoice / PDF URL when available.
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /invoices:mark-overdue:

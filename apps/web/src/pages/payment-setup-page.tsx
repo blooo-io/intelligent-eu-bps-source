@@ -12,6 +12,7 @@ import {
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
 import {
+  attachMyPaymentMethod,
   createPaymentOnboarding,
   submitPaymentOnboardingRequirements,
   type OnboardingSession,
@@ -20,14 +21,16 @@ import {
   createAccountToken,
   type LoadStripeFn,
 } from "../api/stripe-account-token";
+import type { LoadStripeSetupFn } from "../api/stripe-setup-element";
+import { ConsumerPaymentElement } from "../components/consumer-payment-element";
 import { PageFrame } from "../layout/page-frame";
 
 const { Paragraph, Text } = Typography;
 
 /**
- * Payment setup (INT-140 / INT-190 / INT-191 / REQ-051 / UAT-051 / UAT-063).
+ * Payment setup (INT-140 / INT-190 / INT-191 / INT-193 / REQ-051 / UAT-051).
  * Producer: in-platform Connect KYC via Account Tokens (Custom accounts, FR).
- * Consumer: redirect to provider payment-method setup link.
+ * Consumer: SetupIntent + Payment Element (INT-193); link mode as fallback.
  * Card/bank numbers are forwarded to Stripe only — never logged (TD-6).
  */
 export function PaymentSetupPage({
@@ -37,13 +40,22 @@ export function PaymentSetupPage({
   openUrl = (url: string) => {
     window.location.assign(url);
   },
-  /** Test seam — Stripe.js loader (defaults to @stripe/stripe-js). */
+  /** Test seam — Stripe.js loader for Account Tokens (INT-191). */
   loadStripe,
+  /** Test seam — Stripe.js loader for Payment Element / SetupIntent (INT-193). */
+  loadStripeSetup,
+  /** When set, called after onboarding reaches status complete (wizard). */
+  onComplete,
+  /** Hide PageFrame chrome when embedded in the onboarding wizard. */
+  embedded = false,
 }: {
   config: WebConfig;
   oidc: OidcFacade;
   openUrl?: (url: string) => void;
   loadStripe?: LoadStripeFn;
+  loadStripeSetup?: LoadStripeSetupFn;
+  onComplete?: () => void;
+  embedded?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +70,9 @@ export function PaymentSetupPage({
       if (!token) throw new Error("No access token");
       const next = await createPaymentOnboarding(config.apiBaseUrl, token);
       setSession(next);
+      if (next.status === "complete") {
+        onComplete?.();
+      }
       if (next.mode === "link" && next.url) {
         openUrl(next.url);
       }
@@ -65,6 +80,20 @@ export function PaymentSetupPage({
       setError(err instanceof Error ? err.message : "Onboarding failed");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function onPaymentMethodAttached(paymentMethodId: string) {
+    const token = await oidc.getAccessToken();
+    if (!token) throw new Error("No access token");
+    const next = await attachMyPaymentMethod(
+      config.apiBaseUrl,
+      token,
+      paymentMethodId,
+    );
+    setSession(next);
+    if (next.status === "complete") {
+      onComplete?.();
     }
   }
 
@@ -141,6 +170,9 @@ export function PaymentSetupPage({
         },
       );
       setSession(next);
+      if (next.status === "complete") {
+        onComplete?.();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "KYC submit failed");
     } finally {
@@ -151,15 +183,15 @@ export function PaymentSetupPage({
   const showRequirements =
     session?.mode === "requirements" && session.status !== "complete";
 
-  return (
-    <PageFrame title="Payment setup">
+  const body = (
+    <>
       {error && <Alert type="error" message={error} showIcon />}
 
       <Card>
         <Paragraph>
           Producers complete Stripe Connect identity and bank details in this
-          form (INT-191 Account Tokens). Consumers add a payment method via
-          Stripe-hosted setup. This app never logs card or bank numbers
+          form (INT-191 Account Tokens). Consumers add a payment method with the
+          Payment Element (INT-193). This app never logs card or bank numbers
           (REQ-051, TD-6, BR-12 test mode).
         </Paragraph>
 
@@ -178,6 +210,22 @@ export function PaymentSetupPage({
             .
           </Paragraph>
         )}
+
+        {session?.mode === "elements" &&
+          session.status !== "complete" &&
+          session.clientSecret && (
+            <div style={{ marginTop: 16 }}>
+              <Paragraph type="secondary">
+                Enter a test card (e.g. 4242…) to save a payment method (BR-12).
+              </Paragraph>
+              <ConsumerPaymentElement
+                config={config}
+                clientSecret={session.clientSecret}
+                onAttached={onPaymentMethodAttached}
+                loadStripe={loadStripeSetup}
+              />
+            </div>
+          )}
 
         {session?.status === "complete" && (
           <Alert
@@ -309,6 +357,11 @@ export function PaymentSetupPage({
           </>
         )}
       </Card>
-    </PageFrame>
+    </>
   );
+
+  if (embedded) {
+    return body;
+  }
+  return <PageFrame title="Payment setup">{body}</PageFrame>;
 }

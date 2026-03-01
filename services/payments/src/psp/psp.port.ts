@@ -4,14 +4,16 @@ export type ProducerAccount = {
   stripeAccountId: string;
 };
 
-/** INT-190 — in-platform Connect KYC session (no Account Link for producers). */
+/** INT-190 / INT-193 — in-platform Connect KYC or consumer SetupIntent session. */
 export type OnboardingSession = {
-  mode: "requirements" | "link";
+  mode: "requirements" | "link" | "elements";
   status: "requirements_due" | "pending_verification" | "complete";
   stripeAccountId?: string;
   currentlyDue?: string[];
   eventuallyDue?: string[];
   url?: string;
+  /** SetupIntent client secret when mode is elements (INT-193). */
+  clientSecret?: string;
 };
 
 export type OnboardingRequirementsSubmission = {
@@ -102,6 +104,11 @@ export interface PspPort {
     submission: OnboardingRequirementsSubmission,
     clientIp: string,
   ): Promise<OnboardingSession>;
+  /**
+   * INT-193 — create a SetupIntent for consumer payment-method collection
+   * (Payment Element / confirmSetup).
+   */
+  createSetupIntent(participantId: string): Promise<{ clientSecret: string }>;
   attachPaymentMethod(
     participantId: string,
     paymentMethodId: string,

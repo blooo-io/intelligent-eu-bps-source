@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Headers,
@@ -56,6 +57,25 @@ export class PaymentsController {
     });
   }
 
+  @Post("v1/me/payment-account/payment-method")
+  @HttpCode(200)
+  @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
+  async attachPaymentMethod(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { paymentMethodId?: string },
+  ) {
+    const user = req.user!;
+    if (!body?.paymentMethodId) {
+      throw new BadRequestException("paymentMethodId is required");
+    }
+    this.payments.ensureParticipant({
+      participantId: user.sub,
+      communityId: user.communityId,
+      role: roleOf(user.roles),
+    });
+    return this.payments.attachPaymentMethod(user.sub, body.paymentMethodId);
+  }
+
   @Post("v1/invoices/:invoiceId/payments")
   @HttpCode(201)
   @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
@@ -64,14 +84,11 @@ export class PaymentsController {
     @Param("invoiceId") invoiceId: string,
   ) {
     const user = req.user!;
-    // V1 fixture amounts until AC-06 GetInvoice HTTP client is wired.
+    // INT-193 — amount + producer Connect id from AC-06 GetInvoice.
     return this.payments.payInvoice({
       invoiceId,
       participantId: user.sub,
       communityId: user.communityId,
-      amount: "2.00",
-      currency: "EUR",
-      producerStripeAccountId: "acct_test_producer",
     });
   }
 

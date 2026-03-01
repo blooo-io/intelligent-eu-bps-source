@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -8,6 +9,14 @@ import {
 import { randomUUID } from "node:crypto";
 import { OutboxService } from "@intelligent/module-template";
 import { PaymentsStore } from "../domain/store.js";
+import {
+  INVOICE_LOOKUP,
+  type InvoiceLookupPort,
+} from "../ports/invoice-lookup.port.js";
+import {
+  PARTICIPANTS_NOTIFIER,
+  type ParticipantsNotifierPort,
+} from "../ports/participants-notifier.port.js";
 import {
   PSP_PORT,
   PRODUCER_ONBOARDING_DUE,
@@ -27,6 +36,9 @@ export class PaymentsService {
     @Inject(PaymentsStore) private readonly store: PaymentsStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
     @Inject(PSP_PORT) private readonly psp: PspPort,
+    @Inject(INVOICE_LOOKUP) private readonly invoices: InvoiceLookupPort,
+    @Inject(PARTICIPANTS_NOTIFIER)
+    private readonly participants: ParticipantsNotifierPort,
   ) {}
 
   resetStore(): void {
@@ -72,9 +84,16 @@ export class PaymentsService {
       };
     }
 
-    // Consumer — hosted payment-method setup link (fixture URL).
-    const url = `https://checkout.stripe.com/c/pay/setup_${input.participantId.slice(0, 8)}`;
-    return { mode: "link", status: "requirements_due", url };
+    // INT-193 — consumer SetupIntent for in-wizard Payment Element.
+    if (account.paymentMethodId) {
+      return { mode: "elements", status: "complete" };
+    }
+    const setup = await this.psp.createSetupIntent(input.participantId);
+    return {
+      mode: "elements",
+      status: "requirements_due",
+      clientSecret: setup.clientSecret,
+    };
   }
 
   async submitOnboardingRequirements(input: {
@@ -151,7 +170,7 @@ export class PaymentsService {
   async attachPaymentMethod(
     participantId: string,
     paymentMethodId: string,
-  ): Promise<void> {
+  ): Promise<OnboardingSession> {
     const account = this.store.getAccount(participantId);
     if (!account) {
       throw new NotFoundException("Unknown participant");
@@ -162,6 +181,7 @@ export class PaymentsService {
       paymentMethodId,
     });
     await this.emitAccountStatus(participantId);
+    return { mode: "elements", status: "complete" };
   }
 
   async completeProducerKyc(participantId: string): Promise<void> {
@@ -177,9 +197,6 @@ export class PaymentsService {
     invoiceId: string;
     participantId: string;
     communityId: string;
-    amount: string;
-    currency: string;
-    producerStripeAccountId: string;
   }): Promise<{
     paymentId: string;
     invoiceId: string;
@@ -195,12 +212,34 @@ export class PaymentsService {
     if (!account?.paymentMethodId) {
       throw new BadRequestException("Consumer payment method required");
     }
+
+    // INT-193 — load amount + producer Connect id from AC-06 (drop fixtures).
+    let invoice;
+    try {
+      invoice = await this.invoices.getInvoice(input.invoiceId);
+    } catch {
+      throw new NotFoundException(`Unknown invoice ${input.invoiceId}`);
+    }
+    if (invoice.consumerId !== input.participantId) {
+      throw new ForbiddenException("Invoice is not payable by this participant");
+    }
+    const producerAccount = this.store.getAccount(invoice.producerId);
+    const producerStripeAccountId =
+      invoice.producerStripeAccountId ??
+      producerAccount?.stripeAccountId ??
+      undefined;
+    if (!producerStripeAccountId) {
+      throw new BadRequestException(
+        "Producer Connect account required for destination charge",
+      );
+    }
+
     const started = Date.now();
     const pspResult = await this.psp.createPayment({
       invoiceId: input.invoiceId,
-      amount: input.amount,
-      currency: input.currency,
-      producerStripeAccountId: input.producerStripeAccountId,
+      amount: invoice.total,
+      currency: invoice.currency,
+      producerStripeAccountId,
       consumerPaymentMethodId: account.paymentMethodId,
     });
     const processingTimeMs = Math.max(0, Date.now() - started);
@@ -209,8 +248,8 @@ export class PaymentsService {
       paymentId,
       invoiceId: input.invoiceId,
       participantId: input.participantId,
-      amount: input.amount,
-      currency: input.currency,
+      amount: invoice.total,
+      currency: invoice.currency,
       status: pspResult.status,
       stripePaymentId: pspResult.stripePaymentId,
       failureCategory: pspResult.failureCategory,
@@ -237,8 +276,8 @@ export class PaymentsService {
     return {
       paymentId,
       invoiceId: input.invoiceId,
-      amount: input.amount,
-      currency: input.currency,
+      amount: invoice.total,
+      currency: invoice.currency,
       status: pspResult.status,
       method: "card",
       failureCategory: pspResult.failureCategory,
@@ -304,6 +343,10 @@ export class PaymentsService {
     if (!account) {
       return;
     }
+    const ready =
+      account.role === "consumer"
+        ? Boolean(account.paymentMethodId)
+        : account.kycStatus === "verified";
     await this.outbox.append({
       aggregateType: "PaymentAccount",
       aggregateId: participantId,
@@ -316,6 +359,12 @@ export class PaymentsService {
         kycStatus: account.kycStatus,
         paymentMethodPresent: Boolean(account.paymentMethodId),
       },
+    });
+    // INT-193 — sync notify AC-03 until NATS consumer is wired.
+    await this.participants.applyPaymentAccountStatus({
+      participantId,
+      ready,
+      reason: ready ? undefined : "payment_account",
     });
   }
 }

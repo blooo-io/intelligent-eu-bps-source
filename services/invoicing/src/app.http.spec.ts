@@ -77,6 +77,45 @@ describe("invoicing HTTP (INT-106)", () => {
     expect(overdue.status).toBe(202);
   });
 
+  it("lists and reads invoices for the member (INT-193 / REQ-007)", async () => {
+    const consumerId = "11111111-2222-4333-8444-555555555555";
+    const created = await service.createFromSettlement({
+      settlementId: "s4444444-4444-4444-8444-444444444444",
+      runId: "r4444444-4444-4444-8444-444444444444",
+      consumerId,
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x3"],
+      kWh: "2.00",
+      energyAmount: "2.00",
+      vat: "0.40",
+      currency: "EUR",
+      rate: "1.00",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    const list = await fetch(`${base}/v1/me/invoices`, {
+      headers: {
+        "x-intelligent-roles": "member",
+        "x-intelligent-sub": consumerId,
+      },
+    });
+    expect(list.status).toBe(200);
+    const rows = (await list.json()) as Array<{ invoiceId: string }>;
+    expect(rows.map((r) => r.invoiceId)).toContain(created!.invoiceId);
+
+    const detail = await fetch(`${base}/v1/invoices/${created!.invoiceId}`, {
+      headers: {
+        "x-intelligent-roles": "member",
+        "x-intelligent-sub": consumerId,
+      },
+    });
+    expect(detail.status).toBe(200);
+    expect(await detail.json()).toMatchObject({
+      invoiceId: created!.invoiceId,
+      amounts: { total: "2.40" },
+    });
+  });
+
   it("UAT-055 — only manager can set invoice status with reason", async () => {
     const created = await service.createFromSettlement({
       settlementId: "s3333333-3333-4333-8333-333333333333",

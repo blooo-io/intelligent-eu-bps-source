@@ -93,6 +93,14 @@ export class MockPspAdapter implements PspPort {
     return this.getAccountSession(stripeAccountId);
   }
 
+  async createSetupIntent(
+    participantId: string,
+  ): Promise<{ clientSecret: string }> {
+    return {
+      clientSecret: `seti_test_${participantId.replace(/-/g, "").slice(0, 12)}_secret_test`,
+    };
+  }
+
   async attachPaymentMethod(
     participantId: string,
     paymentMethodId: string,

@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { readinessChecklist, readinessHeadline } from "./checklist";
 
 describe("readinessChecklist", () => {
-  it("marks no steps done when Invited", () => {
+  it("marks no steps done when Invited and links to the wizard (INT-193)", () => {
     const items = readinessChecklist("Invited");
     expect(items.every((i) => !i.done)).toBe(true);
+    expect(items.every((i) => i.to.startsWith("/onboarding"))).toBe(true);
   });
 
   it("marks profile done at ProfileCompleted", () => {

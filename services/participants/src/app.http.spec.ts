@@ -131,7 +131,8 @@ describe("participants HTTP (INT-103)", () => {
       },
     );
     expect(list.status).toBe(200);
-    expect(await list.json()).toHaveLength(1);
+    // INT-194 seeds 3 UAT participants; import adds one more.
+    expect(await list.json()).toHaveLength(4);
   });
 
   it("manager import with existingIdpSubject then GET /v1/me (INT-180)", async () => {

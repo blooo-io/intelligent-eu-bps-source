@@ -51,10 +51,11 @@ describe("ParticipantsService", () => {
   });
 
   it("imports with existingIdpSubject binds Keycloak sub without creating IdP user (INT-180)", async () => {
-    const existingSub = "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f";
+    // Distinct from INT-194 seeded UAT subjects in seedParticipants().
+    const existingSub = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
     const [created] = await service.importParticipants(communityId, [
       {
-        email: "uat-member@example.invalid",
+        email: "linked@example.invalid",
         marketActorId: "actor-existing-1",
         meterId: "meter-existing-1",
         role: "consumer",
@@ -68,6 +69,12 @@ describe("ParticipantsService", () => {
     expect(service.getMe(existingSub, ["member"]).participantId).toBe(
       created.participantId,
     );
+  });
+
+  it("seeds UAT IdP subjects so getMe works without import (INT-194)", () => {
+    const me = service.getMe("b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f", ["member"]);
+    expect(me.participantId).toBe("f69e6745-3bfe-49ad-b84e-0853aa86ad05");
+    expect(me.readiness).toBe("Invited");
   });
 
   it("resolves community settings and rejects live mode in V1 (REQ-043)", () => {

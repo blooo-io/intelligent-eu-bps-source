@@ -9,8 +9,9 @@ E2E is **not** run inside a cloistered GitHub Actions job with a local static bu
 | Spec | Asserts |
 |---|---|
 | `e2e/auth-gate.spec.ts` | Unauthenticated `GET /` → login UI (`Sign in with IdP`); `/login` shows the same CTA; no password field (REQ-033 / UAT-043) |
+| `e2e/onboarding-wizard.spec.ts` | Authenticated `uat-member` reaches `/onboarding` Steps wizard (INT-193 / INT-194). Skip with `E2E_SKIP_AUTH=1`. |
 
-Authenticated IdP happy-path (sign-in → callback → home) needs Keycloak test users and is **out of scope** for the first slice.
+Keycloak UAT users (`uat-member` / `uat-manager` / `uat-operator`) are packed in the `int` realm import and AC-03 seed (INT-194). Password placeholder: `Intelligent-UAT-2026!` (V1 `dev`/`int` only).
 
 ## Prerequisites
 

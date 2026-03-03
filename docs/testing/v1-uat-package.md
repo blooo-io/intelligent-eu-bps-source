@@ -19,13 +19,32 @@ Assemble acceptance for partners from the existing UAT notes. **Case text stays 
 | Role | Responsibility | Confirmed |
 |---|---|---|
 | Blooo engineering (agent / developer) | Module suites, GitOps smoke, record Pass/Fail/Blocked in UAT notes | Yes — INT-75 / INT-78 |
-| Blooo operator | Authenticated portal checks on `dev` with Keycloak test users | Pending credentials |
+| Blooo operator / agent | Authenticated portal checks on `dev` with Keycloak UAT users (INT-194) | Yes — see table below |
 | Pilot / partner UAT lead | Optional: UX step counts (NFR-016 / UAT-067); performance window (NFR-008 / UAT-040) | Criteria TBD or waive |
 | Steven Lin (assignee) | Owns recording acceptance in Jira INT-80 | Yes |
 
 ## Already accepted (do not re-run unless regressing)
 
 See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-193 (2026-10-18): **57 Pass**, **5 Blocked** in-scope, **0 Fail**. UAT-067 Pass (wizard journey; step-count deferred). UAT-051 Pass; UAT-044 / UAT-047 out.
+
+## Keycloak UAT IdP users (INT-194)
+
+Packed in `deploy/charts/keycloak-realms/realms/int-realm.json` (V1 `dev`/`int` placeholders — same class as client secret `dev-only-replace-me`; never production). Community attribute: `a1000000-0000-4000-8000-000000000001`.
+
+| Role | Username | Password |
+|---|---|---|
+| member | `uat-member` | `Intelligent-UAT-2026!` |
+| manager | `uat-manager` | `Intelligent-UAT-2026!` |
+| operator | `uat-operator` | `Intelligent-UAT-2026!` |
+
+ConfigMap sync alone does not re-import users on an already-initialised realm. After deploy, ensure passwords with:
+
+```bash
+kubectl -n keycloak port-forward svc/platform-keycloak-keycloakx-http 18082:80
+KEYCLOAK_URL=http://127.0.0.1:18082 \
+KEYCLOAK_ADMIN_PASSWORD="$(kubectl -n keycloak get secret keycloak-admin -o jsonpath='{.data.password}' | base64 -d)" \
+node scripts/keycloak-ensure-uat-users.mjs
+```
 
 ## Remaining Blocked cases (in-scope)
 

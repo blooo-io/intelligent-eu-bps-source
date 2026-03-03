@@ -71,5 +71,67 @@
         }
       ]
     }
+  ],
+  "users": [
+    {
+      "id": "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f",
+      "username": "uat-member",
+      "enabled": true,
+      "email": "uat-member@example.invalid",
+      "emailVerified": true,
+      "firstName": "UAT",
+      "lastName": "Member",
+      "attributes": {
+        "community_id": ["a1000000-0000-4000-8000-000000000001"]
+      },
+      "realmRoles": ["member"],
+      "credentials": [
+        {
+          "type": "password",
+          "temporary": false,
+          "value": "Intelligent-UAT-2026!"
+        }
+      ]
+    },
+    {
+      "id": "aca5adb7-0f18-4db8-aa04-6a0ff11b8ec6",
+      "username": "uat-manager",
+      "enabled": true,
+      "email": "uat-manager@example.invalid",
+      "emailVerified": true,
+      "firstName": "UAT",
+      "lastName": "Manager",
+      "attributes": {
+        "community_id": ["a1000000-0000-4000-8000-000000000001"]
+      },
+      "realmRoles": ["manager"],
+      "credentials": [
+        {
+          "type": "password",
+          "temporary": false,
+          "value": "Intelligent-UAT-2026!"
+        }
+      ]
+    },
+    {
+      "id": "e4166575-164a-4c30-b801-290fadd879d1",
+      "username": "uat-operator",
+      "enabled": true,
+      "email": "uat-operator@example.invalid",
+      "emailVerified": true,
+      "firstName": "UAT",
+      "lastName": "Operator",
+      "attributes": {
+        "community_id": ["a1000000-0000-4000-8000-000000000001"]
+      },
+      "realmRoles": ["operator"],
+      "credentials": [
+        {
+          "type": "password",
+          "temporary": false,
+          "value": "Intelligent-UAT-2026!"
+        }
+      ]
+    }
   ]
 }

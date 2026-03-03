@@ -24,6 +24,11 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(intRealm, /"claim.name": "community_id"/);
   assert.match(intRealm, /"name": "member"/);
   assert.match(intRealm, /"name": "operator"/);
+  // INT-194 — UAT IdP users for authenticated portal / wizard smoke.
+  assert.match(intRealm, /"username": "uat-member"/);
+  assert.match(intRealm, /"username": "uat-manager"/);
+  assert.match(intRealm, /"username": "uat-operator"/);
+  assert.match(intRealm, /Intelligent-UAT-2026!/);
 
   const demoRealm = await readFile(
     "deploy/charts/keycloak-realms/realms/demo-realm.json",

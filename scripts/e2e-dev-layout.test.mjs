@@ -13,7 +13,10 @@ test("e2e-dev workflow targets deployed app.dev after supply-chain", async () =>
   assert.match(text, /workflows:\s*\[supply-chain\]/);
   assert.match(text, /environment:\s*dev/);
   assert.match(text, /E2E_BASE_URL:\s*https:\/\/app\.dev\.intelligent-eu-bp\.blooo\.dev/);
-  assert.match(text, /rollout restart deploy\/web/);
+  // INT-194 — also roll participants so UAT IdP seed is present for auth e2e.
+  assert.match(text, /for d in web participants/);
+  assert.match(text, /rollout restart "deploy\/\$\{d\}"/);
+  assert.match(text, /E2E_UAT_MEMBER_USER:\s*uat-member/);
   assert.match(text, /test:e2e/);
   assert.equal(text.includes("webServer"), false);
   assert.equal(text.includes("localhost:4173"), false);

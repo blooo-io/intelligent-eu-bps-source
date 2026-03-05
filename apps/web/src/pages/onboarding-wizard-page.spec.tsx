@@ -116,4 +116,88 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
     });
   });
+
+  it("Continue to terms reloads readiness via afterGate (INT-194)", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          participantId: "p1",
+          communityId: "c1",
+          readiness: "Invited",
+          profile: { name: "", address: "", email: "" },
+        }),
+      })
+      // ProfilePage + terms/current noise may call more; then afterGate reload.
+      .mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          participantId: "p1",
+          communityId: "c1",
+          readiness: "ProfileCompleted",
+          profile: { name: "A", address: "B", email: "a@b.co" },
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    renderWizard();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /continue to terms/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /continue to terms/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/ProfileCompleted/)).toBeInTheDocument();
+    });
+  });
+
+  it("Continue to payment setup on terms step refreshes readiness", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          participantId: "p1",
+          communityId: "c1",
+          readiness: "ProfileCompleted",
+          profile: { name: "A", address: "B", email: "a@b.co" },
+        }),
+      }),
+    );
+    renderWizard("/onboarding?step=terms");
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /continue to payment setup/i }),
+      ).toBeInTheDocument();
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: /continue to payment setup/i }),
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/ProfileCompleted/)).toBeInTheDocument();
+    });
+  });
+
+  it("afterGate surfaces refresh errors", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          participantId: "p1",
+          communityId: "c1",
+          readiness: "Invited",
+          profile: { name: "", address: "", email: "" },
+        }),
+      })
+      .mockResolvedValue({ ok: false, status: 503 });
+    vi.stubGlobal("fetch", fetchMock);
+    renderWizard();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /continue to terms/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /continue to terms/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/failed|503|Refresh/i)).toBeInTheDocument();
+    });
+  });
 });

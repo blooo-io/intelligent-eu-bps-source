@@ -67,11 +67,14 @@ jobs:
           echo "current-context=${ctx}"
           test "${ctx}" = "admin@k8s-intelligent-eu-dev"
 
-      - name: Roll web to pull floating :develop image (INT-178)
+      - name: Roll web + participants to pull floating :develop images (INT-178)
+        # INT-194 — participants seed carries UAT IdP subjects for authenticated e2e.
         run: |
           set -euo pipefail
-          kubectl -n int-apps rollout restart deploy/web
-          kubectl -n int-apps rollout status deploy/web --timeout=180s
+          for d in web participants; do
+            kubectl -n int-apps rollout restart "deploy/${d}"
+            kubectl -n int-apps rollout status "deploy/${d}" --timeout=180s
+          done
 
       - name: Wait until the public web origin answers
         run: |

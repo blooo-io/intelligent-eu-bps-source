@@ -151,6 +151,8 @@ describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
     const body = JSON.parse(submitCall[1].body as string);
     expect(body.accountToken).toBe("ct_from_js");
     expect(body.country).toBe("FR");
+    // INT-195 — DOB defaults (1902-01-01) and identity doc go into the Account Token.
+    expect(body.representative.dob).toEqual({ day: 1, month: 1, year: 1902 });
   });
 
   it("shows an error when onboarding fails", async () => {

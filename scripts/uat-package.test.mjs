@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-/** Remaining Blocked cases listed in docs/testing/v1-uat-package.md (INT-80 / INT-193). */
+/** Remaining Blocked cases listed in docs/testing/v1-uat-package.md (INT-80 / INT-195). */
 const REMAINING = [
-  "UAT-015",
   "UAT-028",
   "UAT-040",
   "UAT-050",

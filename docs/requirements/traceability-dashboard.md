@@ -16,8 +16,8 @@
 
 | UAT status | Count |
 |---|---|
-| Pass | 57 |
-| Blocked | 5 |
+| Pass | 58 |
+| Blocked | 4 |
 | Fail | 0 |
 | Not Run | 0 |
 
@@ -25,13 +25,12 @@ Blocked (explicit external blockers; see UAT notes and [`../testing/v1-uat-packa
 
 | UAT | Requirement | Blocker class |
 |---|---|---|
-| UAT-015 | REQ-015 | Connect `charges_enabled` / destination payout (test) |
-| UAT-028 | REQ-028 | Seeded trade→payment (after Connect pay) |
+| UAT-028 | REQ-028 | Seeded trade→payment (app DB / billing run) |
 | UAT-040 | NFR-008 | Billing-run duration target TBD |
-| UAT-050 | REQ-039 | Stripe invoice PDF (Connect charges) |
-| UAT-053 | REQ-042 | Stripe numbering (Connect invoices) |
+| UAT-050 | REQ-039 | AC-06 billing-run + email (Connect PDF proven) |
+| UAT-053 | REQ-042 | Two-producer AC-06 + EWDS (Stripe sequence smoke) |
 
-REQ-034 / REQ-037 and UAT-044 / UAT-047 are **out of D5.5 scope** (INT-192 — single project IdP). UAT-051 Pass (INT-191). UAT-067 Pass (INT-193 wizard; step-count deferred). No Fail rows.
+REQ-034 / REQ-037 and UAT-044 / UAT-047 are **out of D5.5 scope** (INT-192 — single project IdP). UAT-015 Pass (INT-195). UAT-051 Pass (INT-191). UAT-067 Pass (INT-193 wizard; step-count deferred). No Fail rows.
 
 ## Counts
 

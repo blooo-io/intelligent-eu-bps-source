@@ -9,11 +9,19 @@ export type AccountTokenFields = {
   lastName: string;
   email: string;
   phone?: string;
+  /** INT-195 — required for FR individual KYC / charges_enabled. */
+  dob?: { day: number; month: number; year: number };
   line1: string;
   city: string;
   postalCode: string;
   country: string;
   tosAccepted: boolean;
+  /**
+   * INT-195 — Stripe File id for identity document front
+   * (`file_identity_document_success` in test mode, or uploads API id).
+   */
+  identityDocumentFront?: string;
+  identityDocumentAdditionalFront?: string;
 };
 
 export type StripeAccountTokenClient = {
@@ -27,22 +35,43 @@ export type LoadStripeFn = (
   publishableKey: string,
 ) => Promise<StripeAccountTokenClient | null>;
 
-/** Build Account Token params for an individual producer (INT-191). */
+/** Build Account Token params for an individual producer (INT-191 / INT-195). */
 export function accountTokenParams(fields: AccountTokenFields): Record<string, unknown> {
+  const individual: Record<string, unknown> = {
+    first_name: fields.firstName,
+    last_name: fields.lastName,
+    email: fields.email,
+    phone: fields.phone,
+    address: {
+      line1: fields.line1,
+      city: fields.city,
+      postal_code: fields.postalCode,
+      country: fields.country,
+    },
+  };
+  if (fields.dob) {
+    individual.dob = {
+      day: fields.dob.day,
+      month: fields.dob.month,
+      year: fields.dob.year,
+    };
+  }
+  // INT-195 — identity document recovers verification_failed_keyed_identity.
+  if (fields.identityDocumentFront || fields.identityDocumentAdditionalFront) {
+    const verification: Record<string, unknown> = {};
+    if (fields.identityDocumentFront) {
+      verification.document = { front: fields.identityDocumentFront };
+    }
+    if (fields.identityDocumentAdditionalFront) {
+      verification.additional_document = {
+        front: fields.identityDocumentAdditionalFront,
+      };
+    }
+    individual.verification = verification;
+  }
   return {
     business_type: fields.businessType,
-    individual: {
-      first_name: fields.firstName,
-      last_name: fields.lastName,
-      email: fields.email,
-      phone: fields.phone,
-      address: {
-        line1: fields.line1,
-        city: fields.city,
-        postal_code: fields.postalCode,
-        country: fields.country,
-      },
-    },
+    individual,
     tos_shown_and_accepted: fields.tosAccepted,
   };
 }

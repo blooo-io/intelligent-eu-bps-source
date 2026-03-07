@@ -73,6 +73,7 @@ export class MockPspAdapter implements PspPort {
       remaining.delete("representative.first_name");
       remaining.delete("representative.last_name");
       remaining.delete("representative.email");
+      remaining.delete("representative.dob");
     }
     if (submission.businessType) remaining.delete("business_type");
     if (submission.businessProfileUrl) remaining.delete("business_profile.url");
@@ -85,6 +86,9 @@ export class MockPspAdapter implements PspPort {
     }
     if (submission.representative?.email) {
       remaining.delete("representative.email");
+    }
+    if (submission.representative?.dob) {
+      remaining.delete("representative.dob");
     }
     if (submission.externalAccount?.accountNumber) {
       remaining.delete("external_account");

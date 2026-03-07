@@ -37,6 +37,12 @@ export type OnboardingRequirementsSubmission = {
       country?: string;
     };
   };
+  /**
+   * INT-195 — Stripe File id for individual.verification.document.front
+   * (test token `file_identity_document_success` or uploads API id).
+   */
+  identityDocumentFront?: string;
+  identityDocumentAdditionalFront?: string;
   externalAccount?: {
     country?: string;
     currency?: string;
@@ -77,6 +83,7 @@ export const PRODUCER_ONBOARDING_DUE = [
   "representative.first_name",
   "representative.last_name",
   "representative.email",
+  "representative.dob",
   "external_account",
   "tos_acceptance.date",
 ] as const;

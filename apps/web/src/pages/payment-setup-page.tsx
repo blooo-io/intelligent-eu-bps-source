@@ -105,6 +105,9 @@ export function PaymentSetupPage({
     lastName: string;
     email: string;
     phone?: string;
+    dobDay: number;
+    dobMonth: number;
+    dobYear: number;
     line1: string;
     city: string;
     postalCode: string;
@@ -112,6 +115,8 @@ export function PaymentSetupPage({
     accountNumber: string;
     currency: string;
     tosAccepted: boolean;
+    /** INT-195 — optional Stripe File id / test token for identity document. */
+    identityDocumentFront?: string;
   }) {
     setLoading(true);
     setError(null);
@@ -119,9 +124,16 @@ export function PaymentSetupPage({
       const token = await oidc.getAccessToken();
       if (!token) throw new Error("No access token");
 
+      const dob = {
+        day: Number(values.dobDay),
+        month: Number(values.dobMonth),
+        year: Number(values.dobYear),
+      };
+      const identityDoc = values.identityDocumentFront?.trim() || undefined;
+
       let accountToken: string | undefined;
       if (config.stripePublishableKey) {
-        // INT-191 — tokenize PII in the browser (FR Custom Connect).
+        // INT-191 / INT-195 — tokenize PII (+ optional identity doc) in the browser.
         accountToken = await createAccountToken(
           config.stripePublishableKey,
           {
@@ -130,11 +142,14 @@ export function PaymentSetupPage({
             lastName: values.lastName,
             email: values.email,
             phone: values.phone,
+            dob,
             line1: values.line1,
             city: values.city,
             postalCode: values.postalCode,
             country: values.country,
             tosAccepted: values.tosAccepted,
+            identityDocumentFront: identityDoc,
+            identityDocumentAdditionalFront: identityDoc,
           },
           loadStripe,
         );
@@ -154,6 +169,7 @@ export function PaymentSetupPage({
             lastName: values.lastName,
             email: values.email,
             phone: values.phone,
+            dob,
             address: {
               line1: values.line1,
               city: values.city,
@@ -256,6 +272,15 @@ export function PaymentSetupPage({
                 businessProfileMcc: "5734",
                 country: "FR",
                 currency: "eur",
+                // INT-195 — Stripe Connect test DOB for immediate verification match.
+                dobDay: 1,
+                dobMonth: 1,
+                dobYear: 1902,
+                // INT-195 — test address token (docs.stripe.com/connect/testing).
+                line1: "address_full_match",
+                city: "Paris",
+                postalCode: "75002",
+                identityDocumentFront: "file_identity_document_success",
                 tosAccepted: false,
               }}
             >
@@ -301,7 +326,34 @@ export function PaymentSetupPage({
               <Form.Item name="phone" label="Phone">
                 <Input />
               </Form.Item>
-              <Form.Item name="line1" label="Address" rules={[{ required: true }]}>
+              <Form.Item
+                name="dobDay"
+                label="Date of birth — day"
+                rules={[{ required: true }]}
+              >
+                <Input type="number" min={1} max={31} placeholder="1" />
+              </Form.Item>
+              <Form.Item
+                name="dobMonth"
+                label="Date of birth — month"
+                rules={[{ required: true }]}
+              >
+                <Input type="number" min={1} max={12} placeholder="1" />
+              </Form.Item>
+              <Form.Item
+                name="dobYear"
+                label="Date of birth — year"
+                rules={[{ required: true }]}
+                extra="Test mode: use 1902 for immediate DOB match (INT-195 / BR-12)."
+              >
+                <Input type="number" min={1900} max={2100} placeholder="1902" />
+              </Form.Item>
+              <Form.Item
+                name="line1"
+                label="Address"
+                rules={[{ required: true }]}
+                extra="Test mode: address_full_match (Stripe Connect testing tokens)."
+              >
                 <Input />
               </Form.Item>
               <Form.Item name="city" label="City" rules={[{ required: true }]}>
@@ -316,6 +368,13 @@ export function PaymentSetupPage({
               </Form.Item>
               <Form.Item name="country" label="Country" rules={[{ required: true }]}>
                 <Input maxLength={2} placeholder="FR" />
+              </Form.Item>
+              <Form.Item
+                name="identityDocumentFront"
+                label="Identity document file id (optional)"
+                extra="Test mode: file_identity_document_success recovers keyed-identity failures (INT-195)."
+              >
+                <Input placeholder="file_identity_document_success" />
               </Form.Item>
               <Form.Item name="currency" label="Bank currency" rules={[{ required: true }]}>
                 <Input maxLength={3} placeholder="eur" />

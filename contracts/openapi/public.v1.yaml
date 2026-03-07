@@ -1020,6 +1020,10 @@ components:
               type: object
               additionalProperties: false
               required: [day, month, year]
+              description: >
+                Date of birth (INT-195). Required for FR individuals to reach
+                charges_enabled. In Stripe test mode use 1902-01-01 for an
+                immediate DOB match (see docs/testing/stripe-connect-test-kyc.md).
               properties:
                 day:
                   type: integer
@@ -1038,6 +1042,9 @@ components:
               properties:
                 line1:
                   type: string
+                  description: >
+                    Street address. Stripe test mode: `address_full_match`
+                    (INT-195 / Connect testing tokens).
                 city:
                   type: string
                 postalCode:
@@ -1046,6 +1053,18 @@ components:
                   type: string
                   minLength: 2
                   maxLength: 2
+        identityDocumentFront:
+          type: string
+          description: >
+            Stripe File id for individual.verification.document.front (INT-195).
+            Prefer embedding in the Account Token from Stripe.js. Test mode may
+            use `file_identity_document_success` to recover
+            verification_failed_keyed_identity.
+        identityDocumentAdditionalFront:
+          type: string
+          description: >
+            Stripe File id for individual.verification.additional_document.front
+            (INT-195). Defaults to identityDocumentFront when omitted in adapters.
         externalAccount:
           type: object
           additionalProperties: false

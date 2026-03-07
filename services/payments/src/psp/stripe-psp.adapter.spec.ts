@@ -160,6 +160,40 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
     });
   });
 
+  it("includes DOB and identity document file tokens in account token (INT-195)", async () => {
+    tokensCreate.mockResolvedValue({ id: "ct_kyc_docs" });
+    const adapter = new StripePspAdapter(creds);
+    await adapter.createAccountToken({
+      businessType: "individual",
+      tosAccepted: true,
+      identityDocumentFront: "file_identity_document_success",
+      representative: {
+        firstName: "Ada",
+        lastName: "Verified",
+        email: "ada@example.com",
+        dob: { day: 1, month: 1, year: 1902 },
+        address: {
+          line1: "address_full_match",
+          city: "Paris",
+          postalCode: "75002",
+          country: "FR",
+        },
+      },
+    });
+    expect(tokensCreate).toHaveBeenCalledWith({
+      account: expect.objectContaining({
+        individual: expect.objectContaining({
+          dob: { day: 1, month: 1, year: 1902 },
+          address: expect.objectContaining({ line1: "address_full_match" }),
+          verification: {
+            document: { front: "file_identity_document_success" },
+            additional_document: { front: "file_identity_document_success" },
+          },
+        }),
+      }),
+    });
+  });
+
   it("creates ToS-only account token and rejects empty token id (INT-191)", async () => {
     tokensCreate.mockResolvedValueOnce({ id: "ct_tos" });
     const adapter = new StripePspAdapter(creds);

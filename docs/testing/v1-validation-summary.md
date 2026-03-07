@@ -2,7 +2,7 @@
 
 Traceability / validation snapshot for D5.5. Source of truth remains the UAT item notes and [`traceability-dashboard.md`](../requirements/traceability-dashboard.md).
 
-**As of 2026-10-18** (INT-193): **62** in-scope UATs — **57 Pass**, **5 Blocked**, **0 Not Run**, **0 Fail**.
+**As of 2026-10-18** (INT-195): **62** in-scope UATs — **58 Pass**, **4 Blocked**, **0 Not Run**, **0 Fail**.
 
 ## Evidence index
 
@@ -34,7 +34,7 @@ Traceability / validation snapshot for D5.5. Source of truth remains the UAT ite
 | UAT-012 | REQ-012 | Pass |
 | UAT-013 | REQ-013 | Pass |
 | UAT-014 | REQ-014 | Pass |
-| UAT-015 | REQ-015 | Blocked |
+| UAT-015 | REQ-015 | Pass |
 | UAT-016 | REQ-016 | Pass |
 | UAT-017 | REQ-017 | Pass |
 | UAT-018 | REQ-018 | Pass |
@@ -88,9 +88,9 @@ Traceability / validation snapshot for D5.5. Source of truth remains the UAT ite
 
 ## Open blockers
 
-1. **Stripe Connect test KYC / charges_enabled** — Custom Account Tokens work (INT-191, UAT-051 Pass); destination payouts and Stripe invoices still need a Connect account with `charges_enabled` (UAT-015, 050, 053) and a seeded trade→payment for UAT-028.
+1. **App-level invoice / trace seeds** — Connect `charges_enabled` + destination payout **Pass** (INT-195, UAT-015). Remaining: AC-06 billing-run + email (UAT-050), two-producer numbering + EWDS (UAT-053), seeded trade→payment operator trace (UAT-028).
 2. **Pilot lead criteria** — UAT-040 (billing-run duration target) still needs an agreed number or waive. UAT-067 Pass via INT-193 wizard (step-count optimise later).
 
-## INT-81 / INT-193 note
+## INT-81 / INT-195 note
 
-Validation summary refreshed after INT-193 (member journey wizard, UAT-067 Pass). No Fail rows. In-scope tally: **57 Pass / 5 Blocked / 0 Fail**.
+Validation summary refreshed after INT-195 (Connect test KYC / UAT-015 Pass). No Fail rows. In-scope tally: **58 Pass / 4 Blocked / 0 Fail**.

@@ -37,6 +37,38 @@ describe("stripe-account-token (INT-191)", () => {
     });
   });
 
+  it("includes DOB and identity document file tokens (INT-195)", () => {
+    expect(
+      accountTokenParams({
+        ...fields,
+        dob: { day: 1, month: 1, year: 1902 },
+        line1: "address_full_match",
+        identityDocumentFront: "file_identity_document_success",
+        identityDocumentAdditionalFront: "file_identity_document_success",
+      }),
+    ).toEqual({
+      business_type: "individual",
+      individual: {
+        first_name: "Ada",
+        last_name: "Lovelace",
+        email: "ada@example.com",
+        phone: undefined,
+        dob: { day: 1, month: 1, year: 1902 },
+        address: {
+          line1: "address_full_match",
+          city: "Paris",
+          postal_code: "75001",
+          country: "FR",
+        },
+        verification: {
+          document: { front: "file_identity_document_success" },
+          additional_document: { front: "file_identity_document_success" },
+        },
+      },
+      tos_shown_and_accepted: true,
+    });
+  });
+
   it("refuses non-test publishable keys (BR-12)", async () => {
     await expect(
       createAccountToken("pk_live_nope", fields, vi.fn()),

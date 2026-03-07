@@ -34,6 +34,9 @@ export type OnboardingRequirementsSubmission = {
       country?: string;
     };
   };
+  /** INT-195 — optional identity document File id (prefer Account Token). */
+  identityDocumentFront?: string;
+  identityDocumentAdditionalFront?: string;
   externalAccount?: {
     country?: string;
     currency?: string;

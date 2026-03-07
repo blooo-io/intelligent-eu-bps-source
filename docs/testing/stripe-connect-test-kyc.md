@@ -1,0 +1,33 @@
+# Stripe Connect test KYC (INT-195 / UAT-015)
+
+V1 uses **Stripe test mode only** (BR-12). Custom Connect accounts created with Account Tokens (INT-191) can stick at `verification_failed_keyed_identity` unless the KYC payload uses Stripe’s [Connect testing](https://docs.stripe.com/connect/testing) magic values.
+
+## Magic values (test mode)
+
+| Field | Value | Effect |
+|---|---|---|
+| `individual.dob` | `1902-01-01` | Immediate successful DOB match |
+| `individual.address.line1` | `address_full_match` | Successful address match (use a real city / postal_code) |
+| `individual.verification.document.front` | `file_identity_document_success` | Satisfies identity document requirement |
+| `individual.verification.additional_document.front` | `file_identity_document_success` | Satisfies additional document alternative |
+
+Without the document file tokens, keyed identity failures leave `charges_enabled=false` and destination charges / payouts are blocked (UAT-015).
+
+## Product path
+
+1. Producer opens `/onboarding?step=payment` (or Payment setup).
+2. Form defaults (test) include DOB `1902-01-01`, address `address_full_match`, and identity file token `file_identity_document_success`.
+3. Stripe.js builds an Account Token including `individual.dob` and `individual.verification` (INT-195).
+4. AC-07 creates/updates the Custom account; poll until `charges_enabled` / session `complete` or `pending_verification` clears.
+
+## Live evidence (2026-10-18)
+
+- Producer `acct_1URvtiF4LYz7qY6g`: `charges_enabled=true`, `payouts_enabled=true`.
+- Destination PaymentIntent `pi_3URywTFDSWgmDDqh0b0TDGB5` → transfer `tr_3URywTFDSWgmDDqh0dyEaZEy`.
+- Instant payout `po_1URyxLF4LYz7qY6gOhtNGoGy` → bank `ba_1URvtlF4LYz7qY6gb29488jq` (`status=paid`).
+- Connect invoices `QAIDHPRM-0001` / `QAIDHPRM-0002` with PDF URLs (unblocks UAT-050 / UAT-053 Connect dependency).
+
+## Operator notes
+
+- Do **not** seed Stripe secrets or live PII into Git (INT-157 / secrets rules).
+- Document file tokens are **test-mode only**; live mode requires a real upload via Stripe Files API with purpose `identity_document`.

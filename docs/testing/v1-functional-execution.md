@@ -44,7 +44,7 @@ Confirmed set: [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76).
 |---|---|---|---|
 | UAT-061 | NFR-013 | Pass | Code review — `oidc-client-ts` + config issuer; no Keycloak Admin API in web |
 | UAT-064 | REQ-052 | Pass | Manual `app.dev` screens for onboarding / invoices / balances / operator |
-| UAT-015 | REQ-015 | Blocked | Connect platform profile (losses) not accepted in Dashboard |
+| UAT-015 | REQ-015 | Pass | INT-195 — charges_enabled + destination transfer + payout (test) |
 | UAT-028 | REQ-028 | Blocked | No seeded payment/trade for operator drill-down |
 | UAT-040 | NFR-008 | Blocked | Billing-run duration target TBD |
 | UAT-044 | REQ-034 | Out of scope | INT-192 — single project IdP only |
@@ -54,7 +54,7 @@ Confirmed set: [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76).
 | UAT-053 | REQ-042 | Blocked | Depends on Connect invoice numbering |
 | UAT-067 | NFR-016 | Pass | INT-193 — `/onboarding` wizard (step-count deferred) |
 
-**Totals after this batch:** **57 Pass**, **0 Not Run**, **5 Blocked**, **0 Fail** (62 in-scope; UAT-044 / UAT-047 out).
+**Totals after INT-195:** **58 Pass**, **0 Not Run**, **4 Blocked**, **0 Fail** (62 in-scope; UAT-044 / UAT-047 out).
 
 ## Commands / probes
 

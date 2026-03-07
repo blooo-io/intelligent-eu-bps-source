@@ -45,7 +45,8 @@ export class StripePspAdapter implements PspPort {
     }
     const rep = submission.representative;
     if (submission.businessType === "individual" || rep) {
-      account.individual = {
+      // INT-195 — include DOB + optional identity document for test verification.
+      const individual: Stripe.TokenCreateParams.Account.Individual = {
         first_name: rep?.firstName,
         last_name: rep?.lastName,
         email: rep?.email,
@@ -62,6 +63,19 @@ export class StripePspAdapter implements PspPort {
             }
           : undefined,
       };
+      const docFront = submission.identityDocumentFront;
+      const addlFront =
+        submission.identityDocumentAdditionalFront ?? docFront;
+      if (docFront || addlFront) {
+        individual.verification = {};
+        if (docFront) {
+          individual.verification.document = { front: docFront };
+        }
+        if (addlFront) {
+          individual.verification.additional_document = { front: addlFront };
+        }
+      }
+      account.individual = individual;
     }
     const token = await this.stripe.tokens.create({ account });
     if (!token.id) {

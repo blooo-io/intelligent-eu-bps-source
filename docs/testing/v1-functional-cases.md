@@ -24,7 +24,7 @@ Count: **62** in-scope UAT notes.
 | UAT-012 | REQ-012 | Pass |
 | UAT-013 | REQ-013 | Pass |
 | UAT-014 | REQ-014 | Pass |
-| UAT-015 | REQ-015 | Blocked |
+| UAT-015 | REQ-015 | Pass |
 | UAT-016 | REQ-016 | Pass |
 | UAT-017 | REQ-017 | Pass |
 | UAT-018 | REQ-018 | Pass |

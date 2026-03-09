@@ -71,6 +71,46 @@ paths:
                     $ref: '../components/schemas.yaml#/components/schemas/Uuid'
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /billing-runs/{runId}:
+    get:
+      operationId: getBillingRun
+      tags: [Settlement]
+      summary: Read a billing run
+      description: >
+        INT-196 / UAT-028 — return run metadata and pair settlement ids so
+        AC-06 (or an operator seed script) can create invoices with trade lineage.
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The billing run.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [runId, communityId, period, type, version, settlementIds]
+                properties:
+                  runId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  communityId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  period:
+                    type: string
+                  type:
+                    $ref: '../components/schemas.yaml#/components/schemas/BillingRunType'
+                  version:
+                    type: integer
+                  settlementIds:
+                    type: array
+                    items:
+                      $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
 components:
   securitySchemes:
     serviceAuth:
@@ -79,11 +119,13 @@ components:
     PairSettlement:
       type: object
       additionalProperties: false
-      required: [settlementId, runId, consumerId, producerId, currency]
+      required: [settlementId, runId, communityId, consumerId, producerId, currency]
       properties:
         settlementId:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'
         runId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'
         consumerId:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'

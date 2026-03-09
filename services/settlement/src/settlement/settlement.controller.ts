@@ -23,9 +23,11 @@ export class SettlementController {
   @Get("settlements/:settlementId")
   getPairSettlement(@Param("settlementId") settlementId: string) {
     const row = this.settlement.getPairSettlement(settlementId);
+    const run = this.settlement.getBillingRun(row.runId);
     return {
       settlementId: row.settlementId,
       runId: row.runId,
+      communityId: run.communityId,
       consumerId: row.consumerId,
       producerId: row.producerId,
       tradeIds: row.tradeIds,
@@ -37,6 +39,11 @@ export class SettlementController {
       carriedForwardIn: row.carriedForwardIn,
       carriedForwardOut: row.carriedForwardOut,
     };
+  }
+
+  @Get("billing-runs/:runId")
+  getBillingRun(@Param("runId") runId: string) {
+    return this.settlement.getBillingRun(runId);
   }
 
   @Post("billing-runs")

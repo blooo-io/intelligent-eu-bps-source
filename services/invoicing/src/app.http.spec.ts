@@ -64,6 +64,8 @@ describe("invoicing HTTP (INT-106)", () => {
       invoiceId: created!.invoiceId,
       status: "Open",
       total: "1.00",
+      tradeIds: ["0x1"],
+      pairSettlementId: created!.settlementId,
     });
 
     const overdue = await fetch(`${base}/internal/v1/invoices:mark-overdue`, {
@@ -75,6 +77,78 @@ describe("invoicing HTTP (INT-106)", () => {
       body: JSON.stringify({ asOf: "2099-01-01" }),
     });
     expect(overdue.status).toBe(202);
+  });
+
+  it("POST invoices:from-settlement creates invoice with trade lineage (INT-196 / UAT-028)", async () => {
+    const body = {
+      settlementId: "s5555555-5555-4555-8555-555555555555",
+      runId: "r5555555-5555-4555-8555-555555555555",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x8f3a1c2b4d5e6f708192a3b4c5d6e7f8"],
+      kWh: "10.00",
+      energyAmount: "2.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.00",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    };
+    const denied = await fetch(`${base}/internal/v1/invoices:from-settlement`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    expect(denied.status).toBe(401);
+
+    const created = await fetch(`${base}/internal/v1/invoices:from-settlement`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "service",
+      },
+      body: JSON.stringify(body),
+    });
+    expect(created.status).toBe(201);
+    const json = (await created.json()) as {
+      invoiceId: string;
+      tradeIds: string[];
+      pairSettlementId: string;
+      legalNumber?: string;
+      hostedInvoiceUrl?: string;
+    };
+    expect(json.tradeIds).toEqual(body.tradeIds);
+    expect(json.pairSettlementId).toBe(body.settlementId);
+    expect(json.legalNumber).toBeTruthy();
+  });
+
+  it("POST invoices:from-settlement skips zero-amount carry-forward (INT-196 / BR-05)", async () => {
+    const zero = {
+      settlementId: "s6666666-6666-4666-8666-666666666666",
+      runId: "r6666666-6666-4666-8666-666666666666",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0xcarry"],
+      kWh: "0.10",
+      energyAmount: "0.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.00",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    };
+    const res = await fetch(`${base}/internal/v1/invoices:from-settlement`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "service",
+      },
+      body: JSON.stringify(zero),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      skipped: true,
+      settlementId: zero.settlementId,
+      reason: "zero_amount_carry_forward",
+    });
   });
 
   it("lists and reads invoices for the member (INT-193 / REQ-007)", async () => {

@@ -50,7 +50,7 @@ node scripts/keycloak-ensure-uat-users.mjs
 
 | UAT | Requirement | Blocker |
 |---|---|---|
-| UAT-028 | REQ-028 | Seeded trade→payment for operator trace (app DB / billing run) |
+| UAT-028 | REQ-028 | Deploy INT-196 bridge + seed payment ([`uat028-operator-trace.md`](uat028-operator-trace.md)) |
 | UAT-040 | NFR-008 | Agreed billing-run duration target (or waive) |
 | UAT-050 | REQ-039 | AC-06 billing-run + email to both parties (Connect PDF path proven INT-195) |
 | UAT-053 | REQ-042 | Two-producer × two-period via AC-06 + EWDS (Stripe sequence smoke INT-195) |

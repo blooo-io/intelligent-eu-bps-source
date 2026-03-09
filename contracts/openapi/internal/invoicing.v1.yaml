@@ -49,6 +49,13 @@ paths:
                     $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
                   total:
                     $ref: '../components/schemas.yaml#/components/schemas/Money'
+                  tradeIds:
+                    type: array
+                    items:
+                      type: string
+                    description: Originating trade ids (UAT-028 / REQ-028).
+                  pairSettlementId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
                   producerStripeAccountId:
                     type: string
                     description: Connect account id for destination charges (AC-07).
@@ -81,7 +88,117 @@ paths:
           description: Overdue check accepted.
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /invoices:from-settlement:
+    post:
+      operationId: createInvoiceFromSettlement
+      tags: [Invoicing]
+      summary: Create invoice from pair settlement
+      description: >
+        INT-196 / UAT-028 — TD-2 mapping from AC-05 pair settlement to a
+        self-billing Stripe invoice (test mode). Idempotent on settlementId.
+        Bridges SettlementCompleted until the outbox→NATS consumer is wired.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PairSettlementInput'
+      responses:
+        '201':
+          description: Invoice created (or existing idempotent row).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceCreated'
+        '200':
+          description: Zero-amount settlement skipped (BR-05 carry-forward).
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [skipped, settlementId]
+                properties:
+                  skipped:
+                    type: boolean
+                  settlementId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  reason:
+                    type: string
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
 components:
   securitySchemes:
     serviceAuth:
       $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'
+  schemas:
+    PairSettlementInput:
+      type: object
+      additionalProperties: false
+      required:
+        - settlementId
+        - runId
+        - consumerId
+        - producerId
+        - communityId
+        - tradeIds
+        - kWh
+        - energyAmount
+        - vat
+        - currency
+        - rate
+      properties:
+        settlementId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        runId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        consumerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        producerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        tradeIds:
+          type: array
+          items:
+            type: string
+        kWh:
+          type: string
+        energyAmount:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        vat:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        currency:
+          $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        rate:
+          type: string
+    InvoiceCreated:
+      type: object
+      additionalProperties: false
+      required: [invoiceId, producerId, consumerId, currency, status, total, tradeIds, pairSettlementId]
+      properties:
+        invoiceId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        producerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        consumerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        currency:
+          $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        status:
+          $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
+        total:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        tradeIds:
+          type: array
+          items:
+            type: string
+        pairSettlementId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        legalNumber:
+          type: string
+        producerStripeAccountId:
+          type: string
+        hostedInvoiceUrl:
+          type: string
+          format: uri

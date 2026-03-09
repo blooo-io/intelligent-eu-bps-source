@@ -55,6 +55,9 @@ export class InvoicingService {
     currency: string;
     status: InvoiceStatus;
     total: string;
+    /** INT-196 / UAT-028 — originating trades for operator trace. */
+    tradeIds: string[];
+    pairSettlementId: string;
     producerStripeAccountId?: string;
     hostedInvoiceUrl?: string;
   } {
@@ -69,6 +72,8 @@ export class InvoicingService {
       currency: row.currency,
       status: row.status,
       total: row.total,
+      tradeIds: row.tradeIds,
+      pairSettlementId: row.settlementId,
       ...(row.producerStripeAccountId
         ? { producerStripeAccountId: row.producerStripeAccountId }
         : {}),

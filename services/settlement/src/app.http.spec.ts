@@ -78,7 +78,22 @@ describe("settlement HTTP (INT-105)", () => {
     expect(await get.json()).toMatchObject({
       settlementId,
       runId,
+      communityId,
       currency: "EUR",
     });
+
+    // INT-196 — GET billing run returns settlementIds for invoice bridging.
+    const runRes = await fetch(`${base}/internal/v1/billing-runs/${runId}`, {
+      headers: { "x-intelligent-roles": "service" },
+    });
+    expect(runRes.status).toBe(200);
+    const runJson = (await runRes.json()) as {
+      runId: string;
+      communityId: string;
+      settlementIds: string[];
+    };
+    expect(runJson).toMatchObject({ runId, communityId });
+    expect(runJson.settlementIds).toContain(settlementId);
+    expect(runJson.settlementIds.length).toBeGreaterThanOrEqual(1);
   });
 });

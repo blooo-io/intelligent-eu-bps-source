@@ -84,6 +84,22 @@ export class SettlementService {
     return row;
   }
 
+  /** INT-196 / UAT-028 — expose run + settlementIds for invoice bridging. */
+  getBillingRun(runId: string) {
+    const row = this.store.getRun(runId);
+    if (!row) {
+      throw new NotFoundException(`Unknown billing run ${runId}`);
+    }
+    return {
+      runId: row.runId,
+      communityId: row.communityId,
+      period: row.period,
+      type: row.type,
+      version: row.version,
+      settlementIds: [...row.settlementIds],
+    };
+  }
+
   async startRun(input: {
     communityId: string;
     type: BillingRunType;

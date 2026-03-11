@@ -92,6 +92,7 @@ describe("invoicing HTTP (INT-106)", () => {
       currency: "EUR",
       rate: "1.00",
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+      producerStripeAccountId: "acct_override_uat028",
     };
     const denied = await fetch(`${base}/internal/v1/invoices:from-settlement`, {
       method: "POST",
@@ -115,10 +116,12 @@ describe("invoicing HTTP (INT-106)", () => {
       pairSettlementId: string;
       legalNumber?: string;
       hostedInvoiceUrl?: string;
+      producerStripeAccountId?: string;
     };
     expect(json.tradeIds).toEqual(body.tradeIds);
     expect(json.pairSettlementId).toBe(body.settlementId);
     expect(json.legalNumber).toBeTruthy();
+    expect(json.producerStripeAccountId).toBe("acct_override_uat028");
   });
 
   it("POST invoices:from-settlement skips zero-amount carry-forward (INT-196 / BR-05)", async () => {

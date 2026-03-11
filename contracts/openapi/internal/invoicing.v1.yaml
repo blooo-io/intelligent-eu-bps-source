@@ -172,6 +172,12 @@ components:
           $ref: '../components/schemas.yaml#/components/schemas/Currency'
         rate:
           type: string
+        producerStripeAccountId:
+          type: string
+          description: >
+            INT-197 / UAT-028 — optional Connect account override for Stripe
+            invoice creation. When omitted, AC-06 falls back to a registered
+            mapping or a synthetic acct_test_* id (mock / unit tests only).
     InvoiceCreated:
       type: object
       additionalProperties: false

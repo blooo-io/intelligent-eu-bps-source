@@ -19,6 +19,8 @@ export type PairSettlementInput = {
   currency: string;
   rate: string;
   communityId: string;
+  /** INT-197 / UAT-028 — real Connect account when seeding against Stripe test. */
+  producerStripeAccountId?: string;
 };
 
 /** Manual / webhook status change with mandatory reason (REQ-044 / UAT-055). */

@@ -157,6 +157,7 @@ export class InvoicingService {
     }
 
     const stripeAccountId =
+      settlement.producerStripeAccountId ??
       this.connectAccounts.get(settlement.producerId) ??
       `acct_test_${settlement.producerId.replace(/-/g, "").slice(0, 16)}`;
 

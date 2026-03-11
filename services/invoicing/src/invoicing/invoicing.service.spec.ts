@@ -91,6 +91,15 @@ describe("InvoicingService", () => {
     expect(result).toBeNull();
   });
 
+  it("uses producerStripeAccountId override when provided (INT-197 / UAT-028)", async () => {
+    const invoice = await service.createFromSettlement(
+      settlement({ producerStripeAccountId: "acct_override_live" }),
+    );
+    expect(invoice!.producerStripeAccountId).toBe("acct_override_live");
+    // Mock legal number is derived from the Connect account id (BR-10).
+    expect(invoice!.legalNumber).toMatch(/^ACCT_OVE-000001$/);
+  });
+
   it("marks open invoices overdue (REQ-044)", async () => {
     const invoice = (await service.createFromSettlement(settlement()))!;
     // Force due date in the past via store.

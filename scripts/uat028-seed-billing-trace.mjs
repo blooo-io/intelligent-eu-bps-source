@@ -9,7 +9,11 @@
  * Usage:
  *   SETTLEMENT_URL=http://127.0.0.1:18085 \
  *   INVOICING_URL=http://127.0.0.1:18086 \
+ *   PRODUCER_STRIPE_ACCOUNT_ID=acct_... \
  *   node scripts/uat028-seed-billing-trace.mjs
+ *
+ * PRODUCER_STRIPE_ACCOUNT_ID is required against live Stripe (INT-197): without
+ * it AC-06 synthesises acct_test_* and Stripe rejects the invoice create.
  *
  * Then open app.dev as uat-operator and trace invoice → tradeIds → pairSettlementId.
  * Payment creation (AC-07 payInvoice) still needs a consumer payment method +
@@ -27,12 +31,27 @@ const INVOICING_URL = (
 /** Mock S1 community (AC-15) — FixtureTradeSource default. */
 const COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
 
+/**
+ * INT-197 — real Connect account with charges_enabled (UAT-015).
+ * Applied to every pair settlement when set (S1 has two producers).
+ */
+const PRODUCER_STRIPE_ACCOUNT_ID = (
+  process.env.PRODUCER_STRIPE_ACCOUNT_ID ?? ""
+).trim();
+
 const headers = {
   "content-type": "application/json",
   "x-intelligent-roles": "service,operator",
 };
 
 async function main() {
+  if (!PRODUCER_STRIPE_ACCOUNT_ID) {
+    console.error(
+      "PRODUCER_STRIPE_ACCOUNT_ID is required (Connect account with charges_enabled).",
+    );
+    process.exit(1);
+  }
+
   const start = await fetch(`${SETTLEMENT_URL}/internal/v1/billing-runs`, {
     method: "POST",
     headers,
@@ -42,16 +61,17 @@ async function main() {
       period: "2026-11",
     }),
   });
-  assert.equal(start.status, 202, await start.text());
-  const { runId } = await start.json();
+  const startBody = await start.json();
+  assert.equal(start.status, 202, JSON.stringify(startBody));
+  const { runId } = startBody;
   console.log(JSON.stringify({ step: "startRun", runId }, null, 2));
 
   const runRes = await fetch(
     `${SETTLEMENT_URL}/internal/v1/billing-runs/${runId}`,
     { headers },
   );
-  assert.equal(runRes.status, 200, await runRes.text());
   const run = await runRes.json();
+  assert.equal(runRes.status, 200, JSON.stringify(run));
   console.log(
     JSON.stringify(
       { step: "getBillingRun", settlementIds: run.settlementIds },
@@ -66,8 +86,8 @@ async function main() {
       `${SETTLEMENT_URL}/internal/v1/settlements/${settlementId}`,
       { headers },
     );
-    assert.equal(sRes.status, 200, await sRes.text());
     const settlement = await sRes.json();
+    assert.equal(sRes.status, 200, JSON.stringify(settlement));
 
     const invRes = await fetch(
       `${INVOICING_URL}/internal/v1/invoices:from-settlement`,
@@ -86,6 +106,7 @@ async function main() {
           vat: settlement.vat,
           currency: settlement.currency,
           rate: settlement.rate,
+          producerStripeAccountId: PRODUCER_STRIPE_ACCOUNT_ID,
         }),
       },
     );

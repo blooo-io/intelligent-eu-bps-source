@@ -14,12 +14,16 @@ AC-05 writes `SettlementCompleted` / `BillingRunCompleted` to the outbox. AC-06 
 ```bash
 kubectl -n int-apps port-forward svc/settlement 18085:8080 &
 kubectl -n int-apps port-forward svc/invoicing 18086:8080 &
+# Fresh settlement pod: FixtureTradeSource marks trades billed in-memory after the first StartRun.
 SETTLEMENT_URL=http://127.0.0.1:18085 \
 INVOICING_URL=http://127.0.0.1:18086 \
+PRODUCER_STRIPE_ACCOUNT_ID=acct_… \
 node scripts/uat028-seed-billing-trace.mjs
 ```
 
 Uses mock S1 community `c0ffee00-1234-4abc-8def-0123456789ab` (FixtureTradeSource). Prefer `type=early` so amounts under the €5 threshold still invoice.
+
+`PRODUCER_STRIPE_ACCOUNT_ID` (INT-197) must be a Connect account with `charges_enabled` (UAT-015). Without it AC-06 synthesises `acct_test_*` and Stripe rejects invoice creation.
 
 ## Trace path (REQ-028)
 

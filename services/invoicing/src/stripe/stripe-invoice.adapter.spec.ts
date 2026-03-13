@@ -87,7 +87,11 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
       status: "open",
     });
     expect(customersCreate).toHaveBeenCalledWith(
-      expect.any(Object),
+      expect.objectContaining({
+        // INT-198 / UAT-028 — email required for collection_method=send_invoice
+        email: "consumer-c1@example.test",
+        metadata: expect.objectContaining({ consumerId: "c-1" }),
+      }),
       { stripeAccount: "acct_prod" },
     );
     expect(invoiceItemsCreate).toHaveBeenCalledTimes(2);

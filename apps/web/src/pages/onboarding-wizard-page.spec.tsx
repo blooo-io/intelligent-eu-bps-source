@@ -196,8 +196,9 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
       expect(screen.getByRole("button", { name: /continue to terms/i })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: /continue to terms/i }));
+    // INT-199 — wizard Alert and nested ProfilePage may both surface the 503.
     await waitFor(() => {
-      expect(screen.getByText(/failed|503|Refresh/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/failed|503|Refresh/i).length).toBeGreaterThan(0);
     });
   });
 });

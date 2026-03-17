@@ -38,7 +38,7 @@ Traceability / validation snapshot for D5.5. Source of truth remains the UAT ite
 | UAT-016 | REQ-016 | Pass |
 | UAT-017 | REQ-017 | Pass |
 | UAT-018 | REQ-018 | Pass |
-| UAT-028 | REQ-028 | Blocked |
+| UAT-028 | REQ-028 | Pass |
 | UAT-029 | REQ-029 | Pass |
 | UAT-030 | REQ-030 | Pass |
 | UAT-031 | REQ-031 | Pass |
@@ -88,9 +88,9 @@ Traceability / validation snapshot for D5.5. Source of truth remains the UAT ite
 
 ## Open blockers
 
-1. **App-level invoice / trace seeds** — Connect `charges_enabled` + destination payout **Pass** (INT-195, UAT-015). Remaining: AC-06 billing-run + email (UAT-050), two-producer numbering + EWDS (UAT-053), seeded trade→payment operator trace (UAT-028).
+1. **App-level invoice / EWDS seeds** — Connect + UAT-028 trade→payment trace **Pass** (INT-195 / INT-200). Remaining: AC-06 billing-run + email (UAT-050), two-producer numbering + EWDS (UAT-053).
 2. **Pilot lead criteria** — UAT-040 (billing-run duration target) still needs an agreed number or waive. UAT-067 Pass via INT-193 wizard (step-count optimise later).
 
-## INT-81 / INT-195 note
+## INT-81 / INT-200 note
 
-Validation summary refreshed after INT-195 (Connect test KYC / UAT-015 Pass). No Fail rows. In-scope tally: **58 Pass / 4 Blocked / 0 Fail**.
+Validation summary refreshed after INT-200 (UAT-028 Pass). No Fail rows. In-scope tally: **59 Pass / 3 Blocked / 0 Fail**.

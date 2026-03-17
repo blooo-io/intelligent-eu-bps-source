@@ -25,7 +25,7 @@ Assemble acceptance for partners from the existing UAT notes. **Case text stays 
 
 ## Already accepted (do not re-run unless regressing)
 
-See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-195 (2026-10-18): **58 Pass**, **4 Blocked** in-scope, **0 Fail**. UAT-015 Pass (Connect charges/payout). UAT-067 Pass (wizard journey; step-count deferred). UAT-051 Pass; UAT-044 / UAT-047 out.
+See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-200 (2026-10-18): **59 Pass**, **3 Blocked** in-scope, **0 Fail**. UAT-028 Pass (payment→trade→billing-run trace on `dev`). UAT-015 Pass (Connect charges/payout). UAT-067 Pass (wizard journey; step-count deferred). UAT-051 Pass; UAT-044 / UAT-047 out.
 
 ## Keycloak UAT IdP users (INT-194)
 
@@ -50,10 +50,11 @@ node scripts/keycloak-ensure-uat-users.mjs
 
 | UAT | Requirement | Blocker |
 |---|---|---|
-| UAT-028 | REQ-028 | Deploy INT-196 bridge + seed payment ([`uat028-operator-trace.md`](uat028-operator-trace.md)) |
 | UAT-040 | NFR-008 | Agreed billing-run duration target (or waive) |
 | UAT-050 | REQ-039 | AC-06 billing-run + email to both parties (Connect PDF path proven INT-195) |
 | UAT-053 | REQ-042 | Two-producer × two-period via AC-06 + EWDS (Stripe sequence smoke INT-195) |
+
+UAT-028 **Pass** (INT-200): see [`uat028-operator-trace.md`](uat028-operator-trace.md).
 
 UAT-015 **Pass** (INT-195): Connect `charges_enabled` + destination transfer + payout. See [`stripe-connect-test-kyc.md`](stripe-connect-test-kyc.md).
 

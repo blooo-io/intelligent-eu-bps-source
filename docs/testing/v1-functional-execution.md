@@ -45,7 +45,7 @@ Confirmed set: [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76).
 | UAT-061 | NFR-013 | Pass | Code review — `oidc-client-ts` + config issuer; no Keycloak Admin API in web |
 | UAT-064 | REQ-052 | Pass | Manual `app.dev` screens for onboarding / invoices / balances / operator |
 | UAT-015 | REQ-015 | Pass | INT-195 — charges_enabled + destination transfer + payout (test) |
-| UAT-028 | REQ-028 | Blocked | No seeded payment/trade for operator drill-down |
+| UAT-028 | REQ-028 | Pass | INT-200 — payment→invoice tradeIds→pairSettlementId→billing run on `dev` |
 | UAT-040 | NFR-008 | Blocked | Billing-run duration target TBD |
 | UAT-044 | REQ-034 | Out of scope | INT-192 — single project IdP only |
 | UAT-047 | REQ-037 | Out of scope | INT-192 — no alternate IdP for V1 |

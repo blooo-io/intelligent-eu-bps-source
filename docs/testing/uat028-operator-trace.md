@@ -1,6 +1,6 @@
-# UAT-028 operator trace seed (INT-196)
+# UAT-028 operator trace seed (INT-196…200)
 
-**Status:** packaging in progress. Connect `charges_enabled` is no longer the blocker (UAT-015 Pass / INT-195). Remaining gap: run the settlement → invoice bridge on `dev`, then create a payment and open it as `uat-operator`.
+**Status:** Pass on `dev` (2026-10-18 / INT-200). Invoice lineage + succeeded payment seeded; operator can open the invoice and see originating trade id(s), then follow `pairSettlementId` → billing `runId`.
 
 ## Why a bridge?
 
@@ -8,6 +8,8 @@ AC-05 writes `SettlementCompleted` / `BillingRunCompleted` to the outbox. AC-06 
 
 - `GET /internal/v1/billing-runs/{runId}` (settlement) — settlementIds for a run
 - `POST /internal/v1/invoices:from-settlement` (invoicing) — TD-2 invoice with `tradeIds` + `pairSettlementId`
+- INT-197: optional `producerStripeAccountId` on the bridge body
+- INT-198: Connect customer email for `send_invoice`
 
 ## Operator script
 
@@ -30,7 +32,18 @@ Uses mock S1 community `c0ffee00-1234-4abc-8def-0123456789ab` (FixtureTradeSourc
 1. Note `invoiceId`, `tradeIds`, `pairSettlementId` from the script output.
 2. `GET /internal/v1/settlements/{pairSettlementId}` → `runId` (balance calculation run).
 3. Public invoices UI shows `tradeIds` on the invoice detail (AC-01).
-4. Pay via `POST /v1/invoices/{invoiceId}/payments` once consumer PM + producer Connect are ready (INT-195).
+4. Pay via `POST /v1/invoices/{invoiceId}/payments` with a consumer PaymentMethod attached (Stripe test `tok_visa` → `pm_…`).
+
+## Dev evidence (INT-200)
+
+| Step | Id |
+|---|---|
+| Billing run | `5eb2839b-b2b8-4537-9b88-f71ff35f8e58` |
+| Pair settlement | `c1ac7be6-ba82-46cd-bdb1-6e2fd0ea7c87` |
+| Trade | `0x8f3a1c2b4d5e6f708192a3b4c5d6e7f8` |
+| Invoice | `eaa02b1c-4f64-4634-a19a-50bdb3fdcd16` |
+| Payment | `06eb11a5-d5ad-4a35-b11f-15b94ba676ae` (succeeded, EUR 2.00) |
+| Connect account | `acct_1URyv9FGX8DfzG09` |
 
 ## Follow-ups
 

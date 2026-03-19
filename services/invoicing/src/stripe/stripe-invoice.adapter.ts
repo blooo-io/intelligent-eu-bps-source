@@ -91,16 +91,26 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
       ? Math.max(1, Math.ceil((due - Date.now()) / 86_400_000))
       : 14;
 
+    const tradeSummary = settlement.tradeIds.slice(0, 8).join(", ");
+    // TD-2 / REQ-039 — self-billing footer + trade summary on the Stripe PDF.
     const draft = await this.stripe.invoices.create(
       {
         customer: customer.id,
         collection_method: "send_invoice",
         days_until_due: daysUntilDue,
+        description: `Self-billing energy settlement (${settlement.kWh} kWh). Trades: ${tradeSummary}`,
+        footer:
+          "Self-billing invoice issued by the platform in the name of the producer (WA-07 / TD-2).",
+        custom_fields: [
+          { name: "FX rate", value: settlement.rate },
+          { name: "Settlement", value: settlement.settlementId.slice(0, 18) },
+        ],
         metadata: {
           settlementId: settlement.settlementId,
           runId: settlement.runId,
           producerId: settlement.producerId,
           consumerId: settlement.consumerId,
+          tradeIds: tradeSummary,
         },
       },
       { stripeAccount },
@@ -111,6 +121,14 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
       {},
       { stripeAccount },
     );
+
+    // TD-2 — Stripe emails the consumer for send_invoice (live); sandbox may suppress.
+    // Best-effort resend so dashboard email logs capture an attempt when allowed.
+    try {
+      await this.stripe.invoices.sendInvoice(finalized.id, {}, { stripeAccount });
+    } catch {
+      // Non-fatal in test mode when automatic emails are disabled.
+    }
 
     // BR-10 — Stripe-assigned number is master once finalized.
     return {

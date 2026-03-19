@@ -4,13 +4,14 @@ const customersCreate = vi.fn();
 const invoiceItemsCreate = vi.fn();
 const invoicesCreate = vi.fn();
 const finalizeInvoice = vi.fn();
+const sendInvoice = vi.fn();
 
 vi.mock("stripe", () => {
   function Stripe() {
     return {
       customers: { create: customersCreate },
       invoiceItems: { create: invoiceItemsCreate },
-      invoices: { create: invoicesCreate, finalizeInvoice },
+      invoices: { create: invoicesCreate, finalizeInvoice, sendInvoice },
     };
   }
   return { default: Stripe, Stripe };
@@ -103,10 +104,47 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
       amount: 200,
       description: "VAT",
     });
+    // INT-201 / UAT-050 / TD-2 — self-billing PDF fields
+    expect(invoicesCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        footer: expect.stringMatching(/Self-billing/i),
+        description: expect.stringContaining("t-1"),
+        custom_fields: expect.arrayContaining([
+          expect.objectContaining({ name: "FX rate", value: "1.00" }),
+        ]),
+      }),
+      { stripeAccount: "acct_prod" },
+    );
     expect(finalizeInvoice).toHaveBeenCalledWith(
       "in_draft",
       {},
       { stripeAccount: "acct_prod" },
     );
+    expect(sendInvoice).toHaveBeenCalledWith(
+      "in_final",
+      {},
+      { stripeAccount: "acct_prod" },
+    );
+  });
+
+  it("still returns the invoice when sendInvoice fails in sandbox (INT-201)", async () => {
+    customersCreate.mockResolvedValue({ id: "cus_3" });
+    invoiceItemsCreate.mockResolvedValue({});
+    invoicesCreate.mockResolvedValue({ id: "in_draft3" });
+    finalizeInvoice.mockResolvedValue({
+      id: "in_final3",
+      number: "ACCT-000003",
+      hosted_invoice_url: "https://invoice.stripe.com/i/in_final3",
+      status: "open",
+    });
+    sendInvoice.mockRejectedValueOnce(new Error("email suppressed in sandbox"));
+
+    const adapter = new StripeInvoiceAdapter({ secretKey: "sk_test_abc" });
+    const result = await adapter.createFromSettlement(settlement, {
+      stripeAccountId: "acct_prod",
+      dueDate: "2099-01-15",
+    });
+    expect(result.stripeInvoiceId).toBe("in_final3");
+    expect(result.status).toBe("open");
   });
 });

@@ -95,26 +95,29 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
       }),
       { stripeAccount: "acct_prod" },
     );
-    expect(invoiceItemsCreate).toHaveBeenCalledTimes(2);
-    expect(invoiceItemsCreate.mock.calls[0][0]).toMatchObject({
-      amount: 1000,
-      description: expect.stringContaining("Energy"),
-    });
-    expect(invoiceItemsCreate.mock.calls[1][0]).toMatchObject({
-      amount: 200,
-      description: "VAT",
-    });
-    // INT-201 / UAT-050 / TD-2 — self-billing PDF fields
+    // INT-202 / UAT-050 — draft first, then line items bound to that invoice
     expect(invoicesCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         footer: expect.stringMatching(/Self-billing/i),
         description: expect.stringContaining("t-1"),
+        pending_invoice_items_behavior: "exclude",
         custom_fields: expect.arrayContaining([
           expect.objectContaining({ name: "FX rate", value: "1.00" }),
         ]),
       }),
       { stripeAccount: "acct_prod" },
     );
+    expect(invoiceItemsCreate).toHaveBeenCalledTimes(2);
+    expect(invoiceItemsCreate.mock.calls[0][0]).toMatchObject({
+      invoice: "in_draft",
+      amount: 1000,
+      description: expect.stringContaining("Energy"),
+    });
+    expect(invoiceItemsCreate.mock.calls[1][0]).toMatchObject({
+      invoice: "in_draft",
+      amount: 200,
+      description: "VAT",
+    });
     expect(finalizeInvoice).toHaveBeenCalledWith(
       "in_draft",
       {},

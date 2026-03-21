@@ -60,32 +60,6 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
       { stripeAccount },
     );
 
-    // A20 — energy + VAT only; no grid-fee lines on P2P invoices.
-    const energy = toMinorUnits(settlement.energyAmount);
-    const vat = toMinorUnits(settlement.vat);
-    if (energy > 0) {
-      await this.stripe.invoiceItems.create(
-        {
-          customer: customer.id,
-          amount: energy,
-          currency,
-          description: `Energy ${settlement.kWh} kWh @ ${settlement.rate}`,
-        },
-        { stripeAccount },
-      );
-    }
-    if (vat > 0) {
-      await this.stripe.invoiceItems.create(
-        {
-          customer: customer.id,
-          amount: vat,
-          currency,
-          description: "VAT",
-        },
-        { stripeAccount },
-      );
-    }
-
     const due = Date.parse(`${opts.dueDate}T00:00:00.000Z`);
     const daysUntilDue = Number.isFinite(due)
       ? Math.max(1, Math.ceil((due - Date.now()) / 86_400_000))
@@ -93,11 +67,16 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
 
     const tradeSummary = settlement.tradeIds.slice(0, 8).join(", ");
     // TD-2 / REQ-039 — self-billing footer + trade summary on the Stripe PDF.
+    // INT-202 — create the draft first, then attach line items by invoice id.
+    // Modern Stripe API defaults pending_invoice_items_behavior to "exclude",
+    // so pending items created before the invoice never appear on the PDF.
     const draft = await this.stripe.invoices.create(
       {
         customer: customer.id,
         collection_method: "send_invoice",
         days_until_due: daysUntilDue,
+        auto_advance: false,
+        pending_invoice_items_behavior: "exclude",
         description: `Self-billing energy settlement (${settlement.kWh} kWh). Trades: ${tradeSummary}`,
         footer:
           "Self-billing invoice issued by the platform in the name of the producer (WA-07 / TD-2).",
@@ -115,6 +94,34 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
       },
       { stripeAccount },
     );
+
+    // A20 — energy + VAT only; no grid-fee lines on P2P invoices.
+    const energy = toMinorUnits(settlement.energyAmount);
+    const vat = toMinorUnits(settlement.vat);
+    if (energy > 0) {
+      await this.stripe.invoiceItems.create(
+        {
+          customer: customer.id,
+          invoice: draft.id,
+          amount: energy,
+          currency,
+          description: `Energy ${settlement.kWh} kWh @ ${settlement.rate}`,
+        },
+        { stripeAccount },
+      );
+    }
+    if (vat > 0) {
+      await this.stripe.invoiceItems.create(
+        {
+          customer: customer.id,
+          invoice: draft.id,
+          amount: vat,
+          currency,
+          description: "VAT",
+        },
+        { stripeAccount },
+      );
+    }
 
     const finalized = await this.stripe.invoices.finalizeInvoice(
       draft.id,

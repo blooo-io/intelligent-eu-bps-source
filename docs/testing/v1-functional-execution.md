@@ -49,12 +49,12 @@ Confirmed set: [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76).
 | UAT-040 | NFR-008 | Blocked | Billing-run duration target TBD |
 | UAT-044 | REQ-034 | Out of scope | INT-192 — single project IdP only |
 | UAT-047 | REQ-037 | Out of scope | INT-192 — no alternate IdP for V1 |
-| UAT-050 | REQ-039 | Blocked | Depends on Connect accounts (platform profile) |
+| UAT-050 | REQ-039 | Pass | INT-202 Connect PDF totals match AC-06; self-billing footer |
 | UAT-051 | REQ-040 | Pass | INT-191 — Custom Account Tokens in-platform (producer KYC) |
 | UAT-053 | REQ-042 | Blocked | Depends on Connect invoice numbering |
 | UAT-067 | NFR-016 | Pass | INT-193 — `/onboarding` wizard (step-count deferred) |
 
-**Totals after INT-195:** **58 Pass**, **0 Not Run**, **4 Blocked**, **0 Fail** (62 in-scope; UAT-044 / UAT-047 out).
+**Totals after INT-202:** **60 Pass**, **0 Not Run**, **2 Blocked**, **0 Fail** (62 in-scope; UAT-044 / UAT-047 out).
 
 ## Commands / probes
 

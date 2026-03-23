@@ -2,7 +2,7 @@
 
 Traceability / validation snapshot for D5.5. Source of truth remains the UAT item notes and [`traceability-dashboard.md`](../requirements/traceability-dashboard.md).
 
-**As of 2026-10-18** (INT-195): **62** in-scope UATs — **58 Pass**, **4 Blocked**, **0 Not Run**, **0 Fail**.
+**As of 2026-10-18** (INT-202): **62** in-scope UATs — **60 Pass**, **2 Blocked**, **0 Not Run**, **0 Fail**.
 
 ## Evidence index
 
@@ -59,7 +59,7 @@ Traceability / validation snapshot for D5.5. Source of truth remains the UAT ite
 | UAT-046 | REQ-036 | Pass |
 | UAT-047 | REQ-037 | Out of scope (INT-192) |
 | UAT-049 | NFR-011 | Pass |
-| UAT-050 | REQ-039 | Blocked |
+| UAT-050 | REQ-039 | Pass |
 | UAT-051 | REQ-040 | Pass |
 | UAT-052 | REQ-041 | Pass |
 | UAT-053 | REQ-042 | Blocked |
@@ -88,9 +88,9 @@ Traceability / validation snapshot for D5.5. Source of truth remains the UAT ite
 
 ## Open blockers
 
-1. **App-level invoice / EWDS seeds** — Connect + UAT-028 trade→payment trace **Pass** (INT-195 / INT-200). Remaining: AC-06 billing-run + email (UAT-050), two-producer numbering + EWDS (UAT-053).
+1. **Two-producer numbering + EWDS** — UAT-053 still needs two producers × two periods via AC-06 + EWDS publication (Stripe sequence smoke INT-195).
 2. **Pilot lead criteria** — UAT-040 (billing-run duration target) still needs an agreed number or waive. UAT-067 Pass via INT-193 wizard (step-count optimise later).
 
-## INT-81 / INT-200 note
+## INT-81 / INT-202 note
 
-Validation summary refreshed after INT-200 (UAT-028 Pass). No Fail rows. In-scope tally: **59 Pass / 3 Blocked / 0 Fail**.
+Validation summary refreshed after INT-202 (UAT-050 Pass). No Fail rows. In-scope tally: **60 Pass / 2 Blocked / 0 Fail**.

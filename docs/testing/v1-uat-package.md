@@ -25,7 +25,7 @@ Assemble acceptance for partners from the existing UAT notes. **Case text stays 
 
 ## Already accepted (do not re-run unless regressing)
 
-See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-202 (2026-10-18): **60 Pass**, **2 Blocked** in-scope, **0 Fail**. UAT-050 Pass (Connect self-billing PDF totals). UAT-028 Pass (payment→trade→billing-run trace on `dev`). UAT-015 Pass (Connect charges/payout). UAT-067 Pass (wizard journey; step-count deferred). UAT-051 Pass; UAT-044 / UAT-047 out.
+See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-204 (2026-10-18): **62 Pass**, **0 Blocked** in-scope, **0 Fail**. UAT-040 Pass (duration deferred). UAT-053 Pass. UAT-050 Pass. UAT-028 / UAT-015 / UAT-067 / UAT-051 Pass; UAT-044 / UAT-047 out.
 
 ## Keycloak UAT IdP users (INT-194)
 
@@ -48,10 +48,11 @@ node scripts/keycloak-ensure-uat-users.mjs
 
 ## Remaining Blocked cases (in-scope)
 
-| UAT | Requirement | Blocker |
-|---|---|---|
-| UAT-040 | NFR-008 | Agreed billing-run duration target (or waive) |
-| UAT-053 | REQ-042 | Two-producer × two-period via AC-06 + EWDS (Stripe sequence smoke INT-195) |
+None. All 62 in-scope UATs are Pass (UAT-044 / UAT-047 out of scope).
+
+UAT-040 **Pass** (INT-204): S1 billing run ~527 ms on `dev`; agreed pilot SLA deferred (NFR-008).
+
+UAT-053 **Pass** (INT-203): `BDEMQ4VL-0010/0011` and `QAIDHPRM-0003/0004` on distinct Connect accounts; EWDS uses `invoiceId` only.
 
 UAT-050 **Pass** (INT-202): Connect invoices `BDEMQ4VL-0008` / `0009` totals 200 / 264 match AC-06; self-billing footer + trade summary on PDF.
 

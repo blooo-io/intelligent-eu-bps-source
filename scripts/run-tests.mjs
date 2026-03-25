@@ -89,6 +89,7 @@ await run(process.execPath, ["--test", path.join(root, "scripts/e2e-dev-layout.t
 await run(process.execPath, ["--test", path.join(root, "scripts/pin-dev-image-tag.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/openbao-seed-ghcr-pull.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/openbao-seed-stripe-test.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/uat053-seed-numbering.test.mjs")]);
 
 
 await run(process.execPath, ["--test", path.join(root, "scripts/local-stack.test.mjs")]);

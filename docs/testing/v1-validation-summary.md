@@ -2,7 +2,7 @@
 
 Traceability / validation snapshot for D5.5. Source of truth remains the UAT item notes and [`traceability-dashboard.md`](../requirements/traceability-dashboard.md).
 
-**As of 2026-10-18** (INT-202): **62** in-scope UATs — **60 Pass**, **2 Blocked**, **0 Not Run**, **0 Fail**.
+**As of 2026-10-18** (INT-204): **62** in-scope UATs — **62 Pass**, **0 Blocked**, **0 Not Run**, **0 Fail**.
 
 ## Evidence index
 
@@ -50,7 +50,7 @@ Traceability / validation snapshot for D5.5. Source of truth remains the UAT ite
 | UAT-037 | NFR-005 | Pass |
 | UAT-038 | NFR-006 | Pass |
 | UAT-039 | NFR-007 | Pass |
-| UAT-040 | NFR-008 | Blocked |
+| UAT-040 | NFR-008 | Pass |
 | UAT-041 | NFR-009 | Pass |
 | UAT-042 | NFR-010 | Pass |
 | UAT-043 | REQ-033 | Pass |
@@ -62,7 +62,7 @@ Traceability / validation snapshot for D5.5. Source of truth remains the UAT ite
 | UAT-050 | REQ-039 | Pass |
 | UAT-051 | REQ-040 | Pass |
 | UAT-052 | REQ-041 | Pass |
-| UAT-053 | REQ-042 | Blocked |
+| UAT-053 | REQ-042 | Pass |
 | UAT-054 | REQ-043 | Pass |
 | UAT-055 | REQ-044 | Pass |
 | UAT-056 | REQ-045 | Pass |
@@ -88,9 +88,8 @@ Traceability / validation snapshot for D5.5. Source of truth remains the UAT ite
 
 ## Open blockers
 
-1. **Two-producer numbering + EWDS** — UAT-053 still needs two producers × two periods via AC-06 + EWDS publication (Stripe sequence smoke INT-195).
-2. **Pilot lead criteria** — UAT-040 (billing-run duration target) still needs an agreed number or waive. UAT-067 Pass via INT-193 wizard (step-count optimise later).
+None for in-scope V1 UATs. Pilot SLA number (NFR-008) and onboarding step-count (NFR-016) remain deferred optimisations with partners.
 
-## INT-81 / INT-202 note
+## INT-81 / INT-204 note
 
-Validation summary refreshed after INT-202 (UAT-050 Pass). No Fail rows. In-scope tally: **60 Pass / 2 Blocked / 0 Fail**.
+Validation summary refreshed after INT-204 (UAT-040 Pass). No Fail rows. In-scope tally: **62 Pass / 0 Blocked / 0 Fail**.

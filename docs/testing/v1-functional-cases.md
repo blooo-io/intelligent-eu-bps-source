@@ -40,7 +40,7 @@ Count: **62** in-scope UAT notes.
 | UAT-037 | NFR-005 | Pass |
 | UAT-038 | NFR-006 | Pass |
 | UAT-039 | NFR-007 | Pass |
-| UAT-040 | NFR-008 | Blocked |
+| UAT-040 | NFR-008 | Pass |
 | UAT-041 | NFR-009 | Pass |
 | UAT-042 | NFR-010 | Pass |
 | UAT-043 | REQ-033 | Pass |
@@ -50,7 +50,7 @@ Count: **62** in-scope UAT notes.
 | UAT-050 | REQ-039 | Pass |
 | UAT-051 | REQ-040 | Pass |
 | UAT-052 | REQ-041 | Pass |
-| UAT-053 | REQ-042 | Blocked |
+| UAT-053 | REQ-042 | Pass |
 | UAT-054 | REQ-043 | Pass |
 | UAT-055 | REQ-044 | Pass |
 | UAT-056 | REQ-045 | Pass |

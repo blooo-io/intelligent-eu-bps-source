@@ -11,6 +11,12 @@ export {
   type OutboxRow,
   type OutboxStore,
 } from "./outbox/outbox.types.js";
+export {
+  PostgresOutboxStore,
+  resolveOutboxStore,
+  type SqlExecutor,
+  type SqlQueryResult,
+} from "./outbox/postgres-outbox.store.js";
 
 export {
   IdempotentConsumer,

@@ -12,7 +12,7 @@ Internal check that the tagged source, `docs/` and UAT statuses describe the sam
 |---|---|---|
 | 1 | Git tag `v1.0.0` matches root `package.json` version `1.0.0` | Pass once tag is pushed after INT-92 merge |
 | 2 | [`SOURCE-RELEASE.md`](SOURCE-RELEASE.md) lists the same doc/code roots as the repo map | Pass |
-| 3 | [`RELEASE-NOTES.md`](RELEASE-NOTES.md) limitations = 55 Pass / 9 Blocked (INT-80) | Pass |
+| 3 | [`RELEASE-NOTES.md`](RELEASE-NOTES.md) limitations = 62 Pass / 0 Blocked (INT-204) | Pass |
 | 4 | [`../testing/v1-validation-summary.md`](../testing/v1-validation-summary.md) counts match UAT notes | Pass |
 | 5 | INT-81 snapshot on [`../requirements/traceability-dashboard.md`](../requirements/traceability-dashboard.md) matches those counts | Pass (after INT-81 merge) |
 | 6 | INT-93 deployment + INT-94 integration API + INT-95 notes linked from [`README.md`](README.md) | Pass |
@@ -23,6 +23,6 @@ Internal check that the tagged source, `docs/` and UAT statuses describe the sam
 
 ## Internal approval
 
-Blooo engineering: **approved for source freeze** (`v1.0.0`) with the nine Blocked UATs carried as known limitations.
+Blooo engineering: **approved for source freeze** (`v1.0.0`) with in-scope UAT acceptance at **62 Pass / 0 Blocked** (INT-204).
 
 Partner-facing D5.5 report freeze remains contingent on INT-90 / INT-91 (Maylis).

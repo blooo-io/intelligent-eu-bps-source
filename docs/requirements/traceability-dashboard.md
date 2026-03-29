@@ -12,25 +12,16 @@
 
 ## INT-81 snapshot (GitHub-readable)
 
-**As of 2026-10-18** (INT-191 / INT-192): **62** in-scope UATs (`scope_d55: in`).
+**As of 2026-10-18** (INT-204): **62** in-scope UATs (`scope_d55: in`).
 
 | UAT status | Count |
 |---|---|
-| Pass | 58 |
-| Blocked | 4 |
+| Pass | 62 |
+| Blocked | 0 |
 | Fail | 0 |
 | Not Run | 0 |
 
-Blocked (explicit external blockers; see UAT notes and [`../testing/v1-uat-package.md`](../testing/v1-uat-package.md)):
-
-| UAT | Requirement | Blocker class |
-|---|---|---|
-| UAT-028 | REQ-028 | Seeded trade→payment (app DB / billing run) |
-| UAT-040 | NFR-008 | Billing-run duration target TBD |
-| UAT-050 | REQ-039 | AC-06 billing-run + email (Connect PDF proven) |
-| UAT-053 | REQ-042 | Two-producer AC-06 + EWDS (Stripe sequence smoke) |
-
-REQ-034 / REQ-037 and UAT-044 / UAT-047 are **out of D5.5 scope** (INT-192 — single project IdP). UAT-015 Pass (INT-195). UAT-051 Pass (INT-191). UAT-067 Pass (INT-193 wizard; step-count deferred). No Fail rows.
+No in-scope Blocked rows. Partner optimisations deferred (not Blocked): NFR-008 SLA number, NFR-016 step-count. REQ-034 / REQ-037 and UAT-044 / UAT-047 remain **out of D5.5 scope** (INT-192). See [`../testing/v1-validation-summary.md`](../testing/v1-validation-summary.md).
 
 ## Counts
 

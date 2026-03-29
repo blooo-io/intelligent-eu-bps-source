@@ -17,7 +17,7 @@
 
 ## Carried known limitations
 
-See [`RELEASE-NOTES.md`](RELEASE-NOTES.md). In-scope UAT: **58 Pass / 4 Blocked / 0 Fail** (INT-195). Blocked rows are not silent gaps; they are listed with external blockers (billing-run/email seeds 028/050/053, optional pilot perf UAT-040).
+See [`RELEASE-NOTES.md`](RELEASE-NOTES.md). In-scope UAT: **62 Pass / 0 Blocked / 0 Fail** (INT-204). Partner optimisations (NFR-008 SLA number, NFR-016 step-count) remain deferred, not Blocked.
 
 ## Change control after freeze
 

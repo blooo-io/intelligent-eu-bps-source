@@ -2,8 +2,8 @@ import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ModuleTemplateModule } from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
 import { ParticipantsStore } from "./domain/store.js";
+import { createIdpAdminPort } from "./idp/idp-admin.factory.js";
 import { IDP_ADMIN_PORT } from "./idp/idp.port.js";
-import { MockIdpAdapter } from "./idp/mock-idp.adapter.js";
 import { InternalParticipantsController } from "./participants/internal.controller.js";
 import { PublicParticipantsController } from "./participants/public.controller.js";
 import { ParticipantsService } from "./participants/participants.service.js";
@@ -16,7 +16,8 @@ import { ParticipantsService } from "./participants/participants.service.js";
   providers: [
     ParticipantsStore,
     ParticipantsService,
-    { provide: IDP_ADMIN_PORT, useClass: MockIdpAdapter },
+    // INT-208 — Keycloak Admin when env present; mock otherwise / IDP_ADMIN_PROVIDER=mock
+    { provide: IDP_ADMIN_PORT, useFactory: () => createIdpAdminPort() },
   ],
 })
 export class AppModule implements NestModule {

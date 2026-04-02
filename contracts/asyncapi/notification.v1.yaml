@@ -1,0 +1,62 @@
+asyncapi: 3.0.0
+info:
+  title: notification events
+  version: 1.0.0
+  description: >-
+    Domain events consumed by AC-11 (INT-209). Catalogue in application architecture section 4.
+    Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
+    Invoice PDF e-mail remains Stripe-owned (TD-2).
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+channels:
+  PaymentStatusChanged:
+    address: PaymentStatusChanged
+    description: Published by AC-07; consumed by AC-11 (and AC-06/08/09/10).
+    messages:
+      PaymentStatusChanged:
+        $ref: '#/components/messages/PaymentStatusChanged'
+operations:
+  onPaymentStatusChanged:
+    action: receive
+    channel:
+      $ref: '#/channels/PaymentStatusChanged'
+    messages:
+      - $ref: '#/channels/PaymentStatusChanged/messages/PaymentStatusChanged'
+components:
+  messages:
+    PaymentStatusChanged:
+      name: PaymentStatusChanged
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: PaymentStatusChanged
+              producer:
+                const: AC-07
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - paymentId
+                  - invoiceId
+                  - status
+                  - participantId
+                properties:
+                  paymentId:
+                    type: string
+                    format: uuid
+                  invoiceId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [pending, succeeded, failed]
+                  participantId:
+                    type: string
+                    format: uuid
+                  failureCategory:
+                    type: string

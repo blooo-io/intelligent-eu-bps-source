@@ -6,7 +6,7 @@ API-first, contract-first (TP-8 / TD-13). Every contract is written and reviewed
   - `public.v1.yaml`: the public API exposed by APISIX under `/v1`, built from the resources of 03 §3.1.
   - `internal/<module>.v1.yaml`: internal module-to-module APIs (03 §3.2). The paths are the HTTP mapping of the named commands (ResolveParty, GetUnbilledTrades, and the others). Each call requires a Keycloak service token (04 §7).
   - `webhooks/payment-provider.v1.yaml`: inbound provider webhook. The body stays opaque; the `Stripe-Signature` header is the credential (NFR-015).
-- `asyncapi/`: AsyncAPI 3.0 for the domain events (03 §4). The common envelope is `asyncapi/components/envelope.schema.json`. Channel addresses are the event names. Payloads carry identifiers only.
+- `asyncapi/`: AsyncAPI 3.0 for the domain events (03 §4). The common envelope is `asyncapi/components/envelope.schema.json`. Channel addresses are the event names. Payloads carry identifiers only. AC-11 consume contract: `asyncapi/notification.v1.yaml` (INT-209).
 - **EWDS messages:** `docs/architecture/ewds-topics/` (billingInvoice, billingPayment), proposed to EWAG.
 
 **Tooling (TD-13):**

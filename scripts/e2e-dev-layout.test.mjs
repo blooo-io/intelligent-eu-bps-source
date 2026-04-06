@@ -17,9 +17,24 @@ test("e2e-dev workflow targets deployed app.dev after supply-chain", async () =>
   assert.match(text, /for d in web participants/);
   assert.match(text, /rollout restart "deploy\/\$\{d\}"/);
   assert.match(text, /E2E_UAT_MEMBER_USER:\s*uat-member/);
+  // INT-211 — manager + operator credentials for full screen/button suite.
+  assert.match(text, /E2E_UAT_MANAGER_USER:\s*uat-manager/);
+  assert.match(text, /E2E_UAT_OPERATOR_USER:\s*uat-operator/);
   assert.match(text, /test:e2e/);
   assert.equal(text.includes("webServer"), false);
   assert.equal(text.includes("localhost:4173"), false);
+});
+
+test("e2e suite documents INT-211 live screen coverage", async () => {
+  const text = await readFile(
+    new URL("../docs/testing/ac01-e2e.md", import.meta.url),
+    "utf8",
+  );
+  assert.match(text, /INT-211/);
+  assert.match(text, /nav-shell\.spec\.ts/);
+  assert.match(text, /member-screens\.spec\.ts/);
+  assert.match(text, /manager-screens\.spec\.ts/);
+  assert.match(text, /operator-screens\.spec\.ts/);
 });
 
 test("e2e CD doc explains verification after GitOps", async () => {

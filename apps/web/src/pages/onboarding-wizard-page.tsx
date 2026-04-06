@@ -161,7 +161,7 @@ export function OnboardingWizardPage({
 
       {current === "profile" && (
         <div>
-          <ProfilePage config={config} oidc={oidc} />
+          <ProfilePage config={config} oidc={oidc} embedded />
           <Button type="primary" style={{ marginTop: 16 }} onClick={() => void afterGate()}>
             Continue to terms
           </Button>
@@ -170,7 +170,7 @@ export function OnboardingWizardPage({
 
       {current === "terms" && (
         <div>
-          <TermsPage config={config} oidc={oidc} />
+          <TermsPage config={config} oidc={oidc} embedded />
           <Button type="primary" style={{ marginTop: 16 }} onClick={() => void afterGate()}>
             Continue to payment setup
           </Button>
@@ -194,7 +194,7 @@ export function OnboardingWizardPage({
             style={{ marginBottom: 16 }}
             message="You are Ready — pay any open invoice below (test mode)."
           />
-          <InvoicesPage config={config} oidc={oidc} />
+          <InvoicesPage config={config} oidc={oidc} embedded />
           <Button style={{ marginTop: 16 }} onClick={() => navigate("/")}>
             Finish
           </Button>

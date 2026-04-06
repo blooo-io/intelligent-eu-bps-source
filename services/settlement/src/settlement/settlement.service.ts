@@ -100,10 +100,94 @@ export class SettlementService {
     };
   }
 
+  /** Public BillingRun shape (status completed after sync run). */
+  getPublicBillingRun(runId: string) {
+    const row = this.getBillingRun(runId);
+    return {
+      runId: row.runId,
+      communityId: row.communityId,
+      period: row.period,
+      type: row.type,
+      status: "completed",
+      version: row.version,
+    };
+  }
+
+  /**
+   * INT-211 / REQ-057 — unbilled amounts for the caller as consumer (one row per producer).
+   * Empty list when nothing is outstanding (never 404).
+   */
+  async listBalancesForParticipant(
+    participantId: string,
+    communityId: string,
+  ): Promise<
+    Array<{ counterpartId: string; amount: string; currency: string }>
+  > {
+    if (!communityId) {
+      return [];
+    }
+    const period = new Date().toISOString().slice(0, 7);
+    const until = `${period}-28T23:59:59Z`;
+    const unbilled = await this.trades.getUnbilled(communityId, until);
+    const pairs = netPairs(unbilled).filter((p) => p.consumerId === participantId);
+    const fxRate = this.resolveFxRate(period);
+    const rows: Array<{ counterpartId: string; amount: string; currency: string }> =
+      [];
+
+    for (const pair of pairs) {
+      const carriedIn = this.store.getCarry(pair.consumerId, pair.producerId);
+      const energyCommunity = roundCent(pair.netEur * fxRate);
+      const gross = roundCent(energyCommunity + carriedIn);
+      if (gross === 0) continue;
+      rows.push({
+        counterpartId: pair.producerId,
+        amount: formatMoney(gross),
+        currency: this.context.currency,
+      });
+    }
+
+    return rows;
+  }
+
+  /** INT-211 / BR-05 — early settle one consumer→producer pair. */
+  async createEarlySettlement(input: {
+    consumerId: string;
+    producerId: string;
+    communityId: string;
+  }) {
+    if (!input.producerId) {
+      throw new BadRequestException("producerId is required");
+    }
+    if (!input.communityId) {
+      throw new BadRequestException("communityId is required");
+    }
+    const { runId } = await this.startRun({
+      communityId: input.communityId,
+      type: "early",
+      onlyPair: {
+        consumerId: input.consumerId,
+        producerId: input.producerId,
+      },
+    });
+    return this.getPublicBillingRun(runId);
+  }
+
+  /** Manager/operator community billing run (public). */
+  async startPublicRun(input: {
+    communityId: string;
+    type: BillingRunType;
+    period?: string;
+  }) {
+    const { runId } = await this.startRun(input);
+    return this.getPublicBillingRun(runId);
+  }
+
   async startRun(input: {
     communityId: string;
     type: BillingRunType;
     period?: string;
+    /** When set, only settle this consumer→producer pair (early settle-now). */
+    onlyPair?: { consumerId: string; producerId: string };
   }): Promise<{ runId: string }> {
     if (!input.communityId) {
       throw new BadRequestException("communityId is required");
@@ -122,7 +206,14 @@ export class SettlementService {
     const period = input.period ?? new Date().toISOString().slice(0, 7);
     const until = `${period}-28T23:59:59Z`;
     const unbilled = await this.trades.getUnbilled(input.communityId, until);
-    const pairs = netPairs(unbilled);
+    let pairs = netPairs(unbilled);
+    if (input.onlyPair) {
+      pairs = pairs.filter(
+        (p) =>
+          p.consumerId === input.onlyPair!.consumerId &&
+          p.producerId === input.onlyPair!.producerId,
+      );
+    }
     const runId = randomUUID();
     const settlementIds: string[] = [];
     const fxRate = this.resolveFxRate(period);

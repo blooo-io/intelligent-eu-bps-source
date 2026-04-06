@@ -12,13 +12,16 @@ const { Paragraph, Text } = Typography;
  * Participant billing profile screen (INT-138 / REQ-009 / UAT-009).
  * Editable: name, address, email. Read-only: participantId, communityId
  * (trade-attribution identifiers are manager-only).
+ * `embedded` hides PageFrame when nested in the onboarding wizard (INT-211).
  */
 export function ProfilePage({
   config,
   oidc,
+  embedded = false,
 }: {
   config: WebConfig;
   oidc: OidcFacade;
+  embedded?: boolean;
 }) {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,63 +77,67 @@ export function ProfilePage({
     }
   }
 
-    if (loading) {
+  if (loading) {
+    if (embedded) return null;
     return <PageFrame title="Billing profile" loading />;
   }
 
-  return (
-    <PageFrame title="Billing profile">
-        {error && <Alert type="error" message={error} showIcon />}
-        {saved && <Alert type="success" message="Profile saved" showIcon />}
+  const body = (
+    <>
+      {error && <Alert type="error" message={error} showIcon />}
+      {saved && <Alert type="success" message="Profile saved" showIcon />}
 
-        {me && (
-          <Card>
-            <Paragraph type="secondary">
-              Participant <Text code>{me.participantId}</Text> · community{" "}
-              <Text code>{me.communityId}</Text>
-            </Paragraph>
-            <Paragraph type="secondary">
-              Community and trade-attribution identifiers can only be changed by a
-              community manager (REQ-009).
-            </Paragraph>
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={onFinish}
-              initialValues={me.profile}
+      {me && (
+        <Card>
+          <Paragraph type="secondary">
+            Participant <Text code>{me.participantId}</Text> · community{" "}
+            <Text code>{me.communityId}</Text>
+          </Paragraph>
+          <Paragraph type="secondary">
+            Community and trade-attribution identifiers can only be changed by a
+            community manager (REQ-009).
+          </Paragraph>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={onFinish}
+            initialValues={me.profile}
+          >
+            <Form.Item
+              label="Name"
+              name="name"
+              rules={[{ required: true, message: "Name is required" }]}
             >
-              <Form.Item
-                label="Name"
-                name="name"
-                rules={[{ required: true, message: "Name is required" }]}
-              >
-                <Input autoComplete="name" />
-              </Form.Item>
-              <Form.Item
-                label="Address"
-                name="address"
-                rules={[{ required: true, message: "Address is required" }]}
-              >
-                <Input.TextArea rows={3} autoComplete="street-address" />
-              </Form.Item>
-              <Form.Item
-                label="Contact e-mail"
-                name="email"
-                rules={[
-                  { required: true, message: "E-mail is required" },
-                  { type: "email", message: "Enter a valid e-mail" },
-                ]}
-              >
-                <Input type="email" autoComplete="email" />
-              </Form.Item>
-              <Form.Item>
-                <Button type="primary" htmlType="submit" loading={saving}>
-                  Save profile
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
-        )}
-    </PageFrame>
+              <Input autoComplete="name" />
+            </Form.Item>
+            <Form.Item
+              label="Address"
+              name="address"
+              rules={[{ required: true, message: "Address is required" }]}
+            >
+              <Input.TextArea rows={3} autoComplete="street-address" />
+            </Form.Item>
+            <Form.Item
+              label="Contact e-mail"
+              name="email"
+              rules={[
+                { required: true, message: "E-mail is required" },
+                { type: "email", message: "Enter a valid e-mail" },
+              ]}
+            >
+              <Input type="email" autoComplete="email" />
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={saving}>
+                Save profile
+              </Button>
+            </Form.Item>
+          </Form>
+        </Card>
+      )}
+    </>
   );
+
+  if (embedded) return body;
+  return <PageFrame title="Billing profile">{body}</PageFrame>;
 }

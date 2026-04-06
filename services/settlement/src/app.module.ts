@@ -5,13 +5,14 @@ import { SettlementStore } from "./domain/store.js";
 import { FixtureTradeSource } from "./ports/fixture-trade-source.js";
 import { TRADE_SOURCE } from "./ports/trade-source.port.js";
 import { SettlementController } from "./settlement/settlement.controller.js";
+import { PublicSettlementController } from "./settlement/public.controller.js";
 import { SettlementService } from "./settlement/settlement.service.js";
 
 @Module({
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "settlement" }),
   ],
-  controllers: [SettlementController],
+  controllers: [SettlementController, PublicSettlementController],
   providers: [
     SettlementStore,
     SettlementService,

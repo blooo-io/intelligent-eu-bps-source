@@ -85,4 +85,39 @@ describe("ProfilePage (INT-138 / UAT-009)", () => {
       email: "ada@example.com",
     });
   });
+
+  it("embedded mode omits PageFrame heading (INT-211)", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          participantId: "11111111-1111-1111-1111-111111111111",
+          communityId: "22222222-2222-2222-2222-222222222222",
+          roles: ["member"],
+          readiness: "Invited",
+          profile: { name: "Ada", address: "1 Rue", email: "ada@example.com" },
+        }),
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <ProfilePage config={config} oidc={oidc} embedded />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Ada")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("heading", { name: /^billing profile$/i })).toBeNull();
+    expect(screen.queryByTestId("page-frame")).toBeNull();
+  });
 });

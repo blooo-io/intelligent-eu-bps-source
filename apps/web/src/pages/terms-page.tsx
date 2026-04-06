@@ -10,13 +10,16 @@ const { Paragraph, Text } = Typography;
 /**
  * Terms & self-billing mandate screen (INT-139 / REQ-050 / UAT-062).
  * Producers must tick the self-billing mandate; the API rejects otherwise.
+ * `embedded` hides PageFrame when nested in the onboarding wizard (INT-211).
  */
 export function TermsPage({
   config,
   oidc,
+  embedded = false,
 }: {
   config: WebConfig;
   oidc: OidcFacade;
+  embedded?: boolean;
 }) {
   const [terms, setTerms] = useState<Terms | null>(null);
   const [mandate, setMandate] = useState(false);
@@ -65,60 +68,64 @@ export function TermsPage({
     }
   }
 
-    if (loading) {
+  if (loading) {
+    if (embedded) return null;
     return <PageFrame title="Terms & conditions" loading />;
   }
 
-  return (
-    <PageFrame title="Terms & conditions">
-        {error && <Alert type="error" message={error} showIcon />}
+  const body = (
+    <>
+      {error && <Alert type="error" message={error} showIcon />}
 
-        {acceptance && (
-          <Alert
-            type="success"
-            showIcon
-            message={`Terms ${acceptance.termsVersion} accepted`}
-            description={
-              acceptance.acceptedAt
-                ? `Recorded at ${acceptance.acceptedAt}. Self-billing mandate: ${
-                    acceptance.selfBillingMandate ? "yes" : "no"
-                  }.`
-                : `Self-billing mandate: ${acceptance.selfBillingMandate ? "yes" : "no"}.`
-            }
-          />
-        )}
+      {acceptance && (
+        <Alert
+          type="success"
+          showIcon
+          message={`Terms ${acceptance.termsVersion} accepted`}
+          description={
+            acceptance.acceptedAt
+              ? `Recorded at ${acceptance.acceptedAt}. Self-billing mandate: ${
+                  acceptance.selfBillingMandate ? "yes" : "no"
+                }.`
+              : `Self-billing mandate: ${acceptance.selfBillingMandate ? "yes" : "no"}.`
+          }
+        />
+      )}
 
-        {terms && !acceptance && (
-          <Card>
-            <Paragraph type="secondary">
-              Version <Text code>{terms.termsVersion}</Text>
-            </Paragraph>
-            <Paragraph
-              style={{
-                whiteSpace: "pre-wrap",
-                maxHeight: 320,
-                overflow: "auto",
-                border: "1px solid #f0f0f0",
-                padding: 12,
-                borderRadius: 6,
-              }}
-            >
-              {terms.text}
-            </Paragraph>
-            <Checkbox
-              checked={mandate}
-              onChange={(e) => setMandate(e.target.checked)}
-              style={{ marginBottom: 16 }}
-            >
-              I accept the self-billing mandate (required for producers — REQ-050)
-            </Checkbox>
-            <div>
-              <Button type="primary" loading={submitting} onClick={onAccept}>
-                Accept terms
-              </Button>
-            </div>
-          </Card>
-        )}
-    </PageFrame>
+      {terms && !acceptance && (
+        <Card>
+          <Paragraph type="secondary">
+            Version <Text code>{terms.termsVersion}</Text>
+          </Paragraph>
+          <Paragraph
+            style={{
+              whiteSpace: "pre-wrap",
+              maxHeight: 320,
+              overflow: "auto",
+              border: "1px solid #f0f0f0",
+              padding: 12,
+              borderRadius: 6,
+            }}
+          >
+            {terms.text}
+          </Paragraph>
+          <Checkbox
+            checked={mandate}
+            onChange={(e) => setMandate(e.target.checked)}
+            style={{ marginBottom: 16 }}
+          >
+            I accept the self-billing mandate (required for producers — REQ-050)
+          </Checkbox>
+          <div>
+            <Button type="primary" loading={submitting} onClick={onAccept}>
+              Accept terms
+            </Button>
+          </div>
+        </Card>
+      )}
+    </>
   );
+
+  if (embedded) return body;
+  return <PageFrame title="Terms & conditions">{body}</PageFrame>;
 }

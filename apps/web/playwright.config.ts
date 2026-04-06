@@ -16,10 +16,13 @@ if (!baseURL) {
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  // INT-211 — serial IdP logins against one Keycloak realm; avoid parallel session races.
+  fullyParallel: false,
+  workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: 1,
   reporter: "list",
+  timeout: 90_000,
   use: {
     baseURL,
     trace: "on-first-retry",

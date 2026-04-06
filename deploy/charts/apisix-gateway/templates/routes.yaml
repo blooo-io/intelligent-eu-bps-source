@@ -90,6 +90,9 @@ spec:
           - /v1/early-settlements/*
           - /v1/billing-runs
           - /v1/billing-runs/*
+          # INT-211 — more specific than participants /v1/communities/* (priority 50).
+          - /v1/communities/*/billing-runs
+          - /v1/communities/*/billing-runs/*
       backends:
         - serviceName: settlement
           servicePort: 8080

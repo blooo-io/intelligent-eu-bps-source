@@ -23,12 +23,15 @@ const { Paragraph, Text } = Typography;
 export function InvoicesPage({
   config,
   oidc,
+  embedded = false,
   openBlobUrl = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
   },
 }: {
   config: WebConfig;
   oidc: OidcFacade;
+  /** Hide PageFrame when nested in the onboarding wizard (INT-211). */
+  embedded?: boolean;
   openBlobUrl?: (url: string) => void;
 }) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -143,11 +146,12 @@ export function InvoicesPage({
   ];
 
   if (loading) {
+    if (embedded) return null;
     return <PageFrame title="Invoices" loading />;
   }
 
-  return (
-    <PageFrame title="Invoices">
+  const body = (
+    <>
       {error && <Alert type="error" message={error} showIcon />}
       {payment && (
         <Alert
@@ -210,6 +214,9 @@ export function InvoicesPage({
           </Space>
         </Card>
       )}
-    </PageFrame>
+    </>
   );
+
+  if (embedded) return body;
+  return <PageFrame title="Invoices">{body}</PageFrame>;
 }

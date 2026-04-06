@@ -57,6 +57,11 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
     });
     expect(screen.getByText(/Invited/)).toBeInTheDocument();
     expect(screen.getByText(/Billing identity/i)).toBeInTheDocument();
+    // INT-211 — nested ProfilePage must not add a second PageFrame heading.
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /save profile/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("heading", { name: /^billing profile$/i })).toBeNull();
   });
 
   it("advances to payment step when TermsAccepted", async () => {

@@ -1,49 +1,53 @@
-# AC-01 browser E2E (INT-182 / INT-211)
+# AC-01 browser E2E (INT-182 / INT-211 / INT-218)
 
-Playwright verification for the Refine web app (`apps/web`) against a **fully deployed** stack (APISIX + web + Keycloak + APIs on the cluster). Catches auth-gate / routing regressions such as INT-181 (blank `/` while `/login` worked) and live UI regressions across every shell screen (INT-211).
+Playwright verification for the Refine web app (`apps/web`) against a **fully deployed** stack (APISIX + web + Keycloak + APIs on the cluster).
 
-E2E is **not** run inside a cloistered GitHub Actions job with a local static build. That would miss gateway / TLS / IdP / CORS issues.
+E2E is **not** run inside a cloistered GitHub Actions job with a local static build.
 
 ## What runs
 
+### Smoke (shell / CTA)
+
 | Spec | Asserts |
 |---|---|
-| `e2e/auth-gate.spec.ts` | Unauthenticated `GET /` → login UI (`Sign in with IdP`); `/login` shows the same CTA; no password field (REQ-033 / UAT-043) |
-| `e2e/nav-shell.spec.ts` | Every sider nav item opens its page; Sign out returns to login (UAT-064) |
-| `e2e/member-screens.spec.ts` | `uat-member`: Home readiness, Profile save, Terms CTA, Payment setup start, wizard steps, Balances, Invoices View/PDF/Pay, Privacy export+refresh, Reports history (UAT-013 / UAT-064 / UAT-067) |
-| `e2e/manager-screens.spec.ts` | `uat-manager`: Community settings save, Participants Import/Edit, Billing runs Start+Refresh, Payments overview status panel, Reports summary |
-| `e2e/operator-screens.spec.ts` | `uat-operator`: Operator anomalies / discrepancies / jobs; Job Run when present (INT-149) |
-| `e2e/onboarding-wizard.spec.ts` | Authenticated `uat-member` reaches `/onboarding` Steps wizard (INT-193 / INT-194 / UAT-067). Skip with `E2E_SKIP_AUTH=1`. |
-| `e2e/helpers/auth.ts` | Shared Keycloak login for the three UAT roles |
+| `e2e/auth-gate.spec.ts` | Unauthenticated gate (REQ-033 / UAT-043) |
+| `e2e/nav-shell.spec.ts` | Every sider route loads (UAT-064) |
+| `e2e/member-screens.spec.ts` | Member CTA smoke |
+| `e2e/manager-screens.spec.ts` | Manager CTA smoke |
+| `e2e/operator-screens.spec.ts` | Operator sections (INT-149) |
+| `e2e/onboarding-wizard.spec.ts` | Wizard Steps visible (UAT-067) |
 
-Keycloak UAT users (`uat-member` / `uat-manager` / `uat-operator`) are packed in the `int` realm import and AC-03 seed (INT-194). Password placeholder: `Intelligent-UAT-2026!` (V1 `dev`/`int` only).
+### REQ-mapped journeys (INT-218)
 
-Destructive actions (Offboard, invoice Void, unpaid Pay) are asserted as **visible** but not always submitted, to keep the seed intact.
+Hard asserts on REQ outcomes (no soft-accept of API error alerts).
 
-## Backend gaps fixed with this suite (INT-211)
+| Spec | Requirements / UATs |
+|---|---|
+| `e2e/journeys/auth-oidc-session.spec.ts` | REQ-033, REQ-035 · UAT-043, UAT-045 |
+| `e2e/journeys/onboarding-happy-path.spec.ts` | REQ-009, REQ-050, NFR-007 · UAT-009, UAT-062, UAT-067 |
+| `e2e/journeys/payment-setup.spec.ts` | REQ-015, REQ-051 · UAT-015, UAT-051 |
+| `e2e/journeys/invoices-pdf-pay.spec.ts` | REQ-007, REQ-014, REQ-039 · UAT-007, UAT-014, UAT-050 |
+| `e2e/journeys/balances-settle.spec.ts` | REQ-057 · UAT-074 |
+| `e2e/journeys/manager-billing-run.spec.ts` | REQ-006, REQ-043 · UAT-006 |
+| `e2e/journeys/participant-import.spec.ts` | REQ-008 · UAT-008 |
+| `e2e/journeys/payments-overview.spec.ts` | REQ-016, REQ-018 |
+| `e2e/journeys/privacy-reports-operator.spec.ts` | REQ-013, REQ-031, REQ-032, REQ-041 · UAT-013, UAT-031, UAT-032, UAT-052 |
+| `e2e/journeys/operator-payment-trace.spec.ts` | REQ-028 · UAT-028 |
 
-Live click-through found `GET /v1/me/balances` and `POST /v1/communities/{id}/billing-runs` returning **404** (routes existed in APISIX / OpenAPI but AC-05 had no public controllers). Settlement now serves those paths; APISIX also matches `/v1/communities/*/billing-runs` at priority 60.
+Keycloak UAT users: `uat-member` / `uat-manager` / `uat-operator` · password `Intelligent-UAT-2026!`.
 
-## Prerequisites
-
-1. `dev` (or the target env) is healthy: Argo apps synced, `apps-web:develop` rolled out, APISIX routes up.
-2. Chromium for Playwright installed once: `pnpm --filter @intelligent/web test:e2e:install`
+Invoice / settle / overview journeys expect seeded community data (UAT-028 / UAT-053 seed scripts).
 
 ## Run against `dev`
 
 ```bash
-E2E_BASE_URL=https://app.dev.intelligent-eu-bp.blooo.dev \
-  pnpm --filter @intelligent/web test:e2e
+pnpm --filter @intelligent/web test:e2e:dev
 ```
-
-Or: `pnpm --filter @intelligent/web test:e2e:dev`
-
-`E2E_BASE_URL` is **required**. There is no localhost webServer fallback.
-
-Optional env overrides: `E2E_UAT_MEMBER_USER` / `PASSWORD`, `E2E_UAT_MANAGER_*`, `E2E_UAT_OPERATOR_*`, `E2E_SKIP_AUTH=1` (auth-gate only).
 
 ## CI / CD
 
-No PR job. Any `test:e2e` / `test:e2e:*` script is skipped by `scripts/run-tests.mjs`.
+No PR job (`scripts/run-tests.mjs` skips `test:e2e*`). Post-deploy: [`ac01-e2e-cd.md`](ac01-e2e-cd.md) / workflow `e2e-dev`.
 
-Post-deploy verification (after `supply-chain` on `develop`): see [`ac01-e2e-cd.md`](ac01-e2e-cd.md) (INT-184) — workflow `e2e-dev` rolls `deploy/web` then runs this suite against `app.dev`.
+## Platform hardening (INT-212)
+
+Outbox Postgres + Debezium (payments + settlement) + Keycloak Admin + Temporal worker + NATS JetStream are packaged under INT-213…217 so journeys hit real adapters on `dev`, not in-memory stubs.

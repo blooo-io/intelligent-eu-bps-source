@@ -5,10 +5,13 @@
   "license": "Apache-2.0",
   "description": "AC-14 scheduler — job catalogue and dispatch to owning modules (INT-113)",
   "type": "module",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
+    "start:worker": "node dist/temporal/worker.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
@@ -17,6 +20,11 @@
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/platform-express": "^11.1.6",
+    "@temporalio/activity": "^1.24.0",
+    "@temporalio/client": "^1.11.8",
+    "@temporalio/worker": "^1.24.0",
+    "@temporalio/workflow": "^1.24.0",
+    "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },

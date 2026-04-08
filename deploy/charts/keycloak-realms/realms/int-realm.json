@@ -35,6 +35,20 @@
       "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
     },
     {
+      "clientId": "participants-admin",
+      "name": "AC-03 Keycloak Admin (P-IDP)",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "secret": "dev-participants-admin-replace-me",
+      "protocol": "openid-connect",
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email"],
+      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
+    },
+    {
       "clientId": "web",
       "name": "Refine web app (PKCE)",
       "enabled": true,
@@ -73,6 +87,19 @@
     }
   ],
   "users": [
+    {
+      "username": "service-account-participants-admin",
+      "enabled": true,
+      "serviceAccountClientId": "participants-admin",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users",
+          "view-clients"
+        ]
+      }
+    },
     {
       "id": "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f",
       "username": "uat-member",

@@ -1,19 +1,31 @@
 # Per-environment — lands in int-data / demo-data (physical §3).
+# INT-214 — CDC enabled once outbox tables exist (INT-213 bootstrap).
 name: debezium-server
 component: outbox-relay
 environment: dev
-# Stay at 0 until CNPG databases and OpenBao DB credentials exist.
-replicaCount: 0
+replicaCount: 1
 image:
   repository: quay.io/debezium/server
   tag: "2.7.3.Final"
 nats:
   host: nats.nats.svc.cluster.local
   port: 4222
-# Placeholder JDBC host; real DSN fragments come from ExternalSecret.
+  # JetStream stream Debezium creates / publishes into (INT-217 consumer binds here).
+  stream: intelligent
 postgres:
-  host: cnpg-rw
+  host: int-data-rw
   port: 5432
+# One Debezium Server Deployment per module DB that emits domain events.
+# payments = PaymentStatusChanged (AC-07 → AC-11); settlement = billing-run events.
+connectors:
+  - name: payments
+    database: payments
+    secretName: payments
+    slotName: debezium_payments
+  - name: settlement
+    database: settlement
+    secretName: settlement
+    slotName: debezium_settlement
 resources:
   requests:
     cpu: 50m

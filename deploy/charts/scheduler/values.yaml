@@ -21,3 +21,11 @@ ingressFrom: []
 keycloakEgress: false
 stripeEgress: false
 namespaceIngress: true
+# INT-216 — Temporal frontend + worker (TD-3).
+workerReplicaCount: 1
+temporalTaskQueue: intelligent-billing
+env:
+  DISPATCH_PROVIDER: temporal
+  TEMPORAL_ADDRESS: platform-temporal-frontend.temporal.svc.cluster.local:7233
+  TEMPORAL_NAMESPACE: int
+  TEMPORAL_TASK_QUEUE: intelligent-billing

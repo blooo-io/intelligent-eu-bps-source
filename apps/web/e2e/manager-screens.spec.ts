@@ -43,16 +43,16 @@ test.describe("AC-01 manager screens and buttons", () => {
     await expectPageReady(page, /billing runs/i);
     await clickRadioButton(page, /^Early$/);
     await page.getByRole("button", { name: /start run/i }).click();
-    // INT-211 — AC-05 public billing-run route; accept Run status or transient API alert.
-    await expect(
-      page.getByText(/run status/i).or(page.getByRole("alert").first()),
-    ).toBeVisible({ timeout: 45_000 });
+    // INT-218 — hard require Run status (REQ-006); journeys cover terminal completed.
+    await expect(page.getByText(/run status/i)).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);
     const refresh = page.getByRole("button", { name: /^refresh$/i });
     if (await refresh.isVisible().catch(() => false)) {
       await refresh.click();
       await expect(page.getByText(/status/i).first()).toBeVisible();
     }
   });
+
 
   test("Payments overview Set invoice status panel when rows exist", async ({ page }) => {
     await page.goto("/payments-overview");

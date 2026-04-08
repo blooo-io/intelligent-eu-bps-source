@@ -1,0 +1,147 @@
+{{- /*
+  INT-213 — apply outbox.sql to every module DB and publish DATABASE_URL
+  secrets into int-apps so Nest modules use PostgresOutboxStore (TD-6/TD-7).
+*/ -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: outbox-bootstrap
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: outbox-bootstrap
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: outbox-bootstrap-read
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+spec:
+  rules:
+    - apiGroups: [""]
+      resources: ["secrets"]
+      verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: outbox-bootstrap-read
+spec:
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: outbox-bootstrap-read
+  subjects:
+    - kind: ServiceAccount
+      name: outbox-bootstrap
+      namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: outbox-bootstrap-write
+  namespace: int-apps
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+spec:
+  rules:
+    - apiGroups: [""]
+      resources: ["secrets"]
+      verbs: ["get", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: outbox-bootstrap-write
+  namespace: int-apps
+spec:
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: outbox-bootstrap-write
+  subjects:
+    - kind: ServiceAccount
+      name: outbox-bootstrap
+      namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: outbox-sql
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+    app.kubernetes.io/component: outbox-bootstrap
+data:
+  outbox.sql: |
+{{ .Files.Get "sql/outbox.sql" | indent 4 }}
+  modules.txt: |
+{{- range .Values.databases }}
+    {{ .name | replace "_" "-" }} {{ .name }}
+{{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: outbox-bootstrap
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+    app.kubernetes.io/component: outbox-bootstrap
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: outbox-bootstrap
+    spec:
+      serviceAccountName: outbox-bootstrap
+      restartPolicy: OnFailure
+      # Bootstrap needs apk + kubectl; restricted to PostSync Job only (INT-213).
+      containers:
+        - name: bootstrap
+          image: alpine/k8s:1.32.2
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          env:
+            - name: PGHOST
+              value: {{ .Values.clusterName }}-rw.{{ .Release.Namespace }}.svc.cluster.local
+            - name: PGPORT
+              value: "5432"
+            - name: DATA_NS
+              value: {{ .Release.Namespace | quote }}
+          volumeMounts:
+            - name: sql
+              mountPath: /sql
+              readOnly: true
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -eu
+              apk add --no-cache postgresql-client python3 >/dev/null
+              while read -r secret db; do
+                [ -z "${secret:-}" ] && continue
+                echo "=== outbox bootstrap module=${secret} db=${db} ==="
+                user="$(kubectl -n "$DATA_NS" get secret "$secret" -o jsonpath='{.data.username}' | base64 -d)"
+                pass="$(kubectl -n "$DATA_NS" get secret "$secret" -o jsonpath='{.data.password}' | base64 -d)"
+                export PGPASSWORD="$pass" PGUSER="$user"
+                psql -h "$PGHOST" -p "$PGPORT" -U "$user" -d "$db" -v ON_ERROR_STOP=1 -f /sql/outbox.sql
+                # INT-213 — URL-encode credentials so ESO-generated passwords stay valid.
+                enc_user="$(python3 -c 'import os,urllib.parse; print(urllib.parse.quote(os.environ["PGUSER"], safe=""))')"
+                enc_pass="$(python3 -c 'import os,urllib.parse; print(urllib.parse.quote(os.environ["PGPASSWORD"], safe=""))')"
+                url="postgresql://${enc_user}:${enc_pass}@${PGHOST}:${PGPORT}/${db}"
+                kubectl -n int-apps create secret generic "${secret}-database" \
+                  --from-literal=DATABASE_URL="$url" \
+                  --dry-run=client -o yaml | kubectl apply -f -
+              done < /sql/modules.txt
+              echo "outbox bootstrap complete"
+      volumes:
+        - name: sql
+          configMap:
+            name: outbox-sql

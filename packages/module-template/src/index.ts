@@ -17,6 +17,10 @@ export {
   type SqlExecutor,
   type SqlQueryResult,
 } from "./outbox/postgres-outbox.store.js";
+export {
+  createPgPoolExecutor,
+  defaultOutboxStore,
+} from "./outbox/create-pg-outbox-store.js";
 
 export {
   IdempotentConsumer,

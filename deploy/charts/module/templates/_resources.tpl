@@ -66,6 +66,10 @@ spec:
             - secretRef:
                 name: {{ .Values.name }}
                 optional: true
+            # INT-213 — DATABASE_URL from outbox-bootstrap Job (CNPG role → int-apps).
+            - secretRef:
+                name: {{ .Values.name }}-database
+                optional: true
           {{- with .Values.env }}
           env:
             {{- range $k, $v := . }}

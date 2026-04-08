@@ -29,6 +29,10 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(intRealm, /"username": "uat-manager"/);
   assert.match(intRealm, /"username": "uat-operator"/);
   assert.match(intRealm, /Intelligent-UAT-2026!/);
+  // INT-215 — AC-03 Keycloak Admin service account + realm-management roles.
+  assert.match(intRealm, /"clientId": "participants-admin"/);
+  assert.match(intRealm, /"serviceAccountClientId": "participants-admin"/);
+  assert.match(intRealm, /"manage-users"/);
 
   const demoRealm = await readFile(
     "deploy/charts/keycloak-realms/realms/demo-realm.json",

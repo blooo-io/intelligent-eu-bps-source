@@ -1,12 +1,11 @@
 import type { DispatchPort } from "./dispatch.port.js";
 import { MockDispatchAdapter } from "./mock-dispatch.adapter.js";
-import {
-  TemporalDispatchAdapter,
-  UnconfiguredTemporalClient,
-} from "./temporal-dispatch.adapter.js";
+import { SdkTemporalClient } from "./sdk-temporal-client.js";
+import { TemporalDispatchAdapter } from "./temporal-dispatch.adapter.js";
 
 /**
- * INT-210 — mock by default; Temporal when TEMPORAL_ADDRESS (or DISPATCH_PROVIDER=temporal).
+ * INT-210 / INT-216 — Temporal when TEMPORAL_ADDRESS (or DISPATCH_PROVIDER=temporal);
+ * mock when DISPATCH_PROVIDER=mock or address unset.
  */
 export function createDispatchPort(
   env: NodeJS.ProcessEnv = process.env,
@@ -17,8 +16,10 @@ export function createDispatchPort(
   }
   const address = env.TEMPORAL_ADDRESS ?? env.TEMPORAL_HOST;
   if (provider === "temporal" || address) {
-    // SDK wiring lands with workers + TLS secrets; fail closed until linked.
-    return new TemporalDispatchAdapter(new UnconfiguredTemporalClient());
+    const namespace = env.TEMPORAL_NAMESPACE ?? "int";
+    return new TemporalDispatchAdapter(
+      new SdkTemporalClient(address!, namespace),
+    );
   }
   return new MockDispatchAdapter();
 }

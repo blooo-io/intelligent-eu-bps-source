@@ -6,10 +6,8 @@ import {
   PROCESSED_EVENTS_STORE,
 } from "./module-template.tokens.js";
 import { OutboxService } from "./outbox/outbox.service.js";
-import {
-  InMemoryOutboxStore,
-  type OutboxStore,
-} from "./outbox/outbox.types.js";
+import { defaultOutboxStore } from "./outbox/create-pg-outbox-store.js";
+import { type OutboxStore } from "./outbox/outbox.types.js";
 import { IdempotentConsumer } from "./consumer/idempotent-consumer.js";
 import {
   InMemoryProcessedEventsStore,
@@ -25,11 +23,12 @@ export type ModuleTemplateOptions = {
 /**
  * Shared NestJS wiring for health, outbox and idempotent consumption (TD-4).
  * Auth guard is constructed per-route with roles; OpenAPI validator is added by each service.
+ * INT-213 — when `DATABASE_URL` is set, outbox uses Postgres (TD-6/TD-7); else in-memory.
  */
 @Module({})
 export class ModuleTemplateModule {
   static forRoot(options: ModuleTemplateOptions): DynamicModule {
-    const outboxStore = options.outboxStore ?? new InMemoryOutboxStore();
+    const outboxStore = options.outboxStore ?? defaultOutboxStore();
     const processedEventsStore =
       options.processedEventsStore ?? new InMemoryProcessedEventsStore();
 

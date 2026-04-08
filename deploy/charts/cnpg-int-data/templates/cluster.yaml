@@ -74,7 +74,9 @@ spec:
       - name: {{ .name }}
         ensure: present
         login: true
-        comment: "Module {{ .module }} (INT-158 / TD-6)"
+        # INT-214 — REPLICATION so Debezium can create pgoutput slots per module DB.
+        replication: true
+        comment: "Module {{ .module }} (INT-158 / TD-6 / INT-214 CDC)"
         passwordSecret:
           name: {{ .name | replace "_" "-" }}
 {{- end }}

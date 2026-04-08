@@ -9,9 +9,9 @@ import {
 const job = {
   jobId: "a1000000-0000-4000-8000-000000000003",
   name: "StartRun" as const,
-  ownerModule: "settlement",
-  schedule: "0 6 1 * *",
-  description: "test",
+  ownerModule: "AC-05",
+  path: "/billing-runs",
+  method: "POST" as const,
 };
 
 describe("TemporalDispatchAdapter (INT-210)", () => {
@@ -39,7 +39,7 @@ describe("TemporalDispatchAdapter (INT-210)", () => {
     expect(result).toEqual({ ok: false, error: "temporal_sdk_not_linked" });
   });
 
-  it("createDispatchPort selects mock or temporal stub", () => {
+  it("createDispatchPort selects mock or Temporal SDK adapter (INT-216)", () => {
     expect(createDispatchPort({ DISPATCH_PROVIDER: "mock" })).toBeInstanceOf(
       MockDispatchAdapter,
     );

@@ -36,6 +36,9 @@ export class TemporalDispatchAdapter implements DispatchPort {
         {
           jobId: command.job.jobId,
           jobName: command.job.name,
+          ownerModule: command.job.ownerModule,
+          path: command.job.path,
+          method: command.job.method,
           communityId: command.communityId,
           body: command.body,
         },

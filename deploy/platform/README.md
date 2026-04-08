@@ -62,7 +62,7 @@ Argo applications:
 - `deploy/argocd/dev/debezium-server.yaml` → `int-data`
 - `deploy/argocd/demo/debezium-server.yaml` → `demo-data` (manual)
 
-`replicaCount` for Debezium stays **0** until CloudNativePG databases (INT-158) and OpenBao credentials exist (INT-133). Consumers remain idempotent via the NestJS module template (INT-98).
+`replicaCount` for Debezium is **1** on `dev` once the outbox table bootstrap Job has run (INT-213 / INT-214). Consumers remain idempotent via the NestJS module template (INT-98).
 
 NACK operator (full CRD lifecycle) can replace the StatefulSet later without changing the NATS service DNS `nats.nats.svc.cluster.local:4222` expected by module NetworkPolicies.
 

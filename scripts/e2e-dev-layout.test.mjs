@@ -37,6 +37,26 @@ test("e2e suite documents INT-211 live screen coverage", async () => {
   assert.match(text, /operator-screens\.spec\.ts/);
 });
 
+test("e2e suite documents INT-218 REQ-mapped journeys", async () => {
+  const text = await readFile(
+    new URL("../docs/testing/ac01-e2e.md", import.meta.url),
+    "utf8",
+  );
+  assert.match(text, /INT-218/);
+  assert.match(text, /onboarding-happy-path\.spec\.ts/);
+  assert.match(text, /invoices-pdf-pay\.spec\.ts/);
+  assert.match(text, /balances-settle\.spec\.ts/);
+  assert.match(text, /manager-billing-run\.spec\.ts/);
+  assert.match(text, /participant-import\.spec\.ts/);
+  assert.match(text, /payment-setup\.spec\.ts/);
+  assert.match(text, /operator-payment-trace\.spec\.ts/);
+  assert.match(text, /REQ-009/);
+  assert.match(text, /REQ-008/);
+  assert.match(text, /REQ-028/);
+  assert.match(text, /REQ-057/);
+  assert.match(text, /no soft-accept/);
+});
+
 test("e2e CD doc explains verification after GitOps", async () => {
   const text = await readFile(
     new URL("../docs/testing/ac01-e2e-cd.md", import.meta.url),

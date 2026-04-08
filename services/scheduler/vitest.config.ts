@@ -9,7 +9,13 @@ export default defineConfig({
     coverage: {
       ...coverage,
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.spec.ts", "src/main.ts"],
+      // worker.ts / workflows.ts are Temporal process entrypoints (like main.ts).
+      exclude: [
+        "src/**/*.spec.ts",
+        "src/main.ts",
+        "src/temporal/worker.ts",
+        "src/temporal/workflows.ts",
+      ],
     },
   },
 });

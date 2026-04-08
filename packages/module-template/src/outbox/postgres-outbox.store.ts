@@ -18,13 +18,16 @@ export class PostgresOutboxStore implements OutboxStore {
   constructor(private readonly sql: SqlExecutor) {}
 
   async append(row: OutboxRow): Promise<void> {
+    // INT-214 — denormalise envelope.type so Debezium EventRouter can route
+    // by AsyncAPI channel address (e.g. PaymentStatusChanged).
     await this.sql.query(
-      `INSERT INTO outbox (id, aggregate_type, aggregate_id, event, created_at)
-       VALUES ($1, $2, $3, $4::jsonb, $5::timestamptz)`,
+      `INSERT INTO outbox (id, aggregate_type, aggregate_id, type, event, created_at)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6::timestamptz)`,
       [
         row.id,
         row.aggregateType,
         row.aggregateId,
+        row.event.type,
         JSON.stringify(row.event),
         row.createdAt,
       ],
@@ -33,7 +36,7 @@ export class PostgresOutboxStore implements OutboxStore {
 
   async list(): Promise<readonly OutboxRow[]> {
     const result = await this.sql.query(
-      `SELECT id, aggregate_type, aggregate_id, event, created_at
+      `SELECT id, aggregate_type, aggregate_id, type, event, created_at
        FROM outbox
        ORDER BY created_at ASC, id ASC`,
     );

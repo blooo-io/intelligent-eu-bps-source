@@ -8,52 +8,68 @@ metadata:
     app.kubernetes.io/component: {{ .Values.component }}
 automountServiceAccountToken: false
 ---
+{{- range .Values.connectors }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Values.name }}
+  name: {{ $.Values.name }}-{{ .name }}
   labels:
-    app.kubernetes.io/name: {{ .Values.name }}
+    app.kubernetes.io/name: {{ $.Values.name }}
+    app.kubernetes.io/instance: {{ .name }}
     app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
-    app.kubernetes.io/component: {{ .Values.component }}
+    app.kubernetes.io/component: {{ $.Values.component }}
 data:
-  # TD-7: Debezium Server reads module outbox tables (PostgreSQL CDC) and
-  # publishes to NATS JetStream. No custom relay. Per-module connectors are
-  # added as modules get databases; this scaffold proves the packaging path.
+  # TD-7 / INT-214 — PostgreSQL CDC outbox → NATS JetStream.
+  # EventRouter routes by `type` (AsyncAPI channel, e.g. PaymentStatusChanged).
   application.properties: |
     debezium.sink.type=nats-jetstream
-    debezium.sink.nats-jetstream.url=nats://{{ .Values.nats.host }}:{{ .Values.nats.port }}
+    debezium.sink.nats-jetstream.url=nats://{{ $.Values.nats.host }}:{{ $.Values.nats.port }}
+    debezium.sink.nats-jetstream.create-stream=true
+    debezium.sink.nats-jetstream.stream={{ $.Values.nats.stream }}
     debezium.source.connector.class=io.debezium.connector.postgresql.PostgresConnector
     debezium.source.offset.storage.file.filename=/debezium/data/offsets.dat
-    debezium.source.database.hostname={{ .Values.postgres.host }}
-    debezium.source.database.port={{ .Values.postgres.port }}
-    debezium.source.topic.prefix=intelligent.{{ .Values.environment }}
+    debezium.source.database.hostname={{ $.Values.postgres.host }}
+    debezium.source.database.port={{ $.Values.postgres.port }}
+    debezium.source.database.dbname={{ .database }}
+    debezium.source.topic.prefix=intelligent.{{ $.Values.environment }}
     debezium.source.plugin.name=pgoutput
-    debezium.source.table.include.list=.*,outbox
+    debezium.source.database.publication.name=dbz_outbox
+    debezium.source.slot.name={{ .slotName }}
+    debezium.source.table.include.list=public.outbox
     debezium.transforms=outbox
     debezium.transforms.outbox.type=io.debezium.transforms.outbox.EventRouter
+    debezium.transforms.outbox.table.field.event.id=id
+    debezium.transforms.outbox.table.field.event.key=aggregate_id
+    debezium.transforms.outbox.table.field.event.type=type
+    debezium.transforms.outbox.table.field.event.payload=event
+    debezium.transforms.outbox.route.by.field=type
+    debezium.transforms.outbox.route.topic.replacement=intelligent.{{ $.Values.environment }}.${routedByValue}
+    debezium.transforms.outbox.table.expand.json.payload=true
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.name }}
+  name: {{ $.Values.name }}-{{ .name }}
   labels:
-    app.kubernetes.io/name: {{ .Values.name }}
+    app.kubernetes.io/name: {{ $.Values.name }}
+    app.kubernetes.io/instance: {{ .name }}
     app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
-    app.kubernetes.io/component: {{ .Values.component }}
+    app.kubernetes.io/component: {{ $.Values.component }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ $.Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ .Values.name }}
+      app.kubernetes.io/name: {{ $.Values.name }}
+      app.kubernetes.io/instance: {{ .name }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ .Values.name }}
+        app.kubernetes.io/name: {{ $.Values.name }}
+        app.kubernetes.io/instance: {{ .name }}
         app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
-        app.kubernetes.io/component: {{ .Values.component }}
+        app.kubernetes.io/component: {{ $.Values.component }}
     spec:
-      serviceAccountName: {{ .Values.name }}
+      serviceAccountName: {{ $.Values.name }}
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
@@ -64,11 +80,22 @@ spec:
           type: RuntimeDefault
       containers:
         - name: debezium-server
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
           imagePullPolicy: IfNotPresent
+          env:
+            - name: DEBEZIUM_SOURCE_DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: username
+            - name: DEBEZIUM_SOURCE_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: password
           envFrom:
             - secretRef:
-                name: {{ .Values.name }}
+                name: {{ $.Values.name }}
                 optional: true
           securityContext:
             allowPrivilegeEscalation: false
@@ -78,7 +105,7 @@ spec:
               drop:
                 - ALL
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml $.Values.resources | nindent 12 }}
           volumeMounts:
             - name: config
               mountPath: /debezium/conf
@@ -90,12 +117,13 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: {{ .Values.name }}
+            name: {{ $.Values.name }}-{{ .name }}
         - name: data
           emptyDir: {}
         - name: tmp
           emptyDir: {}
 ---
+{{- end }}
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:

@@ -22,13 +22,21 @@ test("nats Argo application lands in the shared nats namespace", async () => {
 
 test("debezium-server chart sinks to NATS JetStream and stays secret-free", async () => {
   const values = await readFile("deploy/charts/debezium-server/values.yaml", "utf8");
-  assert.match(values, /replicaCount:\s*0/);
+  // INT-214 — CDC enabled once outbox tables exist (INT-213 bootstrap).
+  assert.match(values, /replicaCount:\s*1/);
   assert.match(values, /nats\.nats\.svc\.cluster\.local/);
+  assert.match(values, /database:\s*payments/);
+  assert.match(values, /database:\s*settlement/);
+  assert.match(values, /stream:\s*intelligent/);
   const template = await readFile(
     "deploy/charts/debezium-server/templates/resources.yaml",
     "utf8",
   );
   assert.match(template, /debezium\.sink\.type=nats-jetstream/);
+  assert.match(template, /table\.include\.list=public\.outbox/);
+  assert.match(template, /table\.field\.event\.type=type/);
+  assert.match(template, /route\.by\.field=type/);
+  assert.match(template, /create-stream=true/);
   assert.match(template, /kind: ExternalSecret/);
   assert.equal(template.includes("stringData:"), false);
   assert.match(template, /runAsNonRoot: true/);

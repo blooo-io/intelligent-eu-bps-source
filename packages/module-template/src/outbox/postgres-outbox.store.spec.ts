@@ -35,6 +35,7 @@ describe("PostgresOutboxStore (INT-207 / TD-7)", () => {
         sampleRow.id,
         sampleRow.aggregateType,
         sampleRow.aggregateId,
+        sampleRow.event.type,
         JSON.stringify(sampleRow.event),
         sampleRow.createdAt,
       ],

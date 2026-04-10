@@ -47,11 +47,14 @@ test("debezium-server Argo apps land in data namespaces", async () => {
   assert.match(dev, /targetRevision: develop/);
   assert.match(dev, /namespace: int-data/);
   assert.match(dev, /automated:/);
+  // INT-214 — must not merge envs/dev image.tag=develop over quay.io tag.
+  assert.equal(dev.includes("envs/dev/values.yaml"), false);
 
   const demo = await readFile("deploy/argocd/demo/debezium-server.yaml", "utf8");
   assert.equal(demo.includes("automated:"), false);
   assert.equal(demo.includes("targetRevision: develop"), false);
   assert.match(demo, /namespace: demo-data/);
+  assert.equal(demo.includes("envs/demo/values.yaml"), false);
 });
 
 test("helmfile releases debezium-server into the data namespace", async () => {
@@ -60,4 +63,15 @@ test("helmfile releases debezium-server into the data namespace", async () => {
   assert.match(text, /namespace: "\{\{ \.Values\.dataNamespace \}\}"/);
   // Shared NATS must not be a per-env helmfile release (would double-install).
   assert.equal(/\n  - name: nats\n/.test(text), false);
+});
+
+test("scheduler worker pulls GHCR via image.pullSecret and avoids env dup (INT-216)", async () => {
+  const worker = await readFile(
+    "deploy/charts/scheduler/templates/worker.yaml",
+    "utf8",
+  );
+  assert.match(worker, /imagePullSecrets:/);
+  assert.match(worker, /\.Values\.image\.pullSecret/);
+  assert.match(worker, /hasKey \(\.Values\.env \| default dict\) "TEMPORAL_TASK_QUEUE"/);
+  assert.match(worker, /command: \["dist\/temporal\/worker\.js"\]/);
 });

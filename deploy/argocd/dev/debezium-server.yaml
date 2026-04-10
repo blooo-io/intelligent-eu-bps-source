@@ -10,9 +10,10 @@ spec:
     targetRevision: develop
     path: deploy/charts/debezium-server
     helm:
+      # Chart values only — do not merge envs/dev (that file sets image.tag=develop
+      # for GHCR module images; Debezium pulls quay.io/debezium/server:2.7.3.Final).
       valueFiles:
         - values.yaml
-        - ../../envs/dev/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: int-data

@@ -11,9 +11,9 @@ spec:
     targetRevision: v0.0.0
     path: deploy/charts/debezium-server
     helm:
+      # Chart values only — envs/demo image.tag would override the quay.io tag.
       valueFiles:
         - values.yaml
-        - ../../envs/demo/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: demo-data

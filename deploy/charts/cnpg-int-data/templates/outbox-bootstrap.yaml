@@ -18,25 +18,23 @@ metadata:
   name: outbox-bootstrap-read
   labels:
     app.kubernetes.io/name: cnpg-int-data
-spec:
-  rules:
-    - apiGroups: [""]
-      resources: ["secrets"]
-      verbs: ["get", "list"]
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: outbox-bootstrap-read
-spec:
-  roleRef:
-    apiGroup: rbac.authorization.k8s.io
-    kind: Role
-    name: outbox-bootstrap-read
-  subjects:
-    - kind: ServiceAccount
-      name: outbox-bootstrap
-      namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: outbox-bootstrap-read
+subjects:
+  - kind: ServiceAccount
+    name: outbox-bootstrap
+    namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -45,26 +43,24 @@ metadata:
   namespace: int-apps
   labels:
     app.kubernetes.io/name: cnpg-int-data
-spec:
-  rules:
-    - apiGroups: [""]
-      resources: ["secrets"]
-      verbs: ["get", "create", "update", "patch"]
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: outbox-bootstrap-write
   namespace: int-apps
-spec:
-  roleRef:
-    apiGroup: rbac.authorization.k8s.io
-    kind: Role
-    name: outbox-bootstrap-write
-  subjects:
-    - kind: ServiceAccount
-      name: outbox-bootstrap
-      namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: outbox-bootstrap-write
+subjects:
+  - kind: ServiceAccount
+    name: outbox-bootstrap
+    namespace: {{ .Release.Namespace }}
 ---
 apiVersion: v1
 kind: ConfigMap

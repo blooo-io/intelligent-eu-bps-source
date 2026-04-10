@@ -23,6 +23,10 @@ spec:
         app.kubernetes.io/component: {{ .Values.component }}-worker
     spec:
       automountServiceAccountToken: false
+      {{- if .Values.image.pullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecret }}
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -43,11 +47,13 @@ spec:
                 name: {{ .Values.name }}-database
                 optional: true
           env:
-            - name: TEMPORAL_TASK_QUEUE
-              value: {{ .Values.temporalTaskQueue | default "intelligent-billing" | quote }}
             {{- range $k, $v := .Values.env }}
             - name: {{ $k }}
               value: {{ $v | quote }}
+            {{- end }}
+            {{- if not (hasKey (.Values.env | default dict) "TEMPORAL_TASK_QUEUE") }}
+            - name: TEMPORAL_TASK_QUEUE
+              value: {{ .Values.temporalTaskQueue | default "intelligent-billing" | quote }}
             {{- end }}
           securityContext:
             allowPrivilegeEscalation: false

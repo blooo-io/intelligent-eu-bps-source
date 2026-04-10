@@ -73,3 +73,19 @@ test("platform README documents CNPG packaging (INT-158)", async () => {
   assert.match(text, /cnpg-int-data/);
   assert.match(text, /never in Git/);
 });
+
+test("outbox-bootstrap RBAC uses Role rules at top level (INT-213)", async () => {
+  const text = await readFile(
+    "deploy/charts/cnpg-int-data/templates/outbox-bootstrap.yaml",
+    "utf8",
+  );
+  assert.match(text, /kind: Role\n/);
+  assert.match(text, /kind: RoleBinding\n/);
+  assert.match(text, /^rules:\n/m);
+  assert.match(text, /^roleRef:\n/m);
+  assert.match(text, /outbox-bootstrap-write/);
+  assert.match(text, /namespace: int-apps/);
+  // Native Role/RoleBinding must not nest under a CRD-style `spec:`.
+  assert.equal(/\nspec:\n\s+rules:/.test(text), false);
+  assert.equal(/\nspec:\n\s+roleRef:/.test(text), false);
+});

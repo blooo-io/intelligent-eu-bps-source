@@ -21,5 +21,10 @@
     "@stoplight/spectral-cli": "^6.15.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": ">=8.5.18"
+    }
   }
 }

@@ -28,13 +28,14 @@ repoServer:
       memory: 512Mi
 
 controller:
+  # INT-219 — 1Gi OOMKilled under ~40 Applications; raise before GitOps stalls.
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
+      memory: 512Mi
     limits:
       cpu: 1000m
-      memory: 1Gi
+      memory: 2Gi
 
 # Single replica is enough for non-production (physical §6).
 redis:

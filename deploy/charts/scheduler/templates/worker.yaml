@@ -37,8 +37,9 @@ spec:
         - name: worker
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
-          # Distroless node image entrypoint is `node` (same as HTTP CMD).
-          command: ["dist/temporal/worker.js"]
+          # Distroless nodejs ENTRYPOINT is `/nodejs/bin/node`. Use args only —
+          # `command` would replace that entrypoint and fail to exec the .js file.
+          args: ["dist/temporal/worker.js"]
           envFrom:
             - secretRef:
                 name: {{ .Values.name }}

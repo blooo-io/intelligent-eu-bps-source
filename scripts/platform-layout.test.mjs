@@ -73,5 +73,7 @@ test("scheduler worker pulls GHCR via image.pullSecret and avoids env dup (INT-2
   assert.match(worker, /imagePullSecrets:/);
   assert.match(worker, /\.Values\.image\.pullSecret/);
   assert.match(worker, /hasKey \(\.Values\.env \| default dict\) "TEMPORAL_TASK_QUEUE"/);
-  assert.match(worker, /command: \["dist\/temporal\/worker\.js"\]/);
+  // INT-219 — args keeps distroless node entrypoint; command would replace it.
+  assert.match(worker, /args: \["dist\/temporal\/worker\.js"\]/);
+  assert.equal(worker.includes('command: ["dist/temporal/worker.js"]'), false);
 });

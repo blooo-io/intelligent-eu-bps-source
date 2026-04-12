@@ -33,6 +33,15 @@ test("README documents local kubeconfig and never-commit rule", async () => {
   assert.match(text, /KUBECONFIG_INTELLIGENT_EU_DEV/);
 });
 
+test("controller memory limit is at least 2Gi (INT-219)", async () => {
+  const text = await readFile(
+    path.join(root, "deploy/argocd/bootstrap/values.yaml"),
+    "utf8",
+  );
+  assert.match(text, /controller:\s*\n(?:.*\n)*?\s*memory:\s*2Gi/);
+  assert.equal(/controller:[\s\S]*?limits:[\s\S]*?memory:\s*1Gi/.test(text), false);
+});
+
 test("argocd-bootstrap workflow is dispatch-only and uses the dev environment secret", async () => {
   const text = await readFile(
     path.join(root, ".github/workflows/argocd-bootstrap.yml"),

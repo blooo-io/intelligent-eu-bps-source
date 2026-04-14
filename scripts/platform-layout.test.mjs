@@ -36,10 +36,17 @@ test("debezium-server chart sinks to NATS JetStream and stays secret-free", asyn
   assert.match(template, /table\.include\.list=public\.outbox/);
   assert.match(template, /table\.field\.event\.type=type/);
   assert.match(template, /route\.by\.field=type/);
+  // INT-220 — publication.name (not database.publication.name); no autocreate.
+  assert.match(template, /debezium\.source\.publication\.name=dbz_outbox/);
+  assert.match(template, /publication\.autocreate\.mode=disabled/);
+  assert.equal(/debezium\.source\.database\.publication\.name=/.test(template), false);
+  // Quarkus must see $${routedByValue}; bare ${} NPEs in configToProperties.
+  assert.match(template, /route\.topic\.replacement=intelligent\.\{\{ \$\.Values\.environment \}\}\.\$\$\{routedByValue\}/);
   assert.match(template, /create-stream=true/);
   assert.match(template, /kind: ExternalSecret/);
   assert.equal(template.includes("stringData:"), false);
   assert.match(template, /runAsNonRoot: true/);
+  assert.equal(/envFrom:[\s\S]*name: \{\{ \$\.Values\.name \}\}/.test(template), false);
 });
 
 test("debezium-server Argo apps land in data namespaces", async () => {

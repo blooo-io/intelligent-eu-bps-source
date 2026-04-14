@@ -33,7 +33,9 @@ data:
     debezium.source.database.dbname={{ .database }}
     debezium.source.topic.prefix=intelligent.{{ $.Values.environment }}
     debezium.source.plugin.name=pgoutput
-    debezium.source.database.publication.name=dbz_outbox
+    # INT-220 — Postgres connector key is publication.name (not under database.).
+    debezium.source.publication.name=dbz_outbox
+    debezium.source.publication.autocreate.mode=disabled
     debezium.source.slot.name={{ .slotName }}
     debezium.source.table.include.list=public.outbox
     debezium.transforms=outbox
@@ -43,7 +45,8 @@ data:
     debezium.transforms.outbox.table.field.event.type=type
     debezium.transforms.outbox.table.field.event.payload=event
     debezium.transforms.outbox.route.by.field=type
-    debezium.transforms.outbox.route.topic.replacement=intelligent.{{ $.Values.environment }}.${routedByValue}
+    # Quarkus interpolates ${}; $$ leaves EventRouter's ${routedByValue} intact.
+    debezium.transforms.outbox.route.topic.replacement=intelligent.{{ $.Values.environment }}.$${routedByValue}
     debezium.transforms.outbox.table.expand.json.payload=true
 ---
 apiVersion: apps/v1
@@ -93,10 +96,6 @@ spec:
                 secretKeyRef:
                   name: {{ .secretName }}
                   key: password
-          envFrom:
-            - secretRef:
-                name: {{ $.Values.name }}
-                optional: true
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

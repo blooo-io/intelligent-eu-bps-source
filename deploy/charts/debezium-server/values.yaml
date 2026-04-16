@@ -10,8 +10,9 @@ image:
 nats:
   host: nats.nats.svc.cluster.local
   port: 4222
-  # JetStream stream Debezium creates / publishes into (INT-217 consumer binds here).
-  stream: intelligent
+  # INT-221 — Debezium Server 2.7 create-stream hardcodes this name (subjects *.*.*).
+  # Chart property is documentary; the server does not honour a custom stream name.
+  stream: DebeziumStream
 postgres:
   host: int-data-rw
   port: 5432

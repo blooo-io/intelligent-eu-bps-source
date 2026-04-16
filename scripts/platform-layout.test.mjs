@@ -27,7 +27,8 @@ test("debezium-server chart sinks to NATS JetStream and stays secret-free", asyn
   assert.match(values, /nats\.nats\.svc\.cluster\.local/);
   assert.match(values, /database:\s*payments/);
   assert.match(values, /database:\s*settlement/);
-  assert.match(values, /stream:\s*intelligent/);
+  // INT-221 — Debezium Server 2.7 hardcodes stream name DebeziumStream.
+  assert.match(values, /stream:\s*DebeziumStream/);
   const template = await readFile(
     "deploy/charts/debezium-server/templates/resources.yaml",
     "utf8",
@@ -70,6 +71,12 @@ test("helmfile releases debezium-server into the data namespace", async () => {
   assert.match(text, /namespace: "\{\{ \.Values\.dataNamespace \}\}"/);
   // Shared NATS must not be a per-env helmfile release (would double-install).
   assert.equal(/\n  - name: nats\n/.test(text), false);
+});
+
+test("notification consumes DebeziumStream (INT-221)", async () => {
+  const values = await readFile("deploy/charts/notification/values.yaml", "utf8");
+  assert.match(values, /NATS_STREAM:\s*DebeziumStream/);
+  assert.equal(/NATS_STREAM:\s*intelligent\b/.test(values), false);
 });
 
 test("scheduler worker pulls GHCR via image.pullSecret and avoids env dup (INT-216)", async () => {

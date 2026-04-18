@@ -198,6 +198,9 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: keycloak
       ports:
+        # INT-218 — Keycloakx HTTP is :80; keep 8080/443 for legacy / TLS.
+        - port: 80
+          protocol: TCP
         - port: 443
           protocol: TCP
         - port: 8080

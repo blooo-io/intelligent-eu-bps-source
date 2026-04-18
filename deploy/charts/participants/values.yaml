@@ -16,10 +16,11 @@ ingressFrom:
 keycloakEgress: true
 stripeEgress: false
 namespaceIngress: true
-# INT-215 — enable Keycloak Admin P-IDP (matches int-realm client secret).
+# INT-215 / INT-218 — Keycloak Admin P-IDP (matches int-realm client secret).
+# Service DNS is platform-keycloak-keycloakx-http (port 80), not keycloak:8080.
 env:
   IDP_ADMIN_PROVIDER: keycloak
-  KEYCLOAK_BASE_URL: http://keycloak.keycloak.svc.cluster.local:8080
+  KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
   KEYCLOAK_REALM: int
   KEYCLOAK_ADMIN_CLIENT_ID: participants-admin
   KEYCLOAK_ADMIN_CLIENT_SECRET: dev-participants-admin-replace-me

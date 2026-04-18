@@ -5,6 +5,7 @@ import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.
 import { TradeStore } from "./domain/store.js";
 import { IntakeController } from "./intake/intake.controller.js";
 import { IntakeService } from "./intake/intake.service.js";
+import { PublicIntakeController } from "./intake/public.controller.js";
 import { FixturePartyResolver } from "./party/fixture-party-resolver.js";
 import { PARTY_RESOLVER } from "./party/party-resolver.port.js";
 
@@ -17,7 +18,7 @@ const knownActors = new Set(
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "trade-intake" }),
   ],
-  controllers: [IntakeController],
+  controllers: [IntakeController, PublicIntakeController],
   providers: [
     TradeStore,
     IntakeService,

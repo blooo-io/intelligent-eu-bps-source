@@ -114,7 +114,9 @@ spec:
       plugins:
 {{ include "apisix-gateway.oidcPlugin" . | nindent 8 }}
     - name: reporting
-      priority: 50
+      # INT-218 — priority 60 beats participants /v1/communities/* and /v1/participants/*
+      # so AC-09 owns payments-overview and member history (public.v1 x-served-by).
+      priority: 60
       match:
         hosts:
           - {{ .Values.hosts.api | quote }}
@@ -123,6 +125,8 @@ spec:
           - /v1/reports/*
           - /v1/kpi-exports
           - /v1/kpi-exports/*
+          - /v1/communities/*/payments-overview
+          - /v1/participants/*/history
       backends:
         - serviceName: reporting
           servicePort: 8080

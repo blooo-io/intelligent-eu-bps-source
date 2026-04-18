@@ -35,6 +35,29 @@ describe("invoicing HTTP (INT-106)", () => {
     expect(await res.json()).toEqual({ status: "ok", module: "invoicing" });
   });
 
+  it("UAT seed invoice is listed for uat-member IdP sub (INT-218)", async () => {
+    const list = await fetch(`${base}/v1/me/invoices`, {
+      headers: {
+        "x-intelligent-roles": "member",
+        "x-intelligent-sub": "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f",
+      },
+    });
+    expect(list.status).toBe(200);
+    const rows = (await list.json()) as Array<{
+      invoiceId: string;
+      status: string;
+      amounts: { total: string };
+    }>;
+    expect(rows.some((r) => r.invoiceId === "c0a1b2c3-d4e5-4f60-8a70-b8c9d0e1f203")).toBe(
+      true,
+    );
+    const seeded = rows.find(
+      (r) => r.invoiceId === "c0a1b2c3-d4e5-4f60-8a70-b8c9d0e1f203",
+    )!;
+    expect(seeded.status).toBe("Paid");
+    expect(seeded.amounts.total).toBe("22.00");
+  });
+
   it("getInvoice and markOverdue require service principal", async () => {
     const created = await service.createFromSettlement({
       settlementId: "s2222222-2222-4222-8222-222222222222",

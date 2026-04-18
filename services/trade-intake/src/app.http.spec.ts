@@ -81,4 +81,33 @@ describe("trade-intake HTTP (INT-104)", () => {
     });
     expect(res.status).toBe(204);
   });
+
+  it("GET /v1/intake/anomalies lists for operator (INT-218 / REQ-029)", async () => {
+    const denied = await fetch(`${base}/v1/intake/anomalies`);
+    expect(denied.status).toBe(401);
+
+    const empty = await fetch(`${base}/v1/intake/anomalies`, {
+      headers: { "x-intelligent-roles": "operator" },
+    });
+    expect(empty.status).toBe(200);
+    expect(await empty.json()).toEqual([]);
+
+    await fetch(`${base}/internal/v1/intake:refresh`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "service",
+      },
+      body: JSON.stringify({
+        from: "2026-11-01T00:00:00Z",
+        to: "2026-11-02T00:00:00Z",
+      }),
+    });
+    // Refresh with fixture parties yields no anomalies; shape must still be an array.
+    const list = await fetch(`${base}/v1/intake/anomalies`, {
+      headers: { "x-intelligent-roles": "operator" },
+    });
+    expect(list.status).toBe(200);
+    expect(Array.isArray(await list.json())).toBe(true);
+  });
 });

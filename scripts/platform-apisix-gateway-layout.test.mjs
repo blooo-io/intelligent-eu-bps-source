@@ -30,6 +30,10 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(routes, /apisix-gateway\.oidcPlugin/);
   assert.match(routes, /auth-idp/);
   assert.match(routes, /web-app/);
+  // INT-218 — AC-09 paths must not fall through to participants /v1/communities/*.
+  assert.match(routes, /communities\/\*\/payments-overview/);
+  assert.match(routes, /participants\/\*\/history/);
+  assert.match(routes, /name: reporting[\s\S]*priority: 60/);
   // INT-170 / INT-171 — Keycloak KC_PROXY_HEADERS=forwarded needs RFC7239 Forwarded.
   assert.match(routes, /proxy-rewrite/);
   assert.match(routes, /Forwarded:/);

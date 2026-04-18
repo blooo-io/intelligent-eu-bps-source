@@ -79,8 +79,19 @@ test("synchronous module calls match the application view", async () => {
   assert.match(settlement, /egressModules:[\s\S]*- reference-data/);
   const participants = await readFile("deploy/charts/participants/values.yaml", "utf8");
   assert.match(participants, /keycloakEgress: true/);
+  // INT-218 — Admin IdP must reach Keycloakx HTTP Service DNS (port 80).
+  assert.match(
+    participants,
+    /KEYCLOAK_BASE_URL:\s*http:\/\/platform-keycloak-keycloakx-http\.keycloak\.svc\.cluster\.local/,
+  );
+  assert.equal(/keycloak\.keycloak\.svc\.cluster\.local:8080/.test(participants), false);
   const payments = await readFile("deploy/charts/payments/values.yaml", "utf8");
   assert.match(payments, /stripeEgress: true/);
+});
+
+test("module NetworkPolicy allows Keycloak HTTP port 80 (INT-218)", async () => {
+  const template = await readFile("deploy/charts/module/templates/_resources.tpl", "utf8");
+  assert.match(template, /keycloakEgress[\s\S]*port: 80/);
 });
 
 test("workloads are non-root with a read-only filesystem and no committed secret", async () => {

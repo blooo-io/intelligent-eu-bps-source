@@ -58,6 +58,28 @@ describe("KeycloakIdpAdapter (INT-208)", () => {
     expect(String(fetchMock.mock.calls[1]![0])).toContain("/admin/realms/int/users");
   });
 
+  it("sends Forwarded proto=https on cluster-internal HTTP (INT-218)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ access_token: "tok" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const adapter = new KeycloakIdpAdapter({
+      ...config,
+      baseUrl: "http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local",
+    });
+    await expect(
+      adapter.createUser({
+        email: "x@example.test",
+        communityId: "c",
+        role: "member",
+      }),
+    ).rejects.toThrow(); // createUser fails after token (mock has no Location)
+    const tokenHeaders = fetchMock.mock.calls[0]![1].headers as Record<string, string>;
+    expect(tokenHeaders["X-Forwarded-Proto"]).toBe("https");
+    expect(tokenHeaders.Forwarded).toBe("proto=https");
+  });
+
   it("sendInvitation and deleteUser call Admin endpoints", async () => {
     const fetchMock = vi
       .fn()

@@ -20,6 +20,21 @@ export class KeycloakIdpAdapter implements IdpAdminPort {
     }
   }
 
+  /**
+   * INT-218 — cluster-internal HTTP to Keycloakx needs Forwarded proto=https
+   * because realm sslRequired=external rejects bare http (HTTPS required).
+   */
+  private proxyHeaders(): Record<string, string> {
+    if (this.config.baseUrl.startsWith("https://")) {
+      return {};
+    }
+    return {
+      "X-Forwarded-Proto": "https",
+      "X-Forwarded-Port": "443",
+      Forwarded: "proto=https",
+    };
+  }
+
   async createUser(input: IdpCreateUserInput): Promise<IdpUser> {
     const token = await this.token();
     const res = await fetch(
@@ -29,6 +44,7 @@ export class KeycloakIdpAdapter implements IdpAdminPort {
         headers: {
           authorization: `Bearer ${token}`,
           "content-type": "application/json",
+          ...this.proxyHeaders(),
         },
         body: JSON.stringify({
           enabled: true,
@@ -62,6 +78,7 @@ export class KeycloakIdpAdapter implements IdpAdminPort {
         headers: {
           authorization: `Bearer ${token}`,
           "content-type": "application/json",
+          ...this.proxyHeaders(),
         },
         body: JSON.stringify(["VERIFY_EMAIL", "UPDATE_PASSWORD"]),
       },
@@ -77,7 +94,10 @@ export class KeycloakIdpAdapter implements IdpAdminPort {
       `${this.config.baseUrl}/admin/realms/${encodeURIComponent(this.config.realm)}/users/${encodeURIComponent(userId)}`,
       {
         method: "DELETE",
-        headers: { authorization: `Bearer ${token}` },
+        headers: {
+          authorization: `Bearer ${token}`,
+          ...this.proxyHeaders(),
+        },
       },
     );
     if (!res.ok && res.status !== 404) {
@@ -95,7 +115,10 @@ export class KeycloakIdpAdapter implements IdpAdminPort {
       `${this.config.baseUrl}/realms/${encodeURIComponent(this.config.realm)}/protocol/openid-connect/token`,
       {
         method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          ...this.proxyHeaders(),
+        },
         body,
       },
     );

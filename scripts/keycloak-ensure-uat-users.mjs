@@ -52,10 +52,32 @@ export const UAT_USERS = [
 
 export const UAT_PASSWORD = "Intelligent-UAT-2026!";
 
+/** INT-218 — AC-03 Admin IdP client (must exist after realm import skipped). */
+export const PARTICIPANTS_ADMIN_CLIENT = {
+  clientId: "participants-admin",
+  secret: "dev-participants-admin-replace-me",
+  realmManagementRoles: [
+    "manage-users",
+    "view-users",
+    "query-users",
+    "view-clients",
+  ],
+};
+
 export async function loadRealmUatUsers(realmPath = REALM_PATH) {
   const realm = JSON.parse(await readFile(realmPath, "utf8"));
   const users = realm.users ?? [];
   return users.filter((u) => String(u.username ?? "").startsWith("uat-"));
+}
+
+/** Forwarded proto so sslRequired=external accepts in-cluster HTTP (INT-218). */
+function proxyHeaders(baseUrl) {
+  if (String(baseUrl).startsWith("https://")) return {};
+  return {
+    "X-Forwarded-Proto": "https",
+    "X-Forwarded-Port": "443",
+    Forwarded: "proto=https",
+  };
 }
 
 async function adminToken(baseUrl, password) {
@@ -67,7 +89,14 @@ async function adminToken(baseUrl, password) {
   });
   const res = await fetch(
     `${baseUrl.replace(/\/$/, "")}/realms/master/protocol/openid-connect/token`,
-    { method: "POST", body },
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        ...proxyHeaders(baseUrl),
+      },
+      body,
+    },
   );
   if (!res.ok) {
     throw new Error(`admin token failed: ${res.status}`);
@@ -81,6 +110,7 @@ async function ensureUser(baseUrl, token, fixture) {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
     Accept: "application/json",
+    ...proxyHeaders(baseUrl),
   };
   const realmBase = `${baseUrl.replace(/\/$/, "")}/admin/realms/int`;
   const search = await fetch(
@@ -162,6 +192,118 @@ async function ensureUser(baseUrl, token, fixture) {
   return { username: fixture.username, id, role: fixture.role };
 }
 
+/**
+ * INT-218 — create/update participants-admin confidential client + realm-management roles.
+ * Realm ConfigMap import does not re-apply clients on an already-initialised realm.
+ */
+export async function ensureParticipantsAdminClient(baseUrl, token) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...proxyHeaders(baseUrl),
+  };
+  const realmBase = `${baseUrl.replace(/\/$/, "")}/admin/realms/int`;
+  const { clientId, secret, realmManagementRoles } = PARTICIPANTS_ADMIN_CLIENT;
+
+  const search = await fetch(
+    `${realmBase}/clients?clientId=${encodeURIComponent(clientId)}`,
+    { headers },
+  );
+  if (!search.ok) {
+    throw new Error(`list client ${clientId}: ${search.status}`);
+  }
+  const found = await search.json();
+  let internalId = found[0]?.id;
+  if (!internalId) {
+    const create = await fetch(`${realmBase}/clients`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        clientId,
+        name: "AC-03 Keycloak Admin (P-IDP)",
+        enabled: true,
+        publicClient: false,
+        bearerOnly: false,
+        standardFlowEnabled: false,
+        directAccessGrantsEnabled: false,
+        serviceAccountsEnabled: true,
+        secret,
+        protocol: "openid-connect",
+      }),
+    });
+    if (create.status !== 201) {
+      throw new Error(`create client ${clientId}: ${create.status}`);
+    }
+    const again = await fetch(
+      `${realmBase}/clients?clientId=${encodeURIComponent(clientId)}`,
+      { headers },
+    );
+    internalId = (await again.json())[0]?.id;
+  } else {
+    // Align secret + service-account flags with chart values (INT-218).
+    const cur = found[0];
+    const put = await fetch(`${realmBase}/clients/${internalId}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        ...cur,
+        secret,
+        serviceAccountsEnabled: true,
+        publicClient: false,
+        standardFlowEnabled: false,
+        directAccessGrantsEnabled: false,
+      }),
+    });
+    if (!put.ok) {
+      throw new Error(`update client ${clientId}: ${put.status}`);
+    }
+  }
+  if (!internalId) {
+    throw new Error(`client ${clientId} missing after create`);
+  }
+
+  const saRes = await fetch(
+    `${realmBase}/clients/${internalId}/service-account-user`,
+    { headers },
+  );
+  if (!saRes.ok) {
+    throw new Error(`service-account-user: ${saRes.status}`);
+  }
+  const saUser = await saRes.json();
+
+  const rmClientSearch = await fetch(
+    `${realmBase}/clients?clientId=realm-management`,
+    { headers },
+  );
+  const rmClient = (await rmClientSearch.json())[0];
+  if (!rmClient?.id) {
+    throw new Error("realm-management client missing");
+  }
+  const available = await fetch(
+    `${realmBase}/users/${saUser.id}/role-mappings/clients/${rmClient.id}/available`,
+    { headers },
+  );
+  const availableRoles = available.ok ? await available.json() : [];
+  const wanted = availableRoles.filter((r) =>
+    realmManagementRoles.includes(r.name),
+  );
+  if (wanted.length > 0) {
+    const map = await fetch(
+      `${realmBase}/users/${saUser.id}/role-mappings/clients/${rmClient.id}`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(wanted),
+      },
+    );
+    if (!map.ok && map.status !== 409) {
+      throw new Error(`map realm-management roles: ${map.status}`);
+    }
+  }
+  return { clientId, internalId, serviceAccountUserId: saUser.id };
+}
+
 export async function ensureUatUsers(options = {}) {
   const baseUrl = options.baseUrl ?? process.env.KEYCLOAK_URL;
   const password =
@@ -170,14 +312,15 @@ export async function ensureUatUsers(options = {}) {
     throw new Error("KEYCLOAK_URL and KEYCLOAK_ADMIN_PASSWORD are required");
   }
   const token = await adminToken(baseUrl, password);
+  const adminClient = await ensureParticipantsAdminClient(baseUrl, token);
   const results = [];
   for (const fixture of UAT_USERS) {
     results.push(await ensureUser(baseUrl, token, fixture));
   }
-  return results;
+  return { users: results, adminClient };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const results = await ensureUatUsers();
-  console.log(JSON.stringify({ ok: true, users: results }, null, 2));
+  console.log(JSON.stringify({ ok: true, ...results }, null, 2));
 }

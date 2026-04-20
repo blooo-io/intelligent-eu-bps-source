@@ -16,6 +16,7 @@ import {
   type AuthenticatedRequest,
 } from "@intelligent/module-template";
 import type { InvoiceStatus } from "../domain/types.js";
+import { UAT_INLINE_PDF } from "../domain/uat-seed.js";
 import { InvoicingService } from "./invoicing.service.js";
 
 /**
@@ -54,6 +55,15 @@ export class PublicInvoicingController {
       invoiceId,
       req.user!.sub,
     );
+    // INT-218 — UAT seed serves an inline stub PDF (no external redirect).
+    if (url.startsWith("seed:")) {
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="invoice-${invoiceId}.pdf"`,
+      );
+      return res.status(200).send(UAT_INLINE_PDF);
+    }
     // REQ-039 — provider hosts the PDF; redirect to Stripe hosted URL.
     return res.redirect(302, url);
   }

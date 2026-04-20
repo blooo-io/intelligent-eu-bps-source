@@ -14,9 +14,17 @@ export const UAT_COMMUNITY_ID = "a1000000-0000-4000-8000-000000000001";
 
 export const UAT_INVOICE_ID = "c0a1b2c3-d4e5-4f60-8a70-b8c9d0e1f203";
 
-/** Stable hosted URL — e2e Open PDF only needs a fetchable redirect target. */
-export const UAT_HOSTED_INVOICE_URL =
-  "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+/**
+ * Marker URL — public document handler serves an inline stub PDF instead of
+ * redirecting (browser fetch + external redirect fails CORS / cluster egress).
+ */
+export const UAT_HOSTED_INVOICE_URL = "seed:uat218-inline-pdf";
+
+/** Minimal valid PDF bytes for Open PDF e2e (REQ-039 path). */
+export const UAT_INLINE_PDF = Buffer.from(
+  "%PDF-1.1\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n",
+  "utf8",
+);
 
 export function seedUatInvoices(): InvoiceRecord[] {
   return [

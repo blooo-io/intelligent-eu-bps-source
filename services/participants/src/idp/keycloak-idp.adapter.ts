@@ -71,20 +71,41 @@ export class KeycloakIdpAdapter implements IdpAdminPort {
 
   async sendInvitation(userId: string): Promise<void> {
     const token = await this.token();
-    const res = await fetch(
-      `${this.config.baseUrl}/admin/realms/${encodeURIComponent(this.config.realm)}/users/${encodeURIComponent(userId)}/execute-actions-email`,
-      {
-        method: "PUT",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json",
-          ...this.proxyHeaders(),
-        },
-        body: JSON.stringify(["VERIFY_EMAIL", "UPDATE_PASSWORD"]),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Keycloak sendInvitation failed with HTTP ${res.status}`);
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      ...this.proxyHeaders(),
+    };
+    const userUrl = `${this.config.baseUrl}/admin/realms/${encodeURIComponent(this.config.realm)}/users/${encodeURIComponent(userId)}`;
+    const actions = ["VERIFY_EMAIL", "UPDATE_PASSWORD"] as const;
+
+    // Always stamp required actions (works without SMTP).
+    const get = await fetch(userUrl, { headers });
+    if (!get.ok) {
+      throw new Error(`Keycloak getUser failed with HTTP ${get.status}`);
+    }
+    const existing = (await get.json()) as Record<string, unknown>;
+    const put = await fetch(userUrl, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        ...existing,
+        requiredActions: [...actions],
+      }),
+    });
+    if (!put.ok) {
+      throw new Error(`Keycloak setRequiredActions failed with HTTP ${put.status}`);
+    }
+
+    // REQ-008 invitation email — best-effort in V1 when realm has no SMTP
+    // (Keycloak returns 500 from execute-actions-email without a mail host).
+    const mail = await fetch(`${userUrl}/execute-actions-email`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify([...actions]),
+    });
+    if (!mail.ok && mail.status !== 500) {
+      throw new Error(`Keycloak sendInvitation failed with HTTP ${mail.status}`);
     }
   }
 

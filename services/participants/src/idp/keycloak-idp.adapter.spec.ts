@@ -86,14 +86,38 @@ describe("KeycloakIdpAdapter (INT-208)", () => {
       .mockResolvedValue({
         ok: true,
         status: 204,
-        json: async () => ({ access_token: "tok" }),
+        json: async () => ({ access_token: "tok", id: "user-1" }),
         headers: { get: () => null },
       });
     vi.stubGlobal("fetch", fetchMock);
     const adapter = new KeycloakIdpAdapter(config);
     await adapter.sendInvitation("user-1");
     await adapter.deleteUser("user-1");
-    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(4);
+    // token + getUser + putActions + execute-email + token + delete
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("sendInvitation tolerates execute-actions-email 500 without SMTP (INT-218)", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/protocol/openid-connect/token")) {
+        return { ok: true, json: async () => ({ access_token: "tok" }) };
+      }
+      if (init?.method === "PUT" && u.endsWith("/execute-actions-email")) {
+        return { ok: false, status: 500 };
+      }
+      if (init?.method === "PUT") {
+        return { ok: true, status: 204 };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ id: "user-1", username: "x" }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const adapter = new KeycloakIdpAdapter(config);
+    await expect(adapter.sendInvitation("user-1")).resolves.toBeUndefined();
   });
 
   it("readKeycloakIdpConfig returns null when secrets missing", () => {

@@ -30,3 +30,12 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+  # INT-226 — etcd StatefulSet VCT / annotation drift under SSA.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions:
+        - .spec.volumeClaimTemplates
+        - .spec.template.metadata.annotations
+        - .metadata.annotations
+        - .status

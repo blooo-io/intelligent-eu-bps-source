@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  DEV_MAILPIT_SMTP,
   PARTICIPANTS_ADMIN_CLIENT,
   UAT_COMMUNITY_ID,
   UAT_PASSWORD,
@@ -39,4 +40,13 @@ test("ensure script packs participants-admin client secret (INT-218)", async () 
   assert.equal(client.secret, PARTICIPANTS_ADMIN_CLIENT.secret);
   assert.equal(client.serviceAccountsEnabled, true);
   assert.equal(PARTICIPANTS_ADMIN_CLIENT.realmManagementRoles.includes("manage-users"), true);
+});
+
+test("int-realm.json packs Mailpit SMTP (INT-224)", async () => {
+  const realm = JSON.parse(
+    await readFile("deploy/charts/keycloak-realms/realms/int-realm.json", "utf8"),
+  );
+  assert.equal(realm.smtpServer?.host, DEV_MAILPIT_SMTP.host);
+  assert.equal(realm.smtpServer?.port, DEV_MAILPIT_SMTP.port);
+  assert.equal(realm.smtpServer?.auth, "false");
 });

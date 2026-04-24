@@ -25,3 +25,11 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+  # INT-226 — CNPG operator fills status + managed annotations; ignore for sync.
+  ignoreDifferences:
+    - group: postgresql.cnpg.io
+      kind: Cluster
+      jqPathExpressions:
+        - .status
+        - .metadata.annotations
+        - .metadata.managedFields

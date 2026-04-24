@@ -4,7 +4,7 @@
 
 ## Why a bridge?
 
-AC-05 writes `SettlementCompleted` / `BillingRunCompleted` to the outbox. AC-06 `createFromSettlement` exists but is not yet driven by a NATS consumer on the cluster. INT-196 exposes:
+AC-05 writes `SettlementCompleted` / `BillingRunCompleted` to the outbox. INT-223 wires AC-06 to JetStream `SettlementCompleted` (hydrate via GetPairSettlement → `createFromSettlement`). The HTTP bridge remains for operator / seed when events are not replayed. INT-196 exposes:
 
 - `GET /internal/v1/billing-runs/{runId}` (settlement) — settlementIds for a run
 - `POST /internal/v1/invoices:from-settlement` (invoicing) — TD-2 invoice with `tradeIds` + `pairSettlementId`
@@ -48,4 +48,4 @@ Uses mock S1 community `c0ffee00-1234-4abc-8def-0123456789ab` (FixtureTradeSourc
 ## Follow-ups
 
 - Align mock S1 participant IDs with INT-194 UAT Keycloak seeds (or seed fixture actors into AC-03).
-- Wire outbox → Debezium → NATS → AC-06 consumer so the bridge script is no longer required.
+- INT-223: AC-06 JetStream consumer is live on `dev`; prefer event path for new billing runs. Bridge script remains for deterministic UAT re-seed.

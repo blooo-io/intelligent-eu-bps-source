@@ -8,6 +8,20 @@
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "sslRequired": "external",
+  "smtpServer": {
+    "host": "mailpit.int-apps.svc.cluster.local",
+    "port": "1025",
+    "from": "noreply@dev.intelligent-eu-bp.blooo.dev",
+    "fromDisplayName": "INTELLIGENT billing (dev)",
+    "replyTo": "noreply@dev.intelligent-eu-bp.blooo.dev",
+    "replyToDisplayName": "INTELLIGENT billing (dev)",
+    "envelopeFrom": "",
+    "ssl": "false",
+    "starttls": "false",
+    "auth": "false",
+    "user": "",
+    "password": ""
+  },
   "roles": {
     "realm": [
       { "name": "member", "description": "Billing community member" },

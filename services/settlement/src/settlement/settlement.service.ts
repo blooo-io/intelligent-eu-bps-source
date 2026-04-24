@@ -264,7 +264,7 @@ export class SettlementService {
       settlementIds.push(settlementId);
 
       if (this.trades instanceof FixtureTradeSource) {
-        this.trades.markBilled(pair.tradeIds);
+        await this.trades.markBilled(pair.tradeIds);
       }
     }
 

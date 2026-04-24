@@ -33,8 +33,8 @@ export class InvoicingController {
   }
 
   /**
-   * INT-196 / UAT-028 — bridge AC-05 pair settlement → AC-06 invoice until
-   * SettlementCompleted is consumed from the outbox/NATS path.
+   * INT-196 / UAT-028 — operator / seed bridge AC-05 → AC-06.
+   * Primary path is SettlementCompleted NATS consumer (INT-223).
    */
   @Post("invoices\\:from-settlement")
   async createFromSettlement(

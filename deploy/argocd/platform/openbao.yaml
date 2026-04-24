@@ -28,3 +28,12 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+  # INT-226 — STS volumeClaimTemplates / defaulted fields drift under SSA.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions:
+        - .spec.volumeClaimTemplates
+        - .spec.template.metadata.annotations
+        - .metadata.annotations
+        - .status

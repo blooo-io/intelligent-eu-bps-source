@@ -1,17 +1,19 @@
-import { NativeConnection, Worker } from "@temporalio/worker";
+import { Worker } from "@temporalio/worker";
 import { fileURLToPath } from "node:url";
 import * as activities from "./activities.js";
+import { connectWithRetry } from "./connect-retry.js";
 
 const TASK_QUEUE = process.env.TEMPORAL_TASK_QUEUE ?? "intelligent-billing";
 
 /**
  * INT-216 — Temporal worker process for AC-14 (same image, alternate CMD).
+ * INT-227 — connectWithRetry before Worker.create.
  */
 async function main(): Promise<void> {
   const address =
     process.env.TEMPORAL_ADDRESS ?? process.env.TEMPORAL_HOST ?? "127.0.0.1:7233";
   const namespace = process.env.TEMPORAL_NAMESPACE ?? "int";
-  const connection = await NativeConnection.connect({ address });
+  const connection = await connectWithRetry(address);
   const worker = await Worker.create({
     connection,
     namespace,

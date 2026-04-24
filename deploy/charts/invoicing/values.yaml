@@ -16,6 +16,11 @@ keycloakEgress: false
 stripeEgress: true
 namespaceIngress: true
 # INT-189 — Stripe test invoices on producer Connect accounts (AD-6).
+# INT-223 — JetStream SettlementCompleted → createFromSettlement.
 env:
   STRIPE_INVOICE_PROVIDER: stripe
   PSP_PROVIDER: stripe
+  NATS_URL: nats://nats.nats.svc.cluster.local:4222
+  NATS_SUBJECT_PREFIX: intelligent.dev
+  NATS_STREAM: DebeziumStream
+  SETTLEMENT_INTERNAL_URL: http://settlement:8080

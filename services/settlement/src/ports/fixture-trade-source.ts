@@ -5,17 +5,32 @@ import {
 } from "@intelligent/mocks";
 import type { UnbilledTrade } from "../domain/types.js";
 import type { TradeSourcePort } from "./trade-source.port.js";
+import {
+  type BilledTradesStore,
+  InMemoryBilledTradesStore,
+} from "./billed-trades.store.js";
 
 /**
  * V1 fixture trade source — maps AC-15 scenario settled trades to unbilled rows
  * until the HTTP client to AC-04 is wired.
+ * INT-225 — billed set is backed by BilledTradesStore (Postgres when DATABASE_URL set).
  */
 export class FixtureTradeSource implements TradeSourcePort {
   private suite: MockSuite;
   private billed = new Set<string>();
+  private readonly store: BilledTradesStore;
 
-  constructor(scenarioId: ScenarioId = "S1") {
+  constructor(
+    scenarioId: ScenarioId = "S1",
+    store: BilledTradesStore = new InMemoryBilledTradesStore(),
+  ) {
     this.suite = createMockSuite(scenarioId);
+    this.store = store;
+  }
+
+  /** Load durable billed ids (call once at module boot). */
+  async hydrate(): Promise<void> {
+    this.billed = await this.store.load();
   }
 
   useScenario(scenarioId: ScenarioId): void {
@@ -53,9 +68,10 @@ export class FixtureTradeSource implements TradeSourcePort {
       }));
   }
 
-  markBilled(tradeIds: string[]): void {
+  async markBilled(tradeIds: string[]): Promise<void> {
     for (const id of tradeIds) {
       this.billed.add(id);
     }
+    await this.store.mark(tradeIds);
   }
 }

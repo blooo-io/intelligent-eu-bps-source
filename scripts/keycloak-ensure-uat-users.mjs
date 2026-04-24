@@ -304,6 +304,49 @@ export async function ensureParticipantsAdminClient(baseUrl, token) {
   return { clientId, internalId, serviceAccountUserId: saUser.id };
 }
 
+/**
+ * INT-224 — realm ConfigMap import does not re-apply smtpServer on an
+ * already-initialised realm. PUT smtp via Admin API so invitations reach Mailpit.
+ */
+export const DEV_MAILPIT_SMTP = {
+  host: "mailpit.int-apps.svc.cluster.local",
+  port: "1025",
+  from: "noreply@dev.intelligent-eu-bp.blooo.dev",
+  fromDisplayName: "INTELLIGENT billing (dev)",
+  replyTo: "noreply@dev.intelligent-eu-bp.blooo.dev",
+  replyToDisplayName: "INTELLIGENT billing (dev)",
+  envelopeFrom: "",
+  ssl: "false",
+  starttls: "false",
+  auth: "false",
+  user: "",
+  password: "",
+};
+
+export async function ensureRealmSmtp(baseUrl, token, smtp = DEV_MAILPIT_SMTP) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...proxyHeaders(baseUrl),
+  };
+  const realmUrl = `${baseUrl.replace(/\/$/, "")}/admin/realms/int`;
+  const get = await fetch(realmUrl, { headers });
+  if (!get.ok) {
+    throw new Error(`get realm int: ${get.status}`);
+  }
+  const realm = await get.json();
+  const put = await fetch(realmUrl, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ ...realm, smtpServer: smtp }),
+  });
+  if (!put.ok) {
+    throw new Error(`put realm smtp: ${put.status}`);
+  }
+  return { host: smtp.host, port: smtp.port, from: smtp.from };
+}
+
 export async function ensureUatUsers(options = {}) {
   const baseUrl = options.baseUrl ?? process.env.KEYCLOAK_URL;
   const password =
@@ -312,12 +355,13 @@ export async function ensureUatUsers(options = {}) {
     throw new Error("KEYCLOAK_URL and KEYCLOAK_ADMIN_PASSWORD are required");
   }
   const token = await adminToken(baseUrl, password);
+  const smtp = await ensureRealmSmtp(baseUrl, token);
   const adminClient = await ensureParticipantsAdminClient(baseUrl, token);
   const results = [];
   for (const fixture of UAT_USERS) {
     results.push(await ensureUser(baseUrl, token, fixture));
   }
-  return { users: results, adminClient };
+  return { users: results, adminClient, smtp };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

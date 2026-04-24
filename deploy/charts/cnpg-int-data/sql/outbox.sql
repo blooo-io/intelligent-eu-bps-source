@@ -21,6 +21,13 @@ ALTER TABLE outbox ALTER COLUMN type SET NOT NULL;
 CREATE INDEX IF NOT EXISTS outbox_created_at_idx ON outbox (created_at);
 CREATE INDEX IF NOT EXISTS outbox_type_idx ON outbox (type);
 
+-- INT-225 — durable fixture billed trade ids (AC-05 FixtureTradeSource).
+-- Applied to every module DB; only settlement reads/writes this table.
+CREATE TABLE IF NOT EXISTS fixture_billed_trades (
+  trade_id   TEXT PRIMARY KEY,
+  marked_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- INT-214 — publication for Debezium pgoutput (module role owns the table).
 DO $$
 BEGIN

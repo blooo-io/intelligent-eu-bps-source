@@ -1,4 +1,6 @@
 # INT-224 — Mailpit SMTP catcher for Keycloak invitations + AC-11 (dev).
+# Do not load envs/dev/values.yaml: that file sets image.tag=develop for
+# GHCR module images and would override axllent/mailpit:v1.22.3.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -10,9 +12,6 @@ spec:
     repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
     targetRevision: develop
     path: deploy/charts/mailpit
-    helm:
-      valueFiles:
-        - ../../envs/dev/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: int-apps

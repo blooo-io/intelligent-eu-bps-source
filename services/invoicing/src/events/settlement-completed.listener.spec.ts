@@ -7,6 +7,7 @@ import { InMemoryEventBus } from "./in-memory-event-bus.js";
 import {
   mapEnvelope,
   SettlementCompletedListener,
+  unwrapEnvelope,
 } from "./settlement-completed.listener.js";
 
 describe("SettlementCompletedListener (INT-223)", () => {
@@ -17,6 +18,139 @@ describe("SettlementCompletedListener (INT-223)", () => {
         data: { runId: "r1", pairSettlementIds: ["s1", "s2"] },
       }),
     ).toEqual({ eventId: "e1", pairSettlementIds: ["s1", "s2"] });
+  });
+
+  it("unwraps JSON converter {schema,payload}", () => {
+    expect(
+      unwrapEnvelope({
+        schema: { type: "struct" },
+        payload: {
+          eventId: "e2",
+          data: { pairSettlementIds: ["s9"] },
+        },
+      }),
+    ).toMatchObject({ eventId: "e2" });
+    expect(
+      mapEnvelope({
+        schema: {},
+        payload: {
+          eventId: "e2",
+          data: { pairSettlementIds: ["s9"] },
+        },
+      }),
+    ).toEqual({ eventId: "e2", pairSettlementIds: ["s9"] });
+  });
+
+  it("unwraps CloudEvents id + data envelope", () => {
+    expect(
+      mapEnvelope({
+        id: "outbox-row-id",
+        source: "debezium",
+        type: "SettlementCompleted",
+        data: {
+          eventId: "e3",
+          data: { pairSettlementIds: ["s3"] },
+        },
+      }),
+    ).toEqual({ eventId: "e3", pairSettlementIds: ["s3"] });
+  });
+
+  it("falls back to CloudEvents id when data is data-only", () => {
+    expect(
+      mapEnvelope({
+        id: "outbox-row-id",
+        data: { runId: "r1", pairSettlementIds: ["s4"] },
+      }),
+    ).toEqual({ eventId: "outbox-row-id", pairSettlementIds: ["s4"] });
+  });
+
+  it("parses string JSON and CDC after.event", () => {
+    expect(
+      mapEnvelope(
+        JSON.stringify({
+          eventId: "e-str",
+          data: { pairSettlementIds: ["s5"] },
+        }),
+      ),
+    ).toEqual({ eventId: "e-str", pairSettlementIds: ["s5"] });
+
+    expect(
+      mapEnvelope({
+        after: {
+          id: "row",
+          event: JSON.stringify({
+            eventId: "e-cdc",
+            data: { pairSettlementIds: ["s6"] },
+          }),
+        },
+      }),
+    ).toEqual({ eventId: "e-cdc", pairSettlementIds: ["s6"] });
+  });
+
+  it("synthesizes eventId from runId + pair ids when envelope id missing", () => {
+    expect(
+      mapEnvelope({
+        data: { runId: "run-9", pairSettlementIds: ["s7", "s8"] },
+      }),
+    ).toEqual({
+      eventId: "settlement:run-9:s7,s8",
+      pairSettlementIds: ["s7", "s8"],
+    });
+  });
+
+  it("uses CloudEvents id when data has neither eventId nor pairs", () => {
+    expect(
+      mapEnvelope({
+        id: "ce-only",
+        data: { foo: "bar" },
+      }),
+    ).toEqual({ eventId: "ce-only", pairSettlementIds: [] });
+  });
+
+  it("reads flattened pairSettlementIds on the root", () => {
+    expect(
+      mapEnvelope({
+        eventId: "flat",
+        pairSettlementIds: ["s-flat"],
+      }),
+    ).toEqual({ eventId: "flat", pairSettlementIds: ["s-flat"] });
+  });
+
+  it("synthesizes eventId with unknown runId", () => {
+    expect(
+      mapEnvelope({
+        data: { pairSettlementIds: ["sx"] },
+      }),
+    ).toEqual({
+      eventId: "settlement:unknown:sx",
+      pairSettlementIds: ["sx"],
+    });
+  });
+
+  it("returns empty on invalid JSON string", () => {
+    expect(mapEnvelope("not-json{")).toEqual({
+      eventId: "",
+      pairSettlementIds: [],
+    });
+  });
+
+  it("acks empty pairSettlementIds without calling settlement", async () => {
+    const bus = new InMemoryEventBus();
+    const getPairSettlement = vi.fn();
+    const createFromSettlement = vi.fn();
+    const listener = new SettlementCompletedListener(
+      bus,
+      { createFromSettlement } as never,
+      { getPairSettlement } as never,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+    );
+    await listener.onModuleInit();
+    await bus.publish("SettlementCompleted", {
+      eventId: "evt-empty",
+      data: { runId: "r", pairSettlementIds: [] },
+    });
+    expect(getPairSettlement).not.toHaveBeenCalled();
+    expect(createFromSettlement).not.toHaveBeenCalled();
   });
 
   it("hydrates each pair and calls createFromSettlement once per id", async () => {
@@ -55,7 +189,6 @@ describe("SettlementCompletedListener (INT-223)", () => {
     expect(getPairSettlement).toHaveBeenCalledWith("s-b");
     expect(createFromSettlement).toHaveBeenCalledTimes(2);
 
-    // Idempotent on eventId — second delivery is a no-op.
     await bus.publish("SettlementCompleted", {
       eventId: "evt-settlement-1",
       data: { runId: "r1", pairSettlementIds: ["s-a", "s-b"] },
@@ -74,7 +207,7 @@ describe("SettlementCompletedListener (INT-223)", () => {
     );
     await listener.onModuleInit();
     await bus.publish("SettlementCompleted", {
-      data: { pairSettlementIds: ["s1"] },
+      data: { pairSettlementIds: [] },
     });
     expect(createFromSettlement).not.toHaveBeenCalled();
   });
@@ -114,4 +247,3 @@ describe("SettlementCompletedListener (INT-223)", () => {
     ).rejects.toThrow("stripe down");
   });
 });
-

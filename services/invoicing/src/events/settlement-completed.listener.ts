@@ -33,8 +33,15 @@ export class SettlementCompletedListener implements OnModuleInit {
   async onMessage(payload: unknown): Promise<void> {
     const { eventId, pairSettlementIds } = mapEnvelope(payload);
     if (!eventId) {
-      this.logger.warn("SettlementCompleted missing eventId — skipping");
+      this.logger.warn(
+        `SettlementCompleted missing eventId — skipping (keys=${Object.keys(asRecord(payload)).join(",")})`,
+      );
       return;
+    }
+    if (pairSettlementIds.length === 0) {
+      this.logger.debug(
+        `SettlementCompleted ${eventId} has no pairSettlementIds — ack only`,
+      );
     }
     const result = await this.consumer.handle(eventId, payload, async () => {
       for (const settlementId of pairSettlementIds) {
@@ -51,19 +58,77 @@ export class SettlementCompletedListener implements OnModuleInit {
   }
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+/**
+ * Unwrap Debezium EventRouter / JSON converter / CloudEvents shapes to the
+ * AsyncAPI envelope (eventId + data.pairSettlementIds).
+ */
+export function unwrapEnvelope(payload: unknown): Record<string, unknown> {
+  let cur: unknown = payload;
+  if (typeof cur === "string") {
+    try {
+      cur = JSON.parse(cur);
+    } catch {
+      return {};
+    }
+  }
+  let rec = asRecord(cur);
+
+  // JSON Converter: { schema, payload }
+  if (rec.payload !== undefined && rec.schema !== undefined) {
+    rec = asRecord(rec.payload);
+  }
+  // Raw CDC before EventRouter: { after: { event: {...} } }
+  if (rec.after !== undefined && typeof rec.after === "object") {
+    const after = asRecord(rec.after);
+    if (after.event !== undefined) {
+      const event =
+        typeof after.event === "string"
+          ? JSON.parse(after.event)
+          : after.event;
+      rec = asRecord(event);
+    }
+  }
+  // CloudEvents: { id, data: envelope | data-only }
+  if (
+    typeof rec.id === "string" &&
+    rec.data !== undefined &&
+    !rec.eventId &&
+    !rec.pairSettlementIds
+  ) {
+    const data = asRecord(rec.data);
+    if (data.eventId || data.pairSettlementIds || data.data) {
+      rec = data.eventId ? data : { eventId: rec.id, data };
+    } else {
+      rec = { eventId: String(rec.id), data };
+    }
+  }
+  return rec;
+}
+
 export function mapEnvelope(payload: unknown): {
   eventId: string;
   pairSettlementIds: string[];
 } {
-  const envelope = payload as {
-    eventId?: string;
-    data?: Record<string, unknown>;
-  };
-  const data = envelope.data ?? {};
-  const raw = data.pairSettlementIds;
+  const envelope = unwrapEnvelope(payload);
+  const data = asRecord(envelope.data);
+  // Some sinks flatten data onto the root.
+  const raw =
+    data.pairSettlementIds ??
+    envelope.pairSettlementIds ??
+    [];
   const pairSettlementIds = Array.isArray(raw) ? raw.map(String) : [];
-  return {
-    eventId: String(envelope.eventId ?? ""),
-    pairSettlementIds,
-  };
+  const eventId = String(
+    envelope.eventId ??
+      envelope.id ??
+      (pairSettlementIds.length > 0
+        ? `settlement:${String(data.runId ?? envelope.runId ?? "unknown")}:${pairSettlementIds.join(",")}`
+        : ""),
+  );
+  return { eventId, pairSettlementIds };
 }

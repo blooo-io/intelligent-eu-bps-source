@@ -53,9 +53,28 @@ export class SettlementCompletedListener implements OnModuleInit {
       this.logger.error(
         `SettlementCompleted ${eventId} failed: ${result.error.message}`,
       );
+      // INT-223 — permanent Stripe Connect / fixture acct_test_* errors must not
+      // nak forever; ack so JetStream stops redelivering poison messages.
+      if (isNonRetryableInvoiceError(result.error)) {
+        this.logger.warn(
+          `SettlementCompleted ${eventId} non-retryable — acking without rethrow`,
+        );
+        return;
+      }
       throw result.error;
     }
   }
+}
+
+/** Stripe missing Connect account / revoked access — not fixed by retry. */
+export function isNonRetryableInvoiceError(error: Error): boolean {
+  const msg = error.message.toLowerCase();
+  return (
+    msg.includes("does not have access to account") ||
+    msg.includes("acct_test_") ||
+    msg.includes("no such account") ||
+    msg.includes("producer not ready")
+  );
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

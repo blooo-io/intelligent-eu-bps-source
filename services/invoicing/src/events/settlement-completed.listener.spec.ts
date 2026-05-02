@@ -5,6 +5,7 @@ import {
 } from "@intelligent/module-template";
 import { InMemoryEventBus } from "./in-memory-event-bus.js";
 import {
+  isNonRetryableInvoiceError,
   mapEnvelope,
   SettlementCompletedListener,
   unwrapEnvelope,
@@ -212,7 +213,7 @@ describe("SettlementCompletedListener (INT-223)", () => {
     expect(createFromSettlement).not.toHaveBeenCalled();
   });
 
-  it("rethrows when createFromSettlement fails", async () => {
+  it("rethrows when createFromSettlement fails with retryable error", async () => {
     const bus = new InMemoryEventBus();
     const listener = new SettlementCompletedListener(
       bus,
@@ -245,5 +246,51 @@ describe("SettlementCompletedListener (INT-223)", () => {
         data: { pairSettlementIds: ["s1"] },
       }),
     ).rejects.toThrow("stripe down");
+  });
+
+  it("acks non-retryable Stripe Connect account errors without rethrow", async () => {
+    const bus = new InMemoryEventBus();
+    const listener = new SettlementCompletedListener(
+      bus,
+      {
+        createFromSettlement: vi.fn(async () => {
+          throw new Error(
+            "The provided key does not have access to account 'acct_test_abc'",
+          );
+        }),
+      } as never,
+      {
+        getPairSettlement: vi.fn(async (id: string) => ({
+          settlementId: id,
+          runId: "r1",
+          consumerId: "c1",
+          producerId: "p1",
+          tradeIds: [],
+          kWh: "0",
+          energyAmount: "1.00",
+          vat: "0",
+          currency: "EUR",
+          rate: "1",
+          communityId: "c",
+        })),
+      } as never,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+    );
+    await listener.onModuleInit();
+    await expect(
+      bus.publish("SettlementCompleted", {
+        eventId: "evt-poison",
+        data: { pairSettlementIds: ["s1"] },
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("classifies Stripe account errors as non-retryable", () => {
+    expect(
+      isNonRetryableInvoiceError(
+        new Error("does not have access to account 'acct_xyz'"),
+      ),
+    ).toBe(true);
+    expect(isNonRetryableInvoiceError(new Error("timeout"))).toBe(false);
   });
 });

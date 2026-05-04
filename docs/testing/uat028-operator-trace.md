@@ -1,4 +1,4 @@
-# UAT-028 operator trace seed (INT-196…200)
+# UAT-028 operator trace seed (INT-196…200 / INT-228)
 
 **Status:** Pass on `dev` (2026-10-18 / INT-200). Invoice lineage + succeeded payment seeded; operator can open the invoice and see originating trade id(s), then follow `pairSettlementId` → billing `runId`.
 
@@ -10,26 +10,38 @@ AC-05 writes `SettlementCompleted` / `BillingRunCompleted` to the outbox. INT-22
 - `POST /internal/v1/invoices:from-settlement` (invoicing) — TD-2 invoice with `tradeIds` + `pairSettlementId`
 - INT-197: optional `producerStripeAccountId` on the bridge body
 - INT-198: Connect customer email for `send_invoice`
+- INT-228: AC-06 resolves Connect ids from AC-07; **never invents `acct_test_*` when Stripe is live**
 
-## Operator script
+## Preferred: fresh Stripe entities every run (INT-228)
+
+Creates **new** Connect Custom accounts in Stripe test mode, binds them in AC-07, resets fixture billed trades, starts an early billing run so the NATS path creates new Customers + Invoices on those accounts (visible in the Stripe Dashboard).
+
+```bash
+kubectl -n int-apps port-forward svc/payments 18087:8080 &
+kubectl -n int-apps port-forward svc/settlement 18085:8080 &
+PAYMENTS_URL=http://127.0.0.1:18087 \
+SETTLEMENT_URL=http://127.0.0.1:18085 \
+node scripts/stripe-fresh-billing-run.mjs
+```
+
+Uses mock S1 community `c0ffee00-1234-4abc-8def-0123456789ab` (FixtureTradeSource). Prefer `type=early` so amounts under the €5 threshold still invoice.
+
+## Legacy bridge (fixed Connect id)
 
 ```bash
 kubectl -n int-apps port-forward svc/settlement 18085:8080 &
 kubectl -n int-apps port-forward svc/invoicing 18086:8080 &
-# Fresh settlement pod: FixtureTradeSource marks trades billed in-memory after the first StartRun.
 SETTLEMENT_URL=http://127.0.0.1:18085 \
 INVOICING_URL=http://127.0.0.1:18086 \
 PRODUCER_STRIPE_ACCOUNT_ID=acct_… \
 node scripts/uat028-seed-billing-trace.mjs
 ```
 
-Uses mock S1 community `c0ffee00-1234-4abc-8def-0123456789ab` (FixtureTradeSource). Prefer `type=early` so amounts under the €5 threshold still invoice.
-
-`PRODUCER_STRIPE_ACCOUNT_ID` (INT-197) must be a Connect account with `charges_enabled` (UAT-015). Without it AC-06 synthesises `acct_test_*` and Stripe rejects invoice creation.
+`PRODUCER_STRIPE_ACCOUNT_ID` (INT-197) must be a Connect account with `charges_enabled` (UAT-015). Prefer `stripe-fresh-billing-run.mjs` so each run leaves new Dashboard artifacts instead of reusing a single account.
 
 ## Trace path (REQ-028)
 
-1. Note `invoiceId`, `tradeIds`, `pairSettlementId` from the script output.
+1. Note `invoiceId`, `tradeIds`, `pairSettlementId` from the script output (or invoicing logs after NATS).
 2. `GET /internal/v1/settlements/{pairSettlementId}` → `runId` (balance calculation run).
 3. Public invoices UI shows `tradeIds` on the invoice detail (AC-01).
 4. Pay via `POST /v1/invoices/{invoiceId}/payments` with a consumer PaymentMethod attached (Stripe test `tok_visa` → `pm_…`).
@@ -48,4 +60,4 @@ Uses mock S1 community `c0ffee00-1234-4abc-8def-0123456789ab` (FixtureTradeSourc
 ## Follow-ups
 
 - Align mock S1 participant IDs with INT-194 UAT Keycloak seeds (or seed fixture actors into AC-03).
-- INT-223: AC-06 JetStream consumer is live on `dev`; prefer event path for new billing runs. Bridge script remains for deterministic UAT re-seed.
+- INT-223: AC-06 JetStream consumer is live on `dev`; prefer event path + INT-228 provision for new billing runs.

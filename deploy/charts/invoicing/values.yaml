@@ -10,6 +10,7 @@ port: 8080
 egressModules: 
   - settlement
   - participants
+  - payments
 ingressFrom: 
   - payments
 keycloakEgress: false
@@ -17,6 +18,7 @@ stripeEgress: true
 namespaceIngress: true
 # INT-189 — Stripe test invoices on producer Connect accounts (AD-6).
 # INT-223 — JetStream SettlementCompleted → createFromSettlement.
+# INT-228 — resolve Connect ids from AC-07 (no synthetic acct_test_*).
 env:
   STRIPE_INVOICE_PROVIDER: stripe
   PSP_PROVIDER: stripe
@@ -24,3 +26,4 @@ env:
   NATS_SUBJECT_PREFIX: intelligent.dev
   NATS_STREAM: DebeziumStream
   SETTLEMENT_INTERNAL_URL: http://settlement:8080
+  PAYMENTS_INTERNAL_URL: http://payments:8080

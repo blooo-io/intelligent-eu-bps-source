@@ -7,6 +7,8 @@ import pg, { type Pool } from "pg";
 export type BilledTradesStore = {
   load(): Promise<Set<string>>;
   mark(tradeIds: string[]): Promise<void>;
+  /** INT-228 — clear so a fresh seed/run can re-settle fixture trades. */
+  clear(): Promise<void>;
 };
 
 export class InMemoryBilledTradesStore implements BilledTradesStore {
@@ -18,6 +20,10 @@ export class InMemoryBilledTradesStore implements BilledTradesStore {
 
   async mark(tradeIds: string[]): Promise<void> {
     for (const id of tradeIds) this.billed.add(id);
+  }
+
+  async clear(): Promise<void> {
+    this.billed.clear();
   }
 }
 
@@ -69,6 +75,11 @@ export class PostgresBilledTradesStore implements BilledTradesStore {
     } finally {
       client.release();
     }
+  }
+
+  async clear(): Promise<void> {
+    await this.ensureSchema();
+    await this.pool.query("DELETE FROM fixture_billed_trades");
   }
 }
 

@@ -9,6 +9,10 @@ import { InvoicingController } from "./invoicing/invoicing.controller.js";
 import { PublicInvoicingController } from "./invoicing/public.controller.js";
 import { InvoicingService } from "./invoicing/invoicing.service.js";
 import {
+  createPaymentsClient,
+  PAYMENTS_CLIENT,
+} from "./ports/payments-client.port.js";
+import {
   AlwaysReadyReadiness,
   READINESS_PORT,
 } from "./ports/readiness.port.js";
@@ -57,6 +61,11 @@ function resolveInvoiceProvider(): "stripe" | "mock" {
     {
       provide: SETTLEMENT_CLIENT,
       useFactory: () => createSettlementClient(),
+    },
+    {
+      provide: PAYMENTS_CLIENT,
+      // INT-228 — resolve Connect ids from AC-07 (Stripe master).
+      useFactory: () => createPaymentsClient(),
     },
     SettlementCompletedListener,
   ],

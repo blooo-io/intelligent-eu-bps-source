@@ -9,6 +9,7 @@ import {
 } from "@intelligent/module-template";
 import { InvoiceStore } from "../domain/store.js";
 import type { PairSettlementInput } from "../domain/types.js";
+import { NoopPaymentsClient } from "../ports/payments-client.port.js";
 import { MapReadiness } from "../ports/readiness.port.js";
 import { MockStripeInvoiceAdapter } from "../stripe/mock-stripe-invoice.js";
 import { InvoicingService } from "./invoicing.service.js";
@@ -47,6 +48,7 @@ describe("InvoicingService", () => {
       new MapReadiness(
         new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
       ),
+      new NoopPaymentsClient(),
     );
     service.registerConnectAccount(
       "66666666-7777-4888-9999-aaaaaaaaaaaa",
@@ -77,6 +79,7 @@ describe("InvoicingService", () => {
       new OutboxService(outboxStore),
       stripe,
       new MapReadiness(new Map()),
+      new NoopPaymentsClient(),
     );
     await expect(service.createFromSettlement(settlement())).rejects.toThrow(
       /not[_ ]ready/,
@@ -98,6 +101,28 @@ describe("InvoicingService", () => {
     expect(invoice!.producerStripeAccountId).toBe("acct_override_live");
     // Mock legal number is derived from the Connect account id (BR-10).
     expect(invoice!.legalNumber).toMatch(/^ACCT_OVE-000001$/);
+  });
+
+  it("refuses synthetic acct_test_* when Stripe invoice provider is live (INT-228)", async () => {
+    const prev = process.env.STRIPE_INVOICE_PROVIDER;
+    process.env.STRIPE_INVOICE_PROVIDER = "stripe";
+    const live = new InvoicingService(
+      store,
+      new OutboxService(outboxStore),
+      stripe,
+      new MapReadiness(
+        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
+      ),
+      new NoopPaymentsClient(),
+    );
+    try {
+      await expect(live.createFromSettlement(settlement())).rejects.toThrow(
+        /Connect account required/,
+      );
+    } finally {
+      if (prev === undefined) delete process.env.STRIPE_INVOICE_PROVIDER;
+      else process.env.STRIPE_INVOICE_PROVIDER = prev;
+    }
   });
 
   it("marks open invoices overdue (REQ-044)", async () => {

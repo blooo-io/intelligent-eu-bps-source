@@ -10,6 +10,7 @@ import {
 import { PaymentsStore } from "../domain/store.js";
 import { MockPspAdapter } from "../psp/mock-psp.adapter.js";
 import { InMemoryInvoiceLookup } from "../ports/invoice-lookup.port.js";
+import { InMemoryPaymentAccountsStore } from "../ports/payment-accounts.store.js";
 import { NoopParticipantsNotifier } from "../ports/participants-notifier.port.js";
 import { PaymentsService } from "./payments.service.js";
 
@@ -35,7 +36,47 @@ describe("PaymentsService", () => {
       psp,
       invoices,
       new NoopParticipantsNotifier(),
+      new InMemoryPaymentAccountsStore(),
     );
+  });
+
+  it("provisions a fresh producer Connect account each run (INT-228)", async () => {
+    const first = await service.provisionPaymentAccount({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      fresh: true,
+    });
+    expect(first.stripeAccountId).toMatch(/^acct_test_/);
+    const second = await service.provisionPaymentAccount({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      fresh: true,
+    });
+    expect(second.stripeAccountId).toMatch(/^acct_test_/);
+    expect(second.stripeAccountId).not.toBe(first.stripeAccountId);
+    const got = await service.getPaymentAccount(PRODUCER);
+    expect(got.stripeAccountId).toBe(second.stripeAccountId);
+
+    const reused = await service.provisionPaymentAccount({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      fresh: false,
+    });
+    expect(reused.stripeAccountId).toBe(second.stripeAccountId);
+  });
+
+  it("provisions consumer SetupIntent path (INT-228)", async () => {
+    const row = await service.provisionPaymentAccount({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+      fresh: true,
+    });
+    expect(row.participantId).toBe(CONSUMER);
+    expect(row.stripeAccountId).toBeNull();
   });
 
   it("defers Custom account create until KYC submit (INT-191 / REQ-051)", async () => {
@@ -215,7 +256,7 @@ describe("PaymentsService", () => {
   });
 
   it("attaches payment method and emits PaymentAccountStatusChanged (REQ-040)", async () => {
-    service.ensureParticipant({
+    await service.ensureParticipant({
       participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",
@@ -229,7 +270,7 @@ describe("PaymentsService", () => {
   });
 
   it("pays an invoice to the producer account (REQ-014, BR-12)", async () => {
-    service.ensureParticipant({
+    await service.ensureParticipant({
       participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",
@@ -256,7 +297,7 @@ describe("PaymentsService", () => {
   });
 
   it("categorizes card failures (REQ-016 / S10)", async () => {
-    service.ensureParticipant({
+    await service.ensureParticipant({
       participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",
@@ -354,7 +395,7 @@ describe("PaymentsService", () => {
 
   it("refunds via PSP and upgrades pending payment on webhook", async () => {
     expect(await psp.refund("pi_test_x")).toEqual({ status: "refunded" });
-    service.ensureParticipant({
+    await service.ensureParticipant({
       participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",
@@ -385,7 +426,7 @@ describe("PaymentsService", () => {
   });
 
   it("marks payment failed on payment_intent.payment_failed webhook", async () => {
-    service.ensureParticipant({
+    await service.ensureParticipant({
       participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",

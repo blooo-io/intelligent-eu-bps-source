@@ -44,6 +44,44 @@ describe("payments HTTP (INT-107)", () => {
     expect(await res.json()).toEqual({ status: "ok", module: "payments" });
   });
 
+  it("internal GetPaymentAccount + provision (INT-228)", async () => {
+    const missing = await fetch(
+      `${base}/internal/v1/payment-accounts/${PRODUCER}`,
+      { headers: { "x-intelligent-roles": "service" } },
+    );
+    expect(missing.status).toBe(404);
+
+    const provision = await fetch(
+      `${base}/internal/v1/payment-accounts:provision`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-intelligent-roles": "service,operator",
+        },
+        body: JSON.stringify({
+          participantId: PRODUCER,
+          communityId: COMMUNITY,
+          role: "producer",
+          fresh: true,
+        }),
+      },
+    );
+    expect(provision.status).toBe(201);
+    const created = await provision.json();
+    expect(created.stripeAccountId).toMatch(/^acct_test_/);
+
+    const got = await fetch(
+      `${base}/internal/v1/payment-accounts/${PRODUCER}`,
+      { headers: { "x-intelligent-roles": "service" } },
+    );
+    expect(got.status).toBe(200);
+    expect(await got.json()).toMatchObject({
+      participantId: PRODUCER,
+      stripeAccountId: created.stripeAccountId,
+    });
+  });
+
   it("onboarding and pay require member principal", async () => {
     const denied = await fetch(`${base}/v1/me/payment-account/onboarding`, {
       method: "POST",
@@ -65,7 +103,7 @@ describe("payments HTTP (INT-107)", () => {
       clientSecret: expect.stringMatching(/^seti_test_/),
     });
 
-    service.ensureParticipant({
+    await service.ensureParticipant({
       participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",

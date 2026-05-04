@@ -90,8 +90,13 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
     expect(customersCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         // INT-198 / UAT-028 — email required for collection_method=send_invoice
-        email: "consumer-c1@example.test",
-        metadata: expect.objectContaining({ consumerId: "c-1" }),
+        // INT-228 — settlement id in email so each run creates a distinct Customer
+        email: "consumer-c1-set1@example.test",
+        metadata: expect.objectContaining({
+          consumerId: "c-1",
+          settlementId: "set-1",
+          runId: "run-1",
+        }),
       }),
       { stripeAccount: "acct_prod" },
     );

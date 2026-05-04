@@ -13,6 +13,11 @@ import type {
   PairSettlementInput,
 } from "../domain/types.js";
 import {
+  isLiveStripeInvoiceProvider,
+  PAYMENTS_CLIENT,
+  type PaymentsClientPort,
+} from "../ports/payments-client.port.js";
+import {
   READINESS_PORT,
   type ReadinessPort,
 } from "../ports/readiness.port.js";
@@ -29,7 +34,7 @@ const PRODUCER = "AC-06";
  */
 @Injectable()
 export class InvoicingService {
-  /** V1 fixture: producerId → Stripe Connect account id. */
+  /** Unit-test / mock fixture: producerId → Stripe Connect account id. */
   private connectAccounts = new Map<string, string>();
 
   constructor(
@@ -37,6 +42,7 @@ export class InvoicingService {
     @Inject(OutboxService) private readonly outbox: OutboxService,
     @Inject(STRIPE_INVOICE_PORT) private readonly stripe: StripeInvoicePort,
     @Inject(READINESS_PORT) private readonly readiness: ReadinessPort,
+    @Inject(PAYMENTS_CLIENT) private readonly payments: PaymentsClientPort,
   ) {}
 
   resetStore(): void {
@@ -46,6 +52,34 @@ export class InvoicingService {
 
   registerConnectAccount(producerId: string, stripeAccountId: string): void {
     this.connectAccounts.set(producerId, stripeAccountId);
+  }
+
+  /**
+   * INT-228 / TP-7 — Connect id from override → AC-07 → in-memory fixture.
+   * Never synthesise acct_test_* when talking to live Stripe.
+   */
+  private async resolveProducerStripeAccount(
+    settlement: PairSettlementInput,
+  ): Promise<string> {
+    if (settlement.producerStripeAccountId) {
+      return settlement.producerStripeAccountId;
+    }
+    const fromPayments = await this.payments.getProducerStripeAccountId(
+      settlement.producerId,
+    );
+    if (fromPayments) {
+      return fromPayments;
+    }
+    const fromFixture = this.connectAccounts.get(settlement.producerId);
+    if (fromFixture) {
+      return fromFixture;
+    }
+    if (isLiveStripeInvoiceProvider()) {
+      throw new BadRequestException(
+        "producer Connect account required (provision via AC-07; no synthetic acct_test_*)",
+      );
+    }
+    return `acct_test_${settlement.producerId.replace(/-/g, "").slice(0, 16)}`;
   }
 
   getInvoice(invoiceId: string): {
@@ -156,10 +190,7 @@ export class InvoicingService {
       );
     }
 
-    const stripeAccountId =
-      settlement.producerStripeAccountId ??
-      this.connectAccounts.get(settlement.producerId) ??
-      `acct_test_${settlement.producerId.replace(/-/g, "").slice(0, 16)}`;
+    const stripeAccountId = await this.resolveProducerStripeAccount(settlement);
 
     const dueDate = new Date();
     dueDate.setUTCDate(dueDate.getUTCDate() + 14);

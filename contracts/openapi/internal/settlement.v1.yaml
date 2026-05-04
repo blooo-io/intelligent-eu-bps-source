@@ -111,6 +111,29 @@ paths:
                       $ref: '../components/schemas.yaml#/components/schemas/Uuid'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /fixture-billed:reset:
+    post:
+      operationId: resetFixtureBilled
+      tags: [Settlement]
+      summary: Clear fixture billed trade ids
+      description: >
+        INT-228 — operator/dev only. Clears the durable FixtureTradeSource billed
+        set so a fresh billing seed can re-settle S1 trades and create new Stripe
+        invoices (paired with AC-07 payment-accounts:provision fresh=true).
+      responses:
+        '200':
+          description: Cleared.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [cleared]
+                properties:
+                  cleared:
+                    type: boolean
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
 components:
   securitySchemes:
     serviceAuth:

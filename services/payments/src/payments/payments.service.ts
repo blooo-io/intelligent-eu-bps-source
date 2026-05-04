@@ -8,7 +8,10 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { OutboxService } from "@intelligent/module-template";
-import { PaymentsStore } from "../domain/store.js";
+import {
+  PaymentsStore,
+  type AccountRecord,
+} from "../domain/store.js";
 import {
   INVOICE_LOOKUP,
   type InvoiceLookupPort,
@@ -17,6 +20,10 @@ import {
   PARTICIPANTS_NOTIFIER,
   type ParticipantsNotifierPort,
 } from "../ports/participants-notifier.port.js";
+import {
+  PAYMENT_ACCOUNTS_STORE,
+  type PaymentAccountsStore,
+} from "../ports/payment-accounts.store.js";
 import {
   PSP_PORT,
   PRODUCER_ONBOARDING_DUE,
@@ -39,27 +46,160 @@ export class PaymentsService {
     @Inject(INVOICE_LOOKUP) private readonly invoices: InvoiceLookupPort,
     @Inject(PARTICIPANTS_NOTIFIER)
     private readonly participants: ParticipantsNotifierPort,
+    @Inject(PAYMENT_ACCOUNTS_STORE)
+    private readonly accountsStore: PaymentAccountsStore,
   ) {}
 
   resetStore(): void {
     this.store.reset();
+    this.accountsStore.reset?.();
   }
 
-  ensureParticipant(input: {
+  /** INT-228 — write memory + durable store (Postgres when DATABASE_URL set). */
+  private async saveAccount(row: AccountRecord): Promise<void> {
+    this.store.putAccount(row);
+    await this.accountsStore.put(row);
+  }
+
+  async ensureParticipant(input: {
     participantId: string;
     communityId: string;
     role: "consumer" | "producer" | "prosumer";
-  }): void {
-    if (!this.store.getAccount(input.participantId)) {
-      this.store.putAccount({
-        participantId: input.participantId,
-        stripeAccountId: null,
-        paymentMethodId: null,
-        kycStatus: "none",
-        role: input.role,
-        communityId: input.communityId,
-      });
+  }): Promise<void> {
+    if (this.store.getAccount(input.participantId)) {
+      return;
     }
+    const durable = await this.accountsStore.get(input.participantId);
+    if (durable) {
+      this.store.putAccount(durable);
+      return;
+    }
+    await this.saveAccount({
+      participantId: input.participantId,
+      stripeAccountId: null,
+      paymentMethodId: null,
+      kycStatus: "none",
+      role: input.role,
+      communityId: input.communityId,
+    });
+  }
+
+  /**
+   * INT-228 — GetPaymentAccount for AC-06 (Stripe Connect master, TP-7).
+   */
+  async getPaymentAccount(participantId: string): Promise<
+    AccountRecord & { chargesEnabled?: boolean }
+  > {
+    let row = this.store.getAccount(participantId);
+    if (!row) {
+      row = await this.accountsStore.get(participantId);
+      if (row) this.store.putAccount(row);
+    }
+    if (!row) {
+      throw new NotFoundException(`Unknown payment account ${participantId}`);
+    }
+    let chargesEnabled: boolean | undefined;
+    if (row.stripeAccountId) {
+      try {
+        const session = await this.psp.getAccountSession(row.stripeAccountId);
+        chargesEnabled = session.status === "complete";
+      } catch {
+        chargesEnabled = false;
+      }
+    }
+    return { ...row, chargesEnabled };
+  }
+
+  /**
+   * INT-228 — always create a fresh Stripe Connect Custom account (test KYC)
+   * when fresh=true so each operator/seed run leaves Dashboard-visible entities.
+   */
+  async provisionPaymentAccount(input: {
+    participantId: string;
+    communityId: string;
+    role: "consumer" | "producer" | "prosumer";
+    fresh?: boolean;
+  }): Promise<AccountRecord & { chargesEnabled?: boolean }> {
+    const fresh = input.fresh !== false;
+    await this.ensureParticipant(input);
+    const existing = this.store.getAccount(input.participantId)!;
+
+    if (input.role === "consumer") {
+      if (!fresh && existing.paymentMethodId) {
+        return { ...existing, chargesEnabled: undefined };
+      }
+      // Consumer SetupIntent creates a Stripe Customer; bind a test PM id in mock,
+      // or leave method empty until Elements — seed scripts attach pm_card_visa.
+      const setup = await this.psp.createSetupIntent(input.participantId);
+      void setup;
+      return { ...existing, chargesEnabled: undefined };
+    }
+
+    if (!fresh && existing.stripeAccountId) {
+      return this.getPaymentAccount(input.participantId);
+    }
+
+    const runTag = Date.now().toString(36);
+    const submission: OnboardingRequirementsSubmission = {
+      tosAccepted: true,
+      businessType: "individual",
+      country: "FR",
+      businessProfileUrl: "https://intelligent.example.test",
+      businessProfileMcc: "5734",
+      representative: {
+        firstName: "Test",
+        lastName: `Producer${runTag}`,
+        email: `producer-${input.participantId.slice(0, 8)}-${runTag}@example.test`,
+        phone: "+33600000000",
+        dob: { day: 1, month: 1, year: 1902 },
+        address: {
+          line1: "address_full_match",
+          city: "Paris",
+          postalCode: "75001",
+          country: "FR",
+        },
+      },
+      // INT-195 — magic test file tokens for charges_enabled.
+      identityDocumentFront: "file_identity_document_success",
+      identityDocumentAdditionalFront: "file_identity_document_success",
+      externalAccount: {
+        country: "FR",
+        currency: "eur",
+        accountNumber: "FR1420041010050500013M02606",
+      },
+    };
+
+    const accountToken = await this.psp.createAccountToken(submission);
+    const created = await this.psp.createProducerAccount({
+      participantId: input.participantId,
+      accountToken,
+      country: "FR",
+    });
+    const session = await this.psp.submitAccountRequirements(
+      created.stripeAccountId,
+      {
+        businessProfileUrl: submission.businessProfileUrl,
+        businessProfileMcc: submission.businessProfileMcc,
+        externalAccount: submission.externalAccount,
+      },
+      "127.0.0.1",
+    );
+    const verified =
+      session.status === "complete" || session.status === "pending_verification";
+    await this.saveAccount({
+      ...existing,
+      stripeAccountId: created.stripeAccountId,
+      kycStatus: verified ? "verified" : "pending",
+      role: input.role,
+      communityId: input.communityId,
+    });
+    if (verified) {
+      await this.emitAccountStatus(input.participantId);
+    }
+    return {
+      ...(await this.getPaymentAccount(input.participantId)),
+      chargesEnabled: session.status === "complete",
+    };
   }
 
   async startOnboarding(input: {
@@ -67,7 +207,7 @@ export class PaymentsService {
     communityId: string;
     role: "consumer" | "producer" | "prosumer";
   }): Promise<OnboardingSession> {
-    this.ensureParticipant(input);
+    await this.ensureParticipant(input);
     const account = this.store.getAccount(input.participantId)!;
 
     if (input.role === "producer" || input.role === "prosumer") {
@@ -106,7 +246,7 @@ export class PaymentsService {
     if (input.role === "consumer") {
       throw new BadRequestException("Consumers use payment-method link onboarding");
     }
-    this.ensureParticipant(input);
+    await this.ensureParticipant(input);
     const account = this.store.getAccount(input.participantId)!;
     let stripeAccountId = account.stripeAccountId;
 
@@ -127,7 +267,7 @@ export class PaymentsService {
         country,
       });
       stripeAccountId = created.stripeAccountId;
-      this.store.putAccount({
+      await this.saveAccount({
         ...account,
         stripeAccountId,
         kycStatus: "pending",
@@ -143,7 +283,7 @@ export class PaymentsService {
         input.clientIp,
       );
       if (session.status === "complete") {
-        this.store.putAccount({
+        await this.saveAccount({
           ...this.store.getAccount(input.participantId)!,
           kycStatus: "verified",
         });
@@ -158,7 +298,7 @@ export class PaymentsService {
       input.clientIp,
     );
     if (session.status === "complete") {
-      this.store.putAccount({
+      await this.saveAccount({
         ...this.store.getAccount(input.participantId)!,
         kycStatus: "verified",
       });
@@ -176,7 +316,7 @@ export class PaymentsService {
       throw new NotFoundException("Unknown participant");
     }
     await this.psp.attachPaymentMethod(participantId, paymentMethodId);
-    this.store.putAccount({
+    await this.saveAccount({
       ...account,
       paymentMethodId,
     });
@@ -189,7 +329,7 @@ export class PaymentsService {
     if (!account?.stripeAccountId) {
       throw new NotFoundException("Unknown producer account");
     }
-    this.store.putAccount({ ...account, kycStatus: "verified" });
+    await this.saveAccount({ ...account, kycStatus: "verified" });
     await this.emitAccountStatus(participantId);
   }
 

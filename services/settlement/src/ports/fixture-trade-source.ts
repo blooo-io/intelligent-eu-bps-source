@@ -74,4 +74,10 @@ export class FixtureTradeSource implements TradeSourcePort {
     }
     await this.store.mark(tradeIds);
   }
+
+  /** INT-228 — allow seed/runs to re-settle the same fixture trades. */
+  async resetBilled(): Promise<void> {
+    this.billed.clear();
+    await this.store.clear();
+  }
 }

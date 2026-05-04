@@ -58,4 +58,11 @@ export class SettlementController {
   ) {
     return this.settlement.startRun(body);
   }
+
+  /** INT-228 — operator seed: re-enable S1 fixture trades for a fresh Stripe run. */
+  @Post("fixture-billed\\:reset")
+  @HttpCode(200)
+  async resetFixtureBilled() {
+    return this.settlement.resetFixtureBilled();
+  }
 }

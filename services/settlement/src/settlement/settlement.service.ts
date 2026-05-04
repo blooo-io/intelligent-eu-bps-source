@@ -59,6 +59,15 @@ export class SettlementService {
     }
   }
 
+  /** INT-228 — clear durable fixture billed set so seed runs can re-invoice. */
+  async resetFixtureBilled(): Promise<{ cleared: true }> {
+    if (!(this.trades instanceof FixtureTradeSource)) {
+      throw new BadRequestException("fixture trade source not active");
+    }
+    await this.trades.resetBilled();
+    return { cleared: true };
+  }
+
   useFixtureScenario(
     scenarioId: "S1" | "S2" | "S3" | "S8",
     opts?: Partial<CommunityBillingContext>,

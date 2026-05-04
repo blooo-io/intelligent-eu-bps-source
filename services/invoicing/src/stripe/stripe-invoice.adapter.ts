@@ -46,15 +46,17 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
     const stripeAccount = opts.stripeAccountId;
     const currency = settlement.currency.toLowerCase();
 
-    // INT-198 — send_invoice requires a customer email. Use a deterministic
-    // non-PII address derived from the consumer id only (NFR-015).
-    const customerEmail = `consumer-${settlement.consumerId.replace(/-/g, "").slice(0, 12)}@example.test`;
+    // INT-198 — send_invoice requires a customer email. Identifiers only (NFR-015).
+    // INT-228 — include settlement id so each run creates a distinct Stripe Customer
+    // visible in the Dashboard (no reused synthetic users outside Stripe).
+    const customerEmail = `consumer-${settlement.consumerId.replace(/-/g, "").slice(0, 8)}-${settlement.settlementId.replace(/-/g, "").slice(0, 8)}@example.test`;
     const customer = await this.stripe.customers.create(
       {
         email: customerEmail,
         metadata: {
           consumerId: settlement.consumerId,
           settlementId: settlement.settlementId,
+          runId: settlement.runId,
         },
       },
       { stripeAccount },

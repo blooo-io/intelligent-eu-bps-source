@@ -16,6 +16,8 @@ apis:
     root: contracts/openapi/internal/settlement.v1.yaml
   invoicing@v1:
     root: contracts/openapi/internal/invoicing.v1.yaml
+  payments@v1:
+    root: contracts/openapi/internal/payments.v1.yaml
   reference-data@v1:
     root: contracts/openapi/internal/reference-data.v1.yaml
   reconciliation@v1:

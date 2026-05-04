@@ -32,13 +32,17 @@ export class MockPspAdapter implements PspPort {
     return id;
   }
 
+  private accountSeq = 0;
+
   async createProducerAccount(
     input: CreateProducerAccountInput,
   ): Promise<ProducerAccount> {
     if (!input.accountToken) {
       throw new Error("accountToken required for Custom Connect create (INT-191)");
     }
-    const stripeAccountId = `acct_test_${input.participantId.replace(/-/g, "").slice(0, 16)}`;
+    // INT-228 — each create returns a new id (mirrors live Stripe accounts.create).
+    this.accountSeq += 1;
+    const stripeAccountId = `acct_test_${input.participantId.replace(/-/g, "").slice(0, 12)}${this.accountSeq}`;
     this.accounts.set(input.participantId, stripeAccountId);
     // Token covers legal entity / ToS; remaining due are outside the token.
     this.dueByAccount.set(stripeAccountId, [

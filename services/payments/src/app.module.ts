@@ -2,8 +2,13 @@ import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ModuleTemplateModule } from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
 import { PaymentsStore } from "./domain/store.js";
+import { InternalPaymentsController } from "./payments/internal.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
 import { PaymentsService } from "./payments/payments.service.js";
+import {
+  createPaymentAccountsStore,
+  PAYMENT_ACCOUNTS_STORE,
+} from "./ports/payment-accounts.store.js";
 import {
   HttpInvoiceLookup,
   InMemoryInvoiceLookup,
@@ -23,12 +28,17 @@ import { StripePspAdapter } from "./psp/stripe-psp.adapter.js";
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "payments" }),
   ],
-  controllers: [PaymentsController],
+  controllers: [PaymentsController, InternalPaymentsController],
   providers: [
     PaymentsStore,
     PaymentsService,
     MockPspAdapter,
     InMemoryInvoiceLookup,
+    {
+      provide: PAYMENT_ACCOUNTS_STORE,
+      // INT-228 — Postgres when DATABASE_URL is set (CNPG payments DB).
+      useFactory: () => createPaymentAccountsStore(),
+    },
     {
       provide: PSP_PORT,
       // AD-6 — configuration selects mock vs Stripe test (INT-189).

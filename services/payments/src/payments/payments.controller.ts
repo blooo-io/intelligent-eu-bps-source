@@ -68,7 +68,7 @@ export class PaymentsController {
     if (!body?.paymentMethodId) {
       throw new BadRequestException("paymentMethodId is required");
     }
-    this.payments.ensureParticipant({
+    await this.payments.ensureParticipant({
       participantId: user.sub,
       communityId: user.communityId,
       role: roleOf(user.roles),

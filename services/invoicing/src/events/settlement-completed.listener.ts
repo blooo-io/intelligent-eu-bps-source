@@ -73,7 +73,8 @@ export function isNonRetryableInvoiceError(error: Error): boolean {
     msg.includes("does not have access to account") ||
     msg.includes("acct_test_") ||
     msg.includes("no such account") ||
-    msg.includes("producer not ready")
+    msg.includes("producer not ready") ||
+    msg.includes("connect account required")
   );
 }
 

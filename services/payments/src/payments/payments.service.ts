@@ -144,7 +144,8 @@ export class PaymentsService {
       tosAccepted: true,
       businessType: "individual",
       country: "FR",
-      businessProfileUrl: "https://intelligent.example.test",
+      // Stripe rejects reserved TLDs like .test (url_invalid); use a public HTTPS URL.
+      businessProfileUrl: "https://example.com",
       businessProfileMcc: "5734",
       representative: {
         firstName: "Test",

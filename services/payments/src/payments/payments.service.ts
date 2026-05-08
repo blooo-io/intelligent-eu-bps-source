@@ -144,13 +144,13 @@ export class PaymentsService {
       tosAccepted: true,
       businessType: "individual",
       country: "FR",
-      // Stripe rejects reserved TLDs like .test (url_invalid); use a public HTTPS URL.
-      businessProfileUrl: "https://example.com",
+      // Stripe Connect test helper URL (docs/connect/testing); example.com is rejected.
+      businessProfileUrl: "https://accessible.stripe.com",
       businessProfileMcc: "5734",
       representative: {
         firstName: "Test",
         lastName: `Producer${runTag}`,
-        email: `producer-${input.participantId.slice(0, 8)}-${runTag}@example.test`,
+        email: `producer-${input.participantId.slice(0, 8)}-${runTag}@example.com`,
         phone: "+33600000000",
         dob: { day: 1, month: 1, year: 1902 },
         address: {
@@ -176,15 +176,40 @@ export class PaymentsService {
       accountToken,
       country: "FR",
     });
-    const session = await this.psp.submitAccountRequirements(
-      created.stripeAccountId,
-      {
-        businessProfileUrl: submission.businessProfileUrl,
-        businessProfileMcc: submission.businessProfileMcc,
-        externalAccount: submission.externalAccount,
-      },
-      "127.0.0.1",
-    );
+    // Persist immediately so a later Stripe validation error still leaves a real acct_*.
+    await this.saveAccount({
+      ...existing,
+      stripeAccountId: created.stripeAccountId,
+      kycStatus: "pending",
+      role: input.role,
+      communityId: input.communityId,
+    });
+    let session: OnboardingSession;
+    try {
+      session = await this.psp.submitAccountRequirements(
+        created.stripeAccountId,
+        {
+          businessProfileUrl: submission.businessProfileUrl,
+          businessProfileMcc: submission.businessProfileMcc,
+          externalAccount: submission.externalAccount,
+        },
+        "127.0.0.1",
+      );
+    } catch (err) {
+      // Retry without URL if Stripe still rejects business_profile[url].
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!/url/i.test(msg)) {
+        throw err;
+      }
+      session = await this.psp.submitAccountRequirements(
+        created.stripeAccountId,
+        {
+          businessProfileMcc: submission.businessProfileMcc,
+          externalAccount: submission.externalAccount,
+        },
+        "127.0.0.1",
+      );
+    }
     const verified =
       session.status === "complete" || session.status === "pending_verification";
     await this.saveAccount({

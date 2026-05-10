@@ -47,6 +47,11 @@ export class HttpParticipantsNotifier implements ParticipantsNotifierPort {
         reason: input.reason,
       }),
     });
+    // INT-228 — fixture / not-yet-registered producers (S1 UUIDs) return 404;
+    // Connect provision must still succeed so Stripe remains the source of truth.
+    if (res.status === 404) {
+      return;
+    }
     if (!res.ok) {
       throw new Error(
         `participants payment-account-status failed with ${res.status}`,

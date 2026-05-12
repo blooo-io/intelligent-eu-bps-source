@@ -13,7 +13,7 @@ import {
   PAYMENTS_CLIENT,
 } from "./ports/payments-client.port.js";
 import {
-  AlwaysReadyReadiness,
+  createReadiness,
   READINESS_PORT,
 } from "./ports/readiness.port.js";
 import {
@@ -55,7 +55,11 @@ function resolveInvoiceProvider(): "stripe" | "mock" {
       },
       inject: [MockStripeInvoiceAdapter],
     },
-    { provide: READINESS_PORT, useClass: AlwaysReadyReadiness },
+    {
+      provide: READINESS_PORT,
+      // INT-231 — HttpReadiness when PARTICIPANTS_INTERNAL_URL is set (BR-09).
+      useFactory: () => createReadiness(),
+    },
     // INT-223 — NATS when NATS_URL set; in-memory otherwise (CI).
     { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
     {

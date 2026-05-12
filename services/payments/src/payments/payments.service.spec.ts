@@ -12,6 +12,7 @@ import { MockPspAdapter } from "../psp/mock-psp.adapter.js";
 import { InMemoryInvoiceLookup } from "../ports/invoice-lookup.port.js";
 import { InMemoryPaymentAccountsStore } from "../ports/payment-accounts.store.js";
 import { NoopParticipantsNotifier } from "../ports/participants-notifier.port.js";
+import { NoopParticipantsResolver } from "../ports/participants-resolver.port.js";
 import { PaymentsService } from "./payments.service.js";
 
 const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
@@ -23,6 +24,7 @@ describe("PaymentsService", () => {
   let outboxStore: InMemoryOutboxStore;
   let psp: MockPspAdapter;
   let invoices: InMemoryInvoiceLookup;
+  let accountsStore: InMemoryPaymentAccountsStore;
   let service: PaymentsService;
 
   beforeEach(() => {
@@ -30,13 +32,15 @@ describe("PaymentsService", () => {
     outboxStore = new InMemoryOutboxStore();
     psp = new MockPspAdapter();
     invoices = new InMemoryInvoiceLookup();
+    accountsStore = new InMemoryPaymentAccountsStore();
     service = new PaymentsService(
       store,
       new OutboxService(outboxStore),
       psp,
       invoices,
       new NoopParticipantsNotifier(),
-      new InMemoryPaymentAccountsStore(),
+      accountsStore,
+      new NoopParticipantsResolver(),
     );
   });
 
@@ -476,4 +480,73 @@ describe("PaymentsService", () => {
     expect(store.findByStripePaymentId("missing")).toBeUndefined();
     expect(store.getPayment("missing")).toBeUndefined();
   });
+
+  it("INT-233 — payInvoice hydrates durable consumer PM after memory clear", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    // Simulate pod restart: memory gone, Postgres/durable store still has the row.
+    store.reset();
+    invoices.put({
+      invoiceId: "inv-durable",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "3.00",
+      producerStripeAccountId: "acct_durable_producer",
+    });
+    const payment = await service.payInvoice({
+      invoiceId: "inv-durable",
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+    });
+    expect(payment.status).toBe("succeeded");
+    expect(payment.amount).toBe("3.00");
+  });
+
+  it("INT-230 — payInvoice resolves IdP sub to participantId", async () => {
+    const idpSub = "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f";
+    const resolver = {
+      resolveByIdpSub: vi.fn(async () => ({
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      })),
+    };
+    service = new PaymentsService(
+      store,
+      new OutboxService(outboxStore),
+      psp,
+      invoices,
+      new NoopParticipantsNotifier(),
+      accountsStore,
+      resolver,
+    );
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    invoices.put({
+      invoiceId: "inv-idp",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "1.50",
+      producerStripeAccountId: "acct_idp",
+    });
+    const payment = await service.payInvoice({
+      invoiceId: "inv-idp",
+      participantId: idpSub,
+      communityId: COMMUNITY,
+    });
+    expect(payment.status).toBe("succeeded");
+    expect(resolver.resolveByIdpSub).toHaveBeenCalledWith(idpSub);
+  });
 });
+

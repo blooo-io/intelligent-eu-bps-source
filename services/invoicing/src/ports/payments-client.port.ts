@@ -1,13 +1,26 @@
 export const PAYMENTS_CLIENT = Symbol("PAYMENTS_CLIENT");
 
-/** Narrow client of AC-07 GetPaymentAccount (INT-228 / TP-7). */
+/** Narrow client of AC-07 GetPaymentAccount (INT-228 / TP-7 / INT-231). */
+export type PaymentAccountSnapshot = {
+  stripeAccountId: string | null;
+  chargesEnabled?: boolean;
+};
+
 export type PaymentsClientPort = {
   getProducerStripeAccountId(producerId: string): Promise<string | null>;
+  /** INT-231 — full GetPaymentAccount including charges_enabled. */
+  getPaymentAccount(producerId: string): Promise<PaymentAccountSnapshot | null>;
 };
 
 /** CI / unit tests — no AC-07; callers fall back to registerConnectAccount / override. */
 export class NoopPaymentsClient implements PaymentsClientPort {
   async getProducerStripeAccountId(_producerId: string): Promise<string | null> {
+    return null;
+  }
+
+  async getPaymentAccount(
+    _producerId: string,
+  ): Promise<PaymentAccountSnapshot | null> {
     return null;
   }
 }
@@ -18,7 +31,9 @@ export class HttpPaymentsClient implements PaymentsClientPort {
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
-  async getProducerStripeAccountId(producerId: string): Promise<string | null> {
+  async getPaymentAccount(
+    producerId: string,
+  ): Promise<PaymentAccountSnapshot | null> {
     const url = `${this.baseUrl.replace(/\/$/, "")}/internal/v1/payment-accounts/${producerId}`;
     const res = await this.fetchImpl(url, {
       method: "GET",
@@ -36,10 +51,24 @@ export class HttpPaymentsClient implements PaymentsClientPort {
         `payments getPaymentAccount ${producerId} failed with ${res.status}`,
       );
     }
-    const body = (await res.json()) as { stripeAccountId?: string | null };
-    return typeof body.stripeAccountId === "string" && body.stripeAccountId.length > 0
-      ? body.stripeAccountId
-      : null;
+    const body = (await res.json()) as {
+      stripeAccountId?: string | null;
+      chargesEnabled?: boolean;
+    };
+    return {
+      stripeAccountId:
+        typeof body.stripeAccountId === "string" && body.stripeAccountId.length > 0
+          ? body.stripeAccountId
+          : null,
+      ...(typeof body.chargesEnabled === "boolean"
+        ? { chargesEnabled: body.chargesEnabled }
+        : {}),
+    };
+  }
+
+  async getProducerStripeAccountId(producerId: string): Promise<string | null> {
+    const account = await this.getPaymentAccount(producerId);
+    return account?.stripeAccountId ?? null;
   }
 }
 

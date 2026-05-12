@@ -13,6 +13,11 @@ import {
   NoopParticipantsNotifier,
   PARTICIPANTS_NOTIFIER,
 } from "./ports/participants-notifier.port.js";
+import {
+  HttpParticipantsResolver,
+  NoopParticipantsResolver,
+  PARTICIPANTS_RESOLVER,
+} from "./ports/participants-resolver.port.js";
 import { MockPspAdapter } from "./psp/mock-psp.adapter.js";
 import { PSP_PORT } from "./psp/psp.port.js";
 import { StripePspAdapter } from "./psp/stripe-psp.adapter.js";
@@ -58,6 +63,9 @@ describe("AppModule factories (INT-193)", () => {
     expect(nest.get(PARTICIPANTS_NOTIFIER)).toBeInstanceOf(
       NoopParticipantsNotifier,
     );
+    expect(nest.get(PARTICIPANTS_RESOLVER)).toBeInstanceOf(
+      NoopParticipantsResolver,
+    );
     expect(nest.get(PSP_PORT)).toBeInstanceOf(MockPspAdapter);
   });
 
@@ -70,6 +78,9 @@ describe("AppModule factories (INT-193)", () => {
     expect(nest.get(INVOICE_LOOKUP)).toBeInstanceOf(HttpInvoiceLookup);
     expect(nest.get(PARTICIPANTS_NOTIFIER)).toBeInstanceOf(
       HttpParticipantsNotifier,
+    );
+    expect(nest.get(PARTICIPANTS_RESOLVER)).toBeInstanceOf(
+      HttpParticipantsResolver,
     );
   });
 

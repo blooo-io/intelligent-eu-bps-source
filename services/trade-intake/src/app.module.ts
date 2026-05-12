@@ -1,4 +1,11 @@
-import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import {
+  Inject,
+  Logger,
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  OnModuleInit,
+} from "@nestjs/common";
 import { createMockSuite } from "@intelligent/mocks";
 import { ModuleTemplateModule } from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
@@ -28,8 +35,35 @@ const knownActors = new Set(
     },
   ],
 })
-export class AppModule implements NestModule {
+export class AppModule implements NestModule, OnModuleInit {
+  private readonly logger = new Logger(AppModule.name);
+
+  constructor(@Inject(IntakeService) private readonly intake: IntakeService) {}
+
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(servicePrincipalMiddleware).forRoutes("*");
+  }
+
+  async onModuleInit(): Promise<void> {
+    // INT-232 — populate S1 unbilled trades so AC-05 HttpTradeSource has data
+    // before the first scheduler RefreshIntake (cluster default).
+    const flag = (
+      process.env.INTAKE_BOOTSTRAP_S1 ??
+      process.env.intake_bootstrap_s1 ??
+      "true"
+    ).toLowerCase();
+    if (flag === "0" || flag === "false" || flag === "no") {
+      return;
+    }
+    try {
+      const result = await this.intake.bootstrapS1Window();
+      this.logger.log(
+        `INTAKE_BOOTSTRAP_S1 ingested=${result.ingested} trades`,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `INTAKE_BOOTSTRAP_S1 failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 }

@@ -93,6 +93,37 @@ paths:
                     type: string
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants:by-idp-sub/{idpUserId}:
+    get:
+      operationId: resolveParticipantByIdpSub
+      tags: [Participants]
+      summary: Resolve IdP subject to participant
+      description: >
+        INT-230 — map Keycloak `sub` to participantId / communityId.
+        Called by AC-07 when the member JWT sub is not the participant UUID.
+      parameters:
+        - name: idpUserId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Participant bound to the IdP subject.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [participantId, communityId]
+                properties:
+                  participantId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  communityId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /participants/{participantId}/payment-account-status:
     post:
       operationId: applyPaymentAccountStatus

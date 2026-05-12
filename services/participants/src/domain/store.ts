@@ -7,6 +7,7 @@ import {
   SEED_TERMS,
   seedCommunitySettings,
   seedParticipants,
+  seedS1CommunitySettings,
 } from "./seed.js";
 
 /**
@@ -29,6 +30,9 @@ export class ParticipantsStore {
     this.marketIndex.clear();
     const community = seedCommunitySettings();
     this.communities.set(community.communityId, community);
+    // INT-230 — S1 fixture community alongside UAT seed.
+    const s1 = seedS1CommunitySettings();
+    this.communities.set(s1.communityId, s1);
     for (const row of seedParticipants()) {
       this.putParticipant(row);
     }

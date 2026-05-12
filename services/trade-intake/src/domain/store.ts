@@ -66,6 +66,15 @@ export class TradeStore {
     }
   }
 
+  /** INT-232 — operator seed: re-open trades for another settlement run. */
+  resetBilled(): void {
+    for (const [id, row] of this.trades) {
+      if (row.billed) {
+        this.trades.set(id, { ...row, billed: false });
+      }
+    }
+  }
+
   addAnomaly(anomaly: IntakeAnomaly): void {
     this.anomalies.push({ ...anomaly });
   }

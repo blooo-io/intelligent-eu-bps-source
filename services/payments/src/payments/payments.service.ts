@@ -21,6 +21,10 @@ import {
   type ParticipantsNotifierPort,
 } from "../ports/participants-notifier.port.js";
 import {
+  PARTICIPANTS_RESOLVER,
+  type ParticipantsResolverPort,
+} from "../ports/participants-resolver.port.js";
+import {
   PAYMENT_ACCOUNTS_STORE,
   type PaymentAccountsStore,
 } from "../ports/payment-accounts.store.js";
@@ -48,6 +52,8 @@ export class PaymentsService {
     private readonly participants: ParticipantsNotifierPort,
     @Inject(PAYMENT_ACCOUNTS_STORE)
     private readonly accountsStore: PaymentAccountsStore,
+    @Inject(PARTICIPANTS_RESOLVER)
+    private readonly idpResolver: ParticipantsResolverPort,
   ) {}
 
   resetStore(): void {
@@ -59,6 +65,44 @@ export class PaymentsService {
   private async saveAccount(row: AccountRecord): Promise<void> {
     this.store.putAccount(row);
     await this.accountsStore.put(row);
+  }
+
+  /** INT-233 — load durable payment account into memory when present. */
+  private async hydrateAccount(
+    participantId: string,
+  ): Promise<AccountRecord | undefined> {
+    let row = this.store.getAccount(participantId);
+    if (row) {
+      return row;
+    }
+    row = await this.accountsStore.get(participantId);
+    if (row) {
+      this.store.putAccount(row);
+    }
+    return row;
+  }
+
+  /**
+   * INT-230 — JWT `sub` may be Keycloak idpUserId; map to participantId via AC-03.
+   * Falls back to the raw id when no IdP binding exists (S1 fixture UUIDs).
+   */
+  async resolveCallerParticipantId(subOrParticipantId: string): Promise<{
+    participantId: string;
+    communityId?: string;
+  }> {
+    const existing = await this.hydrateAccount(subOrParticipantId);
+    if (existing) {
+      return {
+        participantId: existing.participantId,
+        communityId: existing.communityId,
+      };
+    }
+    const resolved = await this.idpResolver.resolveByIdpSub(subOrParticipantId);
+    if (resolved) {
+      await this.hydrateAccount(resolved.participantId);
+      return resolved;
+    }
+    return { participantId: subOrParticipantId };
   }
 
   async ensureParticipant(input: {
@@ -373,8 +417,13 @@ export class PaymentsService {
     failureCategory?: string;
     processingTimeMs?: number;
   }> {
-    // BR-12 — only test-mode PSP calls.
-    const account = this.store.getAccount(input.participantId);
+    // INT-230 — IdP sub → participantId when JWT sub ≠ registry UUID.
+    const caller = await this.resolveCallerParticipantId(input.participantId);
+    const participantId = caller.participantId;
+    const communityId = caller.communityId ?? input.communityId;
+
+    // INT-233 / BR-12 — hydrate durable consumer PM (survives pod restart).
+    const account = await this.hydrateAccount(participantId);
     if (!account?.paymentMethodId) {
       throw new BadRequestException("Consumer payment method required");
     }
@@ -386,10 +435,10 @@ export class PaymentsService {
     } catch {
       throw new NotFoundException(`Unknown invoice ${input.invoiceId}`);
     }
-    if (invoice.consumerId !== input.participantId) {
+    if (invoice.consumerId !== participantId) {
       throw new ForbiddenException("Invoice is not payable by this participant");
     }
-    const producerAccount = this.store.getAccount(invoice.producerId);
+    const producerAccount = await this.hydrateAccount(invoice.producerId);
     const producerStripeAccountId =
       invoice.producerStripeAccountId ??
       producerAccount?.stripeAccountId ??
@@ -413,13 +462,13 @@ export class PaymentsService {
     this.store.putPayment({
       paymentId,
       invoiceId: input.invoiceId,
-      participantId: input.participantId,
+      participantId,
       amount: invoice.total,
       currency: invoice.currency,
       status: pspResult.status,
       stripePaymentId: pspResult.stripePaymentId,
       failureCategory: pspResult.failureCategory,
-      communityId: input.communityId,
+      communityId,
       method: "card",
       processingTimeMs,
     });
@@ -428,7 +477,7 @@ export class PaymentsService {
       aggregateId: paymentId,
       type: "PaymentStatusChanged",
       producer: PRODUCER,
-      communityId: input.communityId,
+      communityId,
       billingMode: "virtual",
       data: {
         paymentId,

@@ -12,7 +12,7 @@ import {
 
 /**
  * V1 fixture trade source — maps AC-15 scenario settled trades to unbilled rows
- * until the HTTP client to AC-04 is wired.
+ * when TRADE_INTAKE_INTERNAL_URL is unset (INT-232 HttpTradeSource otherwise).
  * INT-225 — billed set is backed by BilledTradesStore (Postgres when DATABASE_URL set).
  */
 export class FixtureTradeSource implements TradeSourcePort {

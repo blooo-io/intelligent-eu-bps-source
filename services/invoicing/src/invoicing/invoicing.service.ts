@@ -55,8 +55,10 @@ export class InvoicingService {
   }
 
   /**
-   * INT-228 / TP-7 — Connect id from override → AC-07 → in-memory fixture.
+   * INT-228 / TP-7 / INT-231 — Connect id from override → AC-07 → fixture.
    * Never synthesise acct_test_* when talking to live Stripe.
+   * When AC-07 reports chargesEnabled=false, throw a retryable signal so the
+   * NATS consumer naks until KYC completes.
    */
   private async resolveProducerStripeAccount(
     settlement: PairSettlementInput,
@@ -64,11 +66,16 @@ export class InvoicingService {
     if (settlement.producerStripeAccountId) {
       return settlement.producerStripeAccountId;
     }
-    const fromPayments = await this.payments.getProducerStripeAccountId(
+    const fromPayments = await this.payments.getPaymentAccount(
       settlement.producerId,
     );
-    if (fromPayments) {
-      return fromPayments;
+    if (fromPayments?.stripeAccountId) {
+      if (fromPayments.chargesEnabled === false) {
+        throw new BadRequestException(
+          "producer charges_enabled not ready (retry until KYC completes)",
+        );
+      }
+      return fromPayments.stripeAccountId;
     }
     const fromFixture = this.connectAccounts.get(settlement.producerId);
     if (fromFixture) {

@@ -4,10 +4,24 @@ import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.
 import { SettlementStore } from "./domain/store.js";
 import { createBilledTradesStore } from "./ports/billed-trades.store.js";
 import { FixtureTradeSource } from "./ports/fixture-trade-source.js";
-import { TRADE_SOURCE } from "./ports/trade-source.port.js";
+import { HttpTradeSource } from "./ports/http-trade-source.js";
+import { TRADE_SOURCE, type TradeSourcePort } from "./ports/trade-source.port.js";
 import { SettlementController } from "./settlement/settlement.controller.js";
 import { PublicSettlementController } from "./settlement/public.controller.js";
 import { SettlementService } from "./settlement/settlement.service.js";
+
+function createTradeSource(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<TradeSourcePort> | TradeSourcePort {
+  const base = env.TRADE_INTAKE_INTERNAL_URL;
+  if (base) {
+    // INT-232 — live AC-04 GetUnbilledTrades + mark-billed.
+    return new HttpTradeSource(base);
+  }
+  // INT-225 — hydrate billed trade ids from Postgres when DATABASE_URL is set.
+  const source = new FixtureTradeSource("S1", createBilledTradesStore());
+  return source.hydrate().then(() => source);
+}
 
 @Module({
   imports: [
@@ -18,13 +32,8 @@ import { SettlementService } from "./settlement/settlement.service.js";
     SettlementStore,
     SettlementService,
     {
-      // INT-225 — hydrate billed trade ids from Postgres when DATABASE_URL is set.
       provide: TRADE_SOURCE,
-      useFactory: async () => {
-        const source = new FixtureTradeSource("S1", createBilledTradesStore());
-        await source.hydrate();
-        return source;
-      },
+      useFactory: () => createTradeSource(),
     },
   ],
 })

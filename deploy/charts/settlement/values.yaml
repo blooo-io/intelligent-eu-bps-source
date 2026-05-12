@@ -17,3 +17,7 @@ ingressFrom:
 keycloakEgress: false
 stripeEgress: false
 namespaceIngress: true
+# INT-232 — HttpTradeSource → AC-04 GetUnbilledTrades + mark-billed.
+# Leave unset locally/CI to keep FixtureTradeSource (S1).
+env:
+  TRADE_INTAKE_INTERNAL_URL: http://trade-intake:8080

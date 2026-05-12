@@ -56,6 +56,56 @@ paths:
                   $ref: '#/components/schemas/Trade'
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /trades:mark-billed:
+    post:
+      operationId: markTradesBilled
+      tags: [TradeIntake]
+      summary: Mark trades as consumed by settlement
+      description: >
+        INT-232 — after AC-05 writes pair settlements, mark those tradeIds
+        billed so GetUnbilledTrades excludes them. Billing never changes
+        market trade status (BR-11); billed is a settlement consumption flag.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [tradeIds]
+              properties:
+                tradeIds:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+      responses:
+        '204':
+          description: Trades marked billed (idempotent).
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /trades:reset-billed:
+    post:
+      operationId: resetTradesBilled
+      tags: [TradeIntake]
+      summary: Clear billed flags for operator re-seed
+      description: >
+        INT-232 — operator/dev only. Re-opens ingested trades for another
+        settlement run (pairs with AC-05 fixture-billed:reset when using
+        HttpTradeSource).
+      responses:
+        '200':
+          description: Billed flags cleared.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [cleared]
+                properties:
+                  cleared:
+                    type: boolean
+                    const: true
   /intake:refresh:
     post:
       operationId: refreshIntake

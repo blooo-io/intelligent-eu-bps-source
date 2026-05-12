@@ -35,6 +35,12 @@ export class InternalParticipantsController {
     return this.participants.checkReadiness(participantId);
   }
 
+  /** INT-230 — IdP sub → participantId for AC-07 pay / onboarding. */
+  @Get("participants\\:by-idp-sub/:idpUserId")
+  resolveByIdpSub(@Param("idpUserId") idpUserId: string) {
+    return this.participants.resolveByIdpSub(idpUserId);
+  }
+
   /** INT-193 — AC-07 notifies KYC / payment-method readiness (sync until NATS). */
   @Post("participants/:participantId/payment-account-status")
   @HttpCode(200)

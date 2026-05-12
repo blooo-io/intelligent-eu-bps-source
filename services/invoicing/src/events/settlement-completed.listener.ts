@@ -66,15 +66,26 @@ export class SettlementCompletedListener implements OnModuleInit {
   }
 }
 
-/** Stripe missing Connect account / revoked access — not fixed by retry. */
+/**
+ * Permanent Stripe / fixture errors — ack without redelivery.
+ * INT-231 — readiness / charges_enabled / missing Connect (not yet provisioned)
+ * stay retryable so KYC and AC-07 provision can catch up.
+ */
 export function isNonRetryableInvoiceError(error: Error): boolean {
   const msg = error.message.toLowerCase();
+  // Waitable integration signals — keep nak / redelivery.
+  if (
+    msg.includes("charges_enabled") ||
+    msg.includes("producer_not_ready") ||
+    msg.includes("producer not ready") ||
+    msg.includes("connect account required")
+  ) {
+    return false;
+  }
   return (
     msg.includes("does not have access to account") ||
     msg.includes("acct_test_") ||
-    msg.includes("no such account") ||
-    msg.includes("producer not ready") ||
-    msg.includes("connect account required")
+    msg.includes("no such account")
   );
 }
 

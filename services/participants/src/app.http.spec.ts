@@ -90,6 +90,17 @@ describe("participants HTTP (INT-103)", () => {
       ready: false,
       status: "Invited",
     });
+
+    // INT-230 — IdP sub resolve (seeded UAT member).
+    const byIdp = await fetch(
+      `${base}/internal/v1/participants:by-idp-sub/b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f`,
+      { headers: { "x-intelligent-roles": "service" } },
+    );
+    expect(byIdp.status).toBe(200);
+    expect(await byIdp.json()).toMatchObject({
+      participantId: "f69e6745-3bfe-49ad-b84e-0853aa86ad05",
+      communityId: SEED_COMMUNITY_ID,
+    });
   });
 
   it("manager import + list participants (REQ-008)", async () => {

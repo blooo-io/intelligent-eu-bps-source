@@ -19,6 +19,10 @@ import {
   NoopParticipantsNotifier,
   PARTICIPANTS_NOTIFIER,
 } from "./ports/participants-notifier.port.js";
+import {
+  createParticipantsResolver,
+  PARTICIPANTS_RESOLVER,
+} from "./ports/participants-resolver.port.js";
 import { MockPspAdapter } from "./psp/mock-psp.adapter.js";
 import { PSP_PORT } from "./psp/psp.port.js";
 import { resolvePspProvider } from "./psp/stripe-env.js";
@@ -76,6 +80,11 @@ import { StripePspAdapter } from "./psp/stripe-psp.adapter.js";
         }
         return new NoopParticipantsNotifier();
       },
+    },
+    {
+      provide: PARTICIPANTS_RESOLVER,
+      // INT-230 — IdP sub → participantId for pay / onboarding.
+      useFactory: () => createParticipantsResolver(),
     },
   ],
 })

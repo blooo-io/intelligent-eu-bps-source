@@ -201,9 +201,32 @@ export class IntakeService {
     return this.store.listAnomalies();
   }
 
-  /** Test helper — mark trades billed after settlement. */
+  /**
+   * INT-232 — mark trades billed after settlement (also used by unit tests).
+   * Does not change market status (BR-11); billed is settlement consumption only.
+   */
   markBilled(tradeIds: string[]): void {
+    if (!Array.isArray(tradeIds) || tradeIds.length === 0) {
+      throw new BadRequestException("tradeIds is required");
+    }
     this.store.markBilled(tradeIds);
+  }
+
+  /** INT-232 — clear billed flags for operator re-seed. */
+  resetBilled(): { cleared: true } {
+    this.store.resetBilled();
+    return { cleared: true };
+  }
+
+  /**
+   * INT-232 — ingest the default S1 window so HttpTradeSource has unbilled rows
+   * before the first scheduler RefreshIntake (dev/cluster bootstrap).
+   */
+  async bootstrapS1Window(): Promise<{ accepted: true; ingested: number }> {
+    return this.refreshIntake({
+      from: "2026-11-01T00:00:00Z",
+      to: "2026-11-02T00:00:00Z",
+    });
   }
 
   private toDto(t: {

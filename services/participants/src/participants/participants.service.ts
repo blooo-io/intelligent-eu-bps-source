@@ -114,6 +114,20 @@ export class ParticipantsService {
     return result;
   }
 
+  /**
+   * INT-230 — map IdP JWT `sub` to registry participantId (Keycloak ≠ participant UUID).
+   */
+  resolveByIdpSub(idpUserId: string): ResolvePartyResult {
+    const row = this.store.findByIdpSub(idpUserId);
+    if (!row || row.status === "Offboarded") {
+      throw new NotFoundException(`Unknown IdP subject ${idpUserId}`);
+    }
+    return {
+      participantId: row.participantId,
+      communityId: row.communityId,
+    };
+  }
+
   listParticipants(communityId: string): Array<{
     participantId: string;
     communityId: string;

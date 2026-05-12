@@ -32,6 +32,20 @@ export class IntakeController {
     });
   }
 
+  /** INT-232 — AC-05 marks trades consumed after pair settlement. */
+  @Post("trades\\:mark-billed")
+  @HttpCode(204)
+  markTradesBilled(@Body() body: { tradeIds?: string[] }) {
+    this.intake.markBilled(body?.tradeIds ?? []);
+  }
+
+  /** INT-232 — operator seed: re-open trades for another billing run. */
+  @Post("trades\\:reset-billed")
+  @HttpCode(200)
+  resetTradesBilled() {
+    return this.intake.resetBilled();
+  }
+
   @Post("intake\\:refresh")
   @HttpCode(202)
   async refreshIntake(@Body() body: { from: string; to: string }) {

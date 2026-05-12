@@ -59,10 +59,13 @@ export class SettlementService {
     }
   }
 
-  /** INT-228 — clear durable fixture billed set so seed runs can re-invoice. */
+  /**
+   * INT-228 / INT-232 — clear billed set (fixture store or AC-04 reset-billed)
+   * so seed runs can re-settle the same trades.
+   */
   async resetFixtureBilled(): Promise<{ cleared: true }> {
-    if (!(this.trades instanceof FixtureTradeSource)) {
-      throw new BadRequestException("fixture trade source not active");
+    if (!this.trades.resetBilled) {
+      throw new BadRequestException("trade source does not support resetBilled");
     }
     await this.trades.resetBilled();
     return { cleared: true };
@@ -272,9 +275,8 @@ export class SettlementService {
       this.store.setCarry(pair.consumerId, pair.producerId, carriedForwardOut);
       settlementIds.push(settlementId);
 
-      if (this.trades instanceof FixtureTradeSource) {
-        await this.trades.markBilled(pair.tradeIds);
-      }
+      // INT-232 — mark billed on any TradeSourcePort (fixture or AC-04 HTTP).
+      await this.trades.markBilled(pair.tradeIds);
     }
 
     this.store.appendRun({

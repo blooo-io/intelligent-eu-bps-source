@@ -265,6 +265,27 @@ describe("ParticipantsService", () => {
     ).toThrow(/offboarded/);
   });
 
+  it("INT-230 — resolves IdP sub to participantId", () => {
+    const row = service.resolveByIdpSub("b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f");
+    expect(row.participantId).toBe("f69e6745-3bfe-49ad-b84e-0853aa86ad05");
+    expect(() =>
+      service.resolveByIdpSub("00000000-0000-4000-8000-000000000099"),
+    ).toThrow(/Unknown IdP/);
+  });
+
+  it("INT-230 — S1 producers reach Ready after payment-account notify", async () => {
+    const producerId = "66666666-7777-4888-9999-aaaaaaaaaaaa";
+    expect(service.checkReadiness(producerId).ready).toBe(false);
+    await service.applyPaymentAccountStatus({
+      participantId: producerId,
+      ready: true,
+    });
+    expect(service.checkReadiness(producerId)).toMatchObject({
+      ready: true,
+      status: "Ready",
+    });
+  });
+
   it("updates community settings when virtual (REQ-006)", () => {
     const current = service.getCommunitySettings(communityId);
     const next = service.updateCommunitySettings(communityId, {

@@ -15,6 +15,8 @@ describe("settlement HTTP (INT-105)", () => {
   const communityId = createMockSuite("S1").scenario.communityId;
 
   beforeAll(async () => {
+    // Keep FixtureTradeSource for HTTP smoke (cluster uses TRADE_INTAKE_INTERNAL_URL).
+    delete process.env.TRADE_INTAKE_INTERNAL_URL;
     app = await NestFactory.create(AppModule, { logger: false });
     await app.listen(0, "127.0.0.1");
     const address = app.getHttpServer().address();

@@ -15,3 +15,6 @@ ingressFrom:
 keycloakEgress: false
 stripeEgress: false
 namespaceIngress: true
+# INT-232 — ingest S1 window on boot so settlement HttpTradeSource is non-empty.
+env:
+  INTAKE_BOOTSTRAP_S1: "true"

@@ -293,4 +293,23 @@ describe("SettlementCompletedListener (INT-223)", () => {
     ).toBe(true);
     expect(isNonRetryableInvoiceError(new Error("timeout"))).toBe(false);
   });
+
+  it("INT-231 — readiness / charges_enabled stay retryable", () => {
+    expect(
+      isNonRetryableInvoiceError(
+        new Error("producer charges_enabled not ready (retry until KYC completes)"),
+      ),
+    ).toBe(false);
+    expect(
+      isNonRetryableInvoiceError(new Error("producer_not_ready")),
+    ).toBe(false);
+    expect(
+      isNonRetryableInvoiceError(
+        new Error("producer Connect account required (provision via AC-07)"),
+      ),
+    ).toBe(false);
+    expect(
+      isNonRetryableInvoiceError(new Error("acct_test_poison")),
+    ).toBe(true);
+  });
 });

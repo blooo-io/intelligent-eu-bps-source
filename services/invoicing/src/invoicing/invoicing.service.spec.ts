@@ -9,7 +9,10 @@ import {
 } from "@intelligent/module-template";
 import { InvoiceStore } from "../domain/store.js";
 import type { PairSettlementInput } from "../domain/types.js";
-import { NoopPaymentsClient } from "../ports/payments-client.port.js";
+import {
+  NoopPaymentsClient,
+  type PaymentsClientPort,
+} from "../ports/payments-client.port.js";
 import { MapReadiness } from "../ports/readiness.port.js";
 import { MockStripeInvoiceAdapter } from "../stripe/mock-stripe-invoice.js";
 import { InvoicingService } from "./invoicing.service.js";
@@ -124,6 +127,30 @@ describe("InvoicingService", () => {
       else process.env.STRIPE_INVOICE_PROVIDER = prev;
     }
   });
+
+  it("INT-231 — holds invoice when charges_enabled is false (retryable)", async () => {
+    const payments: PaymentsClientPort = {
+      getProducerStripeAccountId: async () => "acct_pending",
+      getPaymentAccount: async () => ({
+        stripeAccountId: "acct_pending",
+        chargesEnabled: false,
+      }),
+    };
+    const gated = new InvoicingService(
+      store,
+      new OutboxService(outboxStore),
+      stripe,
+      new MapReadiness(
+        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
+      ),
+      payments,
+    );
+    await expect(gated.createFromSettlement(settlement())).rejects.toThrow(
+      /charges_enabled/,
+    );
+    expect(stripe.created).toHaveLength(0);
+  });
+
 
   it("marks open invoices overdue (REQ-044)", async () => {
     const invoice = (await service.createFromSettlement(settlement()))!;

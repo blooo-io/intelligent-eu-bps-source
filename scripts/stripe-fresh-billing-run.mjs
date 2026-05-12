@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 /**
- * INT-228 — operator seed: create **new** Stripe Connect producers each run,
- * bind them in AC-07, reset fixture billed trades, start a billing run so AC-06
- * NATS consumer creates real Stripe Customers + Invoices (visible in Dashboard).
+ * INT-228 / INT-229 — operator seed: create **new** Stripe Connect producers
+ * each run, bind them in AC-07, reset billed trades (fixture or AC-04 HTTP),
+ * start a billing run so AC-06 NATS consumer creates real Stripe Customers +
+ * Invoices (visible in Dashboard).
  *
  * Prerequisites:
  * - kubectl port-forwards to payments, settlement (and optionally invoicing)
  * - Stripe test secrets already on payments/invoicing pods (OpenBao)
+ * - INT-230 S1 participants seeded in AC-03; INT-232 trade-intake bootstrapped
  *
  * Usage:
  *   PAYMENTS_URL=http://127.0.0.1:18087 \

@@ -57,10 +57,20 @@ export class AppModule implements NestModule, OnModuleInit {
     }
     try {
       const result = await this.intake.bootstrapS1Window();
-      this.logger.log(
-        `INTAKE_BOOTSTRAP_S1 ingested=${result.ingested} trades`,
+      // console — NestFactory logger is error/warn only in main.ts.
+      console.log(
+        JSON.stringify({
+          msg: "INTAKE_BOOTSTRAP_S1",
+          ingested: result.ingested,
+        }),
       );
     } catch (err) {
+      console.log(
+        JSON.stringify({
+          msg: "INTAKE_BOOTSTRAP_S1_failed",
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
       this.logger.warn(
         `INTAKE_BOOTSTRAP_S1 failed: ${err instanceof Error ? err.message : String(err)}`,
       );

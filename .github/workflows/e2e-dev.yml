@@ -67,11 +67,13 @@ jobs:
           echo "current-context=${ctx}"
           test "${ctx}" = "admin@k8s-intelligent-eu-dev"
 
-      - name: Roll web + participants to pull floating :develop images (INT-178)
+      - name: Roll app modules to pull floating :develop images (INT-178 / INT-229)
         # INT-194 — participants seed carries UAT IdP subjects for authenticated e2e.
+        # INT-229 — settlement/invoicing/payments/trade-intake also float on :develop;
+        # Argo env-only syncs leave them on the pre-supply-chain digest.
         run: |
           set -euo pipefail
-          for d in web participants; do
+          for d in web participants trade-intake settlement invoicing payments; do
             kubectl -n int-apps rollout restart "deploy/${d}"
             kubectl -n int-apps rollout status "deploy/${d}" --timeout=180s
           done

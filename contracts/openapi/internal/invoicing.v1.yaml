@@ -88,6 +88,56 @@ paths:
           description: Overdue check accepted.
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /invoices:by-settlement/{settlementId}:
+    get:
+      operationId: getInvoiceBySettlement
+      tags: [Invoicing]
+      summary: Read invoice by pair settlement id
+      description: >
+        INT-238 — poll for the invoice created by the SettlementCompleted
+        NATS consumer (or the operator bridge). Idempotent lookup on
+        settlementId; identifiers and amounts only.
+      parameters:
+        - name: settlementId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: The invoice for this pair settlement.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [invoiceId, producerId, consumerId, currency, status, total]
+                properties:
+                  invoiceId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  producerId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  consumerId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  currency:
+                    $ref: '../components/schemas.yaml#/components/schemas/Currency'
+                  status:
+                    $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
+                  total:
+                    $ref: '../components/schemas.yaml#/components/schemas/Money'
+                  tradeIds:
+                    type: array
+                    items:
+                      type: string
+                  pairSettlementId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  producerStripeAccountId:
+                    type: string
+                  hostedInvoiceUrl:
+                    type: string
+                    format: uri
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /invoices:from-settlement:
     post:
       operationId: createInvoiceFromSettlement
@@ -96,7 +146,8 @@ paths:
       description: >
         INT-196 / UAT-028 — TD-2 mapping from AC-05 pair settlement to a
         self-billing Stripe invoice (test mode). Idempotent on settlementId.
-        Bridges SettlementCompleted until the outbox→NATS consumer is wired.
+        Operator / seed bridge; primary path is SettlementCompleted via NATS
+        (INT-223 / INT-238).
       requestBody:
         required: true
         content:

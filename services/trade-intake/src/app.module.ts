@@ -14,12 +14,27 @@ import { IntakeController } from "./intake/intake.controller.js";
 import { IntakeService } from "./intake/intake.service.js";
 import { PublicIntakeController } from "./intake/public.controller.js";
 import { FixturePartyResolver } from "./party/fixture-party-resolver.js";
-import { PARTY_RESOLVER } from "./party/party-resolver.port.js";
+import { HttpPartyResolver } from "./party/http-party-resolver.js";
+import {
+  PARTY_RESOLVER,
+  type PartyResolverPort,
+} from "./party/party-resolver.port.js";
 
 const s1 = createMockSuite("S1");
 const knownActors = new Set(
   s1.scenario.trades.flatMap((t) => [t.buyerActorId, t.sellerActorId]),
 );
+
+/** INT-237 — HttpPartyResolver when PARTICIPANTS_INTERNAL_URL is set. */
+function createPartyResolver(
+  env: NodeJS.ProcessEnv = process.env,
+): PartyResolverPort {
+  const base = env.PARTICIPANTS_INTERNAL_URL;
+  if (base) {
+    return new HttpPartyResolver(base);
+  }
+  return new FixturePartyResolver(s1.scenario.communityId, knownActors);
+}
 
 @Module({
   imports: [
@@ -31,7 +46,7 @@ const knownActors = new Set(
     IntakeService,
     {
       provide: PARTY_RESOLVER,
-      useValue: new FixturePartyResolver(s1.scenario.communityId, knownActors),
+      useFactory: () => createPartyResolver(),
     },
   ],
 })

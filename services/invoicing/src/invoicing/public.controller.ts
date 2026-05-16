@@ -31,13 +31,17 @@ export class PublicInvoicingController {
 
   @Get("me/invoices")
   @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
-  listMine(@Req() req: AuthenticatedRequest) {
+  async listMine(@Req() req: AuthenticatedRequest) {
+    // INT-236 — IdP sub → participantId when AC-03 binding exists.
     return this.invoicing.listInvoicesForParticipant(req.user!.sub);
   }
 
   @Get("invoices/:id")
   @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
-  getOne(@Param("id") invoiceId: string, @Req() req: AuthenticatedRequest) {
+  async getOne(
+    @Param("id") invoiceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.invoicing.getPublicInvoiceForParticipant(
       invoiceId,
       req.user!.sub,
@@ -46,12 +50,12 @@ export class PublicInvoicingController {
 
   @Get("invoices/:id/document")
   @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
-  getDocument(
+  async getDocument(
     @Param("id") invoiceId: string,
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
   ) {
-    const { url } = this.invoicing.getDocumentUrlForParticipant(
+    const { url } = await this.invoicing.getDocumentUrlForParticipant(
       invoiceId,
       req.user!.sub,
     );

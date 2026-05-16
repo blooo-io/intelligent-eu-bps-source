@@ -13,6 +13,10 @@ import {
   PAYMENTS_CLIENT,
 } from "./ports/payments-client.port.js";
 import {
+  createParticipantsResolver,
+  PARTICIPANTS_RESOLVER,
+} from "./ports/participants-resolver.port.js";
+import {
   createReadiness,
   READINESS_PORT,
 } from "./ports/readiness.port.js";
@@ -70,6 +74,11 @@ function resolveInvoiceProvider(): "stripe" | "mock" {
       provide: PAYMENTS_CLIENT,
       // INT-228 — resolve Connect ids from AC-07 (Stripe master).
       useFactory: () => createPaymentsClient(),
+    },
+    {
+      provide: PARTICIPANTS_RESOLVER,
+      // INT-236 — IdP sub → participantId for public invoice list/detail.
+      useFactory: () => createParticipantsResolver(),
     },
     SettlementCompletedListener,
   ],

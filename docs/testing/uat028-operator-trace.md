@@ -4,27 +4,30 @@
 
 ## Why a bridge?
 
-AC-05 writes `SettlementCompleted` / `BillingRunCompleted` to the outbox. INT-223 wires AC-06 to JetStream `SettlementCompleted` (hydrate via GetPairSettlement → `createFromSettlement`). The HTTP bridge remains for operator / seed when events are not replayed. INT-196 exposes:
+AC-05 writes `SettlementCompleted` / `BillingRunCompleted` to the outbox. INT-223 wires AC-06 to JetStream `SettlementCompleted` (hydrate via GetPairSettlement → `createFromSettlement`). The HTTP bridge remains for operator / seed when events are not replayed. INT-196 / INT-238 expose:
 
 - `GET /internal/v1/billing-runs/{runId}` (settlement) — settlementIds for a run
-- `POST /internal/v1/invoices:from-settlement` (invoicing) — TD-2 invoice with `tradeIds` + `pairSettlementId`
+- `GET /internal/v1/invoices:by-settlement/{settlementId}` (invoicing) — poll NATS-created invoices
+- `POST /internal/v1/invoices:from-settlement` (invoicing) — operator bridge only
 - INT-197: optional `producerStripeAccountId` on the bridge body
 - INT-198: Connect customer email for `send_invoice`
 - INT-228: AC-06 resolves Connect ids from AC-07; **never invents `acct_test_*` when Stripe is live**
 
-## Preferred: fresh Stripe entities every run (INT-228)
+## Preferred: fresh Stripe entities + NATS proof (INT-228 / INT-238)
 
-Creates **new** Connect Custom accounts in Stripe test mode, binds them in AC-07, resets fixture billed trades, starts an early billing run so the NATS path creates new Customers + Invoices on those accounts (visible in the Stripe Dashboard).
+Creates **new** Connect Custom accounts in Stripe test mode, binds them in AC-07, resets fixture billed trades, starts an early billing run, then **polls** `invoices:by-settlement` until AC-06's NATS consumer has created Customers + Invoices (never calls the HTTP bridge).
 
 ```bash
 kubectl -n int-apps port-forward svc/payments 18087:8080 &
 kubectl -n int-apps port-forward svc/settlement 18085:8080 &
+kubectl -n int-apps port-forward svc/invoicing 18086:8080 &
 PAYMENTS_URL=http://127.0.0.1:18087 \
 SETTLEMENT_URL=http://127.0.0.1:18085 \
+INVOICING_URL=http://127.0.0.1:18086 \
 node scripts/stripe-fresh-billing-run.mjs
 ```
 
-Uses mock S1 community `c0ffee00-1234-4abc-8def-0123456789ab` (FixtureTradeSource). Prefer `type=early` so amounts under the €5 threshold still invoice.
+Uses S1 community `c0ffee00-1234-4abc-8def-0123456789ab` (INT-236 Keycloak users `s1-*` bound in AC-03). Prefer `type=early` so amounts under the €5 threshold still invoice.
 
 ## Legacy bridge (fixed Connect id)
 
@@ -59,5 +62,6 @@ node scripts/uat028-seed-billing-trace.mjs
 
 ## Follow-ups
 
-- Align mock S1 participant IDs with INT-194 UAT Keycloak seeds (or seed fixture actors into AC-03).
-- INT-223: AC-06 JetStream consumer is live on `dev`; prefer event path + INT-228 provision for new billing runs.
+- INT-236: S1 Keycloak users (`s1-consumer` / `s1-producer-a` / `s1-producer-b`) + AC-03 `idpUserId` bind — one identity chain with market trades.
+- INT-237: AC-04 `HttpPartyResolver` when `PARTICIPANTS_INTERNAL_URL` is set.
+- INT-223 / INT-238: prefer NATS event path + `stripe-fresh-billing-run.mjs` (poll `by-settlement`); keep HTTP bridge as operator fallback.

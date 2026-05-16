@@ -4,9 +4,10 @@ import type { InvoiceRecord } from "./types.js";
  * INT-218 — V1 UAT invoice so `/v1/me/invoices` is non-empty for uat-member
  * after pod restart (same pattern as AC-03 seedParticipants / INT-194).
  *
- * consumerId is the Keycloak fixture subject (int-realm.json), because the
- * public controller authorises with `req.user.sub` (IdP sub) today — matching
- * payments / settlement public controllers.
+ * consumerId is the Keycloak fixture subject (int-realm.json). Public list
+ * matches IdP sub directly and (INT-236) also the AC-03 participantId when
+ * PARTICIPANTS_INTERNAL_URL resolves the binding — so UAT seed and S1 invoices
+ * both work for member login.
  */
 export const UAT_MEMBER_IDP_SUB = "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f";
 export const UAT_MANAGER_IDP_SUB = "aca5adb7-0f18-4db8-aa04-6a0ff11b8ec6";

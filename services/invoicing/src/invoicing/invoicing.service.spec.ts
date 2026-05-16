@@ -13,6 +13,8 @@ import {
   NoopPaymentsClient,
   type PaymentsClientPort,
 } from "../ports/payments-client.port.js";
+import type { ParticipantsResolverPort } from "../ports/participants-resolver.port.js";
+import { NoopParticipantsResolver } from "../ports/participants-resolver.port.js";
 import { MapReadiness } from "../ports/readiness.port.js";
 import { MockStripeInvoiceAdapter } from "../stripe/mock-stripe-invoice.js";
 import { InvoicingService } from "./invoicing.service.js";
@@ -52,6 +54,7 @@ describe("InvoicingService", () => {
         new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
       ),
       new NoopPaymentsClient(),
+      new NoopParticipantsResolver(),
     );
     service.registerConnectAccount(
       "66666666-7777-4888-9999-aaaaaaaaaaaa",
@@ -83,6 +86,7 @@ describe("InvoicingService", () => {
       stripe,
       new MapReadiness(new Map()),
       new NoopPaymentsClient(),
+      new NoopParticipantsResolver(),
     );
     await expect(service.createFromSettlement(settlement())).rejects.toThrow(
       /not[_ ]ready/,
@@ -117,6 +121,7 @@ describe("InvoicingService", () => {
         new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
       ),
       new NoopPaymentsClient(),
+      new NoopParticipantsResolver(),
     );
     try {
       await expect(live.createFromSettlement(settlement())).rejects.toThrow(
@@ -144,6 +149,7 @@ describe("InvoicingService", () => {
         new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
       ),
       payments,
+      new NoopParticipantsResolver(),
     );
     await expect(gated.createFromSettlement(settlement())).rejects.toThrow(
       /charges_enabled/,
@@ -202,5 +208,39 @@ describe("InvoicingService", () => {
     });
     expect(next?.status).toBe("Paid");
     expect(service.listStatusAudit(invoice.invoiceId)[0]?.source).toBe("stripe");
+  });
+
+  it("INT-238 — getInvoiceBySettlement returns the row", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    expect(service.getInvoiceBySettlement(invoice.settlementId).invoiceId).toBe(
+      invoice.invoiceId,
+    );
+  });
+
+  it("INT-236 — listInvoices resolves IdP sub to participantId", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    const idp: ParticipantsResolverPort = {
+      resolveByIdpSub: async (sub) =>
+        sub === "c1a55e01-0001-4000-8000-000000000001"
+          ? {
+              participantId: "11111111-2222-4333-8444-555555555555",
+              communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+            }
+          : null,
+    };
+    const withIdp = new InvoicingService(
+      store,
+      new OutboxService(outboxStore),
+      stripe,
+      new MapReadiness(
+        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
+      ),
+      new NoopPaymentsClient(),
+      idp,
+    );
+    const listed = await withIdp.listInvoicesForParticipant(
+      "c1a55e01-0001-4000-8000-000000000001",
+    );
+    expect(listed.some((r) => r.invoiceId === invoice.invoiceId)).toBe(true);
   });
 });

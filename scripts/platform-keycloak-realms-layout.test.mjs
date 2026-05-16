@@ -29,6 +29,11 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(intRealm, /"username": "uat-manager"/);
   assert.match(intRealm, /"username": "uat-operator"/);
   assert.match(intRealm, /Intelligent-UAT-2026!/);
+  // INT-236 — S1 IdP users (community c0ffee00…) for one identity chain.
+  assert.match(intRealm, /"username": "s1-consumer"/);
+  assert.match(intRealm, /"username": "s1-producer-a"/);
+  assert.match(intRealm, /"username": "s1-producer-b"/);
+  assert.match(intRealm, /c0ffee00-1234-4abc-8def-0123456789ab/);
   // INT-215 — AC-03 Keycloak Admin service account + realm-management roles.
   assert.match(intRealm, /"clientId": "participants-admin"/);
   assert.match(intRealm, /"serviceAccountClientId": "participants-admin"/);

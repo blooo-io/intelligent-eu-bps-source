@@ -6,9 +6,12 @@ import test from "node:test";
 import {
   DEV_MAILPIT_SMTP,
   PARTICIPANTS_ADMIN_CLIENT,
+  S1_COMMUNITY_ID,
+  S1_USERS,
   UAT_COMMUNITY_ID,
   UAT_PASSWORD,
   UAT_USERS,
+  loadRealmS1Users,
   loadRealmUatUsers,
 } from "./keycloak-ensure-uat-users.mjs";
 import { readFile } from "node:fs/promises";
@@ -25,6 +28,20 @@ test("int-realm.json packs uat-member/manager/operator (INT-194)", async () => {
     assert.deepEqual(row.attributes?.community_id, [UAT_COMMUNITY_ID]);
     assert.equal(row.credentials?.[0]?.type, "password");
     assert.equal(row.credentials?.[0]?.temporary, false);
+    assert.equal(row.credentials?.[0]?.value, UAT_PASSWORD);
+  }
+});
+
+test("int-realm.json packs s1-consumer/producer users (INT-236)", async () => {
+  const users = await loadRealmS1Users();
+  const byName = Object.fromEntries(users.map((u) => [u.username, u]));
+  for (const fixture of S1_USERS) {
+    const row = byName[fixture.username];
+    assert.ok(row, `missing ${fixture.username}`);
+    assert.equal(row.id, fixture.id);
+    assert.equal(row.enabled, true);
+    assert.deepEqual(row.realmRoles, [fixture.role]);
+    assert.deepEqual(row.attributes?.community_id, [S1_COMMUNITY_ID]);
     assert.equal(row.credentials?.[0]?.value, UAT_PASSWORD);
   }
 });

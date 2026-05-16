@@ -13,6 +13,14 @@ export const S1_CONSUMER_ID = "11111111-2222-4333-8444-555555555555";
 export const S1_PRODUCER_A_ID = "66666666-7777-4888-9999-aaaaaaaaaaaa";
 export const S1_PRODUCER_B_ID = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
 
+/**
+ * INT-236 — Keycloak user ids for S1 actors (`int-realm.json` / ensure script).
+ * Distinct from participantIds (same pattern as UAT); bound via idpUserId.
+ */
+export const S1_CONSUMER_IDP_USER_ID = "c1a55e01-0001-4000-8000-000000000001";
+export const S1_PRODUCER_A_IDP_USER_ID = "c1a55e01-0002-4000-8000-000000000002";
+export const S1_PRODUCER_B_IDP_USER_ID = "c1a55e01-0003-4000-8000-000000000003";
+
 export const SEED_TERMS: TermsDocument = {
   termsVersion: "v1.0.0",
   text: "INTELLIGENT V1 terms and self-billing mandate (REQ-050). Identifiers only in events.",
@@ -108,10 +116,11 @@ export function seedUatParticipants(): ParticipantRecord[] {
 }
 
 /**
- * INT-230 — S1 fixture parties (AC-15). Profile + terms + self-billing are
- * pre-accepted so AC-07 payment-account-status can advance them to Ready
+ * INT-230 / INT-236 — S1 fixture parties (AC-15). Profile + terms + self-billing
+ * are pre-accepted so AC-07 payment-account-status can advance them to Ready
  * (BR-09) without a member UI pass. paymentAccountReady stays false until
- * Connect / PM provision notifies AC-03.
+ * Connect / PM provision notifies AC-03. idpUserId matches Keycloak S1 users
+ * so member login → participantId → trades → invoice is one chain.
  */
 export function seedS1Participants(): ParticipantRecord[] {
   const communityId = S1_COMMUNITY_ID;
@@ -131,7 +140,7 @@ export function seedS1Participants(): ParticipantRecord[] {
       status: "TermsAccepted",
       marketActorId: S1_CONSUMER_ID,
       meterId: "m-s1-consumer",
-      idpUserId: null,
+      idpUserId: S1_CONSUMER_IDP_USER_ID,
       profile: readyProfile("S1 Consumer", "s1-consumer@example.invalid"),
       termsVersionAccepted: SEED_TERMS.termsVersion,
       selfBillingMandate: false,
@@ -145,7 +154,7 @@ export function seedS1Participants(): ParticipantRecord[] {
       status: "TermsAccepted",
       marketActorId: S1_PRODUCER_A_ID,
       meterId: "m-s1-producer-a",
-      idpUserId: null,
+      idpUserId: S1_PRODUCER_A_IDP_USER_ID,
       profile: readyProfile("S1 Producer A", "s1-producer-a@example.invalid"),
       termsVersionAccepted: SEED_TERMS.termsVersion,
       selfBillingMandate: true,
@@ -159,7 +168,7 @@ export function seedS1Participants(): ParticipantRecord[] {
       status: "TermsAccepted",
       marketActorId: S1_PRODUCER_B_ID,
       meterId: "m-s1-producer-b",
-      idpUserId: null,
+      idpUserId: S1_PRODUCER_B_IDP_USER_ID,
       profile: readyProfile("S1 Producer B", "s1-producer-b@example.invalid"),
       termsVersionAccepted: SEED_TERMS.termsVersion,
       selfBillingMandate: true,

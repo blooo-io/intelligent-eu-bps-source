@@ -2,7 +2,8 @@ import type { PartyResolverPort, ResolvedParty } from "./party-resolver.port.js"
 
 /**
  * V1 test/fixture resolver: known actor UUIDs from AC-15 scenarios map 1:1
- * to participantId with a fixed community (until HTTP client to AC-03 lands).
+ * to participantId with a fixed community. Prefer HttpPartyResolver when
+ * PARTICIPANTS_INTERNAL_URL is set (INT-237).
  */
 export class FixturePartyResolver implements PartyResolverPort {
   constructor(

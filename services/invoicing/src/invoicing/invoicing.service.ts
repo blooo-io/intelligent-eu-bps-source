@@ -18,6 +18,10 @@ import {
   type PaymentsClientPort,
 } from "../ports/payments-client.port.js";
 import {
+  PARTICIPANTS_RESOLVER,
+  type ParticipantsResolverPort,
+} from "../ports/participants-resolver.port.js";
+import {
   READINESS_PORT,
   type ReadinessPort,
 } from "../ports/readiness.port.js";
@@ -43,6 +47,8 @@ export class InvoicingService {
     @Inject(STRIPE_INVOICE_PORT) private readonly stripe: StripeInvoicePort,
     @Inject(READINESS_PORT) private readonly readiness: ReadinessPort,
     @Inject(PAYMENTS_CLIENT) private readonly payments: PaymentsClientPort,
+    @Inject(PARTICIPANTS_RESOLVER)
+    private readonly idpResolver: ParticipantsResolverPort,
   ) {}
 
   resetStore(): void {
@@ -106,6 +112,43 @@ export class InvoicingService {
     if (!row) {
       throw new NotFoundException(`Unknown invoice ${invoiceId}`);
     }
+    return this.toInternalInvoice(row);
+  }
+
+  /** INT-238 — lookup by pair settlement id (NATS smoke / operator poll). */
+  getInvoiceBySettlement(settlementId: string): {
+    invoiceId: string;
+    producerId: string;
+    consumerId: string;
+    currency: string;
+    status: InvoiceStatus;
+    total: string;
+    tradeIds: string[];
+    pairSettlementId: string;
+    producerStripeAccountId?: string;
+    hostedInvoiceUrl?: string;
+  } {
+    const row = this.store.findBySettlement(settlementId);
+    if (!row) {
+      throw new NotFoundException(
+        `No invoice for settlement ${settlementId}`,
+      );
+    }
+    return this.toInternalInvoice(row);
+  }
+
+  private toInternalInvoice(row: InvoiceRecord): {
+    invoiceId: string;
+    producerId: string;
+    consumerId: string;
+    currency: string;
+    status: InvoiceStatus;
+    total: string;
+    tradeIds: string[];
+    pairSettlementId: string;
+    producerStripeAccountId?: string;
+    hostedInvoiceUrl?: string;
+  } {
     return {
       invoiceId: row.invoiceId,
       producerId: row.producerId,
@@ -122,48 +165,67 @@ export class InvoicingService {
     };
   }
 
-  /** Public list for the authenticated caller (REQ-007 / INT-193). */
-  listInvoicesForParticipant(participantId: string): Record<string, unknown>[] {
+  /**
+   * INT-236 — JWT `sub` may be Keycloak idpUserId; also keep raw sub so UAT
+   * seed invoices (consumerId = IdP sub) remain visible.
+   */
+  async resolveCallerIds(sub: string): Promise<string[]> {
+    const ids = new Set<string>([sub]);
+    const resolved = await this.idpResolver.resolveByIdpSub(sub);
+    if (resolved?.participantId) {
+      ids.add(resolved.participantId);
+    }
+    return [...ids];
+  }
+
+  private isCallerOnInvoice(
+    row: InvoiceRecord,
+    callerIds: ReadonlySet<string> | string[],
+  ): boolean {
+    const set =
+      callerIds instanceof Set ? callerIds : new Set(callerIds);
+    return set.has(row.producerId) || set.has(row.consumerId);
+  }
+
+  /** Public list for the authenticated caller (REQ-007 / INT-193 / INT-236). */
+  async listInvoicesForParticipant(
+    subOrParticipantId: string,
+  ): Promise<Record<string, unknown>[]> {
+    const callerIds = await this.resolveCallerIds(subOrParticipantId);
+    const set = new Set(callerIds);
     return this.store
       .list()
-      .filter(
-        (row) =>
-          row.producerId === participantId || row.consumerId === participantId,
-      )
+      .filter((row) => this.isCallerOnInvoice(row, set))
       .map((row) => this.toPublicInvoice(row));
   }
 
   /** Public detail when the caller is producer or consumer (REQ-007). */
-  getPublicInvoiceForParticipant(
+  async getPublicInvoiceForParticipant(
     invoiceId: string,
-    participantId: string,
-  ): Record<string, unknown> {
+    subOrParticipantId: string,
+  ): Promise<Record<string, unknown>> {
     const row = this.store.get(invoiceId);
     if (!row) {
       throw new NotFoundException(`Unknown invoice ${invoiceId}`);
     }
-    if (
-      row.producerId !== participantId &&
-      row.consumerId !== participantId
-    ) {
+    const callerIds = await this.resolveCallerIds(subOrParticipantId);
+    if (!this.isCallerOnInvoice(row, callerIds)) {
       throw new NotFoundException(`Unknown invoice ${invoiceId}`);
     }
     return this.toPublicInvoice(row);
   }
 
   /** Hosted PDF / invoice URL (REQ-039). */
-  getDocumentUrlForParticipant(
+  async getDocumentUrlForParticipant(
     invoiceId: string,
-    participantId: string,
-  ): { url: string } {
+    subOrParticipantId: string,
+  ): Promise<{ url: string }> {
     const row = this.store.get(invoiceId);
     if (!row) {
       throw new NotFoundException(`Unknown invoice ${invoiceId}`);
     }
-    if (
-      row.producerId !== participantId &&
-      row.consumerId !== participantId
-    ) {
+    const callerIds = await this.resolveCallerIds(subOrParticipantId);
+    if (!this.isCallerOnInvoice(row, callerIds)) {
       throw new NotFoundException(`Unknown invoice ${invoiceId}`);
     }
     if (!row.hostedInvoiceUrl) {

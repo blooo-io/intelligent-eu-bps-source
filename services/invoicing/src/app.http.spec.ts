@@ -91,6 +91,22 @@ describe("invoicing HTTP (INT-106)", () => {
       pairSettlementId: created!.settlementId,
     });
 
+    // INT-238 — by-settlement lookup (NATS smoke poll).
+    const bySettlement = await fetch(
+      `${base}/internal/v1/invoices:by-settlement/${created!.settlementId}`,
+      { headers: { "x-intelligent-roles": "service" } },
+    );
+    expect(bySettlement.status).toBe(200);
+    expect(await bySettlement.json()).toMatchObject({
+      invoiceId: created!.invoiceId,
+      pairSettlementId: created!.settlementId,
+    });
+    const missing = await fetch(
+      `${base}/internal/v1/invoices:by-settlement/00000000-0000-4000-8000-000000000099`,
+      { headers: { "x-intelligent-roles": "service" } },
+    );
+    expect(missing.status).toBe(404);
+
     const overdue = await fetch(`${base}/internal/v1/invoices:mark-overdue`, {
       method: "POST",
       headers: {

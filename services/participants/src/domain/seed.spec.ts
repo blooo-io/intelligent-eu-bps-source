@@ -3,14 +3,17 @@ import { ParticipantsStore } from "./store.js";
 import {
   S1_COMMUNITY_ID,
   S1_CONSUMER_ID,
+  S1_CONSUMER_IDP_USER_ID,
   S1_PRODUCER_A_ID,
+  S1_PRODUCER_A_IDP_USER_ID,
   S1_PRODUCER_B_ID,
+  S1_PRODUCER_B_IDP_USER_ID,
   SEED_COMMUNITY_ID,
   seedParticipants,
   seedS1Participants,
 } from "./seed.js";
 
-describe("seed (INT-230)", () => {
+describe("seed (INT-230 / INT-236)", () => {
   it("seeds UAT and S1 communities with S1 actor UUIDs", () => {
     const store = new ParticipantsStore();
     expect(store.getCommunity(SEED_COMMUNITY_ID)?.billingMode).toBe("virtual");
@@ -26,6 +29,22 @@ describe("seed (INT-230)", () => {
     );
     expect(seedS1Participants()).toHaveLength(3);
     expect(seedParticipants().length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("binds S1 participants to Keycloak idpUserId (INT-236)", () => {
+    const store = new ParticipantsStore();
+    expect(store.getParticipant(S1_CONSUMER_ID)?.idpUserId).toBe(
+      S1_CONSUMER_IDP_USER_ID,
+    );
+    expect(store.getParticipant(S1_PRODUCER_A_ID)?.idpUserId).toBe(
+      S1_PRODUCER_A_IDP_USER_ID,
+    );
+    expect(store.getParticipant(S1_PRODUCER_B_ID)?.idpUserId).toBe(
+      S1_PRODUCER_B_IDP_USER_ID,
+    );
+    expect(store.findByIdpSub(S1_CONSUMER_IDP_USER_ID)?.participantId).toBe(
+      S1_CONSUMER_ID,
+    );
   });
 
   it("indexes S1 market actors for ResolveParty", () => {

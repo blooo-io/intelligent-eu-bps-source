@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * INT-194 — ensure Keycloak UAT IdP users exist with known passwords.
+ * INT-194 / INT-236 — ensure Keycloak UAT + S1 IdP users exist with known passwords.
  *
  * Realm ConfigMap sync alone does not re-import users on an already-initialised
  * realm (see deploy/platform/README.md). After GitOps packs the users into
@@ -27,6 +27,8 @@ const REALM_PATH = path.join(
 );
 
 export const UAT_COMMUNITY_ID = "a1000000-0000-4000-8000-000000000001";
+/** INT-236 — AC-15 S1 community (market / Stripe billing fixture). */
+export const S1_COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
 
 /** Fixture users mirrored from int-realm.json (INT-194). */
 export const UAT_USERS = [
@@ -35,18 +37,61 @@ export const UAT_USERS = [
     username: "uat-member",
     role: "member",
     email: "uat-member@example.invalid",
+    communityId: UAT_COMMUNITY_ID,
+    firstName: "UAT",
+    lastName: "Member",
   },
   {
     id: "aca5adb7-0f18-4db8-aa04-6a0ff11b8ec6",
     username: "uat-manager",
     role: "manager",
     email: "uat-manager@example.invalid",
+    communityId: UAT_COMMUNITY_ID,
+    firstName: "UAT",
+    lastName: "Manager",
   },
   {
     id: "e4166575-164a-4c30-b801-290fadd879d1",
     username: "uat-operator",
     role: "operator",
     email: "uat-operator@example.invalid",
+    communityId: UAT_COMMUNITY_ID,
+    firstName: "UAT",
+    lastName: "Operator",
+  },
+];
+
+/**
+ * INT-236 — S1 IdP users bound to AC-03 seed idpUserId (one identity chain
+ * with market trades / Connect / invoices).
+ */
+export const S1_USERS = [
+  {
+    id: "c1a55e01-0001-4000-8000-000000000001",
+    username: "s1-consumer",
+    role: "member",
+    email: "s1-consumer@example.invalid",
+    communityId: S1_COMMUNITY_ID,
+    firstName: "S1",
+    lastName: "Consumer",
+  },
+  {
+    id: "c1a55e01-0002-4000-8000-000000000002",
+    username: "s1-producer-a",
+    role: "member",
+    email: "s1-producer-a@example.invalid",
+    communityId: S1_COMMUNITY_ID,
+    firstName: "S1",
+    lastName: "ProducerA",
+  },
+  {
+    id: "c1a55e01-0003-4000-8000-000000000003",
+    username: "s1-producer-b",
+    role: "member",
+    email: "s1-producer-b@example.invalid",
+    communityId: S1_COMMUNITY_ID,
+    firstName: "S1",
+    lastName: "ProducerB",
   },
 ];
 
@@ -68,6 +113,13 @@ export async function loadRealmUatUsers(realmPath = REALM_PATH) {
   const realm = JSON.parse(await readFile(realmPath, "utf8"));
   const users = realm.users ?? [];
   return users.filter((u) => String(u.username ?? "").startsWith("uat-"));
+}
+
+/** INT-236 — S1 Keycloak fixtures from int-realm.json. */
+export async function loadRealmS1Users(realmPath = REALM_PATH) {
+  const realm = JSON.parse(await readFile(realmPath, "utf8"));
+  const users = realm.users ?? [];
+  return users.filter((u) => String(u.username ?? "").startsWith("s1-"));
 }
 
 /** Forwarded proto so sslRequired=external accepts in-cluster HTTP (INT-218). */
@@ -113,6 +165,9 @@ async function ensureUser(baseUrl, token, fixture) {
     ...proxyHeaders(baseUrl),
   };
   const realmBase = `${baseUrl.replace(/\/$/, "")}/admin/realms/int`;
+  const communityId = fixture.communityId ?? UAT_COMMUNITY_ID;
+  const firstName = fixture.firstName ?? "UAT";
+  const lastName = fixture.lastName ?? fixture.role;
   const search = await fetch(
     `${realmBase}/users?username=${encodeURIComponent(fixture.username)}&exact=true`,
     { headers },
@@ -132,9 +187,9 @@ async function ensureUser(baseUrl, token, fixture) {
         enabled: true,
         email: fixture.email,
         emailVerified: true,
-        firstName: "UAT",
-        lastName: fixture.role,
-        attributes: { community_id: [UAT_COMMUNITY_ID] },
+        firstName,
+        lastName,
+        attributes: { community_id: [communityId] },
       }),
     });
     if (create.status !== 201) {
@@ -157,7 +212,9 @@ async function ensureUser(baseUrl, token, fixture) {
         ...found[0],
         enabled: true,
         email: fixture.email,
-        attributes: { community_id: [UAT_COMMUNITY_ID] },
+        firstName,
+        lastName,
+        attributes: { community_id: [communityId] },
       }),
     });
   }
@@ -358,7 +415,7 @@ export async function ensureUatUsers(options = {}) {
   const smtp = await ensureRealmSmtp(baseUrl, token);
   const adminClient = await ensureParticipantsAdminClient(baseUrl, token);
   const results = [];
-  for (const fixture of UAT_USERS) {
+  for (const fixture of [...UAT_USERS, ...S1_USERS]) {
     results.push(await ensureUser(baseUrl, token, fixture));
   }
   return { users: results, adminClient, smtp };

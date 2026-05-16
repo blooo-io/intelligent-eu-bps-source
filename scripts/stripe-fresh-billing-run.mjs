@@ -1,21 +1,24 @@
 #!/usr/bin/env node
 /**
- * INT-228 / INT-229 — operator seed: create **new** Stripe Connect producers
- * each run, bind them in AC-07, reset billed trades (fixture or AC-04 HTTP),
- * start a billing run so AC-06 NATS consumer creates real Stripe Customers +
- * Invoices (visible in Dashboard).
+ * INT-228 / INT-229 / INT-238 — operator seed: create **new** Stripe Connect
+ * producers each run, bind them in AC-07, reset billed trades (fixture or
+ * AC-04 HTTP), start a billing run, then **poll** AC-06 for invoices created
+ * by the SettlementCompleted NATS consumer (no HTTP invoice bridge).
  *
  * Prerequisites:
- * - kubectl port-forwards to payments, settlement (and optionally invoicing)
+ * - kubectl port-forwards to payments, settlement, invoicing
  * - Stripe test secrets already on payments/invoicing pods (OpenBao)
- * - INT-230 S1 participants seeded in AC-03; INT-232 trade-intake bootstrapped
+ * - INT-230/236 S1 participants seeded in AC-03; INT-232 trade-intake bootstrapped
+ * - INT-223 AC-06 JetStream consumer live
  *
  * Usage:
  *   PAYMENTS_URL=http://127.0.0.1:18087 \
  *   SETTLEMENT_URL=http://127.0.0.1:18085 \
+ *   INVOICING_URL=http://127.0.0.1:18086 \
  *   node scripts/stripe-fresh-billing-run.mjs
  *
  * Does **not** invent acct_test_* — every producer Connect id comes from Stripe.
+ * Does **not** POST the operator invoice bridge — NATS is the primary path (INT-238).
  */
 import assert from "node:assert/strict";
 
@@ -25,6 +28,9 @@ const PAYMENTS_URL = (
 const SETTLEMENT_URL = (
   process.env.SETTLEMENT_URL ?? "http://127.0.0.1:18085"
 ).replace(/\/$/, "");
+const INVOICING_URL = (
+  process.env.INVOICING_URL ?? "http://127.0.0.1:18086"
+).replace(/\/$/, "");
 
 const COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
 /** S1 fixture producers (AC-15) — rebound to fresh Stripe Connect accounts each run. */
@@ -33,11 +39,57 @@ const PRODUCERS = [
   "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
 ];
 
+const POLL_MS = Number(process.env.NATS_INVOICE_POLL_MS ?? 2000);
+const POLL_ATTEMPTS = Number(process.env.NATS_INVOICE_POLL_ATTEMPTS ?? 30);
+
 const headers = {
   "content-type": "application/json",
   "x-intelligent-roles": "service,operator",
-  "x-intelligent-sub": "int-228-fresh-seed",
+  "x-intelligent-sub": "int-238-nats-smoke",
 };
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForRunSettlements(runId) {
+  for (let i = 0; i < POLL_ATTEMPTS; i++) {
+    const res = await fetch(`${SETTLEMENT_URL}/internal/v1/billing-runs/${runId}`, {
+      headers,
+    });
+    if (res.ok) {
+      const body = await res.json();
+      if (Array.isArray(body.settlementIds) && body.settlementIds.length > 0) {
+        return body;
+      }
+    }
+    await sleep(POLL_MS);
+  }
+  throw new Error(`billing run ${runId} produced no settlementIds`);
+}
+
+/**
+ * INT-238 — poll GET invoices:by-settlement (never the operator bridge POST).
+ * Zero-amount pairs may stay 404 (carry-forward); non-zero must appear.
+ */
+async function waitForInvoice(settlementId) {
+  for (let i = 0; i < POLL_ATTEMPTS; i++) {
+    const res = await fetch(
+      `${INVOICING_URL}/internal/v1/invoices:by-settlement/${settlementId}`,
+      { headers },
+    );
+    if (res.status === 200) {
+      return await res.json();
+    }
+    if (res.status !== 404) {
+      throw new Error(
+        `by-settlement ${settlementId}: unexpected ${res.status}`,
+      );
+    }
+    await sleep(POLL_MS);
+  }
+  return null;
+}
 
 async function main() {
   const provisioned = [];
@@ -99,7 +151,67 @@ async function main() {
       {
         step: "startRun",
         runId: startBody.runId,
-        hint: "AC-06 NATS SettlementCompleted → Stripe invoices on the new Connect accounts",
+        path: "NATS SettlementCompleted → AC-06 (no HTTP bridge)",
+      },
+      null,
+      2,
+    ),
+  );
+
+  const run = await waitForRunSettlements(startBody.runId);
+  console.log(
+    JSON.stringify(
+      {
+        step: "runSettlements",
+        runId: run.runId,
+        settlementIds: run.settlementIds,
+      },
+      null,
+      2,
+    ),
+  );
+
+  const invoices = [];
+  const pending = [];
+  for (const settlementId of run.settlementIds) {
+    const invoice = await waitForInvoice(settlementId);
+    if (invoice) {
+      invoices.push(invoice);
+    } else {
+      // May be zero-amount carry-forward (BR-05) — confirm via AC-05.
+      const pairRes = await fetch(
+        `${SETTLEMENT_URL}/internal/v1/settlements/${settlementId}`,
+        { headers },
+      );
+      const pair = pairRes.ok ? await pairRes.json() : null;
+      const energy = Number(pair?.energyAmount ?? pair?.netAmount ?? NaN);
+      if (Number.isFinite(energy) && energy === 0) {
+        pending.push({ settlementId, reason: "zero_amount_carry_forward" });
+      } else {
+        throw new Error(
+          `NATS path did not produce invoice for settlement ${settlementId}`,
+        );
+      }
+    }
+  }
+
+  assert.ok(
+    invoices.length > 0,
+    "expected at least one invoice from NATS SettlementCompleted",
+  );
+  console.log(
+    JSON.stringify(
+      {
+        step: "natsInvoices",
+        count: invoices.length,
+        invoices: invoices.map((i) => ({
+          invoiceId: i.invoiceId,
+          pairSettlementId: i.pairSettlementId,
+          total: i.total,
+          status: i.status,
+          hostedInvoiceUrl: i.hostedInvoiceUrl,
+        })),
+        skipped: pending,
       },
       null,
       2,

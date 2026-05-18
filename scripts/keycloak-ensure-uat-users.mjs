@@ -157,6 +157,57 @@ async function adminToken(baseUrl, password) {
   return json.access_token;
 }
 
+/**
+ * INT-239 — Admin POST /users ignores `id` and assigns a random UUID.
+ * Realm partialImport honourables fixture ids so AC-03 seed idpUserId matches.
+ */
+async function importUserWithFixedId(baseUrl, token, fixture) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...proxyHeaders(baseUrl),
+  };
+  const realmBase = `${baseUrl.replace(/\/$/, "")}/admin/realms/int`;
+  const communityId = fixture.communityId ?? UAT_COMMUNITY_ID;
+  const firstName = fixture.firstName ?? "UAT";
+  const lastName = fixture.lastName ?? fixture.role;
+  const res = await fetch(`${realmBase}/partialImport`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      ifResourceExists: "OVERWRITE",
+      users: [
+        {
+          id: fixture.id,
+          username: fixture.username,
+          enabled: true,
+          email: fixture.email,
+          emailVerified: true,
+          firstName,
+          lastName,
+          attributes: { community_id: [communityId] },
+          realmRoles: [fixture.role],
+          credentials: [
+            {
+              type: "password",
+              temporary: false,
+              value: UAT_PASSWORD,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(
+      `partialImport ${fixture.username}: ${res.status} ${body}`,
+    );
+  }
+  return fixture.id;
+}
+
 async function ensureUser(baseUrl, token, fixture) {
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -177,33 +228,18 @@ async function ensureUser(baseUrl, token, fixture) {
   }
   const found = await search.json();
   let id = found[0]?.id;
-  if (!id) {
-    const create = await fetch(`${realmBase}/users`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        id: fixture.id,
-        username: fixture.username,
-        enabled: true,
-        email: fixture.email,
-        emailVerified: true,
-        firstName,
-        lastName,
-        attributes: { community_id: [communityId] },
-      }),
-    });
-    if (create.status !== 201) {
-      throw new Error(`create ${fixture.username}: ${create.status}`);
+  if (!id || id !== fixture.id) {
+    // Missing, or wrong id (Admin API create ignored fixture.id) — re-import.
+    if (id && id !== fixture.id) {
+      const del = await fetch(`${realmBase}/users/${id}`, {
+        method: "DELETE",
+        headers,
+      });
+      if (!del.ok && del.status !== 404) {
+        throw new Error(`delete mismatched ${fixture.username}: ${del.status}`);
+      }
     }
-    const loc = create.headers.get("location") ?? "";
-    id = loc.split("/").pop();
-    if (!id) {
-      const again = await fetch(
-        `${realmBase}/users?username=${encodeURIComponent(fixture.username)}&exact=true`,
-        { headers },
-      );
-      id = (await again.json())[0]?.id;
-    }
+    id = await importUserWithFixedId(baseUrl, token, fixture);
   } else {
     await fetch(`${realmBase}/users/${id}`, {
       method: "PUT",

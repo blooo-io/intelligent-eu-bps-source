@@ -46,6 +46,16 @@ test("int-realm.json packs s1-consumer/producer users (INT-236)", async () => {
   }
 });
 
+test("ensure script uses partialImport for fixed Keycloak user ids (INT-239)", async () => {
+  const src = await readFile(
+    new URL("./keycloak-ensure-uat-users.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(src, /partialImport/);
+  assert.match(src, /ifResourceExists:\s*"OVERWRITE"/);
+  assert.match(src, /id !== fixture\.id/);
+});
+
 test("ensure script packs participants-admin client secret (INT-218)", async () => {
   const realm = JSON.parse(
     await readFile("deploy/charts/keycloak-realms/realms/int-realm.json", "utf8"),

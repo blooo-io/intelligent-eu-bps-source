@@ -159,7 +159,7 @@ async function adminToken(baseUrl, password) {
 
 /**
  * INT-239 — Admin POST /users ignores `id` and assigns a random UUID.
- * Realm partialImport honourables fixture ids so AC-03 seed idpUserId matches.
+ * Realm partialImport honours fixture ids so AC-03 seed idpUserId matches.
  */
 async function importUserWithFixedId(baseUrl, token, fixture) {
   const headers = {

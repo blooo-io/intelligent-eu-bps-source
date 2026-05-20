@@ -69,6 +69,30 @@ async function waitForRunSettlements(runId) {
 }
 
 /**
+ * INT-240 — fresh Connect accounts often report chargesEnabled=false for a
+ * short window (pending_verification). AC-06 naks until true (INT-231); wait
+ * here so the NATS smoke does not race Stripe KYC settle.
+ */
+async function waitForChargesEnabled(participantId) {
+  for (let i = 0; i < POLL_ATTEMPTS; i++) {
+    const res = await fetch(
+      `${PAYMENTS_URL}/internal/v1/payment-accounts/${participantId}`,
+      { headers },
+    );
+    if (res.ok) {
+      const body = await res.json();
+      if (body.chargesEnabled === true) {
+        return body;
+      }
+    }
+    await sleep(POLL_MS);
+  }
+  throw new Error(
+    `charges_enabled never became true for ${participantId}`,
+  );
+}
+
+/**
  * INT-238 — poll GET invoices:by-settlement (never the operator bridge POST).
  * Zero-amount pairs may stay 404 (carry-forward); non-zero must appear.
  */
@@ -126,6 +150,18 @@ async function main() {
     });
   }
   console.log(JSON.stringify({ step: "provision", provisioned }, null, 2));
+
+  for (const participantId of PRODUCERS) {
+    const account = await waitForChargesEnabled(participantId);
+    console.log(
+      JSON.stringify({
+        step: "chargesEnabled",
+        participantId,
+        stripeAccountId: account.stripeAccountId,
+        chargesEnabled: account.chargesEnabled,
+      }),
+    );
+  }
 
   const reset = await fetch(
     `${SETTLEMENT_URL}/internal/v1/fixture-billed:reset`,

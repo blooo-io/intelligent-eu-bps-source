@@ -24,4 +24,10 @@ describe("stripe-fresh-billing-run.mjs (INT-228 / INT-238)", () => {
     assert.doesNotMatch(src, /\/internal\/v1\/invoices:from-settlement/);
     assert.match(src, /NATS SettlementCompleted/);
   });
+
+  it("waits for charges_enabled before startRun (INT-240)", () => {
+    assert.match(src, /waitForChargesEnabled/);
+    assert.match(src, /charges_enabled never became true/);
+    assert.match(src, /payment-accounts\/\$\{participantId\}/);
+  });
 });

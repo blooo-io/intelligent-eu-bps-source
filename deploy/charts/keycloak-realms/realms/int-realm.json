@@ -233,6 +233,26 @@
           "value": "Intelligent-UAT-2026!"
         }
       ]
+    },
+    {
+      "id": "c1a55e01-0004-4000-8000-000000000004",
+      "username": "s1-manager",
+      "enabled": true,
+      "email": "s1-manager@example.invalid",
+      "emailVerified": true,
+      "firstName": "S1",
+      "lastName": "Manager",
+      "attributes": {
+        "community_id": ["c0ffee00-1234-4abc-8def-0123456789ab"]
+      },
+      "realmRoles": ["manager"],
+      "credentials": [
+        {
+          "type": "password",
+          "temporary": false,
+          "value": "Intelligent-UAT-2026!"
+        }
+      ]
     }
   ]
 }

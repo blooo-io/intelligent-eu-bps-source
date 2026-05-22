@@ -32,9 +32,10 @@ test("int-realm.json packs uat-member/manager/operator (INT-194)", async () => {
   }
 });
 
-test("int-realm.json packs s1-consumer/producer users (INT-236)", async () => {
+test("int-realm.json packs s1-consumer/producer/manager users (INT-236 / INT-241)", async () => {
   const users = await loadRealmS1Users();
   const byName = Object.fromEntries(users.map((u) => [u.username, u]));
+  assert.ok(byName["s1-manager"], "missing s1-manager");
   for (const fixture of S1_USERS) {
     const row = byName[fixture.username];
     assert.ok(row, `missing ${fixture.username}`);

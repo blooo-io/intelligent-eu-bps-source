@@ -93,6 +93,16 @@ export const S1_USERS = [
     firstName: "S1",
     lastName: "ProducerB",
   },
+  {
+    // INT-241 — Start billing run from the portal for community c0ffee00…
+    id: "c1a55e01-0004-4000-8000-000000000004",
+    username: "s1-manager",
+    role: "manager",
+    email: "s1-manager@example.invalid",
+    communityId: S1_COMMUNITY_ID,
+    firstName: "S1",
+    lastName: "Manager",
+  },
 ];
 
 export const UAT_PASSWORD = "Intelligent-UAT-2026!";

@@ -13,9 +13,26 @@ AC-05 writes `SettlementCompleted` / `BillingRunCompleted` to the outbox. INT-22
 - INT-198: Connect customer email for `send_invoice`
 - INT-228: AC-06 resolves Connect ids from AC-07; **never invents `acct_test_*` when Stripe is live**
 
-## Preferred: fresh Stripe entities + NATS proof (INT-228 / INT-238)
+## Preferred: fully manual portal path (INT-241)
 
-Creates **new** Connect Custom accounts in Stripe test mode, binds them in AC-07, resets fixture billed trades, starts an early billing run, then **polls** `invoices:by-settlement` until AC-06's NATS consumer has created Customers + Invoices (never calls the HTTP bridge).
+S1 community `c0ffee00-1234-4abc-8def-0123456789ab` has Keycloak users
+`s1-consumer` / `s1-producer-a` / `s1-producer-b` / **`s1-manager`**
+(password `Intelligent-UAT-2026!`). No operator script required:
+
+1. **Producers** (`s1-producer-a`, then `-b`) — `/payment-setup` → Submit KYC
+   (Stripe test tokens; see `stripe-connect-test-kyc.md`) until charges enabled.
+2. **Manager** (`s1-manager`) — `/billing-runs` → Type **Early** → **Start run**
+   (REQ-006). NATS `SettlementCompleted` creates Stripe invoices.
+3. **Consumer** (`s1-consumer`) — `/payment-setup` (card `4242…`) then
+   `/invoices` → View / Open PDF / **Pay**.
+
+If a prior run already marked fixture trades billed and Start run yields an
+empty run, an operator may once clear billed marks via the internal
+`fixture-billed:reset` endpoint (V1 fixture only — not a production control).
+
+## Operator alternative: fresh Stripe entities + NATS proof (INT-228 / INT-238)
+
+Creates **new** Connect Custom accounts in Stripe test mode, binds them in AC-07, resets fixture billed trades, starts an early billing run, then **polls** `invoices:by-settlement` until AC-06's NATS consumer has created Customers + Invoices (never calls the HTTP bridge). Prefer the portal path above for manual journeys.
 
 ```bash
 kubectl -n int-apps port-forward svc/payments 18087:8080 &
@@ -26,8 +43,6 @@ SETTLEMENT_URL=http://127.0.0.1:18085 \
 INVOICING_URL=http://127.0.0.1:18086 \
 node scripts/stripe-fresh-billing-run.mjs
 ```
-
-Uses S1 community `c0ffee00-1234-4abc-8def-0123456789ab` (INT-236 Keycloak users `s1-*` bound in AC-03). Prefer `type=early` so amounts under the €5 threshold still invoice.
 
 ## Legacy bridge (fixed Connect id)
 
@@ -62,6 +77,6 @@ node scripts/uat028-seed-billing-trace.mjs
 
 ## Follow-ups
 
-- INT-236: S1 Keycloak users (`s1-consumer` / `s1-producer-a` / `s1-producer-b`) + AC-03 `idpUserId` bind — one identity chain with market trades.
+- INT-236 / INT-241: S1 Keycloak users including `s1-manager` + AC-03 `idpUserId` bind — full portal path without scripts.
 - INT-237: AC-04 `HttpPartyResolver` when `PARTICIPANTS_INTERNAL_URL` is set.
-- INT-223 / INT-238: prefer NATS event path + `stripe-fresh-billing-run.mjs` (poll `by-settlement`); keep HTTP bridge as operator fallback.
+- INT-223 / INT-238: NATS is primary; `stripe-fresh-billing-run.mjs` remains the operator smoke / fresh-Connect alternative.

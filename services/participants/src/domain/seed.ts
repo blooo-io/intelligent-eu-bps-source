@@ -12,14 +12,18 @@ export const S1_COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
 export const S1_CONSUMER_ID = "11111111-2222-4333-8444-555555555555";
 export const S1_PRODUCER_A_ID = "66666666-7777-4888-9999-aaaaaaaaaaaa";
 export const S1_PRODUCER_B_ID = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
+/** INT-241 — S1 community manager (Start billing run from the portal). */
+export const S1_MANAGER_ID = "dddddddd-eeee-4fff-8000-111111111111";
 
 /**
- * INT-236 — Keycloak user ids for S1 actors (`int-realm.json` / ensure script).
- * Distinct from participantIds (same pattern as UAT); bound via idpUserId.
+ * INT-236 / INT-241 — Keycloak user ids for S1 actors (`int-realm.json` /
+ * ensure script). Distinct from participantIds (same pattern as UAT); bound
+ * via idpUserId.
  */
 export const S1_CONSUMER_IDP_USER_ID = "c1a55e01-0001-4000-8000-000000000001";
 export const S1_PRODUCER_A_IDP_USER_ID = "c1a55e01-0002-4000-8000-000000000002";
 export const S1_PRODUCER_B_IDP_USER_ID = "c1a55e01-0003-4000-8000-000000000003";
+export const S1_MANAGER_IDP_USER_ID = "c1a55e01-0004-4000-8000-000000000004";
 
 export const SEED_TERMS: TermsDocument = {
   termsVersion: "v1.0.0",
@@ -116,11 +120,12 @@ export function seedUatParticipants(): ParticipantRecord[] {
 }
 
 /**
- * INT-230 / INT-236 — S1 fixture parties (AC-15). Profile + terms + self-billing
- * are pre-accepted so AC-07 payment-account-status can advance them to Ready
- * (BR-09) without a member UI pass. paymentAccountReady stays false until
- * Connect / PM provision notifies AC-03. idpUserId matches Keycloak S1 users
- * so member login → participantId → trades → invoice is one chain.
+ * INT-230 / INT-236 / INT-241 — S1 fixture parties (AC-15). Profile + terms +
+ * self-billing are pre-accepted so AC-07 payment-account-status can advance
+ * them to Ready (BR-09) without a member UI pass. paymentAccountReady stays
+ * false until Connect / PM provision notifies AC-03. idpUserId matches
+ * Keycloak S1 users so member/manager login → participantId → trades →
+ * invoice is one chain. Manager enables Start run from the portal (REQ-006).
  */
 export function seedS1Participants(): ParticipantRecord[] {
   const communityId = S1_COMMUNITY_ID;
@@ -170,6 +175,20 @@ export function seedS1Participants(): ParticipantRecord[] {
       meterId: "m-s1-producer-b",
       idpUserId: S1_PRODUCER_B_IDP_USER_ID,
       profile: readyProfile("S1 Producer B", "s1-producer-b@example.invalid"),
+      termsVersionAccepted: SEED_TERMS.termsVersion,
+      selfBillingMandate: true,
+      paymentAccountReady: false,
+      paymentBlockReason: null,
+    },
+    {
+      participantId: S1_MANAGER_ID,
+      communityId,
+      role: "prosumer",
+      status: "TermsAccepted",
+      marketActorId: "mkt-s1-manager",
+      meterId: "m-s1-manager",
+      idpUserId: S1_MANAGER_IDP_USER_ID,
+      profile: readyProfile("S1 Manager", "s1-manager@example.invalid"),
       termsVersionAccepted: SEED_TERMS.termsVersion,
       selfBillingMandate: true,
       paymentAccountReady: false,

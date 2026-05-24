@@ -13,11 +13,16 @@ AC-05 writes `SettlementCompleted` / `BillingRunCompleted` to the outbox. INT-22
 - INT-198: Connect customer email for `send_invoice`
 - INT-228: AC-06 resolves Connect ids from AC-07; **never invents `acct_test_*` when Stripe is live**
 
-## Preferred: fully manual portal path (INT-241)
+## Preferred: fully manual portal path (INT-241 / INT-242)
 
 S1 community `c0ffee00-1234-4abc-8def-0123456789ab` has Keycloak users
 `s1-consumer` / `s1-producer-a` / `s1-producer-b` / **`s1-manager`**
-(password `Intelligent-UAT-2026!`). No operator script required:
+(password `Intelligent-UAT-2026!`). No operator script required.
+
+**Full click-by-click script (creds, form values, pass/fail checks):**  
+[`manual-s1-portal-journey.md`](./manual-s1-portal-journey.md)
+
+Summary:
 
 1. **Producers** (`s1-producer-a`, then `-b`) — `/payment-setup` → Submit KYC
    (Stripe test tokens; see `stripe-connect-test-kyc.md`) until charges enabled.

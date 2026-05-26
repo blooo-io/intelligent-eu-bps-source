@@ -69,6 +69,7 @@ export async function clickRadioButton(page: Page, label: RegExp | string): Prom
   await page.locator(".ant-radio-button-wrapper", { hasText: label }).first().click();
 }
 
+/** Full catalogue (legacy); prefer role-specific lists after INT-243. */
 export const NAV_ROUTES: ReadonlyArray<{ label: string; path: string; heading: RegExp }> = [
   { label: "Home", path: "/", heading: /^home$/i },
   { label: "Get ready", path: "/onboarding", heading: /get ready/i },
@@ -85,3 +86,28 @@ export const NAV_ROUTES: ReadonlyArray<{ label: string; path: string; heading: R
   { label: "Reports", path: "/reports", heading: /^reports$/i },
   { label: "Operator", path: "/operator", heading: /^operator$/i },
 ];
+
+/** Ready member sider (INT-243) — no manager/operator screens. */
+export const MEMBER_NAV_ROUTES: ReadonlyArray<{
+  label: string;
+  path: string;
+  heading: RegExp;
+}> = [
+  { label: "Home", path: "/", heading: /^home$/i },
+  { label: "Get ready", path: "/onboarding", heading: /get ready/i },
+  { label: "Profile", path: "/profile", heading: /billing profile/i },
+  { label: "Terms", path: "/terms", heading: /terms/i },
+  { label: "Payment setup", path: "/payment-setup", heading: /payment setup/i },
+  { label: "Balances", path: "/balances", heading: /^balances$/i },
+  { label: "Invoices", path: "/invoices", heading: /^invoices$/i },
+  { label: "Privacy", path: "/privacy", heading: /privacy/i },
+  { label: "Reports", path: "/reports", heading: /^reports$/i },
+];
+
+export const MANAGER_ONLY_LABELS = [
+  /community settings/i,
+  /participants/i,
+  /billing runs/i,
+  /payments overview/i,
+  /^operator$/i,
+] as const;

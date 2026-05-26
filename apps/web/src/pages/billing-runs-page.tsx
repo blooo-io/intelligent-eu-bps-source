@@ -8,6 +8,7 @@ import {
   type BillingRunType,
 } from "../api/billing-runs";
 import type { WebConfig } from "../api/config";
+import { userFacingMessage } from "../api/user-facing-error";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
 
@@ -50,7 +51,7 @@ export function BillingRunsPage({
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load");
+          setError(userFacingMessage(err));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -81,7 +82,7 @@ export function BillingRunsPage({
       );
       setCurrent(run);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Start failed");
+      setError(userFacingMessage(err));
     } finally {
       setBusy(false);
     }
@@ -96,21 +97,28 @@ export function BillingRunsPage({
       if (!token) throw new Error("No access token");
       setCurrent(await getBillingRun(config.apiBaseUrl, token, current.runId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Refresh failed");
+      setError(userFacingMessage(err));
     } finally {
       setBusy(false);
     }
   }
 
-    if (loading) {
+  if (loading) {
     return <PageFrame title="Billing runs" loading />;
   }
 
   return (
-    <PageFrame title="Billing runs">
+    <PageFrame
+      title="Billing runs"
+      description="Manager-only. Start a periodic, early or final billing run for your community. Settlement then produces invoices for each consumer→producer pair."
+    >
         {communityId && (
-          <Paragraph type="secondary">
-            Community <Text code>{communityId}</Text>
+          <Paragraph type="secondary" data-testid="billing-runs-community-help">
+            <strong>Community id</strong>{" "}
+            <Text code>{communityId}</Text> is the billing tenancy key for this
+            energy community — not a person. Settings, participants, trades and
+            runs are all scoped to it. On the S1 demo community the value is{" "}
+            <Text code>c0ffee00-1234-4abc-8def-0123456789ab</Text>.
           </Paragraph>
         )}
 

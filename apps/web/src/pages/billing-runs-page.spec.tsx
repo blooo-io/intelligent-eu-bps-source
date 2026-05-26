@@ -79,8 +79,13 @@ describe("BillingRunsPage (INT-146 / UAT-006)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(new RegExp(communityId))).toBeInTheDocument();
+      expect(screen.getByTestId("billing-runs-community-help")).toHaveTextContent(
+        communityId,
+      );
     });
+    expect(screen.getByTestId("billing-runs-community-help")).toHaveTextContent(
+      /billing tenancy/i,
+    );
 
     fireEvent.change(screen.getByLabelText(/Billing period/i), {
       target: { value: "2026-09" },
@@ -130,8 +135,9 @@ describe("BillingRunsPage (INT-146 / UAT-006)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/failed with 403/i)).toBeInTheDocument();
+      expect(screen.getByText(/do not have access/i)).toBeInTheDocument();
     });
+    expect(screen.queryByText(/failed with 403/i)).toBeNull();
   });
 
   it("shows an error when the access token is missing on start", async () => {
@@ -240,7 +246,7 @@ describe("BillingRunsPage (INT-146 / UAT-006)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /refresh/i }));
     await waitFor(() => {
-      expect(screen.getByText(/failed with 404/i)).toBeInTheDocument();
+      expect(screen.getByText(/not found/i)).toBeInTheDocument();
     });
   });
 });

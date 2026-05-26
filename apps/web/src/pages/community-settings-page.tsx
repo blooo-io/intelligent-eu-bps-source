@@ -8,6 +8,7 @@ import {
   type CommunitySettingsWrite,
 } from "../api/community-settings";
 import type { WebConfig } from "../api/config";
+import { userFacingMessage } from "../api/user-facing-error";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
 
@@ -57,7 +58,7 @@ export function CommunitySettingsPage({
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load settings");
+          setError(userFacingMessage(err));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -98,25 +99,29 @@ export function CommunitySettingsPage({
       });
       setSaved(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(userFacingMessage(err));
     } finally {
       setSaving(false);
     }
   }
 
-    if (loading) {
+  if (loading) {
     return <PageFrame title="Community settings" loading />;
   }
 
   return (
-    <PageFrame title="Community settings">
+    <PageFrame
+      title="Community settings"
+      description="Manager-only. Set currency, billing period, invoice threshold, VAT and virtual/live mode for this energy community (REQ-006)."
+    >
         {error && <Alert type="error" message={error} showIcon />}
         {saved && <Alert type="success" message="Settings saved" showIcon />}
 
         {communityId && (
           <Card>
             <Paragraph type="secondary">
-              Community <Text code>{communityId}</Text>
+              Community id (billing tenancy) <Text code>{communityId}</Text> — not a
+              user id. Settings, participants, trades and runs are scoped to it.
             </Paragraph>
             <Paragraph type="secondary">
               Threshold carry-forward (REQ-056 / BR-05). V1 communities use virtual

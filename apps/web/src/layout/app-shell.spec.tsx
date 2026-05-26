@@ -1,61 +1,141 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { AppShell } from "./app-shell";
+import type { WebConfig } from "../api/config";
+import type { OidcFacade } from "../auth/oidc";
+
+const identity = vi.fn();
 
 vi.mock("@refinedev/core", () => ({
   useLogout: () => ({ mutate: vi.fn() }),
+  useGetIdentity: () => ({ data: identity() }),
 }));
 
-const NAV_LABELS = [
-  /^home$/i,
-  /get ready/i,
-  /profile/i,
-  /terms/i,
-  /payment setup/i,
-  /balances/i,
-  /invoices/i,
-  /privacy/i,
-  /community settings/i,
-  /participants/i,
-  /billing runs/i,
-  /payments overview/i,
-  /reports/i,
-  /operator/i,
-];
+const config: WebConfig = {
+  oidcAuthority: "https://auth.example/realms/int",
+  oidcClientId: "web",
+  apiBaseUrl: "https://api.example",
+};
 
-describe("AppShell (INT-187 / INT-188)", () => {
-  it("renders a dark sider with brand mark and every protected nav link", () => {
-    render(
-      <MemoryRouter initialEntries={["/"]}>
-        <Routes>
-          <Route element={<AppShell />}>
-            <Route index element={<div>Home body</div>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByText("INTELLIGENT billing")).toBeInTheDocument();
-    expect(document.querySelector(".ge-brand-mark")).toBeTruthy();
-    expect(screen.getByText("Home body")).toBeInTheDocument();
-    for (const label of NAV_LABELS) {
-      expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
-    }
-    expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
-    expect(document.querySelector(".ant-menu-dark")).toBeTruthy();
+function renderShell(
+  path: string,
+  roles: string[],
+  me?: {
+    readiness: string;
+    profile: { name: string; address: string; email: string };
+    communityId: string;
+  },
+) {
+  identity.mockReturnValue({
+    id: "sub-1",
+    name: "Test User",
+    roles,
+    communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
   });
 
-  it("highlights the active route in the sider", () => {
-    render(
-      <MemoryRouter initialEntries={["/invoices"]}>
-        <Routes>
-          <Route element={<AppShell />}>
-            <Route path="invoices" element={<div>Invoices body</div>} />
-          </Route>
-        </Routes>
-      </MemoryRouter>,
+  const oidc: OidcFacade = {
+    login: vi.fn(),
+    handleCallback: vi.fn(),
+    logout: vi.fn(),
+    getUser: vi.fn(),
+    getAccessToken: vi.fn().mockResolvedValue("tok"),
+  };
+
+  if (me) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          participantId: "11111111-1111-1111-1111-111111111111",
+          communityId: me.communityId,
+          roles,
+          readiness: me.readiness,
+          profile: me.profile,
+        }),
+      }),
     );
+  }
+
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route element={<AppShell config={config} oidc={oidc} />}>
+          <Route index element={<div>Home body</div>} />
+          <Route path="invoices" element={<div>Invoices body</div>} />
+          <Route path="community-settings" element={<div>Settings body</div>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+describe("AppShell (INT-187 / INT-243)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    identity.mockReset();
+  });
+
+  it("shows identity in the header", async () => {
+    renderShell("/", ["member"], {
+      readiness: "Ready",
+      profile: { name: "S1 Consumer", address: "1", email: "c@e.com" },
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    expect(screen.getByText("INTELLIGENT billing")).toBeInTheDocument();
+    expect(screen.getByTestId("shell-user-name")).toBeInTheDocument();
+    expect(screen.getByTestId("shell-user-roles")).toHaveTextContent(/member/i);
+    await waitFor(() => {
+      expect(screen.getByTestId("shell-user-name")).toHaveTextContent("S1 Consumer");
+    });
+    expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+  });
+
+  it("hides manager screens from members", async () => {
+    renderShell("/", ["member"], {
+      readiness: "Ready",
+      profile: { name: "Member", address: "1", email: "m@e.com" },
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /^home$/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: /invoices/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /community settings/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /billing runs/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^operator$/i })).toBeNull();
+  });
+
+  it("shows manager community screens for managers", async () => {
+    renderShell("/", ["manager"], {
+      readiness: "Invited",
+      profile: { name: "Mgr", address: "1", email: "mgr@e.com" },
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("link", { name: /community settings/i }),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: /billing runs/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /get ready/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^operator$/i })).toBeNull();
+  });
+
+  it("highlights the active route in the sider", async () => {
+    renderShell("/invoices", ["member"], {
+      readiness: "Ready",
+      profile: { name: "Member", address: "1", email: "m@e.com" },
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /invoices/i })).toBeInTheDocument();
+    });
     const invoices = screen.getByRole("link", { name: /invoices/i });
     expect(invoices.closest("li")?.className ?? "").toMatch(/ant-menu-item-selected/);
   });

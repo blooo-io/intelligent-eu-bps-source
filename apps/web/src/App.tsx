@@ -50,7 +50,7 @@ export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/auth/callback" element={<CallbackPage oidc={oidc} />} />
               <Route element={<ProtectedOutlet />}>
-                <Route element={<AppShell />}>
+                <Route element={<AppShell config={config} oidc={oidc} />}>
                   <Route index element={<HomePage config={config} oidc={oidc} />} />
                   <Route path="profile" element={<ProfilePage config={config} oidc={oidc} />} />
                   <Route path="terms" element={<TermsPage config={config} oidc={oidc} />} />

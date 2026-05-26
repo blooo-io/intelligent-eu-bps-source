@@ -23,8 +23,14 @@ If login fails with wrong password / missing user, ask an operator to run `scrip
 
 ## 1. Accounts (S1 community)
 
-Community id (shown on Billing runs after login as manager):  
+**Community id** (billing tenancy — not a user):  
 `c0ffee00-1234-4abc-8def-0123456789ab`
+
+This UUID identifies the energy community for which billing is run. Community
+settings, participants, trades and billing runs are all scoped to it. It appears
+in the app header and on manager screens (e.g. Billing runs) so you can confirm
+you are operating on the S1 demo community. Members (`s1-consumer`, producers)
+do **not** see manager menus after INT-243.
 
 | Step | Username | Realm role | Purpose |
 |---|---|---|---|

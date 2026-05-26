@@ -129,7 +129,8 @@ describe("CommunitySettingsPage (INT-144 / REQ-006 / REQ-043 / REQ-056)", () => 
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/failed with 403/i)).toBeInTheDocument();
+      expect(screen.getByText(/do not have access/i)).toBeInTheDocument();
     });
+    expect(screen.queryByText(/failed with 403/i)).toBeNull();
   });
 });

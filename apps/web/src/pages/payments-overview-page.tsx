@@ -162,10 +162,13 @@ export function PaymentsOverviewPage({
   const failed = payments.filter((p) => p.status === "failed").length;
 
   return (
-    <PageFrame title="Payments overview">
+    <PageFrame
+      title="Payments overview"
+      description="Manager-only. Payment status cache from Stripe for invoices in this community."
+    >
       {communityId && (
         <Paragraph type="secondary">
-          Community <Text code>{communityId}</Text> · Stripe read cache (TD-6 / REQ-018)
+          Community <Text code>{communityId}</Text> — billing tenancy for this overview.
         </Paragraph>
       )}
 

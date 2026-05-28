@@ -5,9 +5,18 @@ import { HomePage } from "./home-page";
 import type { OidcFacade } from "../auth/oidc";
 import type { WebConfig } from "../api/config";
 
+const { identityRoles } = vi.hoisted(() => ({
+  identityRoles: vi.fn(() => ["member"]),
+}));
+
 vi.mock("@refinedev/core", () => ({
   useGetIdentity: () => ({
-    data: { id: "u1", roles: ["member"], communityId: "c1" },
+    data: {
+      id: "u1",
+      name: "Token Name",
+      roles: identityRoles(),
+      communityId: "c1",
+    },
   }),
 }));
 
@@ -17,12 +26,13 @@ const config: WebConfig = {
   apiBaseUrl: "https://api.example",
 };
 
-describe("HomePage (INT-137 / REQ-049)", () => {
+describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    identityRoles.mockReturnValue(["member"]);
   });
 
-  it("loads /me and renders the readiness checklist", async () => {
+  it("loads /me and renders member readiness with a next action", async () => {
     const oidc: OidcFacade = {
       login: vi.fn(),
       handleCallback: vi.fn(),
@@ -54,9 +64,10 @@ describe("HomePage (INT-137 / REQ-049)", () => {
     await waitFor(() => {
       expect(screen.getByText(/TermsAccepted/)).toBeInTheDocument();
     });
+    expect(screen.getByRole("heading", { name: /your billing home/i })).toBeInTheDocument();
     expect(screen.getByText(/Complete payment setup/i)).toBeInTheDocument();
-    expect(screen.getByText(/Roles from IdP: member/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /^home$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /finish payment setup/i })).toBeInTheDocument();
+    expect(screen.getByTestId("home-who")).toHaveTextContent(/Ada/);
     expect(screen.queryByText(/back to home/i)).not.toBeInTheDocument();
   });
 
@@ -78,5 +89,79 @@ describe("HomePage (INT-137 / REQ-049)", () => {
     await waitFor(() => {
       expect(screen.getByText(/No access token/i)).toBeInTheDocument();
     });
+  });
+
+  it("shows manager shortcuts without the member checklist", async () => {
+    identityRoles.mockReturnValue(["manager"]);
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          participantId: "11111111-1111-1111-1111-111111111111",
+          communityId: "22222222-2222-2222-2222-222222222222",
+          roles: ["manager"],
+          readiness: "Invited",
+          profile: { name: "Mgr", address: "1", email: "m@e.com" },
+        }),
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <HomePage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /community console/i })).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Manager shortcuts/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Get ready/i)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /open community settings/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows operator desk copy", async () => {
+    identityRoles.mockReturnValue(["operator"]);
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          participantId: "11111111-1111-1111-1111-111111111111",
+          communityId: "22222222-2222-2222-2222-222222222222",
+          roles: ["operator"],
+          readiness: "Ready",
+          profile: { name: "Ops", address: "1", email: "o@e.com" },
+        }),
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <HomePage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /operator desk/i })).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Operator focus/i)).toBeInTheDocument();
   });
 });

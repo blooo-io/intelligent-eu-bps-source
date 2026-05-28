@@ -139,5 +139,12 @@ export function ProfilePage({
   );
 
   if (embedded) return body;
-  return <PageFrame title="Billing profile">{body}</PageFrame>;
+  return (
+    <PageFrame
+      title="Billing profile"
+      description="Name, address and email used on invoices. Completing this moves you past the first readiness gate."
+    >
+      {body}
+    </PageFrame>
+  );
 }

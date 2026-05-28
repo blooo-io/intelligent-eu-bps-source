@@ -148,12 +148,15 @@ export function ReportsPage({
   }
 
   return (
-    <PageFrame title="Reports">
+    <PageFrame
+      title="Reports"
+      description="Look up invoice and payment history for a participant, or a community period summary."
+    >
       {error && <Alert type="error" message={error} showIcon />}
 
       <Card title="Member history" size="small">
         <Paragraph type="secondary">
-          Invoices and payments for one participant (REQ-031).
+          Invoices and payments for one participant UUID.
         </Paragraph>
         <Space direction="vertical" style={{ width: "100%" }} size="small">
           <Input

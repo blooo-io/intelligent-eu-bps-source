@@ -38,6 +38,15 @@ tilt_modules/
 .vscode/*
 !.vscode/extensions.json
 
+# Impeccable skill install (engine binaries + harness hooks — keep local)
+.cursor/skills/
+.cursor/agents/
+.cursor/hooks.json
+.github/skills/
+.github/agents/
+.github/hooks/
+.impeccable/
+
 # Helm packaged dependencies (built in CI)
 deploy/charts/*/charts/
 deploy/charts/*/Chart.lock

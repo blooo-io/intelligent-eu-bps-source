@@ -71,7 +71,7 @@ export async function clickRadioButton(page: Page, label: RegExp | string): Prom
 
 /** Full catalogue (legacy); prefer role-specific lists after INT-243. */
 export const NAV_ROUTES: ReadonlyArray<{ label: string; path: string; heading: RegExp }> = [
-  { label: "Home", path: "/", heading: /^home$/i },
+  { label: "Home", path: "/", heading: /billing home|community console|operator desk|^home$/i },
   { label: "Get ready", path: "/onboarding", heading: /get ready/i },
   { label: "Profile", path: "/profile", heading: /billing profile/i },
   { label: "Terms", path: "/terms", heading: /terms/i },
@@ -93,7 +93,7 @@ export const MEMBER_NAV_ROUTES: ReadonlyArray<{
   path: string;
   heading: RegExp;
 }> = [
-  { label: "Home", path: "/", heading: /^home$/i },
+  { label: "Home", path: "/", heading: /your billing home/i },
   { label: "Get ready", path: "/onboarding", heading: /get ready/i },
   { label: "Profile", path: "/profile", heading: /billing profile/i },
   { label: "Terms", path: "/terms", heading: /terms/i },

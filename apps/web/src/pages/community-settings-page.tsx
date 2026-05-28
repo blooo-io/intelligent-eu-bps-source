@@ -8,8 +8,10 @@ import {
   type CommunitySettingsWrite,
 } from "../api/community-settings";
 import type { WebConfig } from "../api/config";
+import { ApiError } from "../api/me";
 import { userFacingMessage } from "../api/user-facing-error";
 import type { OidcFacade } from "../auth/oidc";
+import { AccessNotice } from "../layout/access-notice";
 import { PageFrame } from "../layout/page-frame";
 
 const { Paragraph, Text } = Typography;
@@ -31,6 +33,7 @@ export function CommunitySettingsPage({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
   const [saved, setSaved] = useState(false);
   const [form] = Form.useForm<SettingsForm>();
 
@@ -58,7 +61,11 @@ export function CommunitySettingsPage({
         }
       } catch (err) {
         if (!cancelled) {
-          setError(userFacingMessage(err));
+          if (err instanceof ApiError && err.status === 403) {
+            setForbidden(true);
+          } else {
+            setError(userFacingMessage(err));
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -112,12 +119,15 @@ export function CommunitySettingsPage({
   return (
     <PageFrame
       title="Community settings"
-      description="Manager-only. Set currency, billing period, invoice threshold, VAT and virtual/live mode for this energy community (REQ-006)."
+      description="Manager-only. Set currency, billing period, invoice threshold, VAT and virtual/live mode for this energy community."
     >
+        {forbidden && (
+          <AccessNotice title="Community settings need a manager role" />
+        )}
         {error && <Alert type="error" message={error} showIcon />}
         {saved && <Alert type="success" message="Settings saved" showIcon />}
 
-        {communityId && (
+        {communityId && !forbidden && (
           <Card>
             <Paragraph type="secondary">
               Community id (billing tenancy) <Text code>{communityId}</Text> — not a

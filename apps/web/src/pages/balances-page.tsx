@@ -10,6 +10,7 @@ import {
   type Balance,
   type BillingRun,
 } from "../api/balances";
+import { userFacingMessage } from "../api/user-facing-error";
 
 const { Paragraph, Text } = Typography;
 
@@ -44,7 +45,7 @@ export function BalancesPage({
         if (!cancelled) setBalances(rows);
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load balances");
+          setError(userFacingMessage(err));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -66,7 +67,7 @@ export function BalancesPage({
       setLastRun(run);
       setBalances(await reload());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Settlement failed");
+      setError(userFacingMessage(err));
     } finally {
       setSettlingId(null);
     }
@@ -112,7 +113,7 @@ export function BalancesPage({
   return (
     <PageFrame
       title="Balances"
-      description="Unbilled amounts per counterpart. Settle now issues an invoice immediately (threshold does not apply — BR-05)."
+      description="Member view of unbilled amounts with each counterpart. Settle now creates an invoice immediately — the community threshold does not apply."
     >
       {error && <Alert type="error" message={error} showIcon />}
       {lastRun && (
@@ -126,7 +127,10 @@ export function BalancesPage({
 
       <Card size="small">
         {balances.length === 0 ? (
-          <Paragraph type="secondary">No unbilled balances.</Paragraph>
+          <Paragraph type="secondary" data-testid="balances-empty">
+            No unbilled balances yet. After trades settle in a billing run, amounts
+            appear here until they are invoiced.
+          </Paragraph>
         ) : (
           <Table
             size="small"

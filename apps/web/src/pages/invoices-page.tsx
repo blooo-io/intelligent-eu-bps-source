@@ -218,5 +218,12 @@ export function InvoicesPage({
   );
 
   if (embedded) return body;
-  return <PageFrame title="Invoices">{body}</PageFrame>;
+  return (
+    <PageFrame
+      title="Invoices"
+      description="Member invoices for this community. Open a row to download the PDF or pay when the status allows it."
+    >
+      {body}
+    </PageFrame>
+  );
 }

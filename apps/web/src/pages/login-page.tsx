@@ -1,7 +1,7 @@
 import { Button, Card, Space, Typography } from "antd";
 import { useLogin } from "@refinedev/core";
 
-const { Title, Paragraph, Text } = Typography;
+const { Title, Paragraph } = Typography;
 
 /**
  * Sign-in screen (INT-137 / UAT-043 / INT-188).
@@ -31,16 +31,14 @@ export function LoginPage() {
         >
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
             <div>
-              <Text type="secondary" style={{ fontSize: 12, letterSpacing: "0.06em" }}>
-                SIGN IN
-              </Text>
-              <Title level={3} style={{ margin: "4px 0 0" }}>
-                Community identity
+              <Title level={3} style={{ margin: 0 }}>
+                Sign in to billing
               </Title>
             </div>
             <Paragraph type="secondary" style={{ margin: 0 }}>
-              Continue with your community identity provider. This app never asks
-              for or stores a password.
+              Use your community identity provider (Keycloak). This app never asks
+              for or stores a password. After sign-in you only see menus for your
+              role — member, manager or operator.
             </Paragraph>
             <Button
               type="primary"

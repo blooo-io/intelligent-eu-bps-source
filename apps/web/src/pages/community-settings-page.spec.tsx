@@ -129,8 +129,9 @@ describe("CommunitySettingsPage (INT-144 / REQ-006 / REQ-043 / REQ-056)", () => 
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/do not have access/i)).toBeInTheDocument();
+      expect(screen.getByTestId("access-notice")).toBeInTheDocument();
     });
+    expect(screen.getByText(/need a manager role/i)).toBeInTheDocument();
     expect(screen.queryByText(/failed with 403/i)).toBeNull();
   });
 });

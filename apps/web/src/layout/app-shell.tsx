@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Layout, Menu, Space, Typography, theme } from "antd";
+import { Button, Layout, Menu, Space, Tag, Typography, theme } from "antd";
 import { useGetIdentity, useLogout } from "@refinedev/core";
 import { Link, Outlet, useLocation } from "react-router";
 import { fetchMe, type Me } from "../api/me";
@@ -144,22 +144,32 @@ export function AppShell({
             lineHeight: "48px",
           }}
         >
-          <Space size={4} wrap style={{ lineHeight: 1.3, maxWidth: "70%" }}>
+          <Space size={8} wrap style={{ lineHeight: 1.3, maxWidth: "78%" }}>
             <Text strong data-testid="shell-user-name">
               {displayName}
             </Text>
-            <Text type="secondary" data-testid="shell-user-roles">
-              · {roleLabel}
-            </Text>
+            <span data-testid="shell-user-roles">
+              {roles.length > 0 ? (
+                roles.map((role) => (
+                  <Tag key={role} color="green" style={{ marginInlineEnd: 4 }}>
+                    {role}
+                  </Tag>
+                ))
+              ) : (
+                <Text type="secondary">{roleLabel}</Text>
+              )}
+            </span>
             {communityLabel ? (
               <Text
                 type="secondary"
-                code
-                title="Billing community id — tenancy for settings, trades and runs"
+                title="Billing community id — tenancy for settings, trades and runs (not a person)"
                 data-testid="shell-community-id"
-                style={{ fontSize: 11 }}
+                style={{ fontSize: 12 }}
               >
-                {communityLabel}
+                Community{" "}
+                <Text code style={{ fontSize: 11 }}>
+                  {communityLabel}
+                </Text>
               </Text>
             ) : null}
           </Space>

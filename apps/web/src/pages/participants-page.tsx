@@ -202,14 +202,17 @@ export function ParticipantsPage({
   }
 
   return (
-    <PageFrame title="Participants">
+    <PageFrame
+      title="Participants"
+      description="Manager-only. Import members from CSV, adjust roles, or offboard someone from this community."
+    >
       {error && <Alert type="error" message={error} showIcon />}
       {message && <Alert type="success" message={message} showIcon />}
 
       <Card title="Import (CSV)" size="small">
         <Paragraph type="secondary">
           Columns: email, marketActorId, meterId, role (consumer | producer |
-          prosumer). Creates IdP accounts and invitations (REQ-008).
+          prosumer). Creates IdP accounts and invitations.
         </Paragraph>
         <Input.TextArea
           rows={4}

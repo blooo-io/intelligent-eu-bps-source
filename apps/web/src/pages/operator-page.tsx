@@ -169,10 +169,13 @@ export function OperatorPage({
   }
 
   return (
-    <PageFrame title="Operator">
+    <PageFrame
+      title="Operator"
+      description="Operator-only. Review intake anomalies, reconciliation discrepancies and trigger scheduled jobs."
+    >
       {communityId && (
         <Paragraph type="secondary">
-          Scoped to community <Text code>{communityId}</Text>
+          Scoped to community <Text code>{communityId}</Text> (billing tenancy).
         </Paragraph>
       )}
 

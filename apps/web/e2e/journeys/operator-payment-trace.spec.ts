@@ -16,8 +16,8 @@ test.describe("REQ operator payment trade trace", () => {
     await page.goto("/operator");
     await expectPageReady(page, /^operator$/i);
     await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);
-    await expect(page.getByText(/intake anomalies/i)).toBeVisible();
-    await expect(page.getByText(/reconciliation discrepancies/i)).toBeVisible();
+    await expect(page.getByText(/^intake anomalies$/i)).toBeVisible();
+    await expect(page.getByText(/^reconciliation discrepancies$/i)).toBeVisible();
     await expect(page.getByText(/jobs/i).first()).toBeVisible();
     // UAT-028 — jobs catalogue includes StartRun for billing-trace seed.
     await expect(page.getByText(/StartRun|RefreshIntake|Reconcile/i).first()).toBeVisible({

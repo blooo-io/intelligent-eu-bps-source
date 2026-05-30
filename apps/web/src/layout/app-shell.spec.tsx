@@ -139,4 +139,49 @@ describe("AppShell (INT-187 / INT-243)", () => {
     const invoices = screen.getByRole("link", { name: /invoices/i });
     expect(invoices.closest("li")?.className ?? "").toMatch(/ant-menu-item-selected/);
   });
+
+  it("falls back to /v1/me roles when the token has none (INT-246)", async () => {
+    identity.mockReturnValue({
+      id: "sub-1",
+      name: "UAT Member",
+      roles: [],
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          participantId: "11111111-1111-1111-1111-111111111111",
+          communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+          roles: ["member"],
+          readiness: "Ready",
+          profile: { name: "UAT Member", address: "1", email: "u@e.com" },
+        }),
+      }),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route element={<AppShell config={config} oidc={oidc} />}>
+            <Route index element={<div>Home body</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("shell-user-roles")).toHaveTextContent(/member/i);
+    });
+    expect(screen.getByRole("link", { name: /invoices/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /community settings/i })).toBeNull();
+  });
 });

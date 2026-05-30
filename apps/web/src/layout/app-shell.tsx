@@ -6,6 +6,7 @@ import { fetchMe, type Me } from "../api/me";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
 import { brand } from "../theme";
+import { effectiveRoles } from "./effective-roles";
 import { visibleNavItems } from "./nav-access";
 
 const { Header, Sider, Content } = Layout;
@@ -55,7 +56,7 @@ export function AppShell({
     };
   }, [config, oidc]);
 
-  const roles = identity?.roles ?? [];
+  const roles = effectiveRoles(identity?.roles, me?.roles);
   const navItems = useMemo(
     () => visibleNavItems(roles, me?.readiness),
     [roles, me?.readiness],

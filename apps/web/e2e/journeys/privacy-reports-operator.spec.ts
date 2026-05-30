@@ -56,8 +56,8 @@ test.describe("REQ privacy reports operator", () => {
     await loginAs(page, "operator");
     await page.goto("/operator");
     await expectPageReady(page, /^operator$/i);
-    await expect(page.getByText(/intake anomalies/i)).toBeVisible();
-    await expect(page.getByText(/reconciliation discrepancies/i)).toBeVisible();
+    await expect(page.getByText(/^intake anomalies$/i)).toBeVisible();
+    await expect(page.getByText(/^reconciliation discrepancies$/i)).toBeVisible();
     await expect(page.getByText(/jobs/i).first()).toBeVisible();
   });
 });

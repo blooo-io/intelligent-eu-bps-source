@@ -130,6 +130,41 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
     ).toBeInTheDocument();
   });
 
+  it("uses /v1/me roles when the IdP token has none (INT-246)", async () => {
+    identityRoles.mockReturnValue([]);
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          participantId: "11111111-1111-1111-1111-111111111111",
+          communityId: "22222222-2222-2222-2222-222222222222",
+          roles: ["member"],
+          readiness: "Ready",
+          profile: { name: "Ada", address: "1", email: "a@e.com" },
+        }),
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <HomePage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /your billing home/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /view invoices/i })).toBeInTheDocument();
+  });
+
   it("shows operator desk copy", async () => {
     identityRoles.mockReturnValue(["operator"]);
     const oidc: OidcFacade = {

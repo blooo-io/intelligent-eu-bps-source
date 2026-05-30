@@ -8,6 +8,7 @@ import type { WebConfig } from "../api/config";
 import { userFacingMessage } from "../api/user-facing-error";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
+import { effectiveRoles } from "../layout/effective-roles";
 import {
   homeAudience,
   homeDescription,
@@ -42,7 +43,7 @@ export function HomePage({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const roles = identity?.roles ?? me?.roles ?? [];
+  const roles = effectiveRoles(identity?.roles, me?.roles);
   const audience = useMemo(() => homeAudience(roles), [roles]);
 
   useEffect(() => {

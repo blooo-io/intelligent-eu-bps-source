@@ -20,7 +20,10 @@ test.describe("AC-01 shell navigation (authenticated)", () => {
     await loginAs(page, "member");
 
     await expect(page.getByTestId("shell-user-name")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId("shell-user-roles")).toContainText(/member/i);
+    // Roles may arrive from /v1/me when the access token omits realm billing roles (INT-246).
+    await expect(page.getByTestId("shell-user-roles")).toContainText(/member/i, {
+      timeout: 30_000,
+    });
 
     for (const label of MANAGER_ONLY_LABELS) {
       await expect(page.getByRole("link", { name: label })).toHaveCount(0);

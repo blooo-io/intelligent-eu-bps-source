@@ -14,10 +14,10 @@ test.describe("AC-01 operator screens and buttons", () => {
     await page.goto("/operator");
     await expectPageReady(page, /^operator$/i);
 
-    // Card titles (page description says "intake issues" so this is unique — INT-246).
-    await expect(page.getByText(/^intake anomalies$/i)).toBeVisible();
-    await expect(page.getByText(/^reconciliation discrepancies$/i)).toBeVisible();
-    await expect(page.getByText(/^jobs$/i).or(page.getByText(/jobs/i).first())).toBeVisible();
+    // Card titles only (page description must not repeat these phrases — INT-246/247).
+    await expect(page.getByText("Intake anomalies", { exact: true })).toBeVisible();
+    await expect(page.getByText("Reconciliation discrepancies", { exact: true })).toBeVisible();
+    await expect(page.getByText("Jobs", { exact: true })).toBeVisible();
 
     // No hard crash / blank content.
     await expect(page.getByTestId("page-frame")).toBeVisible();

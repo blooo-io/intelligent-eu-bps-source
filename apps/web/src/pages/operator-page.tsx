@@ -171,7 +171,7 @@ export function OperatorPage({
   return (
     <PageFrame
       title="Operator"
-      description="Operator-only. Review intake issues, reconciliation discrepancies and trigger scheduled jobs."
+      description="Operator-only. Review intake issues, reconciliation discrepancies and run scheduled work from the catalogue."
     >
       {communityId && (
         <Paragraph type="secondary">

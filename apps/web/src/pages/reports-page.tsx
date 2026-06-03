@@ -156,7 +156,7 @@ export function ReportsPage({
 
       <Card title="Member history" size="small">
         <Paragraph type="secondary">
-          Invoices and payments for one participant UUID.
+          Invoices and payments for one participant.
         </Paragraph>
         <Space direction="vertical" style={{ width: "100%" }} size="small">
           <Input
@@ -205,13 +205,7 @@ export function ReportsPage({
 
       <Card title="Periodic summary" size="small">
         <Paragraph type="secondary">
-          Community totals for one billing period (REQ-032)
-          {communityId ? (
-            <>
-              {" "}
-              · community <Text code>{communityId}</Text>
-            </>
-          ) : null}
+          Community totals for one billing period.
           .
         </Paragraph>
         <Space direction="vertical" style={{ width: "100%" }} size="small">

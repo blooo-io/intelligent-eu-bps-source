@@ -67,8 +67,8 @@ export function PrivacyPage({
   return (
     <PageFrame title="Privacy request">
         <Paragraph type="secondary">
-          Request an export of your personal data or ask for erasure (REQ-013).
-          Accounting records under legal retention are kept.
+          Request an export of your personal data or ask for erasure.
+          Accounting records kept under legal retention stay available.
         </Paragraph>
 
         {error && <Alert type="error" message={error} showIcon />}

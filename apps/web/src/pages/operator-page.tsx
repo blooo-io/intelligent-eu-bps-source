@@ -28,7 +28,6 @@ export function OperatorPage({
   config: WebConfig;
   oidc: OidcFacade;
 }) {
-  const [communityId, setCommunityId] = useState<string | null>(null);
   const [anomalies, setAnomalies] = useState<IntakeAnomaly[]>([]);
   const [discrepancies, setDiscrepancies] = useState<Discrepancy[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -51,7 +50,6 @@ export function OperatorPage({
           listJobs(config.apiBaseUrl, token, cid),
         ]);
         if (!cancelled) {
-          setCommunityId(cid);
           setAnomalies(a);
           setDiscrepancies(d);
           setJobs(j);
@@ -173,16 +171,10 @@ export function OperatorPage({
       title="Operator"
       description="Operator-only. Review intake issues, reconciliation discrepancies and run scheduled work from the catalogue."
     >
-      {communityId && (
-        <Paragraph type="secondary">
-          Scoped to community <Text code>{communityId}</Text> (billing tenancy).
-        </Paragraph>
-      )}
-
       {error && <Alert type="error" message={error} showIcon />}
       {message && <Alert type="success" message={message} showIcon />}
 
-      <Card title="Intake anomalies" size="small" extra={<Text type="secondary">REQ-029</Text>}>
+      <Card title="Intake anomalies" size="small">
         {anomalies.length === 0 ? (
           <Paragraph type="secondary">No anomalies.</Paragraph>
         ) : (
@@ -196,11 +188,7 @@ export function OperatorPage({
         )}
       </Card>
 
-      <Card
-        title="Reconciliation discrepancies"
-        size="small"
-        extra={<Text type="secondary">REQ-041</Text>}
-      >
+      <Card title="Reconciliation discrepancies" size="small">
         {discrepancies.length === 0 ? (
           <Paragraph type="secondary">No discrepancies.</Paragraph>
         ) : (
@@ -214,7 +202,7 @@ export function OperatorPage({
         )}
       </Card>
 
-      <Card title="Jobs" size="small" extra={<Text type="secondary">02 §4.5</Text>}>
+      <Card title="Jobs" size="small">
         {jobs.length === 0 ? (
           <Paragraph type="secondary">No jobs.</Paragraph>
         ) : (

@@ -30,7 +30,7 @@ Compact: control height 34, menu item 34, card padding 16, header 48. Prefer sca
 
 ## Signature move
 
-Dark forest sider with square **INT** brand mark and mist content plane; identity strip in the header (name · role · community tenancy).
+Dark forest sider with square **INT** brand mark and mist content plane; identity strip in the header (name · role). Community tenancy stays in the API only until a friendly community name exists — never show a raw UUID in the chrome.
 
 ## Do not
 

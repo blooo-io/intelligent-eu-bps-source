@@ -90,6 +90,10 @@ describe("AppShell (INT-187 / INT-243)", () => {
     await waitFor(() => {
       expect(screen.getByTestId("shell-user-name")).toHaveTextContent("S1 Consumer");
     });
+    // INT-248 — no raw community UUID until a friendly name exists in the API.
+    expect(
+      screen.queryByText(/c0ffee00-1234-4abc-8def-0123456789ab/i),
+    ).toBeNull();
     expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
   });
 

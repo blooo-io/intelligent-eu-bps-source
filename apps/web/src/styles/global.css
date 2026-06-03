@@ -73,3 +73,38 @@ a {
   place-items: center;
   padding: 32px 24px;
 }
+
+/* Onboarding stepper — title + description aligned under the icon */
+.ge-onboarding-steps.ant-steps .ant-steps-item-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ge-onboarding-steps.ant-steps .ant-steps-item-content {
+  margin-top: 4px;
+  text-align: start;
+}
+
+.ge-onboarding-steps.ant-steps .ant-steps-item-title {
+  line-height: 1.3;
+  font-weight: 600;
+  padding-inline-end: 0 !important;
+}
+
+.ge-onboarding-steps.ant-steps .ant-steps-item-description {
+  max-width: 9.5rem;
+  line-height: 1.35;
+  padding-bottom: 0 !important;
+}
+
+.ge-onboarding-card .ant-card-body {
+  padding-block: 20px;
+}
+
+/* Sider labels: avoid mid-word truncation when expanded */
+.ant-layout-sider:not(.ant-layout-sider-collapsed) .ant-menu-title-content {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

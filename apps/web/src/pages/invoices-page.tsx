@@ -196,7 +196,7 @@ export function InvoicesPage({
             <Paragraph>Trades: {selected.tradeIds.join(", ")}</Paragraph>
           )}
           <Paragraph type="secondary">
-            No grid-fee lines on P2P invoices (A20 / REQ-007).
+            Peer-to-peer invoices do not include grid fees, taxes or levies.
           </Paragraph>
           <Space>
             <Button size="small" onClick={() => openPdf(selected.invoiceId)} loading={busy}>

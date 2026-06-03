@@ -62,7 +62,7 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/TermsAccepted/)).toBeInTheDocument();
+      expect(screen.getByText(/set up payment/i)).toBeInTheDocument();
     });
     expect(screen.getByRole("heading", { name: /your billing home/i })).toBeInTheDocument();
     expect(screen.getByText(/Complete payment setup/i)).toBeInTheDocument();

@@ -57,8 +57,9 @@ describe("ProfilePage (INT-138 / UAT-009)", () => {
       expect(screen.getByDisplayValue("Ada")).toBeInTheDocument();
     });
 
-    // Trade-attribution / community are read-only text — no editable community field.
-    expect(screen.getByText(/22222222-2222-2222-2222-222222222222/)).toBeInTheDocument();
+    // INT-248 — community UUID is not shown; no editable community / market ids.
+    expect(screen.queryByText(/22222222-2222-2222-2222-222222222222/)).toBeNull();
+    expect(screen.getByText(/community manager handles/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/community/i)).toBeNull();
     expect(screen.queryByLabelText(/gsy|meter|actor/i)).toBeNull();
 

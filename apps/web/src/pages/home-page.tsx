@@ -15,6 +15,7 @@ import {
   homeNextAction,
   homeTitle,
 } from "../layout/role-home";
+import { readinessLabel } from "../layout/readiness-label";
 import { brand } from "../theme";
 import { readinessChecklist, readinessHeadline } from "../readiness/checklist";
 
@@ -96,19 +97,9 @@ export function HomePage({
               {role}
             </Tag>
           ))}
-          {(identity?.communityId ?? me?.communityId) && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Community{" "}
-              <Text code style={{ fontSize: 11 }}>
-                {identity?.communityId ?? me?.communityId}
-              </Text>
-            </Text>
-          )}
         </Space>
         <Paragraph type="secondary" style={{ margin: "8px 0 0", fontSize: 13 }}>
-          The header always shows who is signed in. Use the left menu for screens
-          available to your role — manager and operator tools stay hidden from
-          members.
+          You are signed in. The left menu only shows screens for your role.
         </Paragraph>
       </Card>
 
@@ -129,7 +120,7 @@ export function HomePage({
         >
           <Paragraph>{readinessHeadline(me.readiness)}</Paragraph>
           <Paragraph type="secondary" style={{ marginBottom: 8 }}>
-            Status <Text code>{me.readiness}</Text>
+            {readinessLabel(me.readiness)}
           </Paragraph>
           <List
             dataSource={readinessChecklist(me.readiness)}

@@ -114,7 +114,7 @@ export function TermsPage({
             onChange={(e) => setMandate(e.target.checked)}
             style={{ marginBottom: 16 }}
           >
-            I accept the self-billing mandate (required for producers — REQ-050)
+            I accept the self-billing mandate (required for producers)
           </Checkbox>
           <div>
             <Button type="primary" loading={submitting} onClick={onAccept}>

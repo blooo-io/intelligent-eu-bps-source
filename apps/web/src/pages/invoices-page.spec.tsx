@@ -87,7 +87,9 @@ describe("InvoicesPage (INT-142 / UAT-007 / UAT-014)", () => {
       expect(screen.getByText(/trade-a, trade-b/)).toBeInTheDocument();
     });
     expect(screen.getByText(/Energy 10\.00/)).toBeInTheDocument();
-    expect(screen.getByText(/No grid-fee/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/do not include grid fees, taxes or levies/i),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^pay$/i }));
     await waitFor(() => {

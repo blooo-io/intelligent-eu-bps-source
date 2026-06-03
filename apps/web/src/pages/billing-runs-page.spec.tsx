@@ -80,11 +80,11 @@ describe("BillingRunsPage (INT-146 / UAT-006)", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("billing-runs-community-help")).toHaveTextContent(
-        communityId,
+        /billing run/i,
       );
     });
-    expect(screen.getByTestId("billing-runs-community-help")).toHaveTextContent(
-      /billing tenancy/i,
+    expect(screen.getByTestId("billing-runs-community-help")).not.toHaveTextContent(
+      communityId,
     );
 
     fireEvent.change(screen.getByLabelText(/Billing period/i), {
@@ -174,7 +174,7 @@ describe("BillingRunsPage (INT-146 / UAT-006)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(new RegExp(communityId))).toBeInTheDocument();
+      expect(screen.getByTestId("billing-runs-community-help")).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByLabelText(/Billing period/i), {
@@ -229,7 +229,7 @@ describe("BillingRunsPage (INT-146 / UAT-006)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(new RegExp(communityId))).toBeInTheDocument();
+      expect(screen.getByTestId("billing-runs-community-help")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("radio", { name: /^early$/i }));

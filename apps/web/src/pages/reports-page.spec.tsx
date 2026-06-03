@@ -126,7 +126,7 @@ describe("ReportsPage (INT-148 / UAT-031 / UAT-032)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(new RegExp(communityId))).toBeInTheDocument();
+      expect(screen.getByText(/community totals/i)).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByLabelText(/Summary period/i), {

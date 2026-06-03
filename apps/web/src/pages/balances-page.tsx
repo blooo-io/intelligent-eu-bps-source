@@ -113,7 +113,7 @@ export function BalancesPage({
   return (
     <PageFrame
       title="Balances"
-      description="Member view of unbilled amounts with each counterpart. Settle now creates an invoice immediately — the community threshold does not apply."
+      description="Unbilled amounts with each trading counterpart. Settle now creates an invoice immediately, without waiting for the community threshold."
     >
       {error && <Alert type="error" message={error} showIcon />}
       {lastRun && (

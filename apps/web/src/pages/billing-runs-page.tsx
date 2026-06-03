@@ -112,15 +112,11 @@ export function BillingRunsPage({
       title="Billing runs"
       description="Manager-only. Start a periodic, early or final billing run for your community. Settlement then produces invoices for each consumer→producer pair."
     >
-        {communityId && (
-          <Paragraph type="secondary" data-testid="billing-runs-community-help">
-            <strong>Community id</strong>{" "}
-            <Text code>{communityId}</Text> is the billing tenancy key for this
-            energy community — not a person. Settings, participants, trades and
-            runs are all scoped to it. On the S1 demo community the value is{" "}
-            <Text code>c0ffee00-1234-4abc-8def-0123456789ab</Text>.
-          </Paragraph>
-        )}
+        <Paragraph type="secondary" data-testid="billing-runs-community-help">
+          Start a billing run for your energy community. Periodic runs cover a
+          month (for example 2026-09); early and final runs settle open balances
+          outside the normal calendar.
+        </Paragraph>
 
         {error && <Alert type="error" message={error} showIcon />}
 

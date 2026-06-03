@@ -81,7 +81,6 @@ export function AppShell({
     "Signed in";
   const roleLabel =
     roles.length > 0 ? roles.join(", ") : "role unknown";
-  const communityLabel = identity?.communityId ?? me?.communityId;
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -90,7 +89,7 @@ export function AppShell({
         collapsed={collapsed}
         onCollapse={setCollapsed}
         breakpoint="lg"
-        width={220}
+        width={248}
         collapsedWidth={64}
         theme="dark"
         style={{ background: brand.sider }}
@@ -160,19 +159,6 @@ export function AppShell({
                 <Text type="secondary">{roleLabel}</Text>
               )}
             </span>
-            {communityLabel ? (
-              <Text
-                type="secondary"
-                title="Billing community id — tenancy for settings, trades and runs (not a person)"
-                data-testid="shell-community-id"
-                style={{ fontSize: 12 }}
-              >
-                Community{" "}
-                <Text code style={{ fontSize: 11 }}>
-                  {communityLabel}
-                </Text>
-              </Text>
-            ) : null}
           </Space>
           <Button size="small" onClick={() => logout()}>
             Sign out

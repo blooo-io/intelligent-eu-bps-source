@@ -6,7 +6,7 @@ import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
 
-const { Paragraph, Text } = Typography;
+const { Paragraph } = Typography;
 
 /**
  * Participant billing profile screen (INT-138 / REQ-009 / UAT-009).
@@ -90,12 +90,8 @@ export function ProfilePage({
       {me && (
         <Card>
           <Paragraph type="secondary">
-            Participant <Text code>{me.participantId}</Text> · community{" "}
-            <Text code>{me.communityId}</Text>
-          </Paragraph>
-          <Paragraph type="secondary">
-            Community and trade-attribution identifiers can only be changed by a
-            community manager (REQ-009).
+            These details appear on your invoices. Your community manager handles
+            community membership and meter attribution separately.
           </Paragraph>
           <Form
             form={form}

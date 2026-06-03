@@ -205,10 +205,9 @@ export function PaymentSetupPage({
 
       <Card>
         <Paragraph>
-          Producers complete Stripe Connect identity and bank details in this
-          form (INT-191 Account Tokens). Consumers add a payment method with the
-          Payment Element (INT-193). This app never logs card or bank numbers
-          (REQ-051, TD-6, BR-12 test mode).
+          Producers verify identity and bank details with Stripe Connect.
+          Consumers save a card as their payment method. Card and bank numbers
+          go to Stripe only — this app never stores them.
         </Paragraph>
 
         {!session && (
@@ -232,7 +231,8 @@ export function PaymentSetupPage({
           session.clientSecret && (
             <div style={{ marginTop: 16 }}>
               <Paragraph type="secondary">
-                Enter a test card (e.g. 4242…) to save a payment method (BR-12).
+                Enter a test card (for example 4242 4242 4242 4242) to save a
+                payment method.
               </Paragraph>
               <ConsumerPaymentElement
                 config={config}
@@ -344,7 +344,7 @@ export function PaymentSetupPage({
                 name="dobYear"
                 label="Date of birth — year"
                 rules={[{ required: true }]}
-                extra="Test mode: use 1902 for immediate DOB match (INT-195 / BR-12)."
+                extra="Test mode: use year 1902 for an immediate date-of-birth match."
               >
                 <Input type="number" min={1900} max={2100} placeholder="1902" />
               </Form.Item>
@@ -372,7 +372,7 @@ export function PaymentSetupPage({
               <Form.Item
                 name="identityDocumentFront"
                 label="Identity document file id (optional)"
-                extra="Test mode: file_identity_document_success recovers keyed-identity failures (INT-195)."
+                extra="Test mode: use file_identity_document_success if identity checks need a file token."
               >
                 <Input placeholder="file_identity_document_success" />
               </Form.Item>

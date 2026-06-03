@@ -5,6 +5,7 @@ import type { WebConfig } from "../api/config";
 import { fetchMe, type Me, type ReadinessStatus } from "../api/me";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
+import { readinessLabel } from "../layout/readiness-label";
 import { PaymentSetupPage } from "./payment-setup-page";
 import { ProfilePage } from "./profile-page";
 import { TermsPage } from "./terms-page";
@@ -140,22 +141,23 @@ export function OnboardingWizardPage({
   return (
     <PageFrame
       title="Get ready"
-      description="Complete onboarding, payment setup, then pay — without assistance (NFR-016)."
+      description="Finish these steps in order: profile, terms, payment setup, then pay your invoices."
       loading={loading}
     >
       {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: 16 }} className="ge-onboarding-card">
         <Steps
           current={stepIndex(current)}
           items={items}
           onChange={(i) => go(STEP_KEYS[i]!)}
-          style={{ marginBottom: 8 }}
+          className="ge-onboarding-steps"
+          style={{ marginBottom: 12 }}
         />
         <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          Status: <code>{me?.readiness ?? "…"}</code>
+          {readinessLabel(me?.readiness)}
           {" · "}
-          <Link to="/">Home checklist</Link>
+          <Link to="/">Home</Link>
         </Paragraph>
       </Card>
 

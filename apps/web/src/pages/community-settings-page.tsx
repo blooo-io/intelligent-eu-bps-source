@@ -14,7 +14,7 @@ import type { OidcFacade } from "../auth/oidc";
 import { AccessNotice } from "../layout/access-notice";
 import { PageFrame } from "../layout/page-frame";
 
-const { Paragraph, Text } = Typography;
+const { Paragraph } = Typography;
 
 type SettingsForm = CommunitySettingsWrite;
 
@@ -130,12 +130,10 @@ export function CommunitySettingsPage({
         {communityId && !forbidden && (
           <Card>
             <Paragraph type="secondary">
-              Community id (billing tenancy) <Text code>{communityId}</Text> — not a
-              user id. Settings, participants, trades and runs are scoped to it.
-            </Paragraph>
-            <Paragraph type="secondary">
-              Threshold carry-forward (REQ-056 / BR-05). V1 communities use virtual
-              mode — Stripe test only (REQ-043).
+              These settings apply to your whole energy community: currency,
+              billing period, invoice threshold, VAT and whether you run in test
+              (virtual) or live mode. Amounts below the threshold carry forward
+              to the next period.
             </Paragraph>
             <Form form={form} layout="vertical" onFinish={onFinish}>
               <Form.Item

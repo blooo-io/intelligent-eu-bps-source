@@ -193,7 +193,9 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
       fireEvent.click(screen.getByRole("button", { name: /continue to terms/i }));
       await waitFor(
         () => {
-          expect(screen.getByText(/ProfileCompleted/)).toBeInTheDocument();
+          expect(
+            screen.getByText(/Profile saved — accept the terms/i),
+          ).toBeInTheDocument();
         },
         { timeout: 10_000 },
       );
@@ -230,7 +232,9 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
       );
       await waitFor(
         () => {
-          expect(screen.getByText(/ProfileCompleted/)).toBeInTheDocument();
+          expect(
+            screen.getByText(/Profile saved — accept the terms/i),
+          ).toBeInTheDocument();
         },
         { timeout: 10_000 },
       );

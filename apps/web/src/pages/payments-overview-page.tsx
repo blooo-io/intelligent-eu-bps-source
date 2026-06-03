@@ -166,12 +166,6 @@ export function PaymentsOverviewPage({
       title="Payments overview"
       description="Manager-only. Payment status cache from Stripe for invoices in this community."
     >
-      {communityId && (
-        <Paragraph type="secondary">
-          Community <Text code>{communityId}</Text> — billing tenancy for this overview.
-        </Paragraph>
-      )}
-
       {error && <Alert type="error" message={error} showIcon />}
       {message && <Alert type="success" message={message} showIcon />}
 
@@ -200,7 +194,7 @@ export function PaymentsOverviewPage({
       {selectedInvoiceId && (
         <Card title={`Manual status · ${selectedInvoiceId}`} size="small">
           <Paragraph type="secondary">
-            Reason is mandatory and audited (REQ-044 / UAT-055).
+            A reason is required and kept in the audit trail.
           </Paragraph>
           <Form form={form} layout="vertical" onFinish={onSetStatus} size="small">
             <Form.Item

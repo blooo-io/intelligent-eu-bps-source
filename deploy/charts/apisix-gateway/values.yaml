@@ -7,6 +7,8 @@ hosts:
   api: api.dev.intelligent-eu-bp.blooo.dev
   auth: auth.intelligent-eu-bp.blooo.dev
   app: app.dev.intelligent-eu-bp.blooo.dev
+  # INT-244 / physical §3 — Redocly public OpenAPI + integrator landing.
+  docs: docs.intelligent-eu-bp.blooo.dev
 
 # INT-187 — browser SPA on the app host calls the api host (TD-8 CORS).
 # Comma-separated origins; must be explicit when allow_credential is true.
@@ -57,6 +59,8 @@ backends:
     - name: scheduler
       port: 8080
     - name: web
+      port: 8080
+    - name: docs-portal
       port: 8080
 
 webhook:

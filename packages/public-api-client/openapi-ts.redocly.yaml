@@ -1,0 +1,6 @@
+# INT-244 — openapi-typescript input (public API only; not for Spectral/Redocly lint).
+apis:
+  public@v1:
+    root: ../../contracts/openapi/public.v1.yaml
+    x-openapi-ts:
+      output: ./src/schema.d.ts

@@ -94,6 +94,23 @@ test("apps/web Dockerfile is discovered and runs as non-root", async () => {
   assert.match(source, /nodejs22-debian13:nonroot/);
 });
 
+// INT-244: developer API portal image is discoverable as apps-docs-portal.
+test("apps/docs-portal Dockerfile is discovered and runs as non-root", async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const dockerfiles = await findDockerfiles(root);
+  assert.ok(
+    dockerfiles.includes("apps/docs-portal/Dockerfile"),
+    `expected apps/docs-portal/Dockerfile in ${JSON.stringify(dockerfiles)}`,
+  );
+  const source = await readFile(
+    path.join(root, "apps/docs-portal/Dockerfile"),
+    "utf8",
+  );
+  assert.equal(dockerfileRunsAsNonRoot(source), true);
+  assert.equal(imageSuffix("apps/docs-portal/Dockerfile"), "apps-docs-portal");
+  assert.match(source, /nodejs22-debian13:nonroot/);
+});
+
 // INT-107 / INT-99: free runner disk between module image builds.
 test("module image build frees tags and builder cache between modules", async () => {
   const text = await readFile(new URL("./module-images.mjs", import.meta.url), "utf8");
@@ -110,6 +127,7 @@ test("module image build can push a floating tag alongside the SHA", async () =>
 
 const ALL = [
   "apps/web/Dockerfile",
+  "apps/docs-portal/Dockerfile",
   "services/cd-smoke/Dockerfile",
   "services/participants/Dockerfile",
   "services/payments/Dockerfile",

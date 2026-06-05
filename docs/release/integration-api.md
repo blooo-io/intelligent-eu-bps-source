@@ -1,6 +1,32 @@
-# Integration and API documentation (INT-94)
+# Integration and API documentation (INT-94 / INT-244)
 
 **Contract first.** Integrators consume the OpenAPI and AsyncAPI artefacts under [`contracts/`](../../contracts/). Generated clients and Nest validators must match those files. Narrative architecture: [`docs/architecture/03-application-architecture.md`](../architecture/03-application-architecture.md).
+
+## Developer API portal (INT-244)
+
+Browsable public OpenAPI (Redocly) and a short integrator landing page:
+
+| Host | Content |
+|---|---|
+| `https://docs.intelligent-eu-bp.blooo.dev` | Landing + `/api.html` (Redocly) + `/public.v1.yaml` |
+| Workspace package `@intelligent/public-api-client` | TypeScript types from `public.v1.yaml` (`openapi-typescript`) |
+
+Internal OpenAPI and AsyncAPI are **not** published on the docs host.
+
+### Auth for integrators
+
+1. Register an OIDC public client (PKCE) against the realm for your environment (`int` on `dev`).
+2. Obtain an access token; send `Authorization: Bearer <token>` on every `/v1` call.
+3. Roles (`member` / `manager` / `operator`) and community scope come from token claims; the API enforces own-community only (REQ-010). Missing or invalid tokens return **401**.
+4. Errors use the shared problem shape in the public OpenAPI; do not invent status codes outside the contract.
+
+### TypeScript types
+
+```bash
+pnpm --filter @intelligent/public-api-client generate
+```
+
+Import path/operation/schema types from `@intelligent/public-api-client`. The package does not ship a runtime HTTP client — use `fetch` (or your stack) with the bearer token.
 
 ## REST — OpenAPI 3.1
 
@@ -25,6 +51,7 @@ Index and lint notes: [`contracts/README.md`](../../contracts/README.md).
 |---|---|
 | `https://api.dev.intelligent-eu-bp.blooo.dev` | Public REST `/v1` |
 | `https://app.dev.intelligent-eu-bp.blooo.dev` | Reference web app |
+| `https://docs.intelligent-eu-bp.blooo.dev` | API portal (Redocly) |
 | `https://auth.intelligent-eu-bp.blooo.dev` | Keycloak |
 
 ## Events — AsyncAPI 3

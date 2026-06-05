@@ -1,0 +1,10 @@
+apiVersion: v2
+name: docs-portal
+description: Developer API portal (Redocly public OpenAPI) — INT-244
+type: application
+version: 0.1.0
+appVersion: "0.0.0"
+dependencies:
+  - name: module
+    version: 0.1.0
+    repository: "file://../module"

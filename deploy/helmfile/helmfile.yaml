@@ -27,6 +27,13 @@ releases:
       - ../charts/web/values.yaml
       - ../envs/{{ .Environment.Name }}/values.yaml
 
+  - name: docs-portal
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/docs-portal
+    values:
+      - ../charts/docs-portal/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
   - name: participants
     namespace: "{{ .Values.appsNamespace }}"
     chart: ../charts/participants

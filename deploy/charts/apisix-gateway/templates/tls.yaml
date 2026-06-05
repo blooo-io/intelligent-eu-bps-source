@@ -9,6 +9,7 @@
   (dict "name" "api" "host" .Values.hosts.api)
   (dict "name" "auth" "host" .Values.hosts.auth)
   (dict "name" "app" "host" .Values.hosts.app)
+  (dict "name" "docs" "host" .Values.hosts.docs)
 }}
 {{- range $hosts }}
 apiVersion: cert-manager.io/v1

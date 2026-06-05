@@ -4,6 +4,7 @@ hosts:
   api: api.dev.intelligent-eu-bp.blooo.dev
   auth: auth.intelligent-eu-bp.blooo.dev
   app: app.dev.intelligent-eu-bp.blooo.dev
+  docs: docs.intelligent-eu-bp.blooo.dev
 # INT-187 — SPA origin for CORS (comma-separated).
 cors:
   allowOrigins: "https://app.dev.intelligent-eu-bp.blooo.dev,http://localhost:5173"

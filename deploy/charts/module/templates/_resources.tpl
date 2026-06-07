@@ -214,6 +214,8 @@ spec:
         - port: 443
           protocol: TCP
     {{- end }}
+{{- /* INT-249 — skip OpenBao sync when the workload needs no secret (e.g. docs-portal). */ -}}
+{{- if ne .Values.externalSecret false }}
 ---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -232,4 +234,5 @@ spec:
   dataFrom:
     - extract:
         key: {{ .Values.environment }}/{{ .Values.name }}
+{{- end }}
 {{- end -}}

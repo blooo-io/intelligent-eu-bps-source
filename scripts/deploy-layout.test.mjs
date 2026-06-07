@@ -99,11 +99,18 @@ test("workloads are non-root with a read-only filesystem and no committed secret
   assert.match(template, /runAsNonRoot: true/);
   assert.match(template, /readOnlyRootFilesystem: true/);
   assert.match(template, /kind: ExternalSecret/);
+  // INT-249 — ExternalSecret can be skipped per chart (docs-portal).
+  assert.match(template, /ne \.Values\.externalSecret false/);
   for (const file of await yamlFiles("deploy")) {
     const text = await readFile(file, "utf8");
     assert.equal(/^\s*kind:\s*Secret\s*$/m.test(text), false, file);
     assert.equal(text.includes("stringData:"), false, file);
   }
+});
+
+test("docs-portal disables ExternalSecret (INT-249)", async () => {
+  const values = await readFile("deploy/charts/docs-portal/values.yaml", "utf8");
+  assert.match(values, /externalSecret:\s*false/);
 });
 
 async function yamlFiles(directory) {

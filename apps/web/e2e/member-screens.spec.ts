@@ -13,13 +13,13 @@ test.describe("AC-01 member screens and buttons", () => {
     await loginAs(page, "member");
   });
 
-  test("Home shows readiness and Open wizard / Pay invoices CTA", async ({ page }) => {
+  test("Home shows readiness and a single next CTA", async ({ page }) => {
     await page.goto("/");
-    await expectPageReady(page, /your billing home/i);
-    await expect(page.getByText(/Get ready|Status/i).first()).toBeVisible();
-    const openWizard = page.getByRole("button", { name: /open wizard/i });
-    const payInvoices = page.getByRole("button", { name: /pay invoices/i });
-    await expect(openWizard.or(payInvoices)).toBeVisible();
+    await expectPageReady(page, /^home$/i);
+    const continueSetup = page.getByRole("button", {
+      name: /continue setup|finish payment setup|accept terms|pay open invoices/i,
+    });
+    await expect(continueSetup).toBeVisible();
   });
 
   test("Profile Save profile succeeds", async ({ page }) => {

@@ -188,10 +188,6 @@ export function InvoicesPage({
               {selected.amounts.total} {selected.currency}
             </Text>
           </Paragraph>
-          <Paragraph type="secondary">
-            Producer <Text code>{selected.producerId}</Text> · Consumer{" "}
-            <Text code>{selected.consumerId}</Text>
-          </Paragraph>
           {selected.tradeIds && selected.tradeIds.length > 0 && (
             <Paragraph>Trades: {selected.tradeIds.join(", ")}</Paragraph>
           )}

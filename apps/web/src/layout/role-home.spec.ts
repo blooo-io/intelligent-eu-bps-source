@@ -6,10 +6,10 @@ import {
   homeTitle,
 } from "./role-home";
 
-describe("role-home (INT-245)", () => {
+describe("role-home (INT-245 / INT-250)", () => {
   it("prefers manager over member when both present", () => {
     expect(homeAudience(["member", "manager"])).toBe("manager");
-    expect(homeTitle("manager")).toMatch(/console/i);
+    expect(homeTitle("manager")).toMatch(/pulse/i);
   });
 
   it("resolves operator and unknown audiences", () => {
@@ -19,21 +19,25 @@ describe("role-home (INT-245)", () => {
     expect(homeTitle("unknown")).toBe("Home");
     expect(homeDescription("operator")).toMatch(/reconciliation/i);
     expect(homeDescription("unknown")).toMatch(/no billing role/i);
-    expect(homeDescription("member")).toMatch(/balances/i);
+    expect(homeDescription("member", "Ready", "Demo community S1")).toMatch(
+      /Demo community S1/,
+    );
   });
 
   it("points members at the next readiness step", () => {
+    expect(homeNextAction("member", "Invited")?.label).toMatch(/continue setup/i);
     expect(homeNextAction("member", "Invited")?.to).toContain("onboarding");
     expect(homeNextAction("member", "ProfileCompleted")?.to).toContain("terms");
     expect(homeNextAction("member", "TermsAccepted")?.to).toContain("payment");
     expect(homeNextAction("member", "Ready")?.to).toBe("/invoices");
+    expect(homeNextAction("member", "Ready")?.label).toMatch(/pay open invoices/i);
     expect(homeNextAction("member", "Restricted")).toBeNull();
     expect(homeNextAction("member", "Offboarded")).toBeNull();
     expect(homeNextAction("unknown")).toBeNull();
   });
 
   it("gives managers and operators a next action", () => {
-    expect(homeNextAction("manager")?.to).toBe("/community-settings");
+    expect(homeNextAction("manager")?.to).toBe("/billing-runs");
     expect(homeNextAction("operator")?.to).toBe("/operator");
     expect(homeDescription("manager")).toMatch(/billing runs/i);
   });

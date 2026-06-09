@@ -62,12 +62,11 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/set up payment/i)).toBeInTheDocument();
+      expect(screen.getByTestId("home-setup")).toBeInTheDocument();
     });
-    expect(screen.getByRole("heading", { name: /your billing home/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^home$/i })).toBeInTheDocument();
     expect(screen.getByText(/Complete payment setup/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /finish payment setup/i })).toBeInTheDocument();
-    expect(screen.getByTestId("home-who")).toHaveTextContent(/Ada/);
     expect(screen.queryByText(/back to home/i)).not.toBeInTheDocument();
   });
 
@@ -121,13 +120,11 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /community console/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /community pulse/i })).toBeInTheDocument();
     });
     expect(screen.getByText(/Manager shortcuts/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Get ready/i)).toBeNull();
-    expect(
-      screen.getByRole("button", { name: /open community settings/i }),
-    ).toBeInTheDocument();
+    expect(screen.queryByTestId("home-setup")).toBeNull();
+    expect(screen.getByRole("button", { name: /start billing run/i })).toBeInTheDocument();
   });
 
   it("uses /v1/me roles when the IdP token has none (INT-246)", async () => {
@@ -160,9 +157,10 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /your billing home/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /^home$/i })).toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: /view invoices/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /pay open invoices/i })).toBeInTheDocument();
+    expect(screen.getByTestId("home-money")).toBeInTheDocument();
   });
 
   it("shows operator desk copy", async () => {

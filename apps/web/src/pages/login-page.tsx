@@ -1,11 +1,12 @@
 import { Button, Card, Space, Typography } from "antd";
 import { useLogin } from "@refinedev/core";
+import { brand } from "../theme";
 
 const { Title, Paragraph } = Typography;
 
 /**
- * Sign-in screen (INT-137 / UAT-043 / INT-188).
- * Split brand panel (Gridline Energy) + IdP CTA — no password fields (REQ-033).
+ * Sign-in screen (INT-137 / UAT-043 / INT-250).
+ * Volt brand panel + IdP CTA — no password fields (REQ-033).
  */
 export function LoginPage() {
   const { mutate: login, isPending } = useLogin();
@@ -13,10 +14,7 @@ export function LoginPage() {
   return (
     <main className="ge-login-split" data-testid="login-page">
       <aside className="ge-login-brand" aria-label="Brand">
-        <span className="ge-brand-mark" aria-hidden>
-          INT
-        </span>
-        <Title level={2} style={{ margin: 0, color: "#eef5f1", fontSize: 28 }}>
+        <Title level={2} style={{ margin: 0, color: brand.accent, fontSize: 28 }}>
           INTELLIGENT billing
         </Title>
         <Paragraph style={{ margin: 0, color: "#c5d6ce", maxWidth: 360 }}>
@@ -26,19 +24,18 @@ export function LoginPage() {
       </aside>
       <section className="ge-login-panel">
         <Card
-          style={{ maxWidth: 400, width: "100%", borderRadius: 8 }}
+          style={{ maxWidth: 400, width: "100%", borderRadius: 6 }}
           styles={{ body: { padding: 28 } }}
         >
           <Space direction="vertical" size="middle" style={{ width: "100%" }}>
             <div>
               <Title level={3} style={{ margin: 0 }}>
-                Sign in to billing
+                Sign in
               </Title>
             </div>
             <Paragraph type="secondary" style={{ margin: 0 }}>
-              Use your community identity provider (Keycloak). This app never asks
-              for or stores a password. After sign-in you only see menus for your
-              role — member, manager or operator.
+              Continue with your community identity. This app never asks for or
+              stores a password. After sign-in you only see menus for your role.
             </Paragraph>
             <Button
               type="primary"

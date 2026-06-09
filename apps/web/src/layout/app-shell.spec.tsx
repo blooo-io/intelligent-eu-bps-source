@@ -90,10 +90,15 @@ describe("AppShell (INT-187 / INT-243)", () => {
     await waitFor(() => {
       expect(screen.getByTestId("shell-user-name")).toHaveTextContent("S1 Consumer");
     });
-    // INT-248 — no raw community UUID until a friendly name exists in the API.
+    // INT-250 — S1 maps to a human label; raw UUID never shown.
     expect(
       screen.queryByText(/c0ffee00-1234-4abc-8def-0123456789ab/i),
     ).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByTestId("shell-community")).toHaveTextContent(
+        /Demo community S1/i,
+      );
+    });
     expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
   });
 
@@ -121,13 +126,12 @@ describe("AppShell (INT-187 / INT-243)", () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("link", { name: /community settings/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /^settings$/i })).toBeInTheDocument();
     });
     expect(screen.getByRole("link", { name: /billing runs/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^members$/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /get ready/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: /^operator$/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /operator tools/i })).toBeNull();
   });
 
   it("highlights the active route in the sider", async () => {
@@ -186,6 +190,6 @@ describe("AppShell (INT-187 / INT-243)", () => {
       expect(screen.getByTestId("shell-user-roles")).toHaveTextContent(/member/i);
     });
     expect(screen.getByRole("link", { name: /invoices/i })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /community settings/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^settings$/i })).toBeNull();
   });
 });

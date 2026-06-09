@@ -13,9 +13,11 @@ test.describe("REQ auth OIDC session", () => {
     test.setTimeout(90_000);
     await loginAs(page, "member");
     await page.goto("/");
-    await expectPageReady(page, /your billing home/i);
-    await expect(page.getByTestId("home-who")).toBeVisible();
-    await expect(page.getByText(/Get ready|Status|member/i).first()).toBeVisible();
+    await expectPageReady(page, /^home$/i);
+    await expect(
+      page.getByTestId("home-setup").or(page.getByTestId("home-money")),
+    ).toBeVisible();
+    await expect(page.getByTestId("shell-user-roles")).toContainText(/member/i);
 
     await page.getByRole("button", { name: /sign out/i }).click();
     await expect(page.getByRole("button", { name: /sign in with idp/i })).toBeVisible({

@@ -1,22 +1,32 @@
 import type { ThemeConfig } from "antd";
 
 /**
- * INT-188 — Gridline Energy graphics + Night Operator density.
- * Forest teal / mist surfaces (option 1) with compact ops chrome (option 3).
- * Kept local so we do not pull @refinedev/antd → @ant-design/pro-layout
- * (path-to-regexp CVE-2026-4926).
+ * INT-250 — Volt palette (approved): near-black chrome, chalk surfaces, lime CTAs.
+ * High-contrast graphic system; replaces muted forest Gridline chrome.
  */
 export const brand = {
-  ink: "#0f2a24",
-  forest: "#1a4d3e",
-  canopy: "#2d6a5a",
-  mist: "#e8f0ec",
-  mistDeep: "#d5e4dc",
-  paper: "#ffffff",
-  sider: "#0f2a24",
-  siderMuted: "#3d5c52",
-  siderHover: "#16352c",
-  siderActive: "#1a4d3e",
+  ink: "#0A0F0D",
+  accent: "#C8F542",
+  accentText: "#0A0F0D",
+  paper: "#FFFFFF",
+  chalk: "#F3F6F2",
+  chalkDeep: "#D5DDD6",
+  muted: "#5C6B64",
+  sider: "#0A0F0D",
+  siderMuted: "#8A9A92",
+  siderHover: "#161D1A",
+  siderActive: "#C8F542",
+  money: "#0A0F0D",
+  ok: "#1F8A4C",
+  danger: "#E23D3D",
+  /** @deprecated Use brand.accent — kept for transitional call sites. */
+  canopy: "#C8F542",
+  /** @deprecated Use brand.ink */
+  forest: "#0A0F0D",
+  /** @deprecated Use brand.chalk */
+  mist: "#F3F6F2",
+  /** @deprecated Use brand.chalkDeep */
+  mistDeep: "#D5DDD6",
 } as const;
 
 export const fontFamily =
@@ -24,56 +34,57 @@ export const fontFamily =
 
 export const appTheme: ThemeConfig = {
   token: {
-    colorPrimary: brand.forest,
-    colorInfo: brand.canopy,
-    colorSuccess: "#3d8b6e",
-    colorWarning: "#b7791f",
-    colorError: "#c53d3d",
+    colorPrimary: brand.ink,
+    colorInfo: brand.muted,
+    colorSuccess: brand.ok,
+    colorWarning: "#B7791F",
+    colorError: brand.danger,
     colorText: brand.ink,
-    colorTextSecondary: "#3d5c52",
-    colorBgLayout: brand.mist,
+    colorTextSecondary: brand.muted,
+    colorBgLayout: brand.chalk,
     colorBgContainer: brand.paper,
-    colorBorder: brand.mistDeep,
-    colorBorderSecondary: "#cfdfd6",
-    borderRadius: 6,
-    borderRadiusLG: 8,
+    colorBorder: brand.chalkDeep,
+    colorBorderSecondary: "#E2E8E4",
+    borderRadius: 4,
+    borderRadiusLG: 6,
     fontFamily,
     fontSize: 13,
     fontSizeHeading2: 22,
-    fontSizeHeading3: 16,
-    controlHeight: 34,
-    controlHeightLG: 40,
+    fontSizeHeading3: 18,
+    controlHeight: 36,
+    controlHeightLG: 42,
     wireframe: false,
   },
   components: {
     Layout: {
       headerBg: brand.paper,
-      headerHeight: 48,
+      headerHeight: 52,
       siderBg: brand.sider,
-      bodyBg: brand.mist,
+      bodyBg: brand.chalk,
       triggerBg: brand.siderHover,
-      triggerColor: brand.mist,
+      triggerColor: brand.accent,
     },
     Menu: {
       darkItemBg: brand.sider,
       darkSubMenuItemBg: brand.sider,
-      darkItemColor: "#c5d6ce",
+      darkItemColor: "#D7E0DA",
       darkItemHoverBg: brand.siderHover,
-      darkItemHoverColor: "#ffffff",
-      darkItemSelectedBg: brand.siderActive,
-      darkItemSelectedColor: "#ffffff",
-      itemBorderRadius: 6,
-      itemMarginInline: 6,
-      itemHeight: 34,
+      darkItemHoverColor: "#FFFFFF",
+      darkItemSelectedBg: brand.accent,
+      darkItemSelectedColor: brand.accentText,
+      darkGroupTitleColor: "#8A9A92",
+      itemBorderRadius: 4,
+      itemMarginInline: 8,
+      itemHeight: 36,
       iconSize: 14,
       fontSize: 13,
     },
     Table: {
-      cellPaddingBlock: 8,
-      cellPaddingInline: 10,
-      headerBg: brand.mistDeep,
+      cellPaddingBlock: 10,
+      cellPaddingInline: 12,
+      headerBg: brand.chalk,
       headerColor: brand.ink,
-      rowHoverBg: "#f3f8f5",
+      rowHoverBg: "#EEF3EF",
       fontSize: 13,
     },
     List: {
@@ -82,12 +93,13 @@ export const appTheme: ThemeConfig = {
     Button: {
       primaryShadow: "none",
       defaultShadow: "none",
-      fontWeight: 600,
-      controlHeight: 34,
-      paddingInline: 14,
+      fontWeight: 650,
+      controlHeight: 36,
+      paddingInline: 16,
+      primaryColor: brand.accentText,
     },
     Card: {
-      borderRadiusLG: 8,
+      borderRadiusLG: 6,
       paddingLG: 16,
       headerFontSize: 14,
     },
@@ -98,6 +110,10 @@ export const appTheme: ThemeConfig = {
     Typography: {
       titleMarginBottom: 0,
       titleMarginTop: 0,
+    },
+    Tag: {
+      defaultBg: brand.chalk,
+      defaultColor: brand.ink,
     },
   },
 };

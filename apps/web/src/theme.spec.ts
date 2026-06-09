@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { appTheme, brand, fontFamily } from "./theme";
 
-describe("appTheme (INT-188 Gridline Energy + Night Operator)", () => {
-  it("uses forest teal primary instead of Ant Design default blue", () => {
-    expect(appTheme.token?.colorPrimary).toBe(brand.forest);
+describe("appTheme (INT-250 Volt)", () => {
+  it("uses near-black primary with lime selected chrome", () => {
+    expect(appTheme.token?.colorPrimary).toBe(brand.ink);
+    expect(brand.accent).toBe("#C8F542");
     expect(appTheme.token?.colorPrimary).not.toBe("#1677ff");
   });
 
-  it("sets mist layout background and ink text", () => {
-    expect(appTheme.token?.colorBgLayout).toBe(brand.mist);
+  it("sets chalk layout background and ink text", () => {
+    expect(appTheme.token?.colorBgLayout).toBe(brand.chalk);
     expect(appTheme.token?.colorText).toBe(brand.ink);
   });
 
@@ -17,17 +18,18 @@ describe("appTheme (INT-188 Gridline Energy + Night Operator)", () => {
     expect(appTheme.token?.fontFamily).toBe(fontFamily);
   });
 
-  it("uses a dark forest sider for Gridline Energy chrome", () => {
+  it("uses Volt near-black sider with lime selected item", () => {
     expect(appTheme.components?.Layout?.siderBg).toBe(brand.sider);
     expect(appTheme.components?.Menu?.darkItemBg).toBe(brand.sider);
-    expect(brand.sider).toBe("#0f2a24");
+    expect(brand.sider).toBe("#0A0F0D");
+    expect(appTheme.components?.Menu?.darkItemSelectedBg).toBe(brand.accent);
   });
 
-  it("keeps Night Operator compact control and table density", () => {
+  it("keeps compact control and table density", () => {
     expect(appTheme.token?.fontSize).toBe(13);
-    expect(appTheme.token?.controlHeight).toBe(34);
-    expect(appTheme.components?.Table?.cellPaddingBlock).toBe(8);
-    expect(appTheme.components?.Menu?.itemHeight).toBe(34);
-    expect(appTheme.components?.Layout?.headerHeight).toBe(48);
+    expect(appTheme.token?.controlHeight).toBe(36);
+    expect(appTheme.components?.Table?.cellPaddingBlock).toBe(10);
+    expect(appTheme.components?.Menu?.itemHeight).toBe(36);
+    expect(appTheme.components?.Layout?.headerHeight).toBe(52);
   });
 });

@@ -1,8 +1,8 @@
 import type { ReadinessStatus } from "../api/me";
 
 /**
- * INT-245 — role-aware Home copy (Impeccable Operate / clarify).
- * One job, one next action; no manager chrome for members.
+ * INT-245 / INT-250 — role-aware Home copy.
+ * One job, one next action; money-first when the member is Ready.
  */
 
 export type HomeAudience = "member" | "manager" | "operator" | "unknown";
@@ -17,24 +17,32 @@ export function homeAudience(roles: ReadonlyArray<string>): HomeAudience {
 export function homeTitle(audience: HomeAudience): string {
   switch (audience) {
     case "manager":
-      return "Community console";
+      return "Community pulse";
     case "operator":
       return "Operator desk";
     case "member":
-      return "Your billing home";
+      return "Home";
     default:
       return "Home";
   }
 }
 
-export function homeDescription(audience: HomeAudience): string {
+export function homeDescription(
+  audience: HomeAudience,
+  readiness?: ReadinessStatus,
+  communityLabel?: string | null,
+): string {
+  const community = communityLabel ?? "your community";
   switch (audience) {
     case "manager":
-      return "Configure the community, invite participants, and start billing runs. Member payment screens stay in their own portal.";
+      return `Configure ${community}, invite members, and start billing runs.`;
     case "operator":
-      return "Monitor reconciliation, intake anomalies and scheduled jobs for this environment.";
+      return "Monitor reconciliation, intake anomalies and scheduled jobs.";
     case "member":
-      return "Complete readiness, then review balances and pay invoices for your trades in this community.";
+      if (readiness === "Ready") {
+        return `You are ready in ${community}. Review balances and pay open invoices.`;
+      }
+      return `Finish setup once, then settle your trades in ${community}.`;
     default:
       return "Sign-in succeeded, but no billing role was found on your token. Ask an operator to assign member, manager or operator.";
   }
@@ -52,7 +60,7 @@ export function homeNextAction(
   readiness?: ReadinessStatus,
 ): NextAction | null {
   if (audience === "manager") {
-    return { label: "Open community settings", to: "/community-settings", primary: true };
+    return { label: "Start billing run", to: "/billing-runs", primary: true };
   }
   if (audience === "operator") {
     return { label: "Open operator tools", to: "/operator", primary: true };
@@ -61,7 +69,7 @@ export function homeNextAction(
 
   switch (readiness) {
     case "Ready":
-      return { label: "View invoices", to: "/invoices", primary: true };
+      return { label: "Pay open invoices", to: "/invoices", primary: true };
     case "TermsAccepted":
       return { label: "Finish payment setup", to: "/onboarding?step=payment", primary: true };
     case "ProfileCompleted":
@@ -70,6 +78,6 @@ export function homeNextAction(
     case "Offboarded":
       return null;
     default:
-      return { label: "Continue get ready", to: "/onboarding", primary: true };
+      return { label: "Continue setup", to: "/onboarding", primary: true };
   }
 }

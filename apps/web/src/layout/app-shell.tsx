@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Layout, Menu, Space, Tag, Typography, theme } from "antd";
+import type { ItemType } from "antd/es/menu/interface";
 import { useGetIdentity, useLogout } from "@refinedev/core";
 import { Link, Outlet, useLocation } from "react-router";
 import { fetchMe, type Me } from "../api/me";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
 import { brand } from "../theme";
+import { communityDisplayName } from "./community-label";
 import { effectiveRoles } from "./effective-roles";
-import { visibleNavItems } from "./nav-access";
+import { navItemsByGroup, visibleNavItems } from "./nav-access";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -20,9 +22,8 @@ type Identity = {
 };
 
 /**
- * Authenticated shell (INT-187 / INT-188 / INT-243).
- * Dark forest sider; nav filtered by IdP role + member readiness.
- * Header shows who is signed in (name, roles, community).
+ * Authenticated shell (INT-187 / INT-243 / INT-250).
+ * Volt near-black sider; grouped nav; full-screen setup chrome on /onboarding.
  */
 export function AppShell({
   config,
@@ -69,18 +70,66 @@ export function AppShell({
     return [match?.key ?? "/"];
   }, [location.pathname, navItems]);
 
-  const menuItems = navItems.map((item) => ({
-    key: item.key,
-    label: <Link to={item.to}>{item.label}</Link>,
-  }));
+  const menuItems = useMemo((): ItemType[] => {
+    return navItemsByGroup(navItems).map(({ group, items }) => ({
+      type: "group" as const,
+      key: `grp-${group}`,
+      label: group,
+      children: items.map(
+        (item): ItemType => ({
+          key: item.key,
+          label: (<Link to={item.to}>{item.label}</Link>) as ReactNode,
+        }),
+      ),
+    }));
+  }, [navItems]);
 
   const displayName =
     me?.profile?.name?.trim() ||
     identity?.name ||
     identity?.id ||
     "Signed in";
-  const roleLabel =
-    roles.length > 0 ? roles.join(", ") : "role unknown";
+  const communityLabel = communityDisplayName(
+    me?.communityId ?? identity?.communityId,
+  );
+
+  const setupChrome =
+    location.pathname.startsWith("/onboarding") &&
+    roles.includes("member") &&
+    !roles.includes("manager") &&
+    !roles.includes("operator") &&
+    me?.readiness !== "Ready";
+
+  if (setupChrome) {
+    return (
+      <Layout style={{ minHeight: "100vh", background: brand.chalk }}>
+        <Header
+          style={{
+            background: brand.sider,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingInline: 20,
+            height: 56,
+            lineHeight: "56px",
+          }}
+        >
+          <Text strong style={{ color: brand.accent, letterSpacing: "0.02em" }}>
+            INTELLIGENT billing
+          </Text>
+          <Space size={12}>
+            <Text style={{ color: "#D7E0DA", fontSize: 13 }}>{displayName}</Text>
+            <Button size="small" onClick={() => logout()}>
+              Sign out
+            </Button>
+          </Space>
+        </Header>
+        <Content style={{ padding: "24px 20px", maxWidth: 880, margin: "0 auto", width: "100%" }}>
+          <Outlet />
+        </Content>
+      </Layout>
+    );
+  }
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -88,39 +137,46 @@ export function AppShell({
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        breakpoint="lg"
-        width={248}
-        collapsedWidth={64}
+        width={260}
+        collapsedWidth={72}
         theme="dark"
         style={{ background: brand.sider }}
       >
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: collapsed ? "14px 8px" : "14px 16px",
+            flexDirection: "column",
+            gap: 2,
+            padding: collapsed ? "16px 10px" : "16px 18px",
             borderBottom: `1px solid ${brand.siderHover}`,
-            minHeight: 48,
+            minHeight: 56,
           }}
         >
-          <span className="ge-brand-mark" aria-hidden>
-            INT
-          </span>
-          {!collapsed ? (
-            <Text
-              strong
-              style={{
-                color: brand.mist,
-                display: "block",
-                whiteSpace: "nowrap",
-                fontSize: 13,
-                letterSpacing: "0.02em",
-              }}
-            >
-              INTELLIGENT billing
+          {collapsed ? (
+            <Text strong style={{ color: brand.accent, fontSize: 12 }}>
+              IB
             </Text>
-          ) : null}
+          ) : (
+            <>
+              <Text
+                strong
+                style={{
+                  color: brand.accent,
+                  display: "block",
+                  whiteSpace: "nowrap",
+                  fontSize: 13,
+                  letterSpacing: "0.02em",
+                }}
+              >
+                INTELLIGENT billing
+              </Text>
+              {communityLabel ? (
+                <Text style={{ color: brand.siderMuted, fontSize: 11 }}>
+                  {communityLabel}
+                </Text>
+              ) : null}
+            </>
+          )}
         </div>
         <Menu
           theme="dark"
@@ -140,8 +196,8 @@ export function AppShell({
             justifyContent: "space-between",
             gap: 12,
             paddingInline: 20,
-            height: 48,
-            lineHeight: "48px",
+            height: 52,
+            lineHeight: "52px",
           }}
         >
           <Space size={8} wrap style={{ lineHeight: 1.3, maxWidth: "78%" }}>
@@ -151,20 +207,25 @@ export function AppShell({
             <span data-testid="shell-user-roles">
               {roles.length > 0 ? (
                 roles.map((role) => (
-                  <Tag key={role} color="green" style={{ marginInlineEnd: 4 }}>
+                  <Tag key={role} style={{ marginInlineEnd: 4 }}>
                     {role}
                   </Tag>
                 ))
               ) : (
-                <Text type="secondary">{roleLabel}</Text>
+                <Text type="secondary">role unknown</Text>
               )}
             </span>
+            {communityLabel ? (
+              <Text type="secondary" data-testid="shell-community" style={{ fontSize: 12 }}>
+                {communityLabel}
+              </Text>
+            ) : null}
           </Space>
           <Button size="small" onClick={() => logout()}>
             Sign out
           </Button>
         </Header>
-        <Content style={{ padding: "16px 20px", background: token.colorBgLayout }}>
+        <Content style={{ padding: "20px 24px", background: token.colorBgLayout }}>
           <div style={{ maxWidth: 1280, margin: "0 auto" }}>
             <Outlet />
           </div>

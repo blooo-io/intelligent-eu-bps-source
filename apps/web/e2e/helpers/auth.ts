@@ -87,17 +87,16 @@ export const NAV_ROUTES: ReadonlyArray<{ label: string; path: string; heading: R
   { label: "Operator", path: "/operator", heading: /^operator$/i },
 ];
 
-/** Ready member sider (INT-243) — no manager/operator screens. */
+/**
+ * Ready member sider (INT-243 / INT-250) — setup links hidden after Ready;
+ * no manager/operator screens.
+ */
 export const MEMBER_NAV_ROUTES: ReadonlyArray<{
   label: string;
   path: string;
   heading: RegExp;
 }> = [
-  { label: "Home", path: "/", heading: /your billing home/i },
-  { label: "Get ready", path: "/onboarding", heading: /get ready/i },
-  { label: "Profile", path: "/profile", heading: /billing profile/i },
-  { label: "Terms", path: "/terms", heading: /terms/i },
-  { label: "Payment setup", path: "/payment-setup", heading: /payment setup/i },
+  { label: "Home", path: "/", heading: /^home$/i },
   { label: "Balances", path: "/balances", heading: /^balances$/i },
   { label: "Invoices", path: "/invoices", heading: /^invoices$/i },
   { label: "Privacy", path: "/privacy", heading: /privacy/i },
@@ -105,9 +104,9 @@ export const MEMBER_NAV_ROUTES: ReadonlyArray<{
 ];
 
 export const MANAGER_ONLY_LABELS = [
-  /community settings/i,
-  /participants/i,
+  /^settings$/i,
+  /^members$/i,
   /billing runs/i,
-  /payments overview/i,
-  /^operator$/i,
+  /^payments$/i,
+  /operator tools/i,
 ] as const;

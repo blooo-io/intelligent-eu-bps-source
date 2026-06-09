@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { visibleNavItems } from "./nav-access";
+import { navItemsByGroup, visibleNavItems } from "./nav-access";
 
-describe("visibleNavItems (INT-243)", () => {
+describe("visibleNavItems (INT-243 / INT-250)", () => {
   it("hides manager and operator screens from members", () => {
     const keys = visibleNavItems(["member"], "Ready").map((i) => i.key);
     expect(keys).toContain("/");
@@ -22,6 +22,15 @@ describe("visibleNavItems (INT-243)", () => {
     expect(terms).toContain("/invoices");
   });
 
+  it("hides setup links once the member is Ready", () => {
+    const ready = visibleNavItems(["member"], "Ready").map((i) => i.key);
+    expect(ready).not.toContain("/onboarding");
+    expect(ready).not.toContain("/profile");
+    expect(ready).not.toContain("/terms");
+    expect(ready).not.toContain("/payment-setup");
+    expect(ready).toContain("/privacy");
+  });
+
   it("shows manager community screens without member readiness", () => {
     const keys = visibleNavItems(["manager"], "Invited").map((i) => i.key);
     expect(keys).toContain("/community-settings");
@@ -36,5 +45,13 @@ describe("visibleNavItems (INT-243)", () => {
     expect(keys).toContain("/operator");
     expect(keys).toContain("/");
     expect(keys).not.toContain("/billing-runs");
+  });
+
+  it("groups menu items for the sider", () => {
+    const items = visibleNavItems(["manager"], "Ready");
+    const groups = navItemsByGroup(items);
+    expect(groups.map((g) => g.group)).toEqual(
+      expect.arrayContaining(["Community", "Billing"]),
+    );
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Gridline Energy global surface (INT-188).
+ * INT-250 — Volt global surface.
  * Font face loaded from index.html (SIL OFL — Plus Jakarta Sans).
  */
 html,
@@ -11,8 +11,8 @@ body,
 body {
   margin: 0;
   font-family: "Plus Jakarta Sans", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background: #eef5f1;
-  color: #0f2a24;
+  background: #f3f6f2;
+  color: #0a0f0d;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -21,24 +21,17 @@ a {
   color: inherit;
 }
 
-/* Sider / login brand mark */
-.ge-brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: #1a4d3e;
-  color: #eef5f1;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  flex-shrink: 0;
+/* Primary buttons: lime fill on near-black token (Volt). */
+.ant-btn-primary {
+  background: #c8f542 !important;
+  border-color: #c8f542 !important;
+  color: #0a0f0d !important;
 }
 
-.ge-login-brand .ge-brand-mark {
-  background: #2d6a5a;
+.ant-btn-primary:not(:disabled):hover {
+  background: #d4f76a !important;
+  border-color: #d4f76a !important;
+  color: #0a0f0d !important;
 }
 
 .ge-login-split {
@@ -58,8 +51,8 @@ a {
 }
 
 .ge-login-brand {
-  background: #0f2a24;
-  color: #eef5f1;
+  background: #0a0f0d;
+  color: #f3f6f2;
   padding: 48px 40px;
   display: flex;
   flex-direction: column;
@@ -68,7 +61,7 @@ a {
 }
 
 .ge-login-panel {
-  background: #eef5f1;
+  background: #f3f6f2;
   display: grid;
   place-items: center;
   padding: 32px 24px;
@@ -102,9 +95,18 @@ a {
   padding-block: 20px;
 }
 
-/* Sider labels: avoid mid-word truncation when expanded */
+/* Expanded sider: never truncate mid-word (INT-250). */
 .ant-layout-sider:not(.ant-layout-sider-collapsed) .ant-menu-title-content {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.ant-layout-sider:not(.ant-layout-sider-collapsed) .ant-menu-item,
+.ant-layout-sider:not(.ant-layout-sider-collapsed) .ant-menu-item-group-title {
+  white-space: normal;
+  height: auto !important;
+  line-height: 1.35 !important;
+  padding-block: 8px !important;
 }

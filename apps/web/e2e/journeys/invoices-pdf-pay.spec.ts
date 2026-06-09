@@ -24,8 +24,10 @@ test.describe("REQ invoices PDF and pay", () => {
 
     await page.getByRole("button", { name: /^view$/i }).first().click();
     await expect(page.getByText(/energy|vat|total/i).first()).toBeVisible();
-    // A20 / REQ-007 — no grid-fee lines on P2P invoices.
-    await expect(page.getByText(/no grid-fee lines/i)).toBeVisible();
+    // A20 / REQ-007 — P2P invoices exclude grid fees (human copy, INT-250).
+    await expect(
+      page.getByText(/do not include grid fees/i),
+    ).toBeVisible();
 
     const pdfPromise = page.waitForEvent("popup", { timeout: 20_000 });
     await page.getByRole("button", { name: /open pdf/i }).click();

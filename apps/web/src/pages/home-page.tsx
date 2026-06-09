@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, List, Space, Tag, Typography } from "antd";
+import { Alert, Button, Card, List, Space, Typography } from "antd";
 import { CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import { useGetIdentity } from "@refinedev/core";
 import { Link } from "react-router";
@@ -8,6 +8,7 @@ import type { WebConfig } from "../api/config";
 import { userFacingMessage } from "../api/user-facing-error";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
+import { communityDisplayName } from "../layout/community-label";
 import { effectiveRoles } from "../layout/effective-roles";
 import {
   homeAudience,
@@ -15,7 +16,6 @@ import {
   homeNextAction,
   homeTitle,
 } from "../layout/role-home";
-import { readinessLabel } from "../layout/readiness-label";
 import { brand } from "../theme";
 import { readinessChecklist, readinessHeadline } from "../readiness/checklist";
 
@@ -29,8 +29,8 @@ type Identity = {
 };
 
 /**
- * Home after IdP sign-in (INT-137 / INT-245).
- * Role-aware purpose + one next action; member readiness checklist only for members.
+ * Home after IdP sign-in (INT-137 / INT-245 / INT-250).
+ * Money-first when Ready; single CTA during setup — no duplicate wizard button.
  */
 export function HomePage({
   config,
@@ -46,6 +46,9 @@ export function HomePage({
 
   const roles = effectiveRoles(identity?.roles, me?.roles);
   const audience = useMemo(() => homeAudience(roles), [roles]);
+  const communityLabel = communityDisplayName(
+    me?.communityId ?? identity?.communityId,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -71,13 +74,11 @@ export function HomePage({
   }, [config.apiBaseUrl, oidc]);
 
   const next = homeNextAction(audience, me?.readiness);
-  const displayName =
-    me?.profile?.name?.trim() || identity?.name || "Signed in";
 
   return (
     <PageFrame
       title={homeTitle(audience)}
-      description={homeDescription(audience)}
+      description={homeDescription(audience, me?.readiness, communityLabel)}
       loading={loading}
       actions={
         next ? (
@@ -89,39 +90,9 @@ export function HomePage({
     >
       {error && <Alert type="error" message={error} showIcon />}
 
-      <Card size="small" data-testid="home-who">
-        <Space wrap size={[8, 8]}>
-          <Text strong>{displayName}</Text>
-          {roles.map((role) => (
-            <Tag key={role} color="green">
-              {role}
-            </Tag>
-          ))}
-        </Space>
-        <Paragraph type="secondary" style={{ margin: "8px 0 0", fontSize: 13 }}>
-          You are signed in. The left menu only shows screens for your role.
-        </Paragraph>
-      </Card>
-
-      {audience === "member" && me && (
-        <Card
-          title="Get ready"
-          extra={
-            me.readiness !== "Ready" ? (
-              <Link to="/onboarding">
-                <Button type="primary">Open wizard</Button>
-              </Link>
-            ) : (
-              <Link to="/invoices">
-                <Button type="primary">Pay invoices</Button>
-              </Link>
-            )
-          }
-        >
+      {audience === "member" && me && me.readiness !== "Ready" && (
+        <Card title="Get ready" data-testid="home-setup">
           <Paragraph>{readinessHeadline(me.readiness)}</Paragraph>
-          <Paragraph type="secondary" style={{ marginBottom: 8 }}>
-            {readinessLabel(me.readiness)}
-          </Paragraph>
           <List
             dataSource={readinessChecklist(me.readiness)}
             renderItem={(item) => (
@@ -129,12 +100,12 @@ export function HomePage({
                 <Space>
                   {item.done ? (
                     <CheckCircleOutlined
-                      style={{ color: brand.canopy }}
+                      style={{ color: brand.ok }}
                       aria-label="done"
                     />
                   ) : (
                     <CloseCircleOutlined
-                      style={{ color: "#c53d3d" }}
+                      style={{ color: brand.danger }}
                       aria-label="todo"
                     />
                   )}
@@ -146,25 +117,34 @@ export function HomePage({
         </Card>
       )}
 
+      {audience === "member" && me?.readiness === "Ready" && (
+        <Card title="Next" size="small" data-testid="home-money">
+          <Paragraph style={{ marginBottom: 0 }}>
+            Open invoices and balances are in the left menu. Use{" "}
+            <Text strong>Pay open invoices</Text> when you owe a counterparty.
+          </Paragraph>
+        </Card>
+      )}
+
       {audience === "manager" && (
-        <Card title="Manager shortcuts">
+        <Card title="Manager shortcuts" size="small">
           <List
             dataSource={[
               {
                 to: "/community-settings",
-                label: "Community settings — currency, period, threshold, VAT",
+                label: "Settings — currency, period, threshold, VAT",
               },
               {
                 to: "/participants",
-                label: "Participants — invite and offboard members",
+                label: "Members — invite and offboard",
               },
               {
                 to: "/billing-runs",
-                label: "Billing runs — start periodic, early or final runs",
+                label: "Billing runs — periodic, early or final",
               },
               {
                 to: "/payments-overview",
-                label: "Payments overview — invoice payment status",
+                label: "Payments — invoice status across the community",
               },
             ]}
             renderItem={(item) => (
@@ -177,10 +157,10 @@ export function HomePage({
       )}
 
       {audience === "operator" && (
-        <Card title="Operator focus">
+        <Card title="Operator focus" size="small">
           <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            Open Operator for discrepancies, intake anomalies and job runs. This
-            desk does not replace the member or manager portals.
+            Open Operator tools for discrepancies, intake anomalies and job runs.
+            This desk does not replace the member or manager portals.
           </Paragraph>
         </Card>
       )}

@@ -33,6 +33,7 @@ function meResponse() {
       participantId,
       communityId,
       roles: ["manager"],
+      role: "prosumer",
       readiness: "Ready",
       profile: { name: "Mgr", address: "1", email: "m@e.com" },
     }),
@@ -89,7 +90,7 @@ describe("ReportsPage (INT-148 / UAT-031 / UAT-032)", () => {
       expect(screen.getByDisplayValue(participantId)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /load history/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^load$/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/1 invoice\(s\)/)).toBeInTheDocument();
@@ -179,7 +180,7 @@ describe("ReportsPage (INT-148 / UAT-031 / UAT-032)", () => {
       expect(screen.getByDisplayValue(participantId)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /load history/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^load$/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/failed with 404/i)).toBeInTheDocument();

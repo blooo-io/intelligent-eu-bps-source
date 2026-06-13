@@ -1,16 +1,18 @@
+import type { ParticipantRole } from "../api/me";
 import type { CallerRole } from "../auth/claims";
+import { isSellerRole } from "./role-home";
 
 /**
- * INT-243 / INT-250 — which sider links a caller may see.
- * Aligns with architecture §3.1 / §6 (member vs manager vs operator screens).
- * Roles come from the IdP token only (REQ-049).
- * INT-250: grouped labels + progressive disclosure (setup vs money).
+ * INT-243 / INT-250 / INT-252 — which sider links a caller may see.
+ * Aligns with architecture §3.1 / §6 and Volt mockups per persona.
+ * Roles come from the IdP token only (REQ-049); marketRole from GET /v1/me.
  */
 
 export type NavGroup = "Money" | "Account" | "Community" | "Billing" | "Ops";
 
 export type NavItemDef = {
   key: string;
+  /** Default label; resolveNavLabel may override per market role. */
   label: string;
   to: string;
   group: NavGroup;
@@ -66,7 +68,7 @@ export const NAV_CATALOG: readonly NavItemDef[] = [
     to: "/payment-setup",
     group: "Account",
     roles: ["member"],
-    hideWhenMemberReadinessAtLeast: "Ready",
+    // INT-252: stays visible when Ready as Payment method / Payout account.
   },
   {
     key: "/balances",
@@ -194,6 +196,51 @@ export function visibleNavItems(
     }
     return readinessOk(readiness, item.minMemberReadiness);
   });
+}
+
+/**
+ * Volt mockup labels per market role (INT-252).
+ * Managers keep "Reports"; members get "My history".
+ */
+export function resolveNavLabel(
+  item: NavItemDef,
+  opts: {
+    roles: ReadonlyArray<string>;
+    marketRole?: ParticipantRole | null;
+    readiness?: string;
+  },
+): string {
+  const { roles, marketRole, readiness } = opts;
+  if (item.key === "/invoices" && isSellerRole(marketRole)) {
+    return "Issued invoices";
+  }
+  if (item.key === "/payment-setup") {
+    if (isSellerRole(marketRole)) return "Payout account";
+    if ((READINESS_RANK[readiness ?? "Invited"] ?? 0) >= READINESS_RANK.Ready) {
+      return "Payment method";
+    }
+    return "Payment setup";
+  }
+  if (item.key === "/reports") {
+    if (roles.includes("manager")) return "Reports";
+    if (roles.includes("member")) return "My history";
+  }
+  return item.label;
+}
+
+/** Apply persona labels to visible items. */
+export function labeledNavItems(
+  items: readonly NavItemDef[],
+  opts: {
+    roles: ReadonlyArray<string>;
+    marketRole?: ParticipantRole | null;
+    readiness?: string;
+  },
+): Array<NavItemDef & { label: string }> {
+  return items.map((item) => ({
+    ...item,
+    label: resolveNavLabel(item, opts),
+  }));
 }
 
 /** Group visible nav items in display order (INT-250). */

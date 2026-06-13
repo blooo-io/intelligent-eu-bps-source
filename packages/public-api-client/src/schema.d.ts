@@ -642,7 +642,13 @@ export interface components {
         Me: {
             participantId: components["schemas"]["Uuid"];
             communityId: components["schemas"]["Uuid"];
+            /** IdP caller roles on the public API (03 §3.1). */
             roles: components["schemas"]["CallerRole"][];
+            /**
+             * Market role in the community (02 §6). Distinct from IdP `roles`.
+             * Drives consumer vs producer shell copy (INT-252).
+             */
+            role: components["schemas"]["ParticipantRole"];
             readiness: components["schemas"]["ReadinessStatus"];
             profile: components["schemas"]["BillingProfile"];
             billingMode?: components["schemas"]["BillingMode"];

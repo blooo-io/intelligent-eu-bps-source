@@ -194,6 +194,21 @@ describe("ParticipantsService", () => {
     expect(me.participantId).toBe(created.participantId);
     expect(me.profile.name).toBe("Member");
     expect(me.readiness).toBe("ProfileCompleted");
+    expect(me.role).toBe("consumer");
+  });
+
+  it("getMe returns producer market role (INT-252)", async () => {
+    const [created] = await service.importParticipants(communityId, [
+      {
+        email: "prod@example.com",
+        marketActorId: "actor-p",
+        meterId: "meter-p",
+        role: "producer",
+      },
+    ]);
+    const row = store.getParticipant(created.participantId)!;
+    const me = service.getMe(row.idpUserId!, ["member"]);
+    expect(me.role).toBe("producer");
   });
 
   it("rejects unknown community, duplicate import, empty import, bad profile", async () => {

@@ -23,12 +23,9 @@ test.describe("REQ privacy reports operator", () => {
     test.setTimeout(120_000);
     await loginAs(page, "member");
     await page.goto("/reports");
-    await expectPageReady(page, /^reports$/i);
-    const participant = page.getByLabel(/participant id/i);
-    await expect
-      .poll(async () => (await participant.inputValue()).length > 0, { timeout: 20_000 })
-      .toBeTruthy();
-    await page.getByRole("button", { name: /load history/i }).click();
+    await expectPageReady(page, /^my history$/i);
+    await expect(page.getByLabel(/participant id/i)).toHaveCount(0);
+    await page.getByRole("button", { name: /^load$/i }).click();
     await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);
     await expect(
       page.getByText(/invoice\(s\)|no invoices|payment\(s\)/i).first(),
@@ -41,7 +38,7 @@ test.describe("REQ privacy reports operator", () => {
 
     await loginAs(page, "manager");
     await page.goto("/reports");
-    await expectPageReady(page, /^reports$/i);
+    await expectPageReady(page, /^community reports$|^reports$/i);
     const period = page.getByLabel(/summary period/i);
     if (!(await period.inputValue())) await period.fill("2026-10");
     await page.getByRole("button", { name: /load summary/i }).click();

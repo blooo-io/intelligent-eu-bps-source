@@ -37,6 +37,8 @@ export type MeResult = {
   participantId: string;
   communityId: string;
   roles: string[];
+  /** Market role (consumer | producer | prosumer) — INT-252 shell copy. */
+  role: ParticipantRole;
   readiness: ParticipantRecord["status"];
   profile: BillingProfile;
   billingMode: CommunitySettings["billingMode"];
@@ -334,6 +336,7 @@ export class ParticipantsService {
       participantId: row.participantId,
       communityId: row.communityId,
       roles,
+      role: row.role,
       readiness,
       profile: row.profile ?? { name: "", address: "", email: "" },
       billingMode: settings.billingMode,

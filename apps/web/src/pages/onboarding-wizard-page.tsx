@@ -6,6 +6,7 @@ import { fetchMe, type Me, type ReadinessStatus } from "../api/me";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
 import { readinessLabel } from "../layout/readiness-label";
+import { isSellerRole } from "../layout/role-home";
 import { PaymentSetupPage } from "./payment-setup-page";
 import { ProfilePage } from "./profile-page";
 import { TermsPage } from "./terms-page";
@@ -106,8 +107,8 @@ export function OnboardingWizardPage({
               : ("wait" as const),
       },
       {
-        title: "Payment setup",
-        description: "KYC or card",
+        title: isSellerRole(me?.role) ? "Payouts" : "Pay",
+        description: isSellerRole(me?.role) ? "Stripe Connect" : "Card",
         status:
           me && me.readiness === "Ready"
             ? ("finish" as const)

@@ -18,7 +18,9 @@ test.describe("REQ payment setup", () => {
     // REQ-015 / NFR-007 — Stripe fiat path; no crypto wallet CTA.
     await expect(page.getByText(/wallet|crypto|metamask/i)).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: /start payment setup/i }),
+      page.getByRole("button", {
+        name: /save card and finish|continue to stripe connect|start payment setup/i,
+      }),
     ).toBeVisible({ timeout: 20_000 });
   });
 });

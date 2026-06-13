@@ -70,7 +70,7 @@ test.describe("AC-01 manager screens and buttons", () => {
 
   test("Reports Load summary for a period", async ({ page }) => {
     await page.goto("/reports");
-    await expectPageReady(page, /^reports$/i);
+    await expectPageReady(page, /^community reports$|^reports$/i);
     const period = page.getByLabel(/summary period/i);
     await expect(period).toBeVisible();
     if (!(await period.inputValue())) {

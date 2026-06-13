@@ -49,6 +49,7 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
           participantId: "11111111-1111-1111-1111-111111111111",
           communityId: "22222222-2222-2222-2222-222222222222",
           roles: ["member"],
+          role: "consumer",
           readiness: "TermsAccepted",
           profile: { name: "Ada", address: "1 Rue", email: "ada@example.com" },
         }),
@@ -107,6 +108,7 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
           participantId: "11111111-1111-1111-1111-111111111111",
           communityId: "22222222-2222-2222-2222-222222222222",
           roles: ["manager"],
+          role: "prosumer",
           readiness: "Invited",
           profile: { name: "Mgr", address: "1", email: "m@e.com" },
         }),
@@ -144,6 +146,7 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
           participantId: "11111111-1111-1111-1111-111111111111",
           communityId: "22222222-2222-2222-2222-222222222222",
           roles: ["member"],
+          role: "consumer",
           readiness: "Ready",
           profile: { name: "Ada", address: "1", email: "a@e.com" },
         }),
@@ -163,6 +166,44 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
     expect(screen.getByTestId("home-money")).toBeInTheDocument();
   });
 
+  it("shows producer ready copy (INT-252)", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          participantId: "66666666-6666-6666-6666-666666666666",
+          communityId: "22222222-2222-2222-2222-222222222222",
+          roles: ["member"],
+          role: "producer",
+          readiness: "Ready",
+          profile: { name: "Jordan", address: "1", email: "j@e.com" },
+        }),
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <HomePage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /review open invoices/i }),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("home-money")).toHaveTextContent(/awaiting payment/i);
+    expect(document.body.textContent).toMatch(/issued in your name \(self-billing\)/i);
+  });
+
   it("shows operator desk copy", async () => {
     identityRoles.mockReturnValue(["operator"]);
     const oidc: OidcFacade = {
@@ -180,6 +221,7 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
           participantId: "11111111-1111-1111-1111-111111111111",
           communityId: "22222222-2222-2222-2222-222222222222",
           roles: ["operator"],
+          role: "consumer",
           readiness: "Ready",
           profile: { name: "Ops", address: "1", email: "o@e.com" },
         }),

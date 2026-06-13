@@ -18,8 +18,8 @@ type HistoryInvoice = MemberHistory["invoices"][number];
 type HistoryPayment = MemberHistory["payments"][number];
 
 /**
- * Member history + periodic summary (INT-148 / REQ-031, REQ-032).
- * Compact tables for ops density (INT-188).
+ * Member history + periodic summary (INT-148 / INT-252 / REQ-031, REQ-032).
+ * Volt: members see "My history"; managers see "Community reports".
  */
 export function ReportsPage({
   config,
@@ -31,6 +31,7 @@ export function ReportsPage({
   const [communityId, setCommunityId] = useState<string | null>(null);
   const [participantId, setParticipantId] = useState("");
   const [period, setPeriod] = useState("");
+  const [asManager, setAsManager] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +48,7 @@ export function ReportsPage({
         if (!cancelled) {
           setCommunityId(me.communityId);
           setParticipantId(me.participantId);
+          setAsManager(me.roles.includes("manager"));
         }
       } catch (err) {
         if (!cancelled) {
@@ -143,30 +145,36 @@ export function ReportsPage({
     },
   ];
 
+  const pageTitle = asManager ? "Community reports" : "My history";
+  const pageDescription = asManager
+    ? "Period summary for the whole community."
+    : "Your bought / sold energy and net €.";
+
   if (loading) {
-    return <PageFrame title="Reports" loading />;
+    return <PageFrame title={pageTitle} loading />;
   }
 
   return (
-    <PageFrame
-      title="Reports"
-      description="Look up invoice and payment history for a participant, or a community period summary."
-    >
+    <PageFrame title={pageTitle} description={pageDescription}>
       {error && <Alert type="error" message={error} showIcon />}
 
-      <Card title="Member history" size="small">
+      <Card title={asManager ? "Member history" : "Your history"} size="small">
         <Paragraph type="secondary">
-          Invoices and payments for one participant.
+          {asManager
+            ? "Invoices and payments for one participant."
+            : "Invoices and payments for your account."}
         </Paragraph>
         <Space direction="vertical" style={{ width: "100%" }} size="small">
-          <Input
-            aria-label="Participant id"
-            value={participantId}
-            onChange={(e) => setParticipantId(e.target.value)}
-            placeholder="Participant UUID"
-          />
+          {asManager && (
+            <Input
+              aria-label="Participant id"
+              value={participantId}
+              onChange={(e) => setParticipantId(e.target.value)}
+              placeholder="Participant UUID"
+            />
+          )}
           <Button type="primary" size="small" loading={busy} onClick={onLoadHistory}>
-            Load history
+            Load
           </Button>
         </Space>
         {history && (
@@ -203,34 +211,35 @@ export function ReportsPage({
         )}
       </Card>
 
-      <Card title="Periodic summary" size="small">
-        <Paragraph type="secondary">
-          Community totals for one billing period.
-          .
-        </Paragraph>
-        <Space direction="vertical" style={{ width: "100%" }} size="small">
-          <Input
-            aria-label="Summary period"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            placeholder="2026-09"
-          />
-          <Button type="primary" size="small" loading={busy} onClick={onLoadSummary}>
-            Load summary
-          </Button>
-        </Space>
-        {summary && (
-          <Paragraph style={{ marginTop: 12 }}>
-            Period <Text code>{summary.period}</Text> · invoices{" "}
-            <Text code>{summary.invoiceCount}</Text> · payments{" "}
-            <Text code>{summary.paymentCount}</Text> · total{" "}
-            <Text strong>
-              {summary.total}
-              {summary.currency ? ` ${summary.currency}` : ""}
-            </Text>
+      {asManager && (
+        <Card title="Periodic summary" size="small">
+          <Paragraph type="secondary">
+            Community totals for one billing period.
           </Paragraph>
-        )}
-      </Card>
+          <Space direction="vertical" style={{ width: "100%" }} size="small">
+            <Input
+              aria-label="Summary period"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              placeholder="2026-09"
+            />
+            <Button type="primary" size="small" loading={busy} onClick={onLoadSummary}>
+              Load summary
+            </Button>
+          </Space>
+          {summary && (
+            <Paragraph style={{ marginTop: 12 }}>
+              Period <Text code>{summary.period}</Text> · invoices{" "}
+              <Text code>{summary.invoiceCount}</Text> · payments{" "}
+              <Text code>{summary.paymentCount}</Text> · total{" "}
+              <Text strong>
+                {summary.total}
+                {summary.currency ? ` ${summary.currency}` : ""}
+              </Text>
+            </Paragraph>
+          )}
+        </Card>
+      )}
     </PageFrame>
   );
 }

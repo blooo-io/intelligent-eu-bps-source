@@ -17,7 +17,7 @@ test.describe("AC-01 member screens and buttons", () => {
     await page.goto("/");
     await expectPageReady(page, /^home$/i);
     const continueSetup = page.getByRole("button", {
-      name: /continue setup|finish payment setup|accept terms|pay open invoices/i,
+      name: /continue setup|finish payment setup|open stripe connect|accept terms|pay open invoices|review open invoices/i,
     });
     await expect(continueSetup).toBeVisible();
   });
@@ -49,8 +49,10 @@ test.describe("AC-01 member screens and buttons", () => {
 
   test("Payment setup Start CTA is clickable", async ({ page }) => {
     await page.goto("/payment-setup");
-    await expectPageReady(page, /payment setup/i);
-    const start = page.getByRole("button", { name: /start payment setup/i });
+    await expectPageReady(page, /payment method|payout account|payment setup/i);
+    const start = page.getByRole("button", {
+      name: /save card and finish|continue to stripe connect|start payment setup/i,
+    });
     await expect(start).toBeVisible();
     await start.click();
     // Consumer path mounts Stripe Element + Save; producer path shows KYC Submit.
@@ -65,7 +67,7 @@ test.describe("AC-01 member screens and buttons", () => {
     await expectPageReady(page, /get ready/i);
     await expect(page.getByText("Billing identity")).toBeVisible();
     await expect(page.getByText("Accept & self-billing")).toBeVisible();
-    await expect(page.getByText(/payment setup/i).first()).toBeVisible();
+    await expect(page.getByText(/^(Pay|Payouts)$/i).first()).toBeVisible();
     // Step click navigates within wizard.
     await page.getByText("Billing identity").click();
     await expect(page.getByRole("button", { name: /save profile|continue to terms/i }).first()).toBeVisible({
@@ -113,14 +115,10 @@ test.describe("AC-01 member screens and buttons", () => {
 
   test("Reports Load history for own participant", async ({ page }) => {
     await page.goto("/reports");
-    await expectPageReady(page, /^reports$/i);
-    const participant = page.getByLabel(/participant id/i);
-    await expect(participant).toBeVisible();
-    // Prefill from /v1/me may take a moment.
-    await expect
-      .poll(async () => (await participant.inputValue()).length > 0, { timeout: 20_000 })
-      .toBeTruthy();
-    await page.getByRole("button", { name: /load history/i }).click();
+    await expectPageReady(page, /^my history$/i);
+    // Members load their own history — no participant UUID field (INT-252).
+    await expect(page.getByLabel(/participant id/i)).toHaveCount(0);
+    await page.getByRole("button", { name: /^load$/i }).click();
     await expect(
       page.getByText(/invoice\(s\)|no invoices|failed|403/i).first(),
     ).toBeVisible({ timeout: 20_000 });

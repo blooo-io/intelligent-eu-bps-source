@@ -39,6 +39,19 @@ describe("InvoicesPage (INT-142 / UAT-007 / UAT-014)", () => {
 
     const fetchImpl = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       const path = String(url);
+      if (path.endsWith("/v1/me") && !path.includes("/invoices")) {
+        return {
+          ok: true,
+          json: async () => ({
+            participantId: invoice.consumerId,
+            communityId: "22222222-2222-2222-2222-222222222222",
+            roles: ["member"],
+            role: "consumer",
+            readiness: "Ready",
+            profile: { name: "Ada", address: "1", email: "a@e.com" },
+          }),
+        };
+      }
       if (path.endsWith("/v1/me/invoices") && (!init || !init.method || init.method === "GET")) {
         return { ok: true, json: async () => [invoice] };
       }
@@ -112,7 +125,23 @@ describe("InvoicesPage (INT-142 / UAT-007 / UAT-014)", () => {
     };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({ ok: true, json: async () => [] }),
+      vi.fn().mockImplementation(async (url: string) => {
+        const path = String(url);
+        if (path.endsWith("/v1/me") && !path.includes("/invoices")) {
+          return {
+            ok: true,
+            json: async () => ({
+              participantId: "11111111-1111-1111-1111-111111111111",
+              communityId: "22222222-2222-2222-2222-222222222222",
+              roles: ["member"],
+              role: "consumer",
+              readiness: "Ready",
+              profile: { name: "Ada", address: "1", email: "a@e.com" },
+            }),
+          };
+        }
+        return { ok: true, json: async () => [] };
+      }),
     );
 
     render(

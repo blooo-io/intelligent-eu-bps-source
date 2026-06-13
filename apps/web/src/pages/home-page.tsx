@@ -15,6 +15,7 @@ import {
   homeDescription,
   homeNextAction,
   homeTitle,
+  isSellerRole,
 } from "../layout/role-home";
 import { brand } from "../theme";
 import { readinessChecklist, readinessHeadline } from "../readiness/checklist";
@@ -29,8 +30,8 @@ type Identity = {
 };
 
 /**
- * Home after IdP sign-in (INT-137 / INT-245 / INT-250).
- * Money-first when Ready; single CTA during setup — no duplicate wizard button.
+ * Home after IdP sign-in (INT-137 / INT-245 / INT-250 / INT-252).
+ * Money-first when Ready; consumer vs producer copy from market role.
  */
 export function HomePage({
   config,
@@ -73,12 +74,17 @@ export function HomePage({
     };
   }, [config.apiBaseUrl, oidc]);
 
-  const next = homeNextAction(audience, me?.readiness);
+  const next = homeNextAction(audience, me?.readiness, me?.role);
 
   return (
     <PageFrame
       title={homeTitle(audience)}
-      description={homeDescription(audience, me?.readiness, communityLabel)}
+      description={homeDescription(
+        audience,
+        me?.readiness,
+        communityLabel,
+        me?.role,
+      )}
       loading={loading}
       actions={
         next ? (
@@ -118,10 +124,24 @@ export function HomePage({
       )}
 
       {audience === "member" && me?.readiness === "Ready" && (
-        <Card title="Next" size="small" data-testid="home-money">
+        <Card
+          title={isSellerRole(me.role) ? "Issued invoices" : "Next"}
+          size="small"
+          data-testid="home-money"
+        >
           <Paragraph style={{ marginBottom: 0 }}>
-            Open invoices and balances are in the left menu. Use{" "}
-            <Text strong>Pay open invoices</Text> when you owe a counterparty.
+            {isSellerRole(me.role) ? (
+              <>
+                Open invoices and balances are in the left menu. Use{" "}
+                <Text strong>Review open invoices</Text> for amounts awaiting
+                payment (self-billing PDFs show you as issuer).
+              </>
+            ) : (
+              <>
+                Open invoices and balances are in the left menu. Use{" "}
+                <Text strong>Pay open invoices</Text> when you owe a counterparty.
+              </>
+            )}
           </Paragraph>
         </Card>
       )}

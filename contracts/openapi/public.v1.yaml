@@ -898,7 +898,7 @@ components:
     Me:
       type: object
       additionalProperties: false
-      required: [participantId, communityId, roles, readiness, profile]
+      required: [participantId, communityId, roles, role, readiness, profile]
       properties:
         participantId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
@@ -908,6 +908,12 @@ components:
           type: array
           items:
             $ref: './components/schemas.yaml#/components/schemas/CallerRole'
+          description: IdP caller roles on the public API (03 §3.1).
+        role:
+          $ref: './components/schemas.yaml#/components/schemas/ParticipantRole'
+          description: >
+            Market role in the community (02 §6). Distinct from IdP `roles`.
+            Drives consumer vs producer shell copy (INT-252).
         readiness:
           $ref: './components/schemas.yaml#/components/schemas/ReadinessStatus'
         profile:

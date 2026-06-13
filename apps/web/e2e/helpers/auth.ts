@@ -75,21 +75,21 @@ export const NAV_ROUTES: ReadonlyArray<{ label: string; path: string; heading: R
   { label: "Get ready", path: "/onboarding", heading: /get ready/i },
   { label: "Profile", path: "/profile", heading: /billing profile/i },
   { label: "Terms", path: "/terms", heading: /terms/i },
-  { label: "Payment setup", path: "/payment-setup", heading: /payment setup/i },
+  { label: "Payment setup", path: "/payment-setup", heading: /payment setup|payment method|payout account/i },
   { label: "Balances", path: "/balances", heading: /^balances$/i },
-  { label: "Invoices", path: "/invoices", heading: /^invoices$/i },
+  { label: "Invoices", path: "/invoices", heading: /^invoices$|^issued invoices$/i },
   { label: "Privacy", path: "/privacy", heading: /privacy/i },
   { label: "Community settings", path: "/community-settings", heading: /community settings/i },
-  { label: "Participants", path: "/participants", heading: /^participants$/i },
+  { label: "Participants", path: "/participants", heading: /^participants$|^members$/i },
   { label: "Billing runs", path: "/billing-runs", heading: /billing runs/i },
   { label: "Payments overview", path: "/payments-overview", heading: /payments overview/i },
-  { label: "Reports", path: "/reports", heading: /^reports$/i },
-  { label: "Operator", path: "/operator", heading: /^operator$/i },
+  { label: "Reports", path: "/reports", heading: /^reports$|^my history$|^community reports$/i },
+  { label: "Operator", path: "/operator", heading: /^operator|operator desk|operator tools/i },
 ];
 
 /**
- * Ready member sider (INT-243 / INT-250) — setup links hidden after Ready;
- * no manager/operator screens.
+ * Ready member sider (INT-243 / INT-250 / INT-252) — setup links hidden after Ready;
+ * payment method / my history stay; no manager/operator screens.
  */
 export const MEMBER_NAV_ROUTES: ReadonlyArray<{
   label: string;
@@ -98,9 +98,10 @@ export const MEMBER_NAV_ROUTES: ReadonlyArray<{
 }> = [
   { label: "Home", path: "/", heading: /^home$/i },
   { label: "Balances", path: "/balances", heading: /^balances$/i },
-  { label: "Invoices", path: "/invoices", heading: /^invoices$/i },
+  { label: "Invoices", path: "/invoices", heading: /^invoices$|^issued invoices$/i },
+  { label: "Payment method", path: "/payment-setup", heading: /payment method|payout account/i },
   { label: "Privacy", path: "/privacy", heading: /privacy/i },
-  { label: "Reports", path: "/reports", heading: /^reports$/i },
+  { label: "My history", path: "/reports", heading: /^my history$/i },
 ];
 
 export const MANAGER_ONLY_LABELS = [

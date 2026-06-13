@@ -7,6 +7,7 @@ describe("fetchMe", () => {
       participantId: "11111111-1111-1111-1111-111111111111",
       communityId: "22222222-2222-2222-2222-222222222222",
       roles: ["member"],
+      role: "consumer",
       readiness: "Invited",
       profile: { name: "", address: "", email: "" },
     };

@@ -1,11 +1,30 @@
-import type { ReadinessStatus } from "../api/me";
+import type { ParticipantRole, ReadinessStatus } from "../api/me";
 
 /**
- * INT-245 / INT-250 — role-aware Home copy.
+ * INT-245 / INT-250 / INT-252 — role-aware Home copy.
+ * IdP audience (member/manager/operator) + market role (consumer/producer).
  * One job, one next action; money-first when the member is Ready.
  */
 
 export type HomeAudience = "member" | "manager" | "operator" | "unknown";
+
+/** Seller-side market roles (self-billing / Connect payouts). */
+export function isSellerRole(role?: ParticipantRole | null): boolean {
+  return role === "producer" || role === "prosumer";
+}
+
+export function marketRoleLabel(role?: ParticipantRole | null): string | null {
+  switch (role) {
+    case "consumer":
+      return "Consumer";
+    case "producer":
+      return "Producer";
+    case "prosumer":
+      return "Prosumer";
+    default:
+      return null;
+  }
+}
 
 export function homeAudience(roles: ReadonlyArray<string>): HomeAudience {
   if (roles.includes("manager")) return "manager";
@@ -31,16 +50,23 @@ export function homeDescription(
   audience: HomeAudience,
   readiness?: ReadinessStatus,
   communityLabel?: string | null,
+  marketRole?: ParticipantRole | null,
 ): string {
   const community = communityLabel ?? "your community";
   switch (audience) {
     case "manager":
-      return `Configure ${community}, invite members, and start billing runs.`;
+      return "Who is ready, what is open, when the next run should start.";
     case "operator":
-      return "Monitor reconciliation, intake anomalies and scheduled jobs.";
+      return "Platform health only — not a member or manager portal.";
     case "member":
       if (readiness === "Ready") {
-        return `You are ready in ${community}. Review balances and pay open invoices.`;
+        if (isSellerRole(marketRole)) {
+          return `You sell energy in ${community}. Invoices are issued in your name (self-billing).`;
+        }
+        return `You buy energy in ${community}. Next: settle what you owe.`;
+      }
+      if (isSellerRole(marketRole)) {
+        return `Finish setup once, then receive payouts for trades in ${community}.`;
       }
       return `Finish setup once, then settle your trades in ${community}.`;
     default:
@@ -54,10 +80,11 @@ export type NextAction = {
   primary?: boolean;
 };
 
-/** Single next step for the current audience + readiness. */
+/** Single next step for the current audience + readiness + market role. */
 export function homeNextAction(
   audience: HomeAudience,
   readiness?: ReadinessStatus,
+  marketRole?: ParticipantRole | null,
 ): NextAction | null {
   if (audience === "manager") {
     return { label: "Start billing run", to: "/billing-runs", primary: true };
@@ -69,9 +96,17 @@ export function homeNextAction(
 
   switch (readiness) {
     case "Ready":
-      return { label: "Pay open invoices", to: "/invoices", primary: true };
+      return isSellerRole(marketRole)
+        ? { label: "Review open invoices", to: "/invoices", primary: true }
+        : { label: "Pay open invoices", to: "/invoices", primary: true };
     case "TermsAccepted":
-      return { label: "Finish payment setup", to: "/onboarding?step=payment", primary: true };
+      return {
+        label: isSellerRole(marketRole)
+          ? "Open Stripe Connect"
+          : "Finish payment setup",
+        to: "/onboarding?step=payment",
+        primary: true,
+      };
     case "ProfileCompleted":
       return { label: "Accept terms", to: "/onboarding?step=terms", primary: true };
     case "Restricted":

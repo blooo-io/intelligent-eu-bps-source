@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Button,
@@ -10,6 +10,7 @@ import {
   Typography,
 } from "antd";
 import type { WebConfig } from "../api/config";
+import { fetchMe, type ParticipantRole } from "../api/me";
 import type { OidcFacade } from "../auth/oidc";
 import {
   attachMyPaymentMethod,
@@ -24,14 +25,16 @@ import {
 import type { LoadStripeSetupFn } from "../api/stripe-setup-element";
 import { ConsumerPaymentElement } from "../components/consumer-payment-element";
 import { PageFrame } from "../layout/page-frame";
+import { isSellerRole } from "../layout/role-home";
 
 const { Paragraph, Text } = Typography;
 
 /**
- * Payment setup (INT-140 / INT-190 / INT-191 / INT-193 / REQ-051 / UAT-051).
+ * Payment setup (INT-140 / INT-190 / INT-191 / INT-193 / INT-252 / REQ-051 / UAT-051).
  * Producer: in-platform Connect KYC via Account Tokens (Custom accounts, FR).
  * Consumer: SetupIntent + Payment Element (INT-193); link mode as fallback.
  * Card/bank numbers are forwarded to Stripe only — never logged (TD-6).
+ * Volt labels: Payment method (consumer) / Payout account (producer).
  */
 export function PaymentSetupPage({
   config,
@@ -60,7 +63,25 @@ export function PaymentSetupPage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<OnboardingSession | null>(null);
+  const [marketRole, setMarketRole] = useState<ParticipantRole | null>(null);
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await oidc.getAccessToken();
+        if (!token) return;
+        const me = await fetchMe(config.apiBaseUrl, token);
+        if (!cancelled) setMarketRole(me.role);
+      } catch {
+        // Session mode still reveals consumer vs producer after Start.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [config.apiBaseUrl, oidc]);
 
   async function startOnboarding() {
     setLoading(true);
@@ -199,20 +220,30 @@ export function PaymentSetupPage({
   const showRequirements =
     session?.mode === "requirements" && session.status !== "complete";
 
+  const asProducer =
+    isSellerRole(marketRole) || session?.mode === "requirements";
+  const pageTitle = asProducer ? "Payout account" : "Payment method";
+  const pageDescription = asProducer
+    ? "Stripe Connect receives consumer payments for invoices in your name."
+    : "Card used when you pay open invoices.";
+  const startLabel = asProducer
+    ? "Continue to Stripe Connect"
+    : "Save card and finish";
+
   const body = (
     <>
       {error && <Alert type="error" message={error} showIcon />}
 
       <Card>
         <Paragraph>
-          Producers verify identity and bank details with Stripe Connect.
-          Consumers save a card as their payment method. Card and bank numbers
-          go to Stripe only — this app never stores them.
+          {asProducer
+            ? "Producers receive payouts on their Connect account. Complete KYC once. Bank details go to Stripe only — this app never stores them."
+            : "Save a card so open invoices can be paid in one click. Card numbers go to Stripe only — this app never stores them."}
         </Paragraph>
 
         {!session && (
           <Button type="primary" size="large" loading={loading} onClick={startOnboarding}>
-            Start payment setup
+            {startLabel}
           </Button>
         )}
 
@@ -422,5 +453,9 @@ export function PaymentSetupPage({
   if (embedded) {
     return body;
   }
-  return <PageFrame title="Payment setup">{body}</PageFrame>;
+  return (
+    <PageFrame title={pageTitle} description={pageDescription}>
+      {body}
+    </PageFrame>
+  );
 }

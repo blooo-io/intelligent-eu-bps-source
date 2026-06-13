@@ -12,6 +12,20 @@ const config: WebConfig = {
   stripePublishableKey: "pk_test_fixture",
 };
 
+function meFixture(
+  readiness: string,
+  profile = { name: "A", address: "B", email: "a@b.co" },
+) {
+  return {
+    participantId: "p1",
+    communityId: "c1",
+    roles: ["member"],
+    role: "consumer" as const,
+    readiness,
+    profile,
+  };
+}
+
 function renderWizard(initial = "/onboarding") {
   const oidc: OidcFacade = {
     login: vi.fn(),
@@ -48,12 +62,8 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
         "fetch",
         vi.fn().mockResolvedValue({
           ok: true,
-          json: async () => ({
-            participantId: "p1",
-            communityId: "c1",
-            readiness: "Invited",
-            profile: { name: "", address: "", email: "" },
-          }),
+          json: async () =>
+            meFixture("Invited", { name: "", address: "", email: "" }),
         }),
       );
       renderWizard();
@@ -86,19 +96,16 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
         "fetch",
         vi.fn().mockResolvedValue({
           ok: true,
-          json: async () => ({
-            participantId: "p1",
-            communityId: "c1",
-            readiness: "TermsAccepted",
-            profile: { name: "A", address: "B", email: "a@b.co" },
-          }),
+          json: async () => meFixture("TermsAccepted"),
         }),
       );
       renderWizard("/onboarding?step=payment");
       await waitFor(
         () => {
           expect(
-            screen.getByRole("button", { name: /start payment setup/i }),
+            screen.getByRole("button", {
+              name: /save card and finish|start payment setup/i,
+            }),
           ).toBeInTheDocument();
         },
         { timeout: 10_000 },
@@ -118,12 +125,7 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
           }
           return Promise.resolve({
             ok: true,
-            json: async () => ({
-              participantId: "p1",
-              communityId: "c1",
-              readiness: "Ready",
-              profile: { name: "A", address: "B", email: "a@b.co" },
-            }),
+            json: async () => meFixture("Ready"),
           });
         }),
       );
@@ -163,22 +165,13 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
         .fn()
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({
-            participantId: "p1",
-            communityId: "c1",
-            readiness: "Invited",
-            profile: { name: "", address: "", email: "" },
-          }),
+          json: async () =>
+            meFixture("Invited", { name: "", address: "", email: "" }),
         })
         // ProfilePage + terms/current noise may call more; then afterGate reload.
         .mockResolvedValue({
           ok: true,
-          json: async () => ({
-            participantId: "p1",
-            communityId: "c1",
-            readiness: "ProfileCompleted",
-            profile: { name: "A", address: "B", email: "a@b.co" },
-          }),
+          json: async () => meFixture("ProfileCompleted"),
         });
       vi.stubGlobal("fetch", fetchMock);
       renderWizard();
@@ -210,12 +203,7 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
         "fetch",
         vi.fn().mockResolvedValue({
           ok: true,
-          json: async () => ({
-            participantId: "p1",
-            communityId: "c1",
-            readiness: "ProfileCompleted",
-            profile: { name: "A", address: "B", email: "a@b.co" },
-          }),
+          json: async () => meFixture("ProfileCompleted"),
         }),
       );
       renderWizard("/onboarding?step=terms");
@@ -249,12 +237,8 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
         .fn()
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({
-            participantId: "p1",
-            communityId: "c1",
-            readiness: "Invited",
-            profile: { name: "", address: "", email: "" },
-          }),
+          json: async () =>
+            meFixture("Invited", { name: "", address: "", email: "" }),
         })
         .mockResolvedValue({ ok: false, status: 503 });
       vi.stubGlobal("fetch", fetchMock);

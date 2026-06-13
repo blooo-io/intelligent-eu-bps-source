@@ -9,7 +9,12 @@ import type { OidcFacade } from "../auth/oidc";
 import { brand } from "../theme";
 import { communityDisplayName } from "./community-label";
 import { effectiveRoles } from "./effective-roles";
-import { navItemsByGroup, visibleNavItems } from "./nav-access";
+import {
+  labeledNavItems,
+  navItemsByGroup,
+  visibleNavItems,
+} from "./nav-access";
+import { marketRoleLabel } from "./role-home";
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -59,8 +64,13 @@ export function AppShell({
 
   const roles = effectiveRoles(identity?.roles, me?.roles);
   const navItems = useMemo(
-    () => visibleNavItems(roles, me?.readiness),
-    [roles, me?.readiness],
+    () =>
+      labeledNavItems(visibleNavItems(roles, me?.readiness), {
+        roles,
+        marketRole: me?.role,
+        readiness: me?.readiness,
+      }),
+    [roles, me?.readiness, me?.role],
   );
 
   const selected = useMemo(() => {
@@ -92,6 +102,14 @@ export function AppShell({
   const communityLabel = communityDisplayName(
     me?.communityId ?? identity?.communityId,
   );
+  // INT-252: header shows market role for members; IdP role for manager/operator.
+  const headerRoleTags = useMemo(() => {
+    if (roles.includes("manager")) return ["Manager"];
+    if (roles.includes("operator")) return ["Operator"];
+    const market = marketRoleLabel(me?.role);
+    if (market) return [market];
+    return roles.map((r) => r.charAt(0).toUpperCase() + r.slice(1));
+  }, [roles, me?.role]);
 
   const setupChrome =
     location.pathname.startsWith("/onboarding") &&
@@ -205,8 +223,8 @@ export function AppShell({
               {displayName}
             </Text>
             <span data-testid="shell-user-roles">
-              {roles.length > 0 ? (
-                roles.map((role) => (
+              {headerRoleTags.length > 0 ? (
+                headerRoleTags.map((role) => (
                   <Tag key={role} style={{ marginInlineEnd: 4 }}>
                     {role}
                   </Tag>

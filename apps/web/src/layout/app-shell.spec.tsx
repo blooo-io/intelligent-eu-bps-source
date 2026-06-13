@@ -25,6 +25,7 @@ function renderShell(
     readiness: string;
     profile: { name: string; address: string; email: string };
     communityId: string;
+    role?: "consumer" | "producer" | "prosumer";
   },
 ) {
   identity.mockReturnValue({
@@ -51,6 +52,7 @@ function renderShell(
           participantId: "11111111-1111-1111-1111-111111111111",
           communityId: me.communityId,
           roles,
+          role: me.role ?? (roles.includes("manager") ? "prosumer" : "consumer"),
           readiness: me.readiness,
           profile: me.profile,
         }),
@@ -86,7 +88,9 @@ describe("AppShell (INT-187 / INT-243)", () => {
 
     expect(screen.getByText("INTELLIGENT billing")).toBeInTheDocument();
     expect(screen.getByTestId("shell-user-name")).toBeInTheDocument();
-    expect(screen.getByTestId("shell-user-roles")).toHaveTextContent(/member/i);
+    await waitFor(() => {
+      expect(screen.getByTestId("shell-user-roles")).toHaveTextContent(/consumer/i);
+    });
     await waitFor(() => {
       expect(screen.getByTestId("shell-user-name")).toHaveTextContent("S1 Consumer");
     });
@@ -113,9 +117,26 @@ describe("AppShell (INT-187 / INT-243)", () => {
       expect(screen.getByRole("link", { name: /^home$/i })).toBeInTheDocument();
     });
     expect(screen.getByRole("link", { name: /invoices/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /payment method/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /my history/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /community settings/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /billing runs/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /^operator$/i })).toBeNull();
+  });
+
+  it("labels producer nav as issued invoices and payout account (INT-252)", async () => {
+    renderShell("/", ["member"], {
+      readiness: "Ready",
+      role: "producer",
+      profile: { name: "Producer", address: "1", email: "p@e.com" },
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /issued invoices/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: /payout account/i })).toBeInTheDocument();
+    expect(screen.getByTestId("shell-user-roles")).toHaveTextContent(/producer/i);
   });
 
   it("shows manager community screens for managers", async () => {
@@ -170,6 +191,7 @@ describe("AppShell (INT-187 / INT-243)", () => {
           participantId: "11111111-1111-1111-1111-111111111111",
           communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
           roles: ["member"],
+          role: "consumer",
           readiness: "Ready",
           profile: { name: "UAT Member", address: "1", email: "u@e.com" },
         }),
@@ -187,7 +209,7 @@ describe("AppShell (INT-187 / INT-243)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("shell-user-roles")).toHaveTextContent(/member/i);
+      expect(screen.getByTestId("shell-user-roles")).toHaveTextContent(/consumer/i);
     });
     expect(screen.getByRole("link", { name: /invoices/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^settings$/i })).toBeNull();

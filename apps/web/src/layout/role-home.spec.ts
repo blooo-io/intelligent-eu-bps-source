@@ -1,44 +1,37 @@
 import { describe, expect, it } from "vitest";
 import {
-  homeAudience,
   homeDescription,
   homeNextAction,
-  homeTitle,
+  isSellerRole,
+  marketRoleLabel,
 } from "./role-home";
 
-describe("role-home (INT-245 / INT-250)", () => {
-  it("prefers manager over member when both present", () => {
-    expect(homeAudience(["member", "manager"])).toBe("manager");
-    expect(homeTitle("manager")).toMatch(/pulse/i);
+describe("role-home (INT-252)", () => {
+  it("distinguishes seller market roles", () => {
+    expect(isSellerRole("producer")).toBe(true);
+    expect(isSellerRole("prosumer")).toBe(true);
+    expect(isSellerRole("consumer")).toBe(false);
+    expect(marketRoleLabel("consumer")).toBe("Consumer");
   });
 
-  it("resolves operator and unknown audiences", () => {
-    expect(homeAudience(["operator"])).toBe("operator");
-    expect(homeAudience([])).toBe("unknown");
-    expect(homeTitle("operator")).toMatch(/operator desk/i);
-    expect(homeTitle("unknown")).toBe("Home");
-    expect(homeDescription("operator")).toMatch(/reconciliation/i);
-    expect(homeDescription("unknown")).toMatch(/no billing role/i);
-    expect(homeDescription("member", "Ready", "Demo community S1")).toMatch(
-      /Demo community S1/,
+  it("uses consumer vs producer Home copy when Ready", () => {
+    expect(
+      homeDescription("member", "Ready", "Demo community S1", "consumer"),
+    ).toMatch(/buy energy/i);
+    expect(
+      homeDescription("member", "Ready", "Demo community S1", "producer"),
+    ).toMatch(/self-billing/i);
+  });
+
+  it("picks Pay vs Review next action from market role", () => {
+    expect(homeNextAction("member", "Ready", "consumer")?.label).toMatch(
+      /pay open invoices/i,
     );
-  });
-
-  it("points members at the next readiness step", () => {
-    expect(homeNextAction("member", "Invited")?.label).toMatch(/continue setup/i);
-    expect(homeNextAction("member", "Invited")?.to).toContain("onboarding");
-    expect(homeNextAction("member", "ProfileCompleted")?.to).toContain("terms");
-    expect(homeNextAction("member", "TermsAccepted")?.to).toContain("payment");
-    expect(homeNextAction("member", "Ready")?.to).toBe("/invoices");
-    expect(homeNextAction("member", "Ready")?.label).toMatch(/pay open invoices/i);
-    expect(homeNextAction("member", "Restricted")).toBeNull();
-    expect(homeNextAction("member", "Offboarded")).toBeNull();
-    expect(homeNextAction("unknown")).toBeNull();
-  });
-
-  it("gives managers and operators a next action", () => {
-    expect(homeNextAction("manager")?.to).toBe("/billing-runs");
-    expect(homeNextAction("operator")?.to).toBe("/operator");
-    expect(homeDescription("manager")).toMatch(/billing runs/i);
+    expect(homeNextAction("member", "Ready", "producer")?.label).toMatch(
+      /review open invoices/i,
+    );
+    expect(homeNextAction("member", "TermsAccepted", "producer")?.label).toMatch(
+      /stripe connect/i,
+    );
   });
 });

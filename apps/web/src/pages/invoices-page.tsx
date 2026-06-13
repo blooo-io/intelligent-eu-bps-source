@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, Button, Card, Space, Table, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { WebConfig } from "../api/config";
+import { fetchMe, type ParticipantRole } from "../api/me";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
+import { isSellerRole } from "../layout/role-home";
 import {
   fetchInvoice,
   fetchInvoicePdfBlob,
@@ -16,9 +18,9 @@ import {
 const { Paragraph, Text } = Typography;
 
 /**
- * Invoice list, detail, PDF and pay (INT-142 / REQ-007, REQ-014, REQ-039).
+ * Invoice list, detail, PDF and pay (INT-142 / INT-252 / REQ-007, REQ-014, REQ-039).
  * Compact table chrome (INT-188). PDF is fetched with bearer then opened;
- * payment goes to the producer (TD-6).
+ * payment goes to the producer (TD-6). Producer copy: issued invoices (self-billing).
  */
 export function InvoicesPage({
   config,
@@ -36,10 +38,12 @@ export function InvoicesPage({
 }) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selected, setSelected] = useState<Invoice | null>(null);
+  const [marketRole, setMarketRole] = useState<ParticipantRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
+  const asProducer = isSellerRole(marketRole);
 
   const reload = useCallback(async () => {
     const token = await oidc.getAccessToken();
@@ -51,8 +55,16 @@ export function InvoicesPage({
     let cancelled = false;
     (async () => {
       try {
-        const rows = await reload();
-        if (!cancelled) setInvoices(rows);
+        const token = await oidc.getAccessToken();
+        if (!token) throw new Error("No access token");
+        const [rows, me] = await Promise.all([
+          reload(),
+          fetchMe(config.apiBaseUrl, token),
+        ]);
+        if (!cancelled) {
+          setInvoices(rows);
+          setMarketRole(me.role);
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load invoices");
@@ -64,7 +76,7 @@ export function InvoicesPage({
     return () => {
       cancelled = true;
     };
-  }, [reload]);
+  }, [config.apiBaseUrl, oidc, reload]);
 
   async function openDetail(invoiceId: string) {
     setBusy(true);
@@ -145,9 +157,14 @@ export function InvoicesPage({
     },
   ];
 
+  const pageTitle = asProducer ? "Issued invoices" : "Invoices";
+  const pageDescription = asProducer
+    ? "Self-billing: PDFs show you as issuer. Energy + VAT only."
+    : "Energy + VAT only. Grid fees are not on these invoices.";
+
   if (loading) {
     if (embedded) return null;
-    return <PageFrame title="Invoices" loading />;
+    return <PageFrame title={pageTitle} loading />;
   }
 
   const body = (
@@ -162,7 +179,7 @@ export function InvoicesPage({
         />
       )}
 
-      <Card title="Your invoices" size="small">
+      <Card title={asProducer ? "Issued to consumers" : "Your invoices"} size="small">
         {invoices.length === 0 ? (
           <Paragraph type="secondary">No invoices yet.</Paragraph>
         ) : (
@@ -198,15 +215,17 @@ export function InvoicesPage({
             <Button size="small" onClick={() => openPdf(selected.invoiceId)} loading={busy}>
               Open PDF
             </Button>
-            <Button
-              type="primary"
-              size="small"
-              onClick={() => onPay(selected.invoiceId)}
-              loading={busy}
-              disabled={selected.status === "Paid"}
-            >
-              Pay
-            </Button>
+            {!asProducer && (
+              <Button
+                type="primary"
+                size="small"
+                onClick={() => onPay(selected.invoiceId)}
+                loading={busy}
+                disabled={selected.status === "Paid"}
+              >
+                Pay
+              </Button>
+            )}
           </Space>
         </Card>
       )}
@@ -215,10 +234,7 @@ export function InvoicesPage({
 
   if (embedded) return body;
   return (
-    <PageFrame
-      title="Invoices"
-      description="Member invoices for this community. Open a row to download the PDF or pay when the status allows it."
-    >
+    <PageFrame title={pageTitle} description={pageDescription}>
       {body}
     </PageFrame>
   );

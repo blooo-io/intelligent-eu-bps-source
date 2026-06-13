@@ -12,7 +12,18 @@ const config: WebConfig = {
   stripePublishableKey: "pk_test_fixture",
 };
 
-describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
+function meBody(role: "consumer" | "producer") {
+  return {
+    participantId: "11111111-1111-1111-1111-111111111111",
+    communityId: "22222222-2222-2222-2222-222222222222",
+    roles: ["member"],
+    role,
+    readiness: "TermsAccepted",
+    profile: { name: "Ada", address: "1", email: "a@e.com" },
+  };
+}
+
+describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / UAT-063)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -27,13 +38,19 @@ describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
     };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          mode: "elements",
-          status: "requirements_due",
-          clientSecret: "seti_test_abc_secret_xyz",
-        }),
+      vi.fn().mockImplementation(async (url: string) => {
+        const path = String(url);
+        if (path.endsWith("/v1/me")) {
+          return { ok: true, json: async () => meBody("consumer") };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            mode: "elements",
+            status: "requirements_due",
+            clientSecret: "seti_test_abc_secret_xyz",
+          }),
+        };
       }),
     );
     const loadStripe = vi.fn().mockResolvedValue({
@@ -57,7 +74,12 @@ describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /start payment setup/i }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /payment method/i }),
+      ).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save card and finish/i }));
     await waitFor(() => {
       expect(screen.getByTestId("stripe-payment-element")).toBeInTheDocument();
     });
@@ -72,25 +94,31 @@ describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
       getUser: vi.fn(),
       getAccessToken: vi.fn().mockResolvedValue("tok"),
     };
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValueOnce({
+    const fetchImpl = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+      if (path.endsWith("/v1/me")) {
+        return { ok: true, json: async () => meBody("producer") };
+      }
+      if (path.includes("/onboarding/requirements") && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({
+            mode: "requirements",
+            status: "complete",
+            stripeAccountId: "acct_1",
+            currentlyDue: [],
+          }),
+        };
+      }
+      return {
         ok: true,
         json: async () => ({
           mode: "requirements",
           status: "requirements_due",
           currentlyDue: ["business_type", "tos_acceptance.date"],
         }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          mode: "requirements",
-          status: "complete",
-          stripeAccountId: "acct_1",
-          currentlyDue: [],
-        }),
-      });
+      };
+    });
     vi.stubGlobal("fetch", fetchImpl);
     const loadStripe = vi.fn().mockResolvedValue({
       createToken: vi.fn().mockResolvedValue({ token: { id: "ct_from_js" } }),
@@ -107,12 +135,18 @@ describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /start payment setup/i }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /payout account/i }),
+      ).toBeInTheDocument();
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: /continue to stripe connect/i }),
+    );
     await waitFor(() => {
       expect(screen.getByText(/outstanding/i)).toBeInTheDocument();
     });
     expect(screen.getByLabelText(/business profile url/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /continue to stripe/i })).toBeNull();
 
     fireEvent.change(screen.getByLabelText(/business profile url/i), {
       target: { value: "https://producer.example" },
@@ -145,10 +179,11 @@ describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
       expect(screen.getByText(/payment account ready/i)).toBeInTheDocument();
     });
     expect(loadStripe).toHaveBeenCalledWith("pk_test_fixture");
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
-    const submitCall = fetchImpl.mock.calls[1];
-    expect(submitCall[0]).toContain("/onboarding/requirements");
-    const body = JSON.parse(submitCall[1].body as string);
+    const submitCall = fetchImpl.mock.calls.find(
+      (c) => String(c[0]).includes("/onboarding/requirements"),
+    );
+    expect(submitCall).toBeTruthy();
+    const body = JSON.parse(submitCall![1].body as string);
     expect(body.accountToken).toBe("ct_from_js");
     expect(body.country).toBe("FR");
     // INT-195 — DOB defaults (1902-01-01) and identity doc go into the Account Token.
@@ -163,7 +198,15 @@ describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
       getUser: vi.fn(),
       getAccessToken: vi.fn().mockResolvedValue("tok"),
     };
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).endsWith("/v1/me")) {
+          return { ok: true, json: async () => meBody("consumer") };
+        }
+        return { ok: false, status: 500 };
+      }),
+    );
 
     render(
       <MemoryRouter>
@@ -171,7 +214,12 @@ describe("PaymentSetupPage (INT-140 / INT-191 / UAT-063)", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /start payment setup/i }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /save card and finish/i }),
+      ).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save card and finish/i }));
     await waitFor(() => {
       expect(screen.getByText(/failed with 500/i)).toBeInTheDocument();
     });

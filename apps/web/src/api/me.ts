@@ -17,10 +17,15 @@ export type BillingProfile = {
   email: string;
 };
 
+/** Market role in the community (02 §6) — distinct from IdP CallerRole. */
+export type ParticipantRole = "consumer" | "producer" | "prosumer";
+
 export type Me = {
   participantId: string;
   communityId: string;
   roles: string[];
+  /** Market role — drives consumer vs producer shell copy (INT-252). */
+  role: ParticipantRole;
   readiness: ReadinessStatus;
   profile: BillingProfile;
   billingMode?: string;

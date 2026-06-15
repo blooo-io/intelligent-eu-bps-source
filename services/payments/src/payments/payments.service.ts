@@ -83,24 +83,26 @@ export class PaymentsService {
   }
 
   /**
-   * INT-230 — JWT `sub` may be Keycloak idpUserId; map to participantId via AC-03.
+   * INT-230 / INT-251 — JWT `sub` may be Keycloak idpUserId; map to participantId via AC-03.
+   * Prefer IdP resolution first so a durable row wrongly keyed by the IdP sub
+   * (from a prior failed resolve) cannot shadow the registry participant.
    * Falls back to the raw id when no IdP binding exists (S1 fixture UUIDs).
    */
   async resolveCallerParticipantId(subOrParticipantId: string): Promise<{
     participantId: string;
     communityId?: string;
   }> {
+    const resolved = await this.idpResolver.resolveByIdpSub(subOrParticipantId);
+    if (resolved) {
+      await this.hydrateAccount(resolved.participantId);
+      return resolved;
+    }
     const existing = await this.hydrateAccount(subOrParticipantId);
     if (existing) {
       return {
         participantId: existing.participantId,
         communityId: existing.communityId,
       };
-    }
-    const resolved = await this.idpResolver.resolveByIdpSub(subOrParticipantId);
-    if (resolved) {
-      await this.hydrateAccount(resolved.participantId);
-      return resolved;
     }
     return { participantId: subOrParticipantId };
   }

@@ -548,5 +548,55 @@ describe("PaymentsService", () => {
     expect(payment.status).toBe("succeeded");
     expect(resolver.resolveByIdpSub).toHaveBeenCalledWith(idpSub);
   });
+
+  it("INT-251 — IdP resolve wins over a durable row keyed by the IdP sub", async () => {
+    const idpSub = "c1a55e01-0001-4000-8000-000000000001";
+    const resolver = {
+      resolveByIdpSub: vi.fn(async () => ({
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      })),
+    };
+    service = new PaymentsService(
+      store,
+      new OutboxService(outboxStore),
+      psp,
+      invoices,
+      new NoopParticipantsNotifier(),
+      accountsStore,
+      resolver,
+    );
+    // Poison: account whose primary key is the IdP sub (prior failed resolve).
+    await accountsStore.put({
+      participantId: idpSub,
+      communityId: COMMUNITY,
+      role: "consumer",
+      stripeAccountId: null,
+      paymentMethodId: "pm_poison",
+      kycStatus: "none",
+    });
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    invoices.put({
+      invoiceId: "inv-poison",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "2.00",
+      producerStripeAccountId: "acct_ok",
+    });
+    const payment = await service.payInvoice({
+      invoiceId: "inv-poison",
+      participantId: idpSub,
+      communityId: COMMUNITY,
+    });
+    expect(payment.status).toBe("succeeded");
+    expect(resolver.resolveByIdpSub).toHaveBeenCalledWith(idpSub);
+  });
 });
 

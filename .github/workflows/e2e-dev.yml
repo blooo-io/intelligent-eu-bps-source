@@ -104,8 +104,51 @@ jobs:
       - name: Install Playwright Chromium (+ OS deps)
         run: pnpm --filter @intelligent/web exec playwright install --with-deps chromium
 
-      - name: Run AC-01 E2E against deployed stack (screens + buttons, INT-211)
+      - name: Export Stripe test secret from cluster for money-path assert (INT-251)
+        # Same OpenBao-synced key payments uses — no new GitHub secret; GitOps only.
+        id: stripe
+        run: |
+          set -euo pipefail
+          key="$(kubectl -n int-apps get secret payments -o jsonpath='{.data.STRIPE_SECRET_KEY}' | base64 -d)"
+          if [[ ! "${key}" =~ ^sk_test_ ]]; then
+            echo "payments secret missing STRIPE_SECRET_KEY (sk_test_…)" >&2
+            exit 1
+          fi
+          echo "::add-mask::${key}"
+          echo "STRIPE_SECRET_KEY=${key}" >> "${GITHUB_ENV}"
+
+      - name: Seed fresh Open invoices for money-path (INT-251 / INT-238)
+        # Port-forward AC-05/06/07 and run the NATS billing seed so Pay has an Open invoice.
+        run: |
+          set -euo pipefail
+          kubectl -n int-apps port-forward deploy/payments 18087:8080 >/tmp/pf-payments.log 2>&1 &
+          echo $! > /tmp/pf-payments.pid
+          kubectl -n int-apps port-forward deploy/settlement 18085:8080 >/tmp/pf-settlement.log 2>&1 &
+          echo $! > /tmp/pf-settlement.pid
+          kubectl -n int-apps port-forward deploy/invoicing 18086:8080 >/tmp/pf-invoicing.log 2>&1 &
+          echo $! > /tmp/pf-invoicing.pid
+          cleanup() {
+            for f in /tmp/pf-payments.pid /tmp/pf-settlement.pid /tmp/pf-invoicing.pid; do
+              if [ -f "$f" ]; then kill "$(cat "$f")" 2>/dev/null || true; fi
+            done
+          }
+          trap cleanup EXIT
+          for i in $(seq 1 30); do
+            if curl -sf "http://127.0.0.1:18087/health" >/dev/null \
+              && curl -sf "http://127.0.0.1:18085/health" >/dev/null \
+              && curl -sf "http://127.0.0.1:18086/health" >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          PAYMENTS_URL=http://127.0.0.1:18087 \
+          SETTLEMENT_URL=http://127.0.0.1:18085 \
+          INVOICING_URL=http://127.0.0.1:18086 \
+            node scripts/stripe-fresh-billing-run.mjs
+
+      - name: Run AC-01 E2E against deployed stack (screens + buttons, INT-211 / INT-251)
         # INT-194 / INT-211 — three UAT IdP roles; omit E2E_SKIP_AUTH so auth suites run.
+        # INT-251 — STRIPE_SECRET_KEY from previous step for Charge assertion.
         env:
           E2E_UAT_MEMBER_USER: uat-member
           E2E_UAT_MEMBER_PASSWORD: Intelligent-UAT-2026!
@@ -113,4 +156,7 @@ jobs:
           E2E_UAT_MANAGER_PASSWORD: Intelligent-UAT-2026!
           E2E_UAT_OPERATOR_USER: uat-operator
           E2E_UAT_OPERATOR_PASSWORD: Intelligent-UAT-2026!
+          # INT-251 — S1 consumer pays seeded Open invoices (Demo community S1).
+          E2E_S1_CONSUMER_USER: s1-consumer
+          E2E_S1_CONSUMER_PASSWORD: Intelligent-UAT-2026!
         run: pnpm --filter @intelligent/web test:e2e

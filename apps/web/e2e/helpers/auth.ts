@@ -4,7 +4,7 @@ import { expect, type Page } from "@playwright/test";
  * INT-211 — shared Keycloak login for deployed-stack E2E.
  * UAT fixtures: uat-member / uat-manager / uat-operator (INT-194).
  */
-export type UatRole = "member" | "manager" | "operator";
+export type UatRole = "member" | "manager" | "operator" | "s1-consumer";
 
 const DEFAULT_PASSWORD = "Intelligent-UAT-2026!";
 
@@ -23,6 +23,12 @@ const USERS: Record<UatRole, { envUser: string; envPass: string; fallback: strin
     envUser: "E2E_UAT_OPERATOR_USER",
     envPass: "E2E_UAT_OPERATOR_PASSWORD",
     fallback: "uat-operator",
+  },
+  /** INT-251 — S1 consumer (c0ffee… community) for Stripe money path. */
+  "s1-consumer": {
+    envUser: "E2E_S1_CONSUMER_USER",
+    envPass: "E2E_S1_CONSUMER_PASSWORD",
+    fallback: "s1-consumer",
   },
 };
 

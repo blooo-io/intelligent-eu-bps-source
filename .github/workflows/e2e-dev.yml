@@ -106,12 +106,16 @@ jobs:
 
       - name: Export Stripe test secret from cluster for money-path assert (INT-251)
         # Same OpenBao-synced key payments uses — no new GitHub secret; GitOps only.
+        # Cluster secret key is snake_case `stripe_secret_key` (INT-186); accept uppercase alias.
         id: stripe
         run: |
           set -euo pipefail
-          key="$(kubectl -n int-apps get secret payments -o jsonpath='{.data.STRIPE_SECRET_KEY}' | base64 -d)"
+          key="$(kubectl -n int-apps get secret payments -o jsonpath='{.data.stripe_secret_key}' | base64 -d || true)"
+          if [[ -z "${key}" ]]; then
+            key="$(kubectl -n int-apps get secret payments -o jsonpath='{.data.STRIPE_SECRET_KEY}' | base64 -d || true)"
+          fi
           if [[ ! "${key}" =~ ^sk_test_ ]]; then
-            echo "payments secret missing STRIPE_SECRET_KEY (sk_test_…)" >&2
+            echo "payments secret missing stripe_secret_key (sk_test_…)" >&2
             exit 1
           fi
           echo "::add-mask::${key}"

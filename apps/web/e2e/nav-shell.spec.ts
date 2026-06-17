@@ -20,17 +20,24 @@ test.describe("AC-01 shell navigation (authenticated)", () => {
     await loginAs(page, "member");
 
     await expect(page.getByTestId("shell-user-name")).toBeVisible({ timeout: 15_000 });
-    // Roles may arrive from /v1/me when the access token omits realm billing roles (INT-246).
-    await expect(page.getByTestId("shell-user-roles")).toContainText(/member/i, {
-      timeout: 30_000,
-    });
+    // INT-252: members show market role (Consumer/Producer); manager/operator keep IdP labels.
+    // Token may omit realm roles — /v1/me fills market role (INT-246).
+    await expect(page.getByTestId("shell-user-roles")).toContainText(
+      /consumer|producer|prosumer|member/i,
+      { timeout: 30_000 },
+    );
 
     for (const label of MANAGER_ONLY_LABELS) {
       await expect(page.getByRole("link", { name: label })).toHaveCount(0);
     }
 
     for (const route of MEMBER_NAV_ROUTES) {
-      await page.getByRole("link", { name: route.label, exact: true }).click();
+      const labels = Array.isArray(route.label) ? route.label : [route.label];
+      const link = labels
+        .map((name) => page.getByRole("link", { name, exact: true }))
+        .reduce((acc, loc) => acc.or(loc));
+      await expect(link.first()).toBeVisible({ timeout: 15_000 });
+      await link.first().click();
       await expect(page).toHaveURL(new RegExp(`${route.path.replace("/", "\\/")}\\/?$`));
       await expectPageReady(page, route.heading);
       await expect(page.locator("body")).not.toContainText("Unhandled Runtime Error");

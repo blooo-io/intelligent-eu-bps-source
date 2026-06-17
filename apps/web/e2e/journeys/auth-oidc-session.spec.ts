@@ -17,7 +17,10 @@ test.describe("REQ auth OIDC session", () => {
     await expect(
       page.getByTestId("home-setup").or(page.getByTestId("home-money")),
     ).toBeVisible();
-    await expect(page.getByTestId("shell-user-roles")).toContainText(/member/i);
+    // INT-252 / INT-253 — shell badge is market role for members (Consumer/Producer).
+    await expect(page.getByTestId("shell-user-roles")).toContainText(
+      /consumer|producer|prosumer|member/i,
+    );
 
     await page.getByRole("button", { name: /sign out/i }).click();
     await expect(page.getByRole("button", { name: /sign in with idp/i })).toBeVisible({

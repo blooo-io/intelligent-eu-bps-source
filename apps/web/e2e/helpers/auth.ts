@@ -94,18 +94,23 @@ export const NAV_ROUTES: ReadonlyArray<{ label: string; path: string; heading: R
 ];
 
 /**
- * Ready member sider (INT-243 / INT-250 / INT-252) — setup links hidden after Ready;
- * payment method / my history stay; no manager/operator screens.
+ * Member sider money/account routes (INT-243 / INT-250 / INT-252 / INT-253).
+ * Setup links hide after Ready; payment label depends on readiness + market role.
  */
 export const MEMBER_NAV_ROUTES: ReadonlyArray<{
-  label: string;
+  /** Exact link name, or several alternatives (Consumer Ready vs setup vs Producer). */
+  label: string | ReadonlyArray<string>;
   path: string;
   heading: RegExp;
 }> = [
   { label: "Home", path: "/", heading: /^home$/i },
   { label: "Balances", path: "/balances", heading: /^balances$/i },
   { label: "Invoices", path: "/invoices", heading: /^invoices$|^issued invoices$/i },
-  { label: "Payment method", path: "/payment-setup", heading: /payment method|payout account/i },
+  {
+    label: ["Payment method", "Payment setup", "Payout account"],
+    path: "/payment-setup",
+    heading: /payment method|payment setup|payout account/i,
+  },
   { label: "Privacy", path: "/privacy", heading: /privacy/i },
   { label: "My history", path: "/reports", heading: /^my history$/i },
 ];

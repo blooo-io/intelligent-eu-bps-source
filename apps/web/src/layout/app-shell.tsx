@@ -27,8 +27,9 @@ type Identity = {
 };
 
 /**
- * Authenticated shell (INT-187 / INT-243 / INT-250).
- * Volt near-black sider; grouped nav; full-screen setup chrome on /onboarding.
+ * Authenticated shell (INT-187 / INT-243 / INT-250 / INT-254).
+ * Volt near-black sider when Ready; full-screen setup chrome (no sider) until then.
+ * Approved mockup MockSetup uses hideSider — never expose Money/Account nav mid-onboarding.
  */
 export function AppShell({
   config,
@@ -111,12 +112,15 @@ export function AppShell({
     return roles.map((r) => r.charAt(0).toUpperCase() + r.slice(1));
   }, [roles, me?.role]);
 
-  const setupChrome =
-    location.pathname.startsWith("/onboarding") &&
+  // INT-254 — member not Ready: no sider on any route (not only /onboarding).
+  // Managers/operators keep the desk. Wait for /v1/me so Ready members do not
+  // flash setup chrome; once readiness is known and incomplete, hide the menu.
+  const isMemberOnly =
     roles.includes("member") &&
     !roles.includes("manager") &&
-    !roles.includes("operator") &&
-    me?.readiness !== "Ready";
+    !roles.includes("operator");
+  const setupChrome =
+    isMemberOnly && me !== null && me.readiness !== "Ready";
 
   if (setupChrome) {
     return (

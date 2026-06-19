@@ -12,18 +12,21 @@ const config: WebConfig = {
   stripePublishableKey: "pk_test_fixture",
 };
 
-function meBody(role: "consumer" | "producer") {
+function meBody(
+  role: "consumer" | "producer",
+  readiness: "TermsAccepted" | "Ready" = "TermsAccepted",
+) {
   return {
     participantId: "11111111-1111-1111-1111-111111111111",
     communityId: "22222222-2222-2222-2222-222222222222",
     roles: ["member"],
     role,
-    readiness: "TermsAccepted",
+    readiness,
     profile: { name: "Ada", address: "1", email: "a@e.com" },
   };
 }
 
-describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / UAT-063)", () => {
+describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / INT-254 / UAT-063)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -75,8 +78,9 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / UAT-063)", () => {
     );
 
     await waitFor(() => {
+      // INT-254 — setup mockup title while not Ready.
       expect(
-        screen.getByRole("heading", { name: /payment method/i }),
+        screen.getByRole("heading", { name: /add a payment method/i }),
       ).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: /save card and finish/i }));
@@ -136,8 +140,9 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / UAT-063)", () => {
     );
 
     await waitFor(() => {
+      // INT-254 — producer setup mockup title while not Ready.
       expect(
-        screen.getByRole("heading", { name: /payout account/i }),
+        screen.getByRole("heading", { name: /open stripe connect/i }),
       ).toBeInTheDocument();
     });
     fireEvent.click(
@@ -223,5 +228,39 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / UAT-063)", () => {
     await waitFor(() => {
       expect(screen.getByText(/failed with 500/i)).toBeInTheDocument();
     });
+  });
+
+  it("uses Ready mockup title Payment method when consumer is Ready (INT-254)", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).endsWith("/v1/me")) {
+          return { ok: true, json: async () => meBody("consumer", "Ready") };
+        }
+        return { ok: false, status: 500 };
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <PaymentSetupPage config={config} oidc={oidc} openUrl={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /^payment method$/i }),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getAllByText(/card used when you pay open invoices/i).length,
+    ).toBeGreaterThan(0);
   });
 });

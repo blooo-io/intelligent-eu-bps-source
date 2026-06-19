@@ -1,0 +1,28 @@
+---
+description: After every UX delivery, re-challenge against approved Volt mockups before Done
+alwaysApply: true
+---
+
+# UX mockup revalidation (INT-254)
+
+Approved Volt mockups (INT-250 canvas) are the source of truth for AC-01 chrome and copy. Shipping copy/labels alone is not enough.
+
+## Non-negotiable chrome rules
+
+1. **No sider until Ready.** For IdP `member` (not manager/operator), while `readiness !== Ready`, use full-screen setup chrome (`hideSider`) on **every** route — not only `/onboarding`. Money/Account nav must not appear mid-onboarding.
+2. **Persona labels after Ready.** Consumer: Payment method / Invoices / My history. Producer: Payout account / Issued invoices. Manager: Community pulse + desk nav. Operator: Operator desk only.
+3. **Setup vs Ready copy.** Setup step titles (e.g. « Add a payment method ») differ from Ready screen titles (e.g. « Payment method » + saved-card summary). Do not mix them.
+
+## After every UX delivery (mandatory)
+
+Before marking the Jira issue Done / merging the PR as complete:
+
+1. **Re-open the approved mockup** for each persona and screen touched (canvas or linked asset).
+2. **Re-challenge the live (or preview) UI** against that mockup: sider presence, nav labels, page title, subtitle, primary CTA, and body content — not only colour.
+3. **Smoke evidence** must include the failing case that motivated the change (e.g. `/payment-setup` while `TermsAccepted`, not only Home).
+4. **If any gap remains**, open a follow-up `INT-xxx` or fix in the same PR; do not claim Done when chrome diverges from the mockup.
+
+## Do not
+
+- Treat Home-only smoke as proof that Account screens match.
+- Leave `setupChrome` gated on pathname alone when the mockup hides the sider for the whole incomplete onboarding state.

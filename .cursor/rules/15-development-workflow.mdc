@@ -11,6 +11,10 @@ alwaysApply: true
 4. Assign every new and updated `INT` issue to Steven Lin (`62f0d6c15111209f4fdff1dc`). Do not assign Maylis Ametowoglo.
 5. Commit messages credit the people who made the change. `.githooks/commit-msg` strips a coding-assistant co-author trailer, and CI rejects that trailer on commits added by the change.
 
+# UX delivery gate (INT-254)
+
+- After any AC-01 / web UX change: re-challenge against the approved Volt mockup (sider presence, nav labels, titles, CTAs). Home-only smoke is insufficient. See `.cursor/rules/19-ux-mockup-revalidation.mdc`.
+
 # Tests and coverage
 
 - Every code change includes automated tests for the behaviour it adds or changes.

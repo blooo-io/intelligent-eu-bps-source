@@ -50,6 +50,10 @@ This file tells an agent **what to read, in which order, and which rules are non
     - **Required for any change:** package in Git (Helm / Argo Application / operator script) → Jira `INT-xxx` → PR → CI → merge → Argo CD sync, or apply **only** manifests/scripts that already exist on the merged branch (documented operator path).
     - **Forbidden live:** `helm install/upgrade` of charts not driven by Argo, creating/patching Secrets or OpenBao state, one-off CR patches, seeding KV paths, or any “just fix it on the cluster” shortcut.
     - If something is missing for the cluster to become healthy, **stop**, state the gap in the PR/Jira comment, and ship the packaging first.
+13. **UX mockup revalidation (INT-254).** Approved Volt mockups are source of truth for AC-01.
+    - Members with `readiness !== Ready` must not see the sider (full-screen setup chrome on every route).
+    - After every UX delivery: re-open the mockup, re-challenge live UI (sider, labels, titles, CTAs), smoke the screen that changed — not Home-only — before Done.
+    - Details: `.cursor/rules/19-ux-mockup-revalidation.mdc`.
 
 ## 4. Typical task flow
 `INT-xxx` (Jira; create the issue first if none exists) → branch `<type>/INT-xxx-short-description` from `develop` (`feature`, `fix`, `docs`, `test`, `refactor`, `ci` or `chore`, matching the commit type) → contract → Prism mock → generated types/clients → implementation → unit tests + UAT scenario (mocks + Stripe test) → PR (template) → request `blooo-io/github-admin` → CI green, including every test script and 80% statements, branches, functions and lines per module → **agent squash-merges** when mergeable and not blocked (INT-162) → Argo CD deploys to `dev`.

@@ -66,6 +66,7 @@ function renderShell(
         <Route element={<AppShell config={config} oidc={oidc} />}>
           <Route index element={<div>Home body</div>} />
           <Route path="invoices" element={<div>Invoices body</div>} />
+          <Route path="payment-setup" element={<div>Payment setup body</div>} />
           <Route path="community-settings" element={<div>Settings body</div>} />
         </Route>
       </Routes>
@@ -122,6 +123,38 @@ describe("AppShell (INT-187 / INT-243)", () => {
     expect(screen.queryByRole("link", { name: /community settings/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /billing runs/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /^operator$/i })).toBeNull();
+  });
+
+  it("hides the sider for members until Ready on any route (INT-254 / Volt MockSetup)", async () => {
+    renderShell("/payment-setup", ["member"], {
+      readiness: "TermsAccepted",
+      profile: { name: "S1 Consumer", address: "1", email: "c@e.com" },
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("INTELLIGENT billing")).toBeInTheDocument();
+    });
+    // Setup chrome: brand header + Sign out, no Money/Account sider links.
+    expect(screen.queryByRole("link", { name: /^home$/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /invoices/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /payment setup|payment method/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /get ready/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^balances$/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+  });
+
+  it("keeps the sider for Ready members outside onboarding (INT-254)", async () => {
+    renderShell("/payment-setup", ["member"], {
+      readiness: "Ready",
+      profile: { name: "S1 Consumer", address: "1", email: "c@e.com" },
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: /payment method/i })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: /^home$/i })).toBeInTheDocument();
   });
 
   it("labels producer nav as issued invoices and payout account (INT-252)", async () => {

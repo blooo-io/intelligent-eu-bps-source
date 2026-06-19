@@ -64,6 +64,7 @@ export function PaymentSetupPage({
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<OnboardingSession | null>(null);
   const [marketRole, setMarketRole] = useState<ParticipantRole | null>(null);
+  const [readiness, setReadiness] = useState<string | null>(null);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -73,7 +74,10 @@ export function PaymentSetupPage({
         const token = await oidc.getAccessToken();
         if (!token) return;
         const me = await fetchMe(config.apiBaseUrl, token);
-        if (!cancelled) setMarketRole(me.role);
+        if (!cancelled) {
+          setMarketRole(me.role);
+          setReadiness(me.readiness);
+        }
       } catch {
         // Session mode still reveals consumer vs producer after Start.
       }
@@ -222,10 +226,22 @@ export function PaymentSetupPage({
 
   const asProducer =
     isSellerRole(marketRole) || session?.mode === "requirements";
-  const pageTitle = asProducer ? "Payout account" : "Payment method";
+  // INT-254 / Volt MockSetup vs MockPayment: setup titles until Ready.
+  const setupIncomplete = readiness !== null && readiness !== "Ready";
+  const pageTitle = asProducer
+    ? setupIncomplete
+      ? "Open Stripe Connect"
+      : "Payout account"
+    : setupIncomplete
+      ? "Add a payment method"
+      : "Payment method";
   const pageDescription = asProducer
-    ? "Stripe Connect receives consumer payments for invoices in your name."
-    : "Card used when you pay open invoices.";
+    ? setupIncomplete
+      ? "Producers receive payouts on their Connect account. Complete KYC once."
+      : "Stripe Connect receives consumer payments for invoices in your name."
+    : setupIncomplete
+      ? "Save a card so open invoices can be paid in one click."
+      : "Card used when you pay open invoices.";
   const startLabel = asProducer
     ? "Continue to Stripe Connect"
     : "Save card and finish";
@@ -237,8 +253,12 @@ export function PaymentSetupPage({
       <Card>
         <Paragraph>
           {asProducer
-            ? "Producers receive payouts on their Connect account. Complete KYC once. Bank details go to Stripe only — this app never stores them."
-            : "Save a card so open invoices can be paid in one click. Card numbers go to Stripe only — this app never stores them."}
+            ? setupIncomplete
+              ? "Producers receive payouts on their Connect account. Complete KYC once. Bank details go to Stripe only — this app never stores them."
+              : "Stripe Connect receives consumer payments for invoices in your name. Bank details go to Stripe only — this app never stores them."
+            : setupIncomplete
+              ? "Save a card so open invoices can be paid in one click. Card numbers go to Stripe only — this app never stores them."
+              : "Card used when you pay open invoices. Card numbers go to Stripe only — this app never stores them."}
         </Paragraph>
 
         {!session && (

@@ -5,9 +5,9 @@ import { expect, test } from "@playwright/test";
  * Would have failed when Refine `<Authenticated>` left `/` blank.
  */
 test.describe("AC-01 auth gate (unauthenticated)", () => {
-  test("GET / redirects to login UI with Sign in with IdP", async ({ page }) => {
+  test("GET / redirects to login UI with Continue with community IdP", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("button", { name: /sign in with idp/i })).toBeVisible({
+    await expect(page.getByRole("button", { name: /continue with community idp/i })).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.getByRole("heading", { name: /intelligent billing/i })).toBeVisible();
@@ -16,7 +16,7 @@ test.describe("AC-01 auth gate (unauthenticated)", () => {
 
   test("GET /login shows the IdP CTA (REQ-033)", async ({ page }) => {
     await page.goto("/login");
-    await expect(page.getByRole("button", { name: /sign in with idp/i })).toBeVisible({
+    await expect(page.getByRole("button", { name: /continue with community idp/i })).toBeVisible({
       timeout: 15_000,
     });
     // No password field in this app (REQ-033).

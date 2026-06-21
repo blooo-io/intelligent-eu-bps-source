@@ -32,7 +32,7 @@ test.describe("REQ privacy reports operator", () => {
     ).toBeVisible({ timeout: 20_000 });
 
     await page.getByRole("button", { name: /sign out/i }).click();
-    await expect(page.getByRole("button", { name: /sign in with idp/i })).toBeVisible({
+    await expect(page.getByRole("button", { name: /continue with community idp/i })).toBeVisible({
       timeout: 30_000,
     });
 

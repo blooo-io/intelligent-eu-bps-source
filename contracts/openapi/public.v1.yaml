@@ -130,6 +130,29 @@ paths:
           $ref: './components/schemas.yaml#/components/responses/Unauthorized'
         '403':
           $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /me/payment-account:
+    get:
+      operationId: getMyPaymentAccount
+      tags: [Payments]
+      summary: Read the caller's payment account
+      description: >
+        INT-255 — Ready Payment method / Payout account chrome. Consumers get
+        card brand and last4 from Stripe (TP-7: Stripe is master; we do not
+        persist PAN data). Producers get Connect account id and an optional
+        platform Dashboard deep-link for Custom accounts (`stripe_dashboard:
+        none` — no Express login link).
+      x-served-by: AC-07
+      responses:
+        '200':
+          description: Payment account summary for the signed-in member.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MePaymentAccount'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
   /me/payment-account/onboarding:
     post:
       operationId: createPaymentOnboarding
@@ -944,6 +967,33 @@ components:
           type: string
           format: date-time
           readOnly: true
+    MePaymentAccount:
+      type: object
+      additionalProperties: false
+      required: [status]
+      description: >
+        INT-255 — public summary of the caller's payment account for Ready UI.
+        Card brand/last4 come from a live Stripe PaymentMethod retrieve (TP-7).
+      properties:
+        status:
+          type: string
+          enum: [none, requirements_due, pending_verification, complete]
+        brand:
+          type: string
+          description: Card brand when a consumer payment method is attached (e.g. visa).
+        last4:
+          type: string
+          description: Last four digits of the attached card.
+          pattern: '^\d{4}$'
+        stripeAccountId:
+          type: string
+          description: Connect account id for producer/prosumer.
+        dashboardUrl:
+          type: string
+          format: uri
+          description: >
+            Optional platform Stripe Dashboard deep-link for the Connect account
+            (test mode). Absent when no Connect account exists.
     OnboardingSession:
       type: object
       additionalProperties: false

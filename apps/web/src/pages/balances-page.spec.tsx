@@ -61,7 +61,7 @@ describe("BalancesPage (INT-141 / UAT-074)", () => {
       expect(screen.getByText(/12\.50 EUR/)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /settle now/i }));
+    fireEvent.click(screen.getByRole("button", { name: /settle early|settle now/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/Early settlement run/i)).toBeInTheDocument();

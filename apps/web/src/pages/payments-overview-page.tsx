@@ -164,7 +164,7 @@ export function PaymentsOverviewPage({
   return (
     <PageFrame
       title="Payments overview"
-      description="Manager-only. Payment status cache from Stripe for invoices in this community."
+      description="Who paid what — community-wide."
     >
       {error && <Alert type="error" message={error} showIcon />}
       {message && <Alert type="success" message={message} showIcon />}

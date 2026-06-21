@@ -3,9 +3,12 @@ import type { CallerRole } from "../auth/claims";
 import { isSellerRole } from "./role-home";
 
 /**
- * INT-243 / INT-250 / INT-252 — which sider links a caller may see.
+ * INT-243 / INT-250 / INT-252 / INT-255 — which sider links a caller may see.
  * Aligns with architecture §3.1 / §6 and Volt mockups per persona.
  * Roles come from the IdP token only (REQ-049); marketRole from GET /v1/me.
+ *
+ * Manager IA: Money (Home) → Community → Billing (runs, payments, reports).
+ * Member Money order: Home → Balances → Invoices → My history.
  */
 
 export type NavGroup = "Money" | "Account" | "Community" | "Billing" | "Ops";
@@ -122,11 +125,20 @@ export const NAV_CATALOG: readonly NavItemDef[] = [
     roles: ["manager"],
   },
   {
+    // INT-255 — manager Reports under Billing (after Payments).
+    key: "/reports",
+    label: "Reports",
+    to: "/reports",
+    group: "Billing",
+    roles: ["manager"],
+  },
+  {
+    // INT-255 — member My history under Money (Home → Balances → Invoices → history).
     key: "/reports",
     label: "Reports",
     to: "/reports",
     group: "Money",
-    roles: ["manager", "member"],
+    roles: ["member"],
     minMemberReadiness: "TermsAccepted",
   },
   {
@@ -180,10 +192,19 @@ export function visibleNavItems(
 ): NavItemDef[] {
   return NAV_CATALOG.filter((item) => {
     if (!hasRole(roles, item.roles)) return false;
+    // INT-255 — managers get Billing Reports; skip the member Money duplicate.
+    if (
+      roles.includes("manager") &&
+      item.key === "/reports" &&
+      item.roles.includes("member") &&
+      !item.roles.includes("manager")
+    ) {
+      return false;
+    }
     // Manager/operator accessing a shared item (e.g. Home) — no readiness gate.
     if (roles.includes("manager") || roles.includes("operator")) {
       if (!item.roles.includes("member")) return true;
-      // Shared member+manager item (Reports): managers always see it.
+      // Shared member+manager item: managers always see it.
       if (roles.includes("manager") && item.roles.includes("manager")) {
         return true;
       }

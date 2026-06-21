@@ -244,6 +244,16 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / INT-254 / UAT-063)", (
         if (String(url).endsWith("/v1/me")) {
           return { ok: true, json: async () => meBody("consumer", "Ready") };
         }
+        if (String(url).endsWith("/v1/me/payment-account")) {
+          return {
+            ok: true,
+            json: async () => ({
+              status: "complete",
+              brand: "visa",
+              last4: "4242",
+            }),
+          };
+        }
         return { ok: false, status: 500 };
       }),
     );
@@ -262,5 +272,61 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / INT-254 / UAT-063)", (
     expect(
       screen.getAllByText(/card used when you pay open invoices/i).length,
     ).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getByTestId("payment-method-ready")).toHaveTextContent(
+        /Visa ···· 4242/,
+      );
+    });
+    expect(screen.getByText(/Default for invoice pay/i)).toBeInTheDocument();
+  });
+
+  it("shows Open Stripe dashboard for Ready producer (INT-255)", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).endsWith("/v1/me")) {
+          return { ok: true, json: async () => meBody("producer", "Ready") };
+        }
+        if (String(url).endsWith("/v1/me/payment-account")) {
+          return {
+            ok: true,
+            json: async () => ({
+              status: "complete",
+              stripeAccountId: "acct_test_1",
+              dashboardUrl:
+                "https://dashboard.stripe.com/test/connect/accounts/acct_test_1",
+            }),
+          };
+        }
+        return { ok: false, status: 500 };
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <PaymentSetupPage config={config} oidc={oidc} openUrl={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /^payout account$/i }),
+      ).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByRole("link", { name: /open stripe dashboard/i }),
+      ).toHaveAttribute(
+        "href",
+        "https://dashboard.stripe.com/test/connect/accounts/acct_test_1",
+      );
+    });
   });
 });

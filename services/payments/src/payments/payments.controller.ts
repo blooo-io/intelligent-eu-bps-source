@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
   Inject,
@@ -22,6 +23,13 @@ export class PaymentsController {
   constructor(
     @Inject(PaymentsService) private readonly payments: PaymentsService,
   ) {}
+
+  @Get("v1/me/payment-account")
+  @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
+  async getMyPaymentAccount(@Req() req: AuthenticatedRequest) {
+    const user = req.user!;
+    return this.payments.getMyPaymentAccount(user.sub);
+  }
 
   @Post("v1/me/payment-account/onboarding")
   @HttpCode(200)

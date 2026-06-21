@@ -369,6 +369,19 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
     });
   });
 
+  it("returns brand and last4 for Ready Payment method UI (INT-255)", async () => {
+    paymentMethodsRetrieve.mockResolvedValue({
+      id: "pm_1",
+      card: { brand: "visa", last4: "4242" },
+    });
+    const adapter = new StripePspAdapter(creds);
+    await expect(adapter.getPaymentMethodDetails("pm_1")).resolves.toEqual({
+      paymentMethodId: "pm_1",
+      brand: "visa",
+      last4: "4242",
+    });
+  });
+
   it("maps payment_intent.succeeded webhook payload", () => {
     constructEvent.mockReturnValue({
       type: "payment_intent.succeeded",

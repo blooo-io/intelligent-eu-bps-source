@@ -117,7 +117,7 @@ describe("ParticipantsPage (INT-145 / UAT-008 / UAT-012)", () => {
           "email,marketActorId,meterId,role\nnew@example.com,actor-9,meter-9,producer\n",
       },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^import$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /invite member|^import$/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/Imported 1 participant/i)).toBeInTheDocument();
@@ -221,7 +221,7 @@ describe("ParticipantsPage (INT-145 / UAT-008 / UAT-012)", () => {
     fireEvent.change(screen.getByLabelText(/Participant CSV/i), {
       target: { value: "bad-row" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^import$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /invite member|^import$/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/Invalid CSV row/i)).toBeInTheDocument();

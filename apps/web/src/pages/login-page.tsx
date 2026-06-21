@@ -18,8 +18,8 @@ export function LoginPage() {
           INTELLIGENT billing
         </Title>
         <Paragraph style={{ margin: 0, color: "#c5d6ce", maxWidth: 360 }}>
-          Producer-centric settlement for energy communities — netting, invoices
-          and Stripe Connect in one place.
+          Settle energy trades in your community — invoices in the producer&apos;s
+          name, paid via Stripe.
         </Paragraph>
       </aside>
       <section className="ge-login-panel">
@@ -34,8 +34,7 @@ export function LoginPage() {
               </Title>
             </div>
             <Paragraph type="secondary" style={{ margin: 0 }}>
-              Continue with your community identity. This app never asks for or
-              stores a password. After sign-in you only see menus for your role.
+              Continue with your community identity. No password stored here.
             </Paragraph>
             <Button
               type="primary"
@@ -44,7 +43,7 @@ export function LoginPage() {
               loading={isPending}
               onClick={() => login({})}
             >
-              Sign in with IdP
+              Continue with community IdP
             </Button>
           </Space>
         </Card>

@@ -25,14 +25,14 @@ describe("ProtectedOutlet (INT-181)", () => {
             <Route element={<ProtectedOutlet />}>
               <Route index element={<div>Home secret</div>} />
             </Route>
-            <Route path="/login" element={<button type="button">Sign in with IdP</button>} />
+            <Route path="/login" element={<button type="button">Continue with community IdP</button>} />
           </Routes>
         </Refine>
       </MemoryRouter>,
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /sign in with idp/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /continue with community idp/i })).toBeInTheDocument();
     });
     expect(screen.queryByText("Home secret")).not.toBeInTheDocument();
   });

@@ -94,4 +94,35 @@ describe("visibleNavItems (INT-243 / INT-250 / INT-252)", () => {
       expect.arrayContaining(["Community", "Billing"]),
     );
   });
+
+  it("orders manager IA Money → Account → Community → Billing with Reports in Billing (INT-255)", () => {
+    const items = visibleNavItems(["manager"], "Ready");
+    const groups = navItemsByGroup(items);
+    expect(groups.map((g) => g.group)).toEqual([
+      "Money",
+      "Account",
+      "Community",
+      "Billing",
+    ]);
+    const billing = groups.find((g) => g.group === "Billing")!.items.map((i) => i.key);
+    expect(billing).toEqual([
+      "/billing-runs",
+      "/payments-overview",
+      "/reports",
+    ]);
+    expect(groups.find((g) => g.group === "Money")!.items.map((i) => i.key)).toEqual([
+      "/",
+    ]);
+  });
+
+  it("orders member Money as Home → Balances → Invoices → My history (INT-255)", () => {
+    const items = visibleNavItems(["member"], "Ready");
+    const money = navItemsByGroup(items).find((g) => g.group === "Money")!;
+    expect(money.items.map((i) => i.key)).toEqual([
+      "/",
+      "/balances",
+      "/invoices",
+      "/reports",
+    ]);
+  });
 });

@@ -10,11 +10,11 @@ import { isSellerRole } from "../layout/role-home";
 import { PaymentSetupPage } from "./payment-setup-page";
 import { ProfilePage } from "./profile-page";
 import { TermsPage } from "./terms-page";
-import { InvoicesPage } from "./invoices-page";
 
 const { Paragraph } = Typography;
 
-const STEP_KEYS = ["profile", "terms", "payment", "pay"] as const;
+/** INT-255 / Volt MockSetup — three steps only (profile → terms → pay/payouts). */
+const STEP_KEYS = ["profile", "terms", "payment"] as const;
 type StepKey = (typeof STEP_KEYS)[number];
 
 function stepFromReadiness(status: ReadinessStatus): StepKey {
@@ -26,7 +26,7 @@ function stepFromReadiness(status: ReadinessStatus): StepKey {
     case "TermsAccepted":
       return "payment";
     case "Ready":
-      return "pay";
+      return "payment";
     default:
       return "profile";
   }
@@ -37,9 +37,8 @@ function stepIndex(key: StepKey): number {
 }
 
 /**
- * Member journey wizard (INT-193 / NFR-016 / UAT-067).
- * Steps: Profile → Terms → Payment setup (KYC/PM) → Pay invoice.
- * Step-count optimisation is deferred; completion without assistance is the bar.
+ * Member journey wizard (INT-193 / INT-255 / NFR-016 / UAT-067).
+ * Volt MockSetup: Get ready — step N of 3; hide sider via AppShell.
  */
 export function OnboardingWizardPage({
   config,
@@ -79,10 +78,25 @@ export function OnboardingWizardPage({
     };
   }, [reloadMe]);
 
+  // Legacy ?step=pay → invoices once Ready (or payment step).
+  useEffect(() => {
+    if (params.get("step") === "pay") {
+      if (me?.readiness === "Ready") {
+        navigate("/invoices", { replace: true });
+      } else {
+        setParams({ step: "payment" }, { replace: true });
+      }
+    }
+  }, [params, me?.readiness, navigate, setParams]);
+
   const suggested = me ? stepFromReadiness(me.readiness) : "profile";
   const paramStep = params.get("step") as StepKey | null;
   const current: StepKey =
-    paramStep && STEP_KEYS.includes(paramStep) ? paramStep : suggested;
+    paramStep && (STEP_KEYS as readonly string[]).includes(paramStep)
+      ? (paramStep as StepKey)
+      : suggested;
+
+  const stepNumber = stepIndex(current) + 1;
 
   const items = useMemo(
     () => [
@@ -116,11 +130,6 @@ export function OnboardingWizardPage({
               ? ("process" as const)
               : ("wait" as const),
       },
-      {
-        title: "Pay",
-        description: "Invoice payment",
-        status: current === "pay" ? ("process" as const) : ("wait" as const),
-      },
     ],
     [current, me],
   );
@@ -133,6 +142,10 @@ export function OnboardingWizardPage({
     try {
       const next = await reloadMe();
       setMe(next);
+      if (next.readiness === "Ready") {
+        navigate("/invoices");
+        return;
+      }
       go(stepFromReadiness(next.readiness));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refresh failed");
@@ -141,8 +154,8 @@ export function OnboardingWizardPage({
 
   return (
     <PageFrame
-      title="Get ready"
-      description="Finish these steps in order: profile, terms, payment setup, then pay your invoices."
+      title={`Get ready — step ${stepNumber} of 3`}
+      description="Full-screen setup. No sider, one CTA, then money screens unlock."
       loading={loading}
     >
       {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
@@ -162,7 +175,16 @@ export function OnboardingWizardPage({
         </Paragraph>
       </Card>
 
-      {current === "profile" && (
+      {me?.readiness === "Ready" && current === "payment" ? (
+        <Card size="small">
+          <Paragraph>You are ready. Money screens are unlocked.</Paragraph>
+          <Button type="primary" onClick={() => navigate("/invoices")}>
+            Go to invoices
+          </Button>
+        </Card>
+      ) : null}
+
+      {current === "profile" && me?.readiness !== "Ready" && (
         <div>
           <ProfilePage config={config} oidc={oidc} embedded />
           <Button type="primary" style={{ marginTop: 16 }} onClick={() => void afterGate()}>
@@ -171,7 +193,7 @@ export function OnboardingWizardPage({
         </div>
       )}
 
-      {current === "terms" && (
+      {current === "terms" && me?.readiness !== "Ready" && (
         <div>
           <TermsPage config={config} oidc={oidc} embedded />
           <Button type="primary" style={{ marginTop: 16 }} onClick={() => void afterGate()}>
@@ -180,28 +202,13 @@ export function OnboardingWizardPage({
         </div>
       )}
 
-      {current === "payment" && (
+      {current === "payment" && me?.readiness !== "Ready" && (
         <PaymentSetupPage
           config={config}
           oidc={oidc}
           embedded
           onComplete={() => void afterGate()}
         />
-      )}
-
-      {current === "pay" && (
-        <div>
-          <Alert
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-            message="You are Ready — pay any open invoice below (test mode)."
-          />
-          <InvoicesPage config={config} oidc={oidc} embedded />
-          <Button style={{ marginTop: 16 }} onClick={() => navigate("/")}>
-            Finish
-          </Button>
-        </div>
       )}
     </PageFrame>
   );

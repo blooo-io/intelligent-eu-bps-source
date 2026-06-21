@@ -49,7 +49,7 @@ export async function loginAs(page: Page, role: UatRole): Promise<void> {
   const { user, password } = uatCredentials(role);
 
   await page.goto("/login");
-  const signIn = page.getByRole("button", { name: /sign in with idp/i });
+  const signIn = page.getByRole("button", { name: /continue with community idp/i });
   await expect(signIn).toBeVisible({ timeout: 15_000 });
   await signIn.click();
 

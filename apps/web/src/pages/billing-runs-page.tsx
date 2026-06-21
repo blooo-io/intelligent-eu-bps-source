@@ -110,7 +110,7 @@ export function BillingRunsPage({
   return (
     <PageFrame
       title="Billing runs"
-      description="Manager-only. Start a periodic, early or final billing run for your community. Settlement then produces invoices for each consumer→producer pair."
+      description="Periodic, early or final settlement."
     >
         <Paragraph type="secondary" data-testid="billing-runs-community-help">
           Start a billing run for your energy community. Periodic runs cover a

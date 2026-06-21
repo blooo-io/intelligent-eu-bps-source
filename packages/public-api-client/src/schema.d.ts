@@ -84,6 +84,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/payment-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the caller's payment account
+         * @description INT-255 — Ready Payment method / Payout account chrome. Consumers get card brand and last4 from Stripe (TP-7: Stripe is master; we do not persist PAN data). Producers get Connect account id and an optional platform Dashboard deep-link for Custom accounts (`stripe_dashboard: none` — no Express login link).
+         */
+        get: operations["getMyPaymentAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/payment-account/onboarding": {
         parameters: {
             query?: never;
@@ -642,12 +662,9 @@ export interface components {
         Me: {
             participantId: components["schemas"]["Uuid"];
             communityId: components["schemas"]["Uuid"];
-            /** IdP caller roles on the public API (03 §3.1). */
+            /** @description IdP caller roles on the public API (03 §3.1). */
             roles: components["schemas"]["CallerRole"][];
-            /**
-             * Market role in the community (02 §6). Distinct from IdP `roles`.
-             * Drives consumer vs producer shell copy (INT-252).
-             */
+            /** @description Market role in the community (02 §6). Distinct from IdP `roles`. Drives consumer vs producer shell copy (INT-252). */
             role: components["schemas"]["ParticipantRole"];
             readiness: components["schemas"]["ReadinessStatus"];
             profile: components["schemas"]["BillingProfile"];
@@ -664,6 +681,22 @@ export interface components {
             selfBillingMandate: boolean;
             /** Format: date-time */
             readonly acceptedAt?: string;
+        };
+        /** @description INT-255 — public summary of the caller's payment account for Ready UI. Card brand/last4 come from a live Stripe PaymentMethod retrieve (TP-7). */
+        MePaymentAccount: {
+            /** @enum {string} */
+            status: "none" | "requirements_due" | "pending_verification" | "complete";
+            /** @description Card brand when a consumer payment method is attached (e.g. visa). */
+            brand?: string;
+            /** @description Last four digits of the attached card. */
+            last4?: string;
+            /** @description Connect account id for producer/prosumer. */
+            stripeAccountId?: string;
+            /**
+             * Format: uri
+             * @description Optional platform Stripe Dashboard deep-link for the Connect account (test mode). Absent when no Connect account exists.
+             */
+            dashboardUrl?: string;
         };
         /** @description INT-190 / INT-191 / INT-193 — producer uses `mode: requirements` (in-platform KYC via Account Tokens + Custom Connect); consumer uses `mode: elements` (SetupIntent client secret for Payment Element) or `mode: link` (hosted fallback). `stripeAccountId` is absent until the first successful requirements submit creates the Custom account. */
         OnboardingSession: {
@@ -885,6 +918,11 @@ export interface components {
          */
         CallerRole: "member" | "manager" | "operator" | "dpo";
         /**
+         * @description Role of a participant in the community (02 §6).
+         * @enum {string}
+         */
+        ParticipantRole: "consumer" | "producer" | "prosumer";
+        /**
          * @description Participant readiness lifecycle (02 §5).
          * @enum {string}
          */
@@ -936,11 +974,6 @@ export interface components {
          * @example 0.00
          */
         Rate: string;
-        /**
-         * @description Role of a participant in the community (02 §6).
-         * @enum {string}
-         */
-        ParticipantRole: "consumer" | "producer" | "prosumer";
         /**
          * @description Scheduled job owned by a module (02 §4.5).
          * @enum {string}
@@ -1094,6 +1127,28 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getMyPaymentAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payment account summary for the signed-in member. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MePaymentAccount"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
         };

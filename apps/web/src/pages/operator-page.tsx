@@ -36,24 +36,26 @@ export function OperatorPage({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  async function loadOps() {
+    const token = await oidc.getAccessToken();
+    if (!token) throw new Error("No access token");
+    const me = await fetchMe(config.apiBaseUrl, token);
+    const cid = me.communityId;
+    const [a, d, j] = await Promise.all([
+      listIntakeAnomalies(config.apiBaseUrl, token, cid),
+      listDiscrepancies(config.apiBaseUrl, token, cid),
+      listJobs(config.apiBaseUrl, token, cid),
+    ]);
+    setAnomalies(a);
+    setDiscrepancies(d);
+    setJobs(j);
+  }
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const token = await oidc.getAccessToken();
-        if (!token) throw new Error("No access token");
-        const me = await fetchMe(config.apiBaseUrl, token);
-        const cid = me.communityId;
-        const [a, d, j] = await Promise.all([
-          listIntakeAnomalies(config.apiBaseUrl, token, cid),
-          listDiscrepancies(config.apiBaseUrl, token, cid),
-          listJobs(config.apiBaseUrl, token, cid),
-        ]);
-        if (!cancelled) {
-          setAnomalies(a);
-          setDiscrepancies(d);
-          setJobs(j);
-        }
+        await loadOps();
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load ops");
@@ -65,7 +67,22 @@ export function OperatorPage({
     return () => {
       cancelled = true;
     };
+    // Initial load only — Refresh calls loadOps explicitly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.apiBaseUrl, oidc]);
+
+  async function onRefresh() {
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await loadOps();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Refresh failed");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function onRunJob(jobId: string) {
     setBusy(true);
@@ -163,13 +180,18 @@ export function OperatorPage({
   ];
 
   if (loading) {
-    return <PageFrame title="Operator" loading />;
+    return <PageFrame title="Operator desk" loading />;
   }
 
   return (
     <PageFrame
-      title="Operator"
-      description="Operator-only. Review intake issues, reconciliation discrepancies and run scheduled work from the catalogue."
+      title="Operator desk"
+      description="Platform health only — not a member or manager portal."
+      actions={
+        <Button type="primary" loading={busy} onClick={() => void onRefresh()}>
+          Refresh
+        </Button>
+      }
     >
       {error && <Alert type="error" message={error} showIcon />}
       {message && <Alert type="success" message={message} showIcon />}

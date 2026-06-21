@@ -23,7 +23,7 @@ test.describe("REQ auth OIDC session", () => {
     );
 
     await page.getByRole("button", { name: /sign out/i }).click();
-    await expect(page.getByRole("button", { name: /sign in with idp/i })).toBeVisible({
+    await expect(page.getByRole("button", { name: /continue with community idp/i })).toBeVisible({
       timeout: 30_000,
     });
     await expect(page.locator('input[type="password"]')).toHaveCount(0);

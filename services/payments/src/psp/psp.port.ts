@@ -63,6 +63,13 @@ export type PaymentMethodRef = {
   paymentMethodId: string;
 };
 
+/** INT-255 — card display fields from Stripe PaymentMethod (never stored). */
+export type PaymentMethodDetails = {
+  paymentMethodId: string;
+  brand?: string;
+  last4?: string;
+};
+
 export type PspPaymentResult = {
   stripePaymentId: string;
   status: "pending" | "succeeded" | "failed";
@@ -120,6 +127,10 @@ export interface PspPort {
     participantId: string,
     paymentMethodId: string,
   ): Promise<PaymentMethodRef>;
+  /** INT-255 — retrieve card brand/last4 for Ready Payment method UI (TP-7). */
+  getPaymentMethodDetails(
+    paymentMethodId: string,
+  ): Promise<PaymentMethodDetails>;
   createPayment(input: {
     invoiceId: string;
     amount: string;

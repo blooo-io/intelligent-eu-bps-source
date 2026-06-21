@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   attachMyPaymentMethod,
   createPaymentOnboarding,
+  fetchMyPaymentAccount,
   submitPaymentOnboardingRequirements,
 } from "./payment";
 
@@ -75,5 +76,31 @@ describe("createPaymentOnboarding (REQ-051 / INT-190)", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(session.status).toBe("complete");
+  });
+
+  it("GETs Ready payment account brand/last4 (INT-255)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          status: "complete",
+          brand: "visa",
+          last4: "4242",
+        }),
+      }),
+    );
+    const account = await fetchMyPaymentAccount("https://api.example", "tok");
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.example/v1/me/payment-account",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer tok" }),
+      }),
+    );
+    expect(account).toEqual({
+      status: "complete",
+      brand: "visa",
+      last4: "4242",
+    });
   });
 });

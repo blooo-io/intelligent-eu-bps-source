@@ -26,9 +26,9 @@ test.describe("AC-01 manager screens and buttons", () => {
 
   test("Participants Import and Edit controls visible", async ({ page }) => {
     await page.goto("/participants");
-    await expectPageReady(page, /^participants$/i);
+    await expectPageReady(page, /^participants$|^members$/i);
     await expect(page.getByLabel(/participant csv/i)).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByRole("button", { name: /^import$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /invite member|^import$/i })).toBeVisible();
     const edit = page.getByRole("button", { name: /^edit$/i }).first();
     if (await edit.isVisible().catch(() => false)) {
       await edit.click();

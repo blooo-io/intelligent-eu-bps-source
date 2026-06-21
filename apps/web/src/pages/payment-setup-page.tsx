@@ -15,7 +15,9 @@ import type { OidcFacade } from "../auth/oidc";
 import {
   attachMyPaymentMethod,
   createPaymentOnboarding,
+  fetchMyPaymentAccount,
   submitPaymentOnboardingRequirements,
+  type MePaymentAccount,
   type OnboardingSession,
 } from "../api/payment";
 import {
@@ -65,6 +67,7 @@ export function PaymentSetupPage({
   const [session, setSession] = useState<OnboardingSession | null>(null);
   const [marketRole, setMarketRole] = useState<ParticipantRole | null>(null);
   const [readiness, setReadiness] = useState<string | null>(null);
+  const [account, setAccount] = useState<MePaymentAccount | null>(null);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -77,6 +80,18 @@ export function PaymentSetupPage({
         if (!cancelled) {
           setMarketRole(me.role);
           setReadiness(me.readiness);
+        }
+        // INT-255 — Ready Payment method / Payout: brand·last4 or dashboard CTA.
+        if (me.readiness === "Ready") {
+          try {
+            const summary = await fetchMyPaymentAccount(
+              config.apiBaseUrl,
+              token,
+            );
+            if (!cancelled) setAccount(summary);
+          } catch {
+            // Keep Ready chrome even if summary fails; user can re-open setup.
+          }
         }
       } catch {
         // Session mode still reveals consumer vs producer after Start.
@@ -246,6 +261,15 @@ export function PaymentSetupPage({
     ? "Continue to Stripe Connect"
     : "Save card and finish";
 
+  const brandLabel = account?.brand
+    ? account.brand.charAt(0).toUpperCase() + account.brand.slice(1)
+    : null;
+  const readyConsumerCard =
+    !setupIncomplete &&
+    !asProducer &&
+    account?.status === "complete" &&
+    account.last4;
+
   const body = (
     <>
       {error && <Alert type="error" message={error} showIcon />}
@@ -261,7 +285,38 @@ export function PaymentSetupPage({
               : "Card used when you pay open invoices. Card numbers go to Stripe only — this app never stores them."}
         </Paragraph>
 
-        {!session && (
+        {readyConsumerCard && (
+          <div data-testid="payment-method-ready" style={{ marginBottom: 16 }}>
+            <Paragraph style={{ marginBottom: 4 }}>
+              <Text strong>
+                {brandLabel ?? "Card"} ···· {account!.last4}
+              </Text>
+            </Paragraph>
+            <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+              Default for invoice pay
+            </Paragraph>
+          </div>
+        )}
+
+        {!setupIncomplete && asProducer && account?.stripeAccountId && (
+          <div data-testid="payout-account-ready" style={{ marginBottom: 16 }}>
+            <Paragraph type="secondary" style={{ marginBottom: 12 }}>
+              Connect account <Text code>{account.stripeAccountId}</Text>
+            </Paragraph>
+            {account.dashboardUrl ? (
+              <Button
+                type="primary"
+                href={account.dashboardUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Stripe dashboard
+              </Button>
+            ) : null}
+          </div>
+        )}
+
+        {!session && setupIncomplete && (
           <Button type="primary" size="large" loading={loading} onClick={startOnboarding}>
             {startLabel}
           </Button>

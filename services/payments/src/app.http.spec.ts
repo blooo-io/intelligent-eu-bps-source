@@ -192,6 +192,43 @@ describe("payments HTTP (INT-107)", () => {
     });
   });
 
+  it("GET /v1/me/payment-account returns brand/last4 when Ready (INT-255)", async () => {
+    const empty = await fetch(`${base}/v1/me/payment-account`, {
+      headers: {
+        "x-intelligent-roles": "member",
+        "x-intelligent-sub": CONSUMER,
+        "x-intelligent-community": COMMUNITY,
+      },
+    });
+    expect(empty.status).toBe(200);
+    expect(await empty.json()).toMatchObject({ status: "none" });
+
+    await fetch(`${base}/v1/me/payment-account/payment-method`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "member",
+        "x-intelligent-sub": CONSUMER,
+        "x-intelligent-community": COMMUNITY,
+      },
+      body: JSON.stringify({ paymentMethodId: "pm_card_visa" }),
+    });
+
+    const ready = await fetch(`${base}/v1/me/payment-account`, {
+      headers: {
+        "x-intelligent-roles": "member",
+        "x-intelligent-sub": CONSUMER,
+        "x-intelligent-community": COMMUNITY,
+      },
+    });
+    expect(ready.status).toBe(200);
+    expect(await ready.json()).toMatchObject({
+      status: "complete",
+      brand: "visa",
+      last4: "4242",
+    });
+  });
+
   it("submitRequirements falls back to request ip without x-forwarded-for", async () => {
     const producer = "66666666-7777-4888-9999-aaaaaaaaaaaa";
     await fetch(`${base}/v1/me/payment-account/onboarding`, {

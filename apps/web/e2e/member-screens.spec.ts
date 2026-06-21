@@ -79,7 +79,7 @@ test.describe("AC-01 member screens and buttons", () => {
     await page.goto("/balances");
     await expectPageReady(page, /^balances$/i);
     await expect(
-      page.getByText(/no unbilled balances/i).or(page.getByRole("button", { name: /settle now/i }).first()),
+      page.getByText(/no unbilled balances/i).or(page.getByRole("button", { name: /settle early|settle now/i }).first()),
     ).toBeVisible({ timeout: 20_000 });
   });
 

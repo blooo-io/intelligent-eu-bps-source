@@ -65,12 +65,10 @@ export function PrivacyPage({
   }
 
   return (
-    <PageFrame title="Privacy request">
-        <Paragraph type="secondary">
-          Request an export of your personal data or ask for erasure.
-          Accounting records kept under legal retention stay available.
-        </Paragraph>
-
+    <PageFrame
+      title="Privacy"
+      description="Export or erase personal data held by billing."
+    >
         {error && <Alert type="error" message={error} showIcon />}
 
         <Card title="New request">
@@ -84,7 +82,7 @@ export function PrivacyPage({
           </Radio.Group>
           <div>
             <Button type="primary" loading={submitting} onClick={onSubmit}>
-              Submit request
+              {requestType === "export" ? "Request export" : "Request erasure"}
             </Button>
           </div>
         </Card>

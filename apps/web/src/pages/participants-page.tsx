@@ -198,18 +198,18 @@ export function ParticipantsPage({
   ];
 
   if (loading) {
-    return <PageFrame title="Participants" loading />;
+    return <PageFrame title="Members" loading />;
   }
 
   return (
     <PageFrame
-      title="Participants"
-      description="Manager-only. Import members from CSV, adjust roles, or offboard someone from this community."
+      title="Members"
+      description="Invite consumers and producers into this billing community."
     >
       {error && <Alert type="error" message={error} showIcon />}
       {message && <Alert type="success" message={message} showIcon />}
 
-      <Card title="Import (CSV)" size="small">
+      <Card title="Invite (CSV)" size="small">
         <Paragraph type="secondary">
           Columns: email, marketActorId, meterId, role (consumer | producer |
           prosumer). Creates IdP accounts and invitations.
@@ -222,7 +222,7 @@ export function ParticipantsPage({
         />
         <div style={{ marginTop: 12 }}>
           <Button type="primary" size="small" loading={busy} onClick={onImport}>
-            Import
+            Invite member
           </Button>
         </div>
       </Card>

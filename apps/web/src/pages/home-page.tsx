@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, List, Space, Typography } from "antd";
+import { Alert, Button, Card, Col, List, Row, Space, Statistic, Typography } from "antd";
 import { CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import { useGetIdentity } from "@refinedev/core";
 import { Link } from "react-router";
+import { fetchMyBalances } from "../api/balances";
+import { fetchMyInvoices } from "../api/invoices";
 import { fetchMe, type Me } from "../api/me";
 import type { WebConfig } from "../api/config";
 import { userFacingMessage } from "../api/user-facing-error";
@@ -29,9 +31,37 @@ type Identity = {
   communityId?: string;
 };
 
+type Pulse = {
+  openInvoices: number;
+  balanceTotal: string | null;
+  currency: string | null;
+  counterparts: number;
+};
+
+function sumBalances(
+  rows: Array<{ amount: string; currency: string }>,
+): { total: string; currency: string | null; counterparts: number } {
+  if (rows.length === 0) {
+    return { total: "0.00", currency: null, counterparts: 0 };
+  }
+  const currency = rows[0]?.currency ?? null;
+  let cents = 0;
+  for (const row of rows) {
+    const n = Number.parseFloat(row.amount);
+    if (!Number.isFinite(n)) continue;
+    cents += Math.round(n * 100);
+  }
+  return {
+    total: (cents / 100).toFixed(2),
+    currency,
+    counterparts: rows.length,
+  };
+}
+
 /**
- * Home after IdP sign-in (INT-137 / INT-245 / INT-250 / INT-252).
+ * Home after IdP sign-in (INT-137 / INT-245 / INT-250 / INT-252 / INT-255).
  * Money-first when Ready; consumer vs producer copy from market role.
+ * Ready pulse: open invoices + unbilled balance totals.
  */
 export function HomePage({
   config,
@@ -42,6 +72,7 @@ export function HomePage({
 }) {
   const { data: identity } = useGetIdentity<Identity>();
   const [me, setMe] = useState<Me | null>(null);
+  const [pulse, setPulse] = useState<Pulse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,6 +92,35 @@ export function HomePage({
         }
         const result = await fetchMe(config.apiBaseUrl, token);
         if (!cancelled) setMe(result);
+
+        // INT-255 — Ready / manager pulse from existing money APIs.
+        if (
+          result.readiness === "Ready" ||
+          result.roles.includes("manager")
+        ) {
+          try {
+            const [invoices, balances] = await Promise.all([
+              fetchMyInvoices(config.apiBaseUrl, token),
+              fetchMyBalances(config.apiBaseUrl, token),
+            ]);
+            if (!cancelled) {
+              const open = invoices.filter((i) =>
+                ["Open", "Issued", "Pending", "open", "issued"].includes(
+                  i.status,
+                ),
+              ).length;
+              const bal = sumBalances(balances);
+              setPulse({
+                openInvoices: open,
+                balanceTotal: bal.total,
+                currency: bal.currency,
+                counterparts: bal.counterparts,
+              });
+            }
+          } catch {
+            // Pulse is secondary; Home still works without it.
+          }
+        }
       } catch (err) {
         if (!cancelled) {
           setError(userFacingMessage(err));
@@ -129,6 +189,20 @@ export function HomePage({
           size="small"
           data-testid="home-money"
         >
+          {pulse && (
+            <Row gutter={24} style={{ marginBottom: 16 }} data-testid="home-pulse">
+              <Col>
+                <Statistic title="Open invoices" value={pulse.openInvoices} />
+              </Col>
+              <Col>
+                <Statistic
+                  title={isSellerRole(me.role) ? "Unbilled to collect" : "Unbilled balance"}
+                  value={pulse.balanceTotal ?? "0.00"}
+                  suffix={pulse.currency ?? undefined}
+                />
+              </Col>
+            </Row>
+          )}
           <Paragraph style={{ marginBottom: 0 }}>
             {isSellerRole(me.role) ? (
               <>
@@ -147,33 +221,62 @@ export function HomePage({
       )}
 
       {audience === "manager" && (
-        <Card title="Manager shortcuts" size="small">
-          <List
-            dataSource={[
-              {
-                to: "/community-settings",
-                label: "Settings — currency, period, threshold, VAT",
-              },
-              {
-                to: "/participants",
-                label: "Members — invite and offboard",
-              },
-              {
-                to: "/billing-runs",
-                label: "Billing runs — periodic, early or final",
-              },
-              {
-                to: "/payments-overview",
-                label: "Payments — invoice status across the community",
-              },
-            ]}
-            renderItem={(item) => (
-              <List.Item>
-                <Link to={item.to}>{item.label}</Link>
-              </List.Item>
-            )}
-          />
-        </Card>
+        <>
+          {pulse && (
+            <Card
+              title="Pulse"
+              size="small"
+              style={{ marginBottom: 16 }}
+              data-testid="home-pulse"
+            >
+              <Row gutter={24}>
+                <Col>
+                  <Statistic title="Open invoices" value={pulse.openInvoices} />
+                </Col>
+                <Col>
+                  <Statistic
+                    title="Unbilled pairs"
+                    value={pulse.counterparts}
+                  />
+                </Col>
+                <Col>
+                  <Statistic
+                    title="Unbilled total"
+                    value={pulse.balanceTotal ?? "0.00"}
+                    suffix={pulse.currency ?? undefined}
+                  />
+                </Col>
+              </Row>
+            </Card>
+          )}
+          <Card title="Manager shortcuts" size="small">
+            <List
+              dataSource={[
+                {
+                  to: "/community-settings",
+                  label: "Settings — currency, period, threshold, VAT",
+                },
+                {
+                  to: "/participants",
+                  label: "Members — invite and offboard",
+                },
+                {
+                  to: "/billing-runs",
+                  label: "Billing runs — periodic, early or final",
+                },
+                {
+                  to: "/payments-overview",
+                  label: "Payments — invoice status across the community",
+                },
+              ]}
+              renderItem={(item) => (
+                <List.Item>
+                  <Link to={item.to}>{item.label}</Link>
+                </List.Item>
+              )}
+            />
+          </Card>
+        </>
       )}
 
       {audience === "operator" && (

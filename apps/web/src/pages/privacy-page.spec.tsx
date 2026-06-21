@@ -63,7 +63,7 @@ describe("PrivacyPage (INT-143 / UAT-013)", () => {
     );
 
     fireEvent.click(screen.getByRole("radio", { name: /erasure/i }));
-    fireEvent.click(screen.getByRole("button", { name: /submit request/i }));
+    fireEvent.click(screen.getByRole("button", { name: /request export|request erasure|submit request/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/Accepted/)).toBeInTheDocument();
@@ -104,7 +104,7 @@ describe("PrivacyPage (INT-143 / UAT-013)", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /submit request/i }));
+    fireEvent.click(screen.getByRole("button", { name: /request export|request erasure|submit request/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/failed with 400/i)).toBeInTheDocument();
@@ -126,7 +126,7 @@ describe("PrivacyPage (INT-143 / UAT-013)", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /submit request/i }));
+    fireEvent.click(screen.getByRole("button", { name: /request export|request erasure|submit request/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/No access token/i)).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe("PrivacyPage (INT-143 / UAT-013)", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /submit request/i }));
+    fireEvent.click(screen.getByRole("button", { name: /request export|request erasure|submit request/i }));
     await waitFor(() => {
       expect(screen.getByText(/Accepted/)).toBeInTheDocument();
     });

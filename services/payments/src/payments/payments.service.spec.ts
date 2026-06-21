@@ -273,6 +273,41 @@ describe("PaymentsService", () => {
     );
   });
 
+  it("getMyPaymentAccount returns brand/last4 for Ready consumer (INT-255)", async () => {
+    expect(await service.getMyPaymentAccount(CONSUMER)).toEqual({
+      status: "none",
+    });
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await expect(service.getMyPaymentAccount(CONSUMER)).resolves.toEqual({
+      status: "complete",
+      brand: "visa",
+      last4: "4242",
+    });
+  });
+
+  it("getMyPaymentAccount returns dashboardUrl for Ready producer (INT-255)", async () => {
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await service.provisionPaymentAccount({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      fresh: true,
+    });
+    const summary = await service.getMyPaymentAccount(PRODUCER);
+    expect(summary.status).toBe("complete");
+    expect(summary.stripeAccountId).toMatch(/^acct_test_/);
+    expect(summary.dashboardUrl).toContain(summary.stripeAccountId!);
+  });
+
   it("pays an invoice to the producer account (REQ-014, BR-12)", async () => {
     await service.ensureParticipant({
       participantId: CONSUMER,

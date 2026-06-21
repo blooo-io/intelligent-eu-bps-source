@@ -45,7 +45,7 @@ test.describe("AC-01 shell navigation (authenticated)", () => {
     }
 
     await page.getByRole("button", { name: /sign out/i }).click();
-    await expect(page.getByRole("button", { name: /sign in with idp/i })).toBeVisible({
+    await expect(page.getByRole("button", { name: /continue with community idp/i })).toBeVisible({
       timeout: 30_000,
     });
     expect(page.url()).toMatch(/\/login\/?$/);

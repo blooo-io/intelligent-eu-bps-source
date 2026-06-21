@@ -17,7 +17,7 @@ test.describe("REQ balances settle now", () => {
     await expect(page.getByText(/failed with 404/i)).toHaveCount(0);
     await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);
 
-    const settle = page.getByRole("button", { name: /settle now/i }).first();
+    const settle = page.getByRole("button", { name: /settle early|settle now/i }).first();
     const empty = page.getByText(/no unbilled balances/i);
     const hasSettle = await settle.isVisible().catch(() => false);
     const hasEmpty = await empty.isVisible().catch(() => false);

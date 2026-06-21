@@ -3,6 +3,7 @@ import type {
   CreateProducerAccountInput,
   OnboardingRequirementsSubmission,
   OnboardingSession,
+  PaymentMethodDetails,
   PaymentMethodRef,
   ProducerAccount,
   PspPaymentResult,
@@ -182,6 +183,17 @@ export class StripePspAdapter implements PspPort {
     const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
     void participantId;
     return { paymentMethodId: pm.id };
+  }
+
+  async getPaymentMethodDetails(
+    paymentMethodId: string,
+  ): Promise<PaymentMethodDetails> {
+    const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+    return {
+      paymentMethodId: pm.id,
+      brand: pm.card?.brand ?? undefined,
+      last4: pm.card?.last4 ?? undefined,
+    };
   }
 
   async createPayment(input: {

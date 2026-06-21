@@ -119,7 +119,7 @@ export function CommunitySettingsPage({
   return (
     <PageFrame
       title="Community settings"
-      description="Manager-only. Set currency, billing period, invoice threshold, VAT and virtual/live mode for this energy community."
+      description="Billing perimeter: currency, period, threshold, VAT."
     >
         {forbidden && (
           <AccessNotice title="Community settings need a manager role" />

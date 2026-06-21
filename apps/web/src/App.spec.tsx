@@ -27,7 +27,7 @@ describe("App shell", () => {
     render(<App config={config} oidc={unauthenticatedOidc()} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /sign in with idp/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /continue with community idp/i })).toBeInTheDocument();
     });
   });
 
@@ -39,7 +39,7 @@ describe("App shell", () => {
     render(<App config={config} oidc={unauthenticatedOidc()} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /sign in with idp/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /continue with community idp/i })).toBeInTheDocument();
     });
     expect(window.location.pathname).toBe("/login");
   });

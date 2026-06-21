@@ -102,16 +102,25 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
     };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          participantId: "11111111-1111-1111-1111-111111111111",
-          communityId: "22222222-2222-2222-2222-222222222222",
-          roles: ["manager"],
-          role: "prosumer",
-          readiness: "Invited",
-          profile: { name: "Mgr", address: "1", email: "m@e.com" },
-        }),
+      vi.fn().mockImplementation(async (url: string) => {
+        const path = String(url);
+        if (path.endsWith("/v1/me")) {
+          return {
+            ok: true,
+            json: async () => ({
+              participantId: "11111111-1111-1111-1111-111111111111",
+              communityId: "22222222-2222-2222-2222-222222222222",
+              roles: ["manager"],
+              role: "prosumer",
+              readiness: "Invited",
+              profile: { name: "Mgr", address: "1", email: "m@e.com" },
+            }),
+          };
+        }
+        if (path.endsWith("/v1/me/invoices") || path.endsWith("/v1/me/balances")) {
+          return { ok: true, json: async () => [] };
+        }
+        return { ok: false, status: 404 };
       }),
     );
 
@@ -140,16 +149,45 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
     };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          participantId: "11111111-1111-1111-1111-111111111111",
-          communityId: "22222222-2222-2222-2222-222222222222",
-          roles: ["member"],
-          role: "consumer",
-          readiness: "Ready",
-          profile: { name: "Ada", address: "1", email: "a@e.com" },
-        }),
+      vi.fn().mockImplementation(async (url: string) => {
+        const path = String(url);
+        if (path.endsWith("/v1/me")) {
+          return {
+            ok: true,
+            json: async () => ({
+              participantId: "11111111-1111-1111-1111-111111111111",
+              communityId: "22222222-2222-2222-2222-222222222222",
+              roles: ["member"],
+              role: "consumer",
+              readiness: "Ready",
+              profile: { name: "Ada", address: "1", email: "a@e.com" },
+            }),
+          };
+        }
+        if (path.endsWith("/v1/me/invoices")) {
+          return {
+            ok: true,
+            json: async () => [
+              {
+                invoiceId: "i1",
+                producerId: "p",
+                consumerId: "c",
+                currency: "EUR",
+                status: "Open",
+                amounts: { energy: "1.00", vat: "0.00", total: "1.00" },
+              },
+            ],
+          };
+        }
+        if (path.endsWith("/v1/me/balances")) {
+          return {
+            ok: true,
+            json: async () => [
+              { counterpartId: "p", amount: "3.50", currency: "EUR" },
+            ],
+          };
+        }
+        return { ok: false, status: 404 };
       }),
     );
 
@@ -164,6 +202,10 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
     });
     expect(screen.getByRole("button", { name: /pay open invoices/i })).toBeInTheDocument();
     expect(screen.getByTestId("home-money")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("home-pulse")).toHaveTextContent(/Open invoices/);
+    });
+    expect(screen.getByTestId("home-pulse")).toHaveTextContent("3.50");
   });
 
   it("shows producer ready copy (INT-252)", async () => {
@@ -176,16 +218,25 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
     };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          participantId: "66666666-6666-6666-6666-666666666666",
-          communityId: "22222222-2222-2222-2222-222222222222",
-          roles: ["member"],
-          role: "producer",
-          readiness: "Ready",
-          profile: { name: "Jordan", address: "1", email: "j@e.com" },
-        }),
+      vi.fn().mockImplementation(async (url: string) => {
+        const path = String(url);
+        if (path.endsWith("/v1/me")) {
+          return {
+            ok: true,
+            json: async () => ({
+              participantId: "66666666-6666-6666-6666-666666666666",
+              communityId: "22222222-2222-2222-2222-222222222222",
+              roles: ["member"],
+              role: "producer",
+              readiness: "Ready",
+              profile: { name: "Jordan", address: "1", email: "j@e.com" },
+            }),
+          };
+        }
+        if (path.endsWith("/v1/me/invoices") || path.endsWith("/v1/me/balances")) {
+          return { ok: true, json: async () => [] };
+        }
+        return { ok: false, status: 404 };
       }),
     );
 

@@ -1,7 +1,16 @@
 /**
- * Public API client for payment-account onboarding (REQ-051 / UAT-063 / INT-190 / INT-193).
+ * Public API client for payment-account onboarding (REQ-051 / UAT-063 / INT-190 / INT-193 / INT-255).
  * Served by AC-07.
  */
+
+/** INT-255 — Ready Payment method / Payout account summary. */
+export type MePaymentAccount = {
+  status: "none" | "requirements_due" | "pending_verification" | "complete";
+  brand?: string;
+  last4?: string;
+  stripeAccountId?: string;
+  dashboardUrl?: string;
+};
 
 export type OnboardingSession = {
   mode: "requirements" | "link" | "elements";
@@ -45,6 +54,28 @@ export type OnboardingRequirementsSubmission = {
   };
   tosAccepted?: boolean;
 };
+
+/** INT-255 — read brand/last4 or Connect dashboard link for Ready UI. */
+export async function fetchMyPaymentAccount(
+  apiBaseUrl: string,
+  accessToken: string,
+): Promise<MePaymentAccount> {
+  const res = await fetch(
+    `${apiBaseUrl.replace(/\/$/, "")}/v1/me/payment-account`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+    },
+  );
+  if (!res.ok) {
+    throw new Error(
+      `GET /v1/me/payment-account failed with ${res.status}`,
+    );
+  }
+  return (await res.json()) as MePaymentAccount;
+}
 
 /** Start payment-account onboarding (producer requirements or consumer elements). */
 export async function createPaymentOnboarding(

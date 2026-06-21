@@ -3,6 +3,7 @@ import type {
   CreateProducerAccountInput,
   OnboardingRequirementsSubmission,
   OnboardingSession,
+  PaymentMethodDetails,
   PaymentMethodRef,
   ProducerAccount,
   PspPaymentResult,
@@ -115,6 +116,19 @@ export class MockPspAdapter implements PspPort {
   ): Promise<PaymentMethodRef> {
     this.methods.set(participantId, paymentMethodId);
     return { paymentMethodId };
+  }
+
+  async getPaymentMethodDetails(
+    paymentMethodId: string,
+  ): Promise<PaymentMethodDetails> {
+    // Fixture ids used in UAT / seed (pm_card_visa → Visa 4242).
+    if (paymentMethodId.includes("visa") || paymentMethodId === "pm_card_visa") {
+      return { paymentMethodId, brand: "visa", last4: "4242" };
+    }
+    if (paymentMethodId.includes("mastercard")) {
+      return { paymentMethodId, brand: "mastercard", last4: "4444" };
+    }
+    return { paymentMethodId, brand: "visa", last4: "4242" };
   }
 
   async createPayment(input: {

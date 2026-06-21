@@ -115,7 +115,7 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
   );
 
   it(
-    "shows pay step when Ready",
+    "shows Ready payment step with money unlock CTA (INT-255)",
     async () => {
       vi.stubGlobal(
         "fetch",
@@ -129,17 +129,36 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
           });
         }),
       );
-      renderWizard("/onboarding?step=pay");
+      render(
+        <MemoryRouter initialEntries={["/onboarding?step=payment"]}>
+          <Routes>
+            <Route
+              path="/onboarding"
+              element={<OnboardingWizardPage config={config} oidc={{
+                login: vi.fn(),
+                handleCallback: vi.fn(),
+                logout: vi.fn(),
+                getUser: vi.fn(),
+                getAccessToken: vi.fn().mockResolvedValue("tok"),
+              }} />}
+            />
+            <Route path="/invoices" element={<div>Invoices body</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
       await waitFor(
         () => {
-          expect(screen.getByText(/You are Ready/i)).toBeInTheDocument();
+          expect(
+            screen.getByRole("heading", { name: /Get ready — step 3 of 3/i }),
+          ).toBeInTheDocument();
         },
         { timeout: 10_000 },
       );
-      fireEvent.click(screen.getByRole("button", { name: /finish/i }));
+      expect(screen.getByText(/You are ready/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /go to invoices/i }));
       await waitFor(
         () => {
-          expect(screen.getByText("Home body")).toBeInTheDocument();
+          expect(screen.getByText("Invoices body")).toBeInTheDocument();
         },
         { timeout: 10_000 },
       );

@@ -100,7 +100,7 @@ export function BalancesPage({
           loading={settlingId === row.counterpartId}
           onClick={() => settleNow(row.counterpartId)}
         >
-          Settle now
+          Settle early
         </Button>
       ),
     },
@@ -113,7 +113,7 @@ export function BalancesPage({
   return (
     <PageFrame
       title="Balances"
-      description="Unbilled amounts with each trading counterpart. Settle now creates an invoice immediately, without waiting for the community threshold."
+      description="Net with each counterparty. Under threshold carries forward."
     >
       {error && <Alert type="error" message={error} showIcon />}
       {lastRun && (

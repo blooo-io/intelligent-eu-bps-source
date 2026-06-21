@@ -396,6 +396,60 @@ export class PaymentsService {
     return { mode: "elements", status: "complete" };
   }
 
+  /**
+   * INT-255 — public GET /me/payment-account for Ready Payment method /
+   * Payout account UI. Brand/last4 from Stripe (TP-7); not persisted.
+   */
+  async getMyPaymentAccount(participantId: string): Promise<{
+    status: "none" | "requirements_due" | "pending_verification" | "complete";
+    brand?: string;
+    last4?: string;
+    stripeAccountId?: string;
+    dashboardUrl?: string;
+  }> {
+    let row = this.store.getAccount(participantId);
+    if (!row) {
+      row = await this.accountsStore.get(participantId);
+      if (row) this.store.putAccount(row);
+    }
+    if (!row) {
+      return { status: "none" };
+    }
+
+    if (row.paymentMethodId) {
+      const details = await this.psp.getPaymentMethodDetails(row.paymentMethodId);
+      return {
+        status: "complete",
+        brand: details.brand,
+        last4: details.last4,
+      };
+    }
+
+    if (row.stripeAccountId) {
+      let status: "requirements_due" | "pending_verification" | "complete" =
+        "requirements_due";
+      try {
+        const session = await this.psp.getAccountSession(row.stripeAccountId);
+        status = session.status;
+      } catch {
+        status =
+          row.kycStatus === "verified" ? "complete" : "requirements_due";
+      }
+      // Custom Connect has stripe_dashboard: none — no Express login link.
+      // Platform Dashboard deep-link for operators / test visibility (INT-255).
+      return {
+        status,
+        stripeAccountId: row.stripeAccountId,
+        dashboardUrl: `https://dashboard.stripe.com/test/connect/accounts/${row.stripeAccountId}`,
+      };
+    }
+
+    if (row.kycStatus === "verified") {
+      return { status: "complete" };
+    }
+    return { status: "none" };
+  }
+
   async completeProducerKyc(participantId: string): Promise<void> {
     const account = this.store.getAccount(participantId);
     if (!account?.stripeAccountId) {

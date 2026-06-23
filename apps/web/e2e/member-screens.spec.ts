@@ -49,11 +49,21 @@ test.describe("AC-01 member screens and buttons", () => {
 
   test("Payment setup Start CTA is clickable", async ({ page }) => {
     await page.goto("/payment-setup");
-    await expectPageReady(page, /payment method|payout account|payment setup/i);
+    await expectPageReady(
+      page,
+      /payment method|payout account|payment setup|add a payment method|open stripe connect/i,
+    );
+    // INT-255 — Ready chrome shows brand/last4; setup chrome shows Start CTA.
+    const readyCard = page.getByTestId("payment-method-ready");
+    if (await readyCard.isVisible().catch(() => false)) {
+      await expect(readyCard).toContainText(/····|\d{4}/);
+      await expect(page.getByText(/default for invoice pay/i)).toBeVisible();
+      return;
+    }
     const start = page.getByRole("button", {
-      name: /save card and finish|continue to stripe connect|start payment setup/i,
+      name: /save card and finish|continue to stripe connect|start payment setup|add a payment method/i,
     });
-    await expect(start).toBeVisible();
+    await expect(start).toBeVisible({ timeout: 20_000 });
     await start.click();
     // Consumer path mounts Stripe Element + Save; producer path shows KYC Submit.
     await expect(page.getByTestId("stripe-payment-element")).toBeVisible({
@@ -107,7 +117,7 @@ test.describe("AC-01 member screens and buttons", () => {
     await page.goto("/privacy");
     await expectPageReady(page, /privacy/i);
     await clickRadioButton(page, /export/i);
-    await page.getByRole("button", { name: /submit request/i }).click();
+    await page.getByRole("button", { name: /request export|submit request/i }).click();
     await expect(page.getByText(/request status/i)).toBeVisible({ timeout: 20_000 });
     await page.getByRole("button", { name: /^refresh$/i }).click();
     await expect(page.getByText(/status/i).first()).toBeVisible();

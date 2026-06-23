@@ -14,7 +14,7 @@ test.describe("REQ operator payment trade trace", () => {
     test.setTimeout(90_000);
     await loginAs(page, "operator");
     await page.goto("/operator");
-    await expectPageReady(page, /^operator$/i);
+    await expectPageReady(page, /^operator|operator desk$/i);
     await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);
     await expect(page.getByText("Intake anomalies", { exact: true })).toBeVisible();
     await expect(page.getByText("Reconciliation discrepancies", { exact: true })).toBeVisible();

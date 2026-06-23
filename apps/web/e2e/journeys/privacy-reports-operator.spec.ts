@@ -13,7 +13,7 @@ test.describe("REQ privacy reports operator", () => {
     await page.goto("/privacy");
     await expectPageReady(page, /privacy/i);
     await clickRadioButton(page, /export/i);
-    await page.getByRole("button", { name: /submit request/i }).click();
+    await page.getByRole("button", { name: /request export|submit request/i }).click();
     await expect(page.getByText(/request status/i)).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/export/i).first()).toBeVisible();
     await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);
@@ -52,7 +52,7 @@ test.describe("REQ privacy reports operator", () => {
     test.setTimeout(90_000);
     await loginAs(page, "operator");
     await page.goto("/operator");
-    await expectPageReady(page, /^operator$/i);
+    await expectPageReady(page, /^operator|operator desk$/i);
     await expect(page.getByText("Intake anomalies", { exact: true })).toBeVisible();
     await expect(page.getByText("Reconciliation discrepancies", { exact: true })).toBeVisible();
     await expect(page.getByText("Jobs", { exact: true })).toBeVisible();

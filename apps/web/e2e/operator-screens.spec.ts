@@ -12,7 +12,7 @@ test.describe("AC-01 operator screens and buttons", () => {
     test.setTimeout(90_000);
     await loginAs(page, "operator");
     await page.goto("/operator");
-    await expectPageReady(page, /^operator$/i);
+    await expectPageReady(page, /^operator|operator desk$/i);
 
     // Card titles only (page description must not repeat these phrases — INT-246/247).
     await expect(page.getByText("Intake anomalies", { exact: true })).toBeVisible();

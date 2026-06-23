@@ -242,7 +242,8 @@ export function PaymentSetupPage({
   const asProducer =
     isSellerRole(marketRole) || session?.mode === "requirements";
   // INT-254 / Volt MockSetup vs MockPayment: setup titles until Ready.
-  const setupIncomplete = readiness !== null && readiness !== "Ready";
+  // Treat unknown readiness as incomplete so the Start CTA is not hidden while /me loads.
+  const setupIncomplete = readiness !== "Ready";
   const pageTitle = asProducer
     ? setupIncomplete
       ? "Open Stripe Connect"

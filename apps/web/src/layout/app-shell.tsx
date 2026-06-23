@@ -140,7 +140,28 @@ export function AppShell({
             INTELLIGENT billing
           </Text>
           <Space size={12}>
-            <Text style={{ color: "#D7E0DA", fontSize: 13 }}>{displayName}</Text>
+            {/* INT-255 — keep identity testids in MockSetup chrome (no sider). */}
+            <Text
+              data-testid="shell-user-name"
+              style={{ color: "#D7E0DA", fontSize: 13 }}
+            >
+              {displayName}
+            </Text>
+            <span data-testid="shell-user-roles">
+              {headerRoleTags.map((role) => (
+                <Tag
+                  key={role}
+                  style={{
+                    marginInlineEnd: 4,
+                    color: brand.sider,
+                    background: brand.accent,
+                    border: "none",
+                  }}
+                >
+                  {role}
+                </Tag>
+              ))}
+            </span>
             <Button size="small" onClick={() => logout()}>
               Sign out
             </Button>

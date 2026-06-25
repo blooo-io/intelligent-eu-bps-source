@@ -13,7 +13,14 @@ test.describe("REQ privacy reports operator", () => {
     await page.goto("/privacy");
     await expectPageReady(page, /privacy/i);
     await clickRadioButton(page, /export/i);
+    const exportResp = page.waitForResponse(
+      (r) =>
+        r.request().method() === "POST" &&
+        /data-subject-requests/.test(r.url()),
+      { timeout: 45_000 },
+    );
     await page.getByRole("button", { name: /request export|submit request/i }).click();
+    expect((await exportResp).ok()).toBeTruthy();
     await expect(page.getByText(/request status/i)).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/export/i).first()).toBeVisible();
     await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);

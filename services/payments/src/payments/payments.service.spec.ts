@@ -273,6 +273,27 @@ describe("PaymentsService", () => {
     );
   });
 
+  it("startOnboarding with existing PM re-notifies Ready (INT-255)", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    const before = (await outboxStore.list()).length;
+    const session = await service.startOnboarding({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    expect(session).toEqual({ mode: "elements", status: "complete" });
+    const after = await outboxStore.list();
+    expect(after.length).toBeGreaterThan(before);
+    expect(after.map((e) => e.event.type)).toContain(
+      "PaymentAccountStatusChanged",
+    );
+  });
+
   it("getMyPaymentAccount returns brand/last4 for Ready consumer (INT-255)", async () => {
     expect(await service.getMyPaymentAccount(CONSUMER)).toEqual({
       status: "none",

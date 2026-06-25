@@ -111,6 +111,12 @@ export function PaymentSetupPage({
       const next = await createPaymentOnboarding(config.apiBaseUrl, token);
       setSession(next);
       if (next.status === "complete") {
+        // INT-255 — PM already on file: refresh Ready summary (brand/last4).
+        try {
+          setAccount(await fetchMyPaymentAccount(config.apiBaseUrl, token));
+        } catch {
+          // Summary optional; success Alert still covers complete session.
+        }
         onComplete?.();
       }
       if (next.mode === "link" && next.url) {
@@ -266,10 +272,10 @@ export function PaymentSetupPage({
     ? account.brand.charAt(0).toUpperCase() + account.brand.slice(1)
     : null;
   const readyConsumerCard =
-    !setupIncomplete &&
     !asProducer &&
     account?.status === "complete" &&
-    account.last4;
+    Boolean(account.last4) &&
+    (!setupIncomplete || session?.status === "complete");
 
   const body = (
     <>

@@ -65,11 +65,21 @@ test.describe("AC-01 member screens and buttons", () => {
     });
     await expect(start).toBeVisible({ timeout: 20_000 });
     await start.click();
-    // Consumer path mounts Stripe Element + Save; producer path shows KYC Submit.
-    await expect(page.getByTestId("stripe-payment-element")).toBeVisible({
-      timeout: 45_000,
-    });
-    await expect(page.getByRole("button", { name: /save payment method/i })).toBeVisible();
+    // Consumer: Elements, already-complete Alert, or Ready Visa chrome.
+    // Producer: KYC Submit after requirements session.
+    const elements = page.getByTestId("stripe-payment-element");
+    const readyAlert = page.getByText(/payment account ready/i);
+    const readyCard = page.getByTestId("payment-method-ready");
+    const kyc = page.getByRole("button", { name: /submit kyc|submit requirements/i });
+    await expect(
+      elements.or(readyAlert).or(readyCard).or(kyc),
+    ).toBeVisible({ timeout: 45_000 });
+    if (await elements.isVisible().catch(() => false)) {
+      await expect(
+        page.getByRole("button", { name: /save payment method/i }),
+      ).toBeVisible();
+    }
+    await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);
   });
 
   test("Onboarding wizard steps and Continue buttons", async ({ page }) => {
@@ -117,7 +127,14 @@ test.describe("AC-01 member screens and buttons", () => {
     await page.goto("/privacy");
     await expectPageReady(page, /privacy/i);
     await clickRadioButton(page, /export/i);
+    const exportResp = page.waitForResponse(
+      (r) =>
+        r.request().method() === "POST" &&
+        /data-subject-requests/.test(r.url()),
+      { timeout: 45_000 },
+    );
     await page.getByRole("button", { name: /request export|submit request/i }).click();
+    expect((await exportResp).ok()).toBeTruthy();
     await expect(page.getByText(/request status/i)).toBeVisible({ timeout: 20_000 });
     await page.getByRole("button", { name: /^refresh$/i }).click();
     await expect(page.getByText(/status/i).first()).toBeVisible();

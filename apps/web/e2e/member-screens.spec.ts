@@ -69,7 +69,6 @@ test.describe("AC-01 member screens and buttons", () => {
     // Producer: KYC Submit after requirements session.
     const elements = page.getByTestId("stripe-payment-element");
     const readyAlert = page.getByText(/payment account ready/i);
-    const readyCard = page.getByTestId("payment-method-ready");
     const kyc = page.getByRole("button", { name: /submit kyc|submit requirements/i });
     await expect(
       elements.or(readyAlert).or(readyCard).or(kyc),

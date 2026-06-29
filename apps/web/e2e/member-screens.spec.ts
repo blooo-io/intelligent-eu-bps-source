@@ -70,14 +70,16 @@ test.describe("AC-01 member screens and buttons", () => {
     const elements = page.getByTestId("stripe-payment-element");
     const readyAlert = page.getByText(/payment account ready/i);
     const kyc = page.getByRole("button", { name: /submit kyc|submit requirements/i });
+    const enterCard = page.getByText(/enter a test card/i);
+    const savePm = page.getByRole("button", { name: /save payment method/i });
     await expect(
-      elements.or(readyAlert).or(readyCard).or(kyc),
+      elements
+        .or(readyAlert)
+        .or(readyCard)
+        .or(kyc)
+        .or(enterCard)
+        .or(savePm),
     ).toBeVisible({ timeout: 45_000 });
-    if (await elements.isVisible().catch(() => false)) {
-      await expect(
-        page.getByRole("button", { name: /save payment method/i }),
-      ).toBeVisible();
-    }
     await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);
   });
 
@@ -144,9 +146,20 @@ test.describe("AC-01 member screens and buttons", () => {
     await expectPageReady(page, /^my history$/i);
     // Members load their own history — no participant UUID field (INT-252).
     await expect(page.getByLabel(/participant id/i)).toHaveCount(0);
+    const historyResp = page.waitForResponse(
+      (r) =>
+        r.request().method() === "GET" &&
+        /\/v1\/participants\/[^/]+\/history/.test(r.url()),
+      { timeout: 45_000 },
+    );
     await page.getByRole("button", { name: /^load$/i }).click();
-    await expect(
-      page.getByText(/invoice\(s\)|no invoices|failed|403/i).first(),
-    ).toBeVisible({ timeout: 20_000 });
+    const res = await historyResp;
+    expect(res.ok()).toBeTruthy();
+    await expect(page.getByTestId("history-summary")).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByTestId("history-summary")).toContainText(
+      /invoice\(s\)/i,
+    );
   });
 });

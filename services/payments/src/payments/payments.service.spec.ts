@@ -294,6 +294,37 @@ describe("PaymentsService", () => {
     );
   });
 
+  it("startOnboarding still completes when Ready notify fails (INT-255)", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    const failing = {
+      applyPaymentAccountStatus: vi.fn(async () => {
+        throw new Error("participants payment-account-status failed with 503");
+      }),
+    };
+    const svc = new PaymentsService(
+      store,
+      new OutboxService(outboxStore),
+      psp,
+      invoices,
+      failing,
+      accountsStore,
+      new NoopParticipantsResolver(),
+    );
+    await expect(
+      svc.startOnboarding({
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+        role: "consumer",
+      }),
+    ).resolves.toEqual({ mode: "elements", status: "complete" });
+    expect(failing.applyPaymentAccountStatus).toHaveBeenCalled();
+  });
+
   it("getMyPaymentAccount returns brand/last4 for Ready consumer (INT-255)", async () => {
     expect(await service.getMyPaymentAccount(CONSUMER)).toEqual({
       status: "none",

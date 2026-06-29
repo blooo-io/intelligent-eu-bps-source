@@ -299,8 +299,13 @@ export class PaymentsService {
     // INT-193 — consumer SetupIntent for in-wizard Payment Element.
     if (account.paymentMethodId) {
       // INT-255 — durable PM may already exist while AC-03 readiness lags;
-      // re-notify so Ready chrome / e2e stay aligned with Stripe master (TP-7).
-      await this.emitAccountStatus(input.participantId);
+      // re-notify so Ready chrome stays aligned with Stripe master (TP-7).
+      // Best-effort: never fail Start when the PM is already on file.
+      try {
+        await this.emitAccountStatus(input.participantId);
+      } catch {
+        // Participants notify may 5xx during rollout; session is still complete.
+      }
       return { mode: "elements", status: "complete" };
     }
     const setup = await this.psp.createSetupIntent(input.participantId);

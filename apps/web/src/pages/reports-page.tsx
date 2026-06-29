@@ -64,6 +64,11 @@ export function ReportsPage({
   }, [config.apiBaseUrl, oidc]);
 
   async function onLoadHistory() {
+    const id = participantId.trim();
+    if (!id) {
+      setError("Participant id is required");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -71,11 +76,7 @@ export function ReportsPage({
       if (!token) throw new Error("No access token");
       // REQ-031: manager / member history of invoices and payments.
       setHistory(
-        await fetchParticipantHistory(
-          config.apiBaseUrl,
-          token,
-          participantId.trim(),
-        ),
+        await fetchParticipantHistory(config.apiBaseUrl, token, id),
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "History failed");
@@ -179,7 +180,10 @@ export function ReportsPage({
         </Space>
         {history && (
           <>
-            <Paragraph style={{ marginTop: 12 }}>
+            <Paragraph
+              style={{ marginTop: 12 }}
+              data-testid="history-summary"
+            >
               Participant <Text code>{history.participantId}</Text> ·{" "}
               {history.invoices.length} invoice(s) · {history.payments.length}{" "}
               payment(s)

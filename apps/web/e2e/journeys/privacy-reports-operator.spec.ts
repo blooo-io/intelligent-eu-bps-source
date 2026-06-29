@@ -32,11 +32,18 @@ test.describe("REQ privacy reports operator", () => {
     await page.goto("/reports");
     await expectPageReady(page, /^my history$/i);
     await expect(page.getByLabel(/participant id/i)).toHaveCount(0);
+    const historyResp = page.waitForResponse(
+      (r) =>
+        r.request().method() === "GET" &&
+        /\/v1\/participants\/[^/]+\/history/.test(r.url()),
+      { timeout: 45_000 },
+    );
     await page.getByRole("button", { name: /^load$/i }).click();
+    expect((await historyResp).ok()).toBeTruthy();
     await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);
-    await expect(
-      page.getByText(/invoice\(s\)|no invoices|payment\(s\)/i).first(),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("history-summary")).toBeVisible({
+      timeout: 20_000,
+    });
 
     await page.getByRole("button", { name: /sign out/i }).click();
     await expect(page.getByRole("button", { name: /continue with community idp/i })).toBeVisible({

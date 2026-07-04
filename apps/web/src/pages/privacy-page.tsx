@@ -89,6 +89,7 @@ export function PrivacyPage({
 
         {current && (
           <Card
+            data-testid="privacy-request-status"
             title="Request status"
             extra={
               <Button onClick={onRefresh} loading={refreshing}>

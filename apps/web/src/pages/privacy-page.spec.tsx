@@ -66,6 +66,7 @@ describe("PrivacyPage (INT-143 / UAT-013)", () => {
     fireEvent.click(screen.getByRole("button", { name: /request export|request erasure|submit request/i }));
 
     await waitFor(() => {
+      expect(screen.getByTestId("privacy-request-status")).toBeInTheDocument();
       expect(screen.getByText(/Accepted/)).toBeInTheDocument();
     });
 

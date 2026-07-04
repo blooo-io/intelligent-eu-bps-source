@@ -1,8 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { Refine, type AuthProvider } from "@refinedev/core";
+import { Refine, type AuthProvider, useIsAuthenticated } from "@refinedev/core";
 import { ProtectedOutlet } from "./protected-outlet";
+
+vi.mock("@refinedev/core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@refinedev/core")>();
+  return {
+    ...actual,
+    useIsAuthenticated: vi.fn(),
+  };
+});
+
+const useIsAuthenticatedMock = vi.mocked(useIsAuthenticated);
 
 function authProvider(authenticated: boolean): AuthProvider {
   return {
@@ -16,8 +26,17 @@ function authProvider(authenticated: boolean): AuthProvider {
   };
 }
 
-describe("ProtectedOutlet (INT-181)", () => {
+describe("ProtectedOutlet (INT-181 / INT-256)", () => {
+  beforeEach(() => {
+    useIsAuthenticatedMock.mockReset();
+  });
+
   it("redirects unauthenticated visitors to /login", async () => {
+    useIsAuthenticatedMock.mockReturnValue({
+      isFetching: false,
+      data: { authenticated: false },
+    } as ReturnType<typeof useIsAuthenticated>);
+
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Refine authProvider={authProvider(false)} options={{ disableRouteChangeHandler: true }}>
@@ -38,6 +57,11 @@ describe("ProtectedOutlet (INT-181)", () => {
   });
 
   it("renders nested routes when authenticated", async () => {
+    useIsAuthenticatedMock.mockReturnValue({
+      isFetching: false,
+      data: { authenticated: true },
+    } as ReturnType<typeof useIsAuthenticated>);
+
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Refine authProvider={authProvider(true)} options={{ disableRouteChangeHandler: true }}>
@@ -53,5 +77,49 @@ describe("ProtectedOutlet (INT-181)", () => {
     await waitFor(() => {
       expect(screen.getByText("Home secret")).toBeInTheDocument();
     });
+  });
+
+  it("keeps authenticated routes mounted while auth revalidates (INT-256)", () => {
+    useIsAuthenticatedMock.mockReturnValue({
+      isFetching: true,
+      data: { authenticated: true },
+    } as ReturnType<typeof useIsAuthenticated>);
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Refine authProvider={authProvider(true)} options={{ disableRouteChangeHandler: true }}>
+          <Routes>
+            <Route element={<ProtectedOutlet />}>
+              <Route index element={<div data-testid="kept">Form state</div>} />
+            </Route>
+          </Routes>
+        </Refine>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("kept")).toBeInTheDocument();
+    expect(document.querySelector(".ant-spin")).toBeNull();
+  });
+
+  it("shows a spinner only on the initial auth check", () => {
+    useIsAuthenticatedMock.mockReturnValue({
+      isFetching: true,
+      data: undefined,
+    } as ReturnType<typeof useIsAuthenticated>);
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Refine authProvider={authProvider(true)} options={{ disableRouteChangeHandler: true }}>
+          <Routes>
+            <Route element={<ProtectedOutlet />}>
+              <Route index element={<div>Home secret</div>} />
+            </Route>
+          </Routes>
+        </Refine>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText("Home secret")).not.toBeInTheDocument();
+    expect(document.querySelector(".ant-spin")).toBeTruthy();
   });
 });

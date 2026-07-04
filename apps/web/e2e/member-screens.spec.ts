@@ -159,14 +159,19 @@ test.describe("AC-01 member screens and buttons", () => {
     const exportResp = page.waitForResponse(
       (r) =>
         r.request().method() === "POST" &&
-        /data-subject-requests/.test(r.url()),
+        /\/v1\/data-subject-requests$/.test(new URL(r.url()).pathname),
       { timeout: 45_000 },
     );
     await page.getByRole("button", { name: /request export|submit request/i }).click();
-    expect((await exportResp).ok()).toBeTruthy();
-    await expect(page.getByText(/request status/i)).toBeVisible({ timeout: 20_000 });
+    const res = await exportResp;
+    expect(res.ok()).toBeTruthy();
+    const body = (await res.json()) as { requestId?: string };
+    expect(body.requestId).toBeTruthy();
+    const statusCard = page.getByTestId("privacy-request-status");
+    await expect(statusCard).toBeVisible({ timeout: 15_000 });
+    await expect(statusCard).toContainText(body.requestId!);
     await page.getByRole("button", { name: /^refresh$/i }).click();
-    await expect(page.getByText(/status/i).first()).toBeVisible();
+    await expect(statusCard).toBeVisible();
   });
 
   test("Reports Load history for own participant", async ({ page }) => {

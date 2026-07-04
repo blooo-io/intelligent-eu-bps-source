@@ -20,7 +20,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
-  retries: 1,
+  // INT-256 — never mask flakes with retries; a retry-pass is a hard fail.
+  retries: 0,
   reporter: "list",
   timeout: 90_000,
   use: {

@@ -16,13 +16,25 @@ test.describe("REQ privacy reports operator", () => {
     const exportResp = page.waitForResponse(
       (r) =>
         r.request().method() === "POST" &&
-        /data-subject-requests/.test(r.url()),
+        /\/v1\/data-subject-requests$/.test(new URL(r.url()).pathname),
       { timeout: 45_000 },
     );
     await page.getByRole("button", { name: /request export|submit request/i }).click();
-    expect((await exportResp).ok()).toBeTruthy();
-    await expect(page.getByText(/request status/i)).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(/export/i).first()).toBeVisible();
+    const res = await exportResp;
+    expect(res.ok()).toBeTruthy();
+    const body = (await res.json()) as {
+      requestId?: string;
+      type?: string;
+      status?: string;
+    };
+    expect(body.requestId).toBeTruthy();
+    expect(body.type).toBe("export");
+    expect(body.status).toBeTruthy();
+    // INT-256 — status card must survive auth revalidation (testid, not title text).
+    const statusCard = page.getByTestId("privacy-request-status");
+    await expect(statusCard).toBeVisible({ timeout: 15_000 });
+    await expect(statusCard).toContainText(body.requestId!);
+    await expect(statusCard).toContainText(/export/i);
     await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);
   });
 

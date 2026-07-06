@@ -1,0 +1,4 @@
+# INT-257 — gcr.io/distroless/nodejs22-debian13:nonroot still ships
+# ca-certificates 20250419; Debian fixed DSA-6572-1 in 20250419+deb13u1
+# (published 2026-10-20). Remove this entry when distroless bumps the package.
+DSA-6572-1 exp:2026-11-18

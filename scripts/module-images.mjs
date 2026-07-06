@@ -20,6 +20,7 @@ const GLOBAL_REBUILD_PREFIXES = [
   "package.json",
   "trivy.yaml",
   "trivy-image.yaml",
+  ".trivyignore",
   "Dockerfile",
 ];
 

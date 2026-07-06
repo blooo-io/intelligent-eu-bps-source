@@ -2,6 +2,8 @@
 # Vulnerability gate only: OS package *licences* (GPL coreutils, etc.) are not
 # application dependencies under TP-2. The licence gate for linked npm/code stays
 # on `trivy fs` via trivy.yaml.
+#
+# INT-257 — per-advisory suppressions live in `.trivyignore` (picked up from cwd).
 scan:
   scanners:
     - vuln
@@ -10,3 +12,5 @@ severity:
   - HIGH
   - CRITICAL
 exit-code: 1
+ignorefile: .trivyignore
+

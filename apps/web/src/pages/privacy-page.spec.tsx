@@ -17,6 +17,35 @@ const participantId = "11111111-1111-1111-1111-111111111111";
 describe("PrivacyPage (INT-143 / UAT-013)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    sessionStorage.clear();
+  });
+
+  it("restores the last request from sessionStorage after remount (INT-256)", () => {
+    sessionStorage.setItem(
+      "int.privacy.currentRequest",
+      JSON.stringify({
+        requestId,
+        participantId,
+        type: "export",
+        status: "completed",
+      }),
+    );
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+
+    render(
+      <MemoryRouter>
+        <PrivacyPage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("privacy-request-status")).toHaveTextContent(requestId);
+    expect(screen.getByTestId("privacy-request-status")).toHaveTextContent(/completed/i);
   });
 
   it("submits an erasure request and refreshes status", async () => {

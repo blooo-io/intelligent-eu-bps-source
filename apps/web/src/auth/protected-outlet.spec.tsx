@@ -33,6 +33,7 @@ describe("ProtectedOutlet (INT-181 / INT-256)", () => {
 
   it("redirects unauthenticated visitors to /login", async () => {
     useIsAuthenticatedMock.mockReturnValue({
+      isLoading: false,
       isFetching: false,
       data: { authenticated: false },
     } as ReturnType<typeof useIsAuthenticated>);
@@ -58,6 +59,7 @@ describe("ProtectedOutlet (INT-181 / INT-256)", () => {
 
   it("renders nested routes when authenticated", async () => {
     useIsAuthenticatedMock.mockReturnValue({
+      isLoading: false,
       isFetching: false,
       data: { authenticated: true },
     } as ReturnType<typeof useIsAuthenticated>);
@@ -81,6 +83,7 @@ describe("ProtectedOutlet (INT-181 / INT-256)", () => {
 
   it("keeps authenticated routes mounted while auth revalidates (INT-256)", () => {
     useIsAuthenticatedMock.mockReturnValue({
+      isLoading: false,
       isFetching: true,
       data: { authenticated: true },
     } as ReturnType<typeof useIsAuthenticated>);
@@ -103,6 +106,7 @@ describe("ProtectedOutlet (INT-181 / INT-256)", () => {
 
   it("shows a spinner only on the initial auth check", () => {
     useIsAuthenticatedMock.mockReturnValue({
+      isLoading: true,
       isFetching: true,
       data: undefined,
     } as ReturnType<typeof useIsAuthenticated>);

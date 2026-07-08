@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Button, Card, Radio, Typography } from "antd";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
@@ -11,6 +11,21 @@ import {
 } from "../api/privacy";
 
 const { Paragraph, Text } = Typography;
+
+/** INT-256 — survive shell remounts within the tab (auth revalidation races). */
+const CURRENT_REQUEST_KEY = "int.privacy.currentRequest";
+
+function readStoredRequest(): DataSubjectRequest | null {
+  try {
+    const raw = sessionStorage.getItem(CURRENT_REQUEST_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DataSubjectRequest;
+    if (!parsed?.requestId || !parsed?.type || !parsed?.status) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Privacy screen: export or erasure request (INT-143 / REQ-013 / UAT-013).
@@ -27,7 +42,18 @@ export function PrivacyPage({
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [current, setCurrent] = useState<DataSubjectRequest | null>(null);
+  const [current, setCurrent] = useState<DataSubjectRequest | null>(() =>
+    readStoredRequest(),
+  );
+
+  useEffect(() => {
+    if (!current) return;
+    try {
+      sessionStorage.setItem(CURRENT_REQUEST_KEY, JSON.stringify(current));
+    } catch {
+      // Private mode / quota — status still shows for this mount.
+    }
+  }, [current]);
 
   async function onSubmit() {
     setSubmitting(true);
@@ -39,6 +65,12 @@ export function PrivacyPage({
       const result = await createDataSubjectRequest(config.apiBaseUrl, token, {
         type: requestType,
       });
+      // Persist before setState so a remount mid-commit still restores (INT-256).
+      try {
+        sessionStorage.setItem(CURRENT_REQUEST_KEY, JSON.stringify(result));
+      } catch {
+        // ignore
+      }
       setCurrent(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
@@ -54,9 +86,17 @@ export function PrivacyPage({
     try {
       const token = await oidc.getAccessToken();
       if (!token) throw new Error("No access token");
-      setCurrent(
-        await getDataSubjectRequest(config.apiBaseUrl, token, current.requestId),
+      const next = await getDataSubjectRequest(
+        config.apiBaseUrl,
+        token,
+        current.requestId,
       );
+      try {
+        sessionStorage.setItem(CURRENT_REQUEST_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      setCurrent(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to refresh status");
     } finally {
@@ -69,7 +109,9 @@ export function PrivacyPage({
       title="Privacy"
       description="Export or erase personal data held by billing."
     >
-        {error && <Alert type="error" message={error} showIcon />}
+        {error && (
+          <Alert data-testid="privacy-request-error" type="error" message={error} showIcon />
+        )}
 
         <Card title="New request">
           <Radio.Group

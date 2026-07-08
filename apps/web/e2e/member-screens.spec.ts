@@ -164,11 +164,15 @@ test.describe("AC-01 member screens and buttons", () => {
     );
     await page.getByRole("button", { name: /request export|submit request/i }).click();
     const res = await exportResp;
-    expect(res.ok()).toBeTruthy();
+    expect(res.ok(), `export HTTP ${res.status()}`).toBeTruthy();
+    const statusCard = page.getByTestId("privacy-request-status");
+    const errAlert = page.getByTestId("privacy-request-error");
+    await expect(statusCard.or(errAlert)).toBeVisible({ timeout: 20_000 });
+    if (await errAlert.isVisible().catch(() => false)) {
+      throw new Error(`privacy export UI error: ${await errAlert.innerText()}`);
+    }
     const body = (await res.json()) as { requestId?: string };
     expect(body.requestId).toBeTruthy();
-    const statusCard = page.getByTestId("privacy-request-status");
-    await expect(statusCard).toBeVisible({ timeout: 15_000 });
     await expect(statusCard).toContainText(body.requestId!);
     await page.getByRole("button", { name: /^refresh$/i }).click();
     await expect(statusCard).toBeVisible();

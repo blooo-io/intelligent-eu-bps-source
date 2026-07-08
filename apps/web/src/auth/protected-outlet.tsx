@@ -9,15 +9,15 @@ import { Navigate, Outlet } from "react-router";
  * `routerProvider`, `go()` is a no-op and the gate renders `null` — blank
  * page on `/` while `/login` still works.
  *
- * INT-256: while Refine revalidates auth (`isFetching`), keep already-
- * authenticated routes mounted. Swapping to `<Spin>` unmounted Privacy /
- * Reports mid-submit and wiped local state (e2e "flaky" Request status).
+ * INT-256: gate only on the *initial* auth query (`isLoading` / no data yet).
+ * Background revalidation (`isFetching` with cached data) must not swap the
+ * tree for `<Spin>` — that unmounted Privacy / Reports mid-submit and wiped
+ * local state (e2e Request status flake).
  */
 export function ProtectedOutlet() {
-  const { isFetching, data } = useIsAuthenticated();
-  const authenticated = Boolean(data?.authenticated);
+  const { isLoading, data } = useIsAuthenticated();
 
-  if (isFetching && !authenticated) {
+  if (isLoading) {
     return (
       <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
         <Spin size="large" />
@@ -25,7 +25,7 @@ export function ProtectedOutlet() {
     );
   }
 
-  if (!authenticated) {
+  if (!data?.authenticated) {
     return <Navigate to="/login" replace />;
   }
 

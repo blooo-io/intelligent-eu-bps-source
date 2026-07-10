@@ -27,9 +27,12 @@ type Identity = {
 };
 
 /**
- * Authenticated shell (INT-187 / INT-243 / INT-250 / INT-254).
+ * Authenticated shell (INT-187 / INT-243 / INT-250 / INT-254 / INT-256).
  * Volt near-black sider when Ready; full-screen setup chrome (no sider) until then.
- * Approved mockup MockSetup uses hideSider — never expose Money/Account nav mid-onboarding.
+ *
+ * INT-256: one Layout tree always — toggling setup vs desk must not remount
+ * `<Outlet />` (Privacy / Reports mid-submit lost local state when two separate
+ * `return` branches swapped).
  */
 export function AppShell({
   config,
@@ -121,155 +124,180 @@ export function AppShell({
     !roles.includes("operator");
   const setupChrome =
     isMemberOnly && me !== null && me.readiness !== "Ready";
-
-  if (setupChrome) {
-    return (
-      <Layout style={{ minHeight: "100vh", background: brand.chalk }}>
-        <Header
-          style={{
-            background: brand.sider,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingInline: 20,
-            height: 56,
-            lineHeight: "56px",
-          }}
-        >
-          <Text strong style={{ color: brand.accent, letterSpacing: "0.02em" }}>
-            INTELLIGENT billing
-          </Text>
-          <Space size={12}>
-            {/* INT-255 — keep identity testids in MockSetup chrome (no sider). */}
-            <Text
-              data-testid="shell-user-name"
-              style={{ color: "#D7E0DA", fontSize: 13 }}
-            >
-              {displayName}
-            </Text>
-            <span data-testid="shell-user-roles">
-              {headerRoleTags.map((role) => (
-                <Tag
-                  key={role}
-                  style={{
-                    marginInlineEnd: 4,
-                    color: brand.sider,
-                    background: brand.accent,
-                    border: "none",
-                  }}
-                >
-                  {role}
-                </Tag>
-              ))}
-            </span>
-            <Button size="small" onClick={() => logout()}>
-              Sign out
-            </Button>
-          </Space>
-        </Header>
-        <Content style={{ padding: "24px 20px", maxWidth: 880, margin: "0 auto", width: "100%" }}>
-          <Outlet />
-        </Content>
-      </Layout>
-    );
-  }
+  // Desk sider while me is unknown (avoid setup flash for Ready) or Ready.
+  const showSider = !isMemberOnly || me === null || me.readiness === "Ready";
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Sider
-        collapsible
-        collapsed={collapsed}
-        onCollapse={setCollapsed}
-        width={260}
-        collapsedWidth={72}
-        theme="dark"
-        style={{ background: brand.sider }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            padding: collapsed ? "16px 10px" : "16px 18px",
-            borderBottom: `1px solid ${brand.siderHover}`,
-            minHeight: 56,
-          }}
-        >
-          {collapsed ? (
-            <Text strong style={{ color: brand.accent, fontSize: 12 }}>
-              IB
-            </Text>
-          ) : (
-            <>
-              <Text
-                strong
-                style={{
-                  color: brand.accent,
-                  display: "block",
-                  whiteSpace: "nowrap",
-                  fontSize: 13,
-                  letterSpacing: "0.02em",
-                }}
-              >
-                INTELLIGENT billing
-              </Text>
-              {communityLabel ? (
-                <Text style={{ color: brand.siderMuted, fontSize: 11 }}>
-                  {communityLabel}
-                </Text>
-              ) : null}
-            </>
-          )}
-        </div>
-        <Menu
+    <Layout
+      style={{
+        minHeight: "100vh",
+        background: setupChrome ? brand.chalk : undefined,
+      }}
+    >
+      {showSider ? (
+        <Sider
+          collapsible
+          collapsed={collapsed}
+          onCollapse={setCollapsed}
+          width={260}
+          collapsedWidth={72}
           theme="dark"
-          mode="inline"
-          selectedKeys={selected}
-          items={menuItems}
-          style={{ borderInlineEnd: 0, background: brand.sider }}
-        />
-      </Sider>
+          style={{ background: brand.sider }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              padding: collapsed ? "16px 10px" : "16px 18px",
+              borderBottom: `1px solid ${brand.siderHover}`,
+              minHeight: 56,
+            }}
+          >
+            {collapsed ? (
+              <Text strong style={{ color: brand.accent, fontSize: 12 }}>
+                IB
+              </Text>
+            ) : (
+              <>
+                <Text
+                  strong
+                  style={{
+                    color: brand.accent,
+                    display: "block",
+                    whiteSpace: "nowrap",
+                    fontSize: 13,
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  INTELLIGENT billing
+                </Text>
+                {communityLabel ? (
+                  <Text style={{ color: brand.siderMuted, fontSize: 11 }}>
+                    {communityLabel}
+                  </Text>
+                ) : null}
+              </>
+            )}
+          </div>
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={selected}
+            items={menuItems}
+            style={{ borderInlineEnd: 0, background: brand.sider }}
+          />
+        </Sider>
+      ) : null}
       <Layout>
         <Header
-          style={{
-            background: token.colorBgContainer,
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            paddingInline: 20,
-            height: 52,
-            lineHeight: "52px",
-          }}
+          style={
+            setupChrome
+              ? {
+                  background: brand.sider,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingInline: 20,
+                  height: 56,
+                  lineHeight: "56px",
+                }
+              : {
+                  background: token.colorBgContainer,
+                  borderBottom: `1px solid ${token.colorBorderSecondary}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  paddingInline: 20,
+                  height: 52,
+                  lineHeight: "52px",
+                }
+          }
         >
-          <Space size={8} wrap style={{ lineHeight: 1.3, maxWidth: "78%" }}>
-            <Text strong data-testid="shell-user-name">
-              {displayName}
-            </Text>
-            <span data-testid="shell-user-roles">
-              {headerRoleTags.length > 0 ? (
-                headerRoleTags.map((role) => (
-                  <Tag key={role} style={{ marginInlineEnd: 4 }}>
-                    {role}
-                  </Tag>
-                ))
-              ) : (
-                <Text type="secondary">role unknown</Text>
-              )}
-            </span>
-            {communityLabel ? (
-              <Text type="secondary" data-testid="shell-community" style={{ fontSize: 12 }}>
-                {communityLabel}
+          {setupChrome ? (
+            <>
+              <Text strong style={{ color: brand.accent, letterSpacing: "0.02em" }}>
+                INTELLIGENT billing
               </Text>
-            ) : null}
-          </Space>
-          <Button size="small" onClick={() => logout()}>
-            Sign out
-          </Button>
+              <Space size={12}>
+                <Text
+                  data-testid="shell-user-name"
+                  style={{ color: "#D7E0DA", fontSize: 13 }}
+                >
+                  {displayName}
+                </Text>
+                <span data-testid="shell-user-roles">
+                  {headerRoleTags.map((role) => (
+                    <Tag
+                      key={role}
+                      style={{
+                        marginInlineEnd: 4,
+                        color: brand.sider,
+                        background: brand.accent,
+                        border: "none",
+                      }}
+                    >
+                      {role}
+                    </Tag>
+                  ))}
+                </span>
+                <Button size="small" onClick={() => logout()}>
+                  Sign out
+                </Button>
+              </Space>
+            </>
+          ) : (
+            <>
+              <Space size={8} wrap style={{ lineHeight: 1.3, maxWidth: "78%" }}>
+                <Text strong data-testid="shell-user-name">
+                  {displayName}
+                </Text>
+                <span data-testid="shell-user-roles">
+                  {headerRoleTags.length > 0 ? (
+                    headerRoleTags.map((role) => (
+                      <Tag key={role} style={{ marginInlineEnd: 4 }}>
+                        {role}
+                      </Tag>
+                    ))
+                  ) : (
+                    <Text type="secondary">role unknown</Text>
+                  )}
+                </span>
+                {communityLabel ? (
+                  <Text
+                    type="secondary"
+                    data-testid="shell-community"
+                    style={{ fontSize: 12 }}
+                  >
+                    {communityLabel}
+                  </Text>
+                ) : null}
+              </Space>
+              <Button size="small" onClick={() => logout()}>
+                Sign out
+              </Button>
+            </>
+          )}
         </Header>
-        <Content style={{ padding: "20px 24px", background: token.colorBgLayout }}>
-          <div style={{ maxWidth: 1280, margin: "0 auto" }}>
+        <Content
+          style={
+            setupChrome
+              ? {
+                  padding: "24px 20px",
+                  maxWidth: 880,
+                  margin: "0 auto",
+                  width: "100%",
+                }
+              : { padding: "20px 24px", background: token.colorBgLayout }
+          }
+        >
+          {/* Stable wrapper — never remount Outlet when chrome toggles (INT-256). */}
+          <div
+            style={
+              setupChrome ? undefined : { maxWidth: 1280, margin: "0 auto" }
+            }
+          >
             <Outlet />
           </div>
         </Content>

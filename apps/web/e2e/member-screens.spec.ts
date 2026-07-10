@@ -155,6 +155,8 @@ test.describe("AC-01 member screens and buttons", () => {
   test("Privacy Export submit and Refresh", async ({ page }) => {
     await page.goto("/privacy");
     await expectPageReady(page, /privacy/i);
+    await expect(page.getByTestId("shell-user-roles")).toBeVisible();
+    await expect(page.getByText(/role unknown/i)).toHaveCount(0);
     await clickRadioButton(page, /export/i);
     const exportResp = page.waitForResponse(
       (r) =>

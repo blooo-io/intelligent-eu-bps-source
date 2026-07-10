@@ -12,6 +12,9 @@ test.describe("REQ privacy reports operator", () => {
     await loginAs(page, "member");
     await page.goto("/privacy");
     await expectPageReady(page, /privacy/i);
+    // INT-256 — wait until /v1/me has painted so setup/desk chrome is settled.
+    await expect(page.getByTestId("shell-user-roles")).toBeVisible();
+    await expect(page.getByText(/role unknown/i)).toHaveCount(0);
     await clickRadioButton(page, /export/i);
     const exportResp = page.waitForResponse(
       (r) =>

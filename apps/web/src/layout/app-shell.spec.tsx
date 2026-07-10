@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -142,6 +143,71 @@ describe("AppShell (INT-187 / INT-243)", () => {
     expect(screen.queryByRole("link", { name: /get ready/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /^balances$/i })).toBeNull();
     expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+  });
+
+  it("keeps Outlet mounted when /v1/me flips member into setup chrome (INT-256)", async () => {
+    let mounts = 0;
+    function Probe() {
+      const seen = useRef(false);
+      if (!seen.current) {
+        seen.current = true;
+        mounts += 1;
+      }
+      return <div data-testid="outlet-probe">probe</div>;
+    }
+
+    identity.mockReturnValue({
+      id: "sub-1",
+      name: "UAT Member",
+      roles: ["member"],
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    let resolveMe!: (value: unknown) => void;
+    const mePromise = new Promise((resolve) => {
+      resolveMe = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => mePromise.then((body) => ({
+        ok: true,
+        json: async () => body,
+      }))),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/privacy"]}>
+        <Routes>
+          <Route element={<AppShell config={config} oidc={oidc} />}>
+            <Route path="privacy" element={<Probe />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("outlet-probe")).toBeInTheDocument();
+    expect(mounts).toBe(1);
+
+    resolveMe({
+      participantId: "11111111-1111-1111-1111-111111111111",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+      roles: ["member"],
+      role: "consumer",
+      readiness: "TermsAccepted",
+      profile: { name: "UAT Member", address: "1", email: "u@e.com" },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("link", { name: /^home$/i })).toBeNull();
+    });
+    expect(screen.getByTestId("outlet-probe")).toBeInTheDocument();
+    expect(mounts).toBe(1);
   });
 
   it("keeps the sider for Ready members outside onboarding (INT-254)", async () => {

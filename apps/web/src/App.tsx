@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Refine } from "@refinedev/core";
 import { ConfigProvider, App as AntApp } from "antd";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
@@ -32,7 +33,8 @@ import { appTheme } from "./theme";
  * `<Authenticated>` / `useGo`, which no-ops without a routerProvider.
  */
 export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
-  const authProvider = createAuthProvider(oidc);
+  // Stable authProvider identity — a new object each render can reset Refine auth.
+  const authProvider = useMemo(() => createAuthProvider(oidc), [oidc]);
 
   return (
     <BrowserRouter>

@@ -266,6 +266,15 @@ export class PaymentsService {
       communityId: input.communityId,
     });
     if (verified) {
+      // INT-269 — prosumer seed/provision also needs a consumer PM for dual Ready.
+      if (input.role === "prosumer" && !existing.paymentMethodId) {
+        await this.psp.createSetupIntent(input.participantId);
+        await this.psp.attachPaymentMethod(input.participantId, "pm_card_visa");
+        await this.saveAccount({
+          ...this.store.getAccount(input.participantId)!,
+          paymentMethodId: "pm_card_visa",
+        });
+      }
       await this.emitAccountStatus(input.participantId);
     }
     return {
@@ -282,33 +291,53 @@ export class PaymentsService {
     await this.ensureParticipant(input);
     const account = this.store.getAccount(input.participantId)!;
 
-    if (input.role === "producer" || input.role === "prosumer") {
-      const stripeAccountId = account.stripeAccountId;
-      if (stripeAccountId) {
-        return this.psp.getAccountSession(stripeAccountId);
+    // INT-269 — producer: Connect only. Prosumer: Connect first, then Elements.
+    if (input.role === "producer") {
+      return this.startProducerOnboarding(account);
+    }
+    if (input.role === "prosumer") {
+      if (!account.stripeAccountId || account.kycStatus !== "verified") {
+        return this.startProducerOnboarding(account);
       }
-      // INT-191 — defer Custom account create until Account Token is available.
-      return {
-        mode: "requirements",
-        status: "requirements_due",
-        currentlyDue: [...PRODUCER_ONBOARDING_DUE],
-        eventuallyDue: [],
-      };
+      return this.startConsumerElementsOnboarding(input.participantId, account);
     }
 
     // INT-193 — consumer SetupIntent for in-wizard Payment Element.
+    return this.startConsumerElementsOnboarding(input.participantId, account);
+  }
+
+  private async startProducerOnboarding(
+    account: AccountRecord,
+  ): Promise<OnboardingSession> {
+    const stripeAccountId = account.stripeAccountId;
+    if (stripeAccountId) {
+      return this.psp.getAccountSession(stripeAccountId);
+    }
+    // INT-191 — defer Custom account create until Account Token is available.
+    return {
+      mode: "requirements",
+      status: "requirements_due",
+      currentlyDue: [...PRODUCER_ONBOARDING_DUE],
+      eventuallyDue: [],
+    };
+  }
+
+  private async startConsumerElementsOnboarding(
+    participantId: string,
+    account: AccountRecord,
+  ): Promise<OnboardingSession> {
     if (account.paymentMethodId) {
       // INT-255 — durable PM may already exist while AC-03 readiness lags;
       // re-notify so Ready chrome stays aligned with Stripe master (TP-7).
       // Best-effort: never fail Start when the PM is already on file.
       try {
-        await this.emitAccountStatus(input.participantId);
+        await this.emitAccountStatus(participantId);
       } catch {
         // Participants notify may 5xx during rollout; session is still complete.
       }
       return { mode: "elements", status: "complete" };
     }
-    const setup = await this.psp.createSetupIntent(input.participantId);
+    const setup = await this.psp.createSetupIntent(participantId);
     return {
       mode: "elements",
       status: "requirements_due",
@@ -424,31 +453,45 @@ export class PaymentsService {
       return { status: "none" };
     }
 
+    // INT-269 — prosumer may have PM + Connect together; surface both.
+    let brand: string | undefined;
+    let last4: string | undefined;
     if (row.paymentMethodId) {
       const details = await this.psp.getPaymentMethodDetails(row.paymentMethodId);
-      return {
-        status: "complete",
-        brand: details.brand,
-        last4: details.last4,
-      };
+      brand = details.brand;
+      last4 = details.last4;
     }
 
+    let stripeAccountId: string | undefined;
+    let dashboardUrl: string | undefined;
+    let connectStatus:
+      | "requirements_due"
+      | "pending_verification"
+      | "complete"
+      | undefined;
     if (row.stripeAccountId) {
-      let status: "requirements_due" | "pending_verification" | "complete" =
-        "requirements_due";
       try {
         const session = await this.psp.getAccountSession(row.stripeAccountId);
-        status = session.status;
+        connectStatus = session.status;
       } catch {
-        status =
+        connectStatus =
           row.kycStatus === "verified" ? "complete" : "requirements_due";
       }
-      // Custom Connect has stripe_dashboard: none — no Express login link.
-      // Platform Dashboard deep-link for operators / test visibility (INT-255).
+      stripeAccountId = row.stripeAccountId;
+      // Custom Connect has stripe_dashboard: none — platform Dashboard deep-link.
+      dashboardUrl = `https://dashboard.stripe.com/test/connect/accounts/${row.stripeAccountId}`;
+    }
+
+    if (brand || last4 || stripeAccountId) {
+      const ready = this.isPaymentAccountReady(row);
       return {
-        status,
-        stripeAccountId: row.stripeAccountId,
-        dashboardUrl: `https://dashboard.stripe.com/test/connect/accounts/${row.stripeAccountId}`,
+        status: ready
+          ? "complete"
+          : (connectStatus ?? (row.paymentMethodId ? "complete" : "requirements_due")),
+        brand,
+        last4,
+        stripeAccountId,
+        dashboardUrl,
       };
     }
 
@@ -617,15 +660,28 @@ export class PaymentsService {
     }
   }
 
+  /**
+   * INT-269 / REQ-051 — Ready gates by market role:
+   * consumer → PM; producer → KYC; prosumer → KYC and PM (P1 when buying).
+   */
+  private isPaymentAccountReady(account: AccountRecord): boolean {
+    if (account.role === "consumer") {
+      return Boolean(account.paymentMethodId);
+    }
+    if (account.role === "prosumer") {
+      return (
+        account.kycStatus === "verified" && Boolean(account.paymentMethodId)
+      );
+    }
+    return account.kycStatus === "verified";
+  }
+
   private async emitAccountStatus(participantId: string): Promise<void> {
     const account = this.store.getAccount(participantId);
     if (!account) {
       return;
     }
-    const ready =
-      account.role === "consumer"
-        ? Boolean(account.paymentMethodId)
-        : account.kycStatus === "verified";
+    const ready = this.isPaymentAccountReady(account);
     await this.outbox.append({
       aggregateType: "PaymentAccount",
       aggregateId: participantId,

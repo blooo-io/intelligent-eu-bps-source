@@ -121,8 +121,18 @@ export function OnboardingWizardPage({
               : ("wait" as const),
       },
       {
-        title: isSellerRole(me?.role) ? "Payouts" : "Pay",
-        description: isSellerRole(me?.role) ? "Stripe Connect" : "Card",
+        title:
+          me?.role === "prosumer"
+            ? "Payouts & pay"
+            : isSellerRole(me?.role)
+              ? "Payouts"
+              : "Pay",
+        description:
+          me?.role === "prosumer"
+            ? "Connect + card"
+            : isSellerRole(me?.role)
+              ? "Stripe Connect"
+              : "Card",
         status:
           me && me.readiness === "Ready"
             ? ("finish" as const)

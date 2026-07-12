@@ -60,10 +60,17 @@ export function homeDescription(
       return "Platform health only — not a member or manager portal.";
     case "member":
       if (readiness === "Ready") {
+        // INT-269 — prosumer buys and sells (P1 when buying).
+        if (marketRole === "prosumer") {
+          return `You buy and sell in ${community}. Pay when you owe; receive payouts when owed.`;
+        }
         if (isSellerRole(marketRole)) {
           return `You sell energy in ${community}. Invoices are issued in your name (self-billing).`;
         }
         return `You buy energy in ${community}. Next: settle what you owe.`;
+      }
+      if (marketRole === "prosumer") {
+        return `Finish Connect KYC and a card once, then settle trades both ways in ${community}.`;
       }
       if (isSellerRole(marketRole)) {
         return `Finish setup once, then receive payouts for trades in ${community}.`;
@@ -96,14 +103,25 @@ export function homeNextAction(
 
   switch (readiness) {
     case "Ready":
+      // INT-269 — prosumer may need to pay or review issued invoices.
+      if (marketRole === "prosumer") {
+        return {
+          label: "Open invoices",
+          to: "/invoices",
+          primary: true,
+        };
+      }
       return isSellerRole(marketRole)
         ? { label: "Review open invoices", to: "/invoices", primary: true }
         : { label: "Pay open invoices", to: "/invoices", primary: true };
     case "TermsAccepted":
       return {
-        label: isSellerRole(marketRole)
-          ? "Open Stripe Connect"
-          : "Finish payment setup",
+        label:
+          marketRole === "prosumer"
+            ? "Finish payouts and card"
+            : isSellerRole(marketRole)
+              ? "Open Stripe Connect"
+              : "Finish payment setup",
         to: "/onboarding?step=payment",
         primary: true,
       };

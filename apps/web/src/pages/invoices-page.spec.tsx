@@ -155,6 +155,110 @@ describe("InvoicesPage (INT-142 / UAT-007 / UAT-014)", () => {
     });
   });
 
+  it("INT-269 — prosumer sees Pay when they are the invoice consumer", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    const fetchImpl = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+      if (path.endsWith("/v1/me") && !path.includes("/invoices")) {
+        return {
+          ok: true,
+          json: async () => ({
+            participantId: invoice.consumerId,
+            communityId: "22222222-2222-2222-2222-222222222222",
+            roles: ["member"],
+            role: "prosumer",
+            readiness: "Ready",
+            profile: { name: "Pro", address: "1", email: "p@e.com" },
+          }),
+        };
+      }
+      if (path.endsWith("/v1/me/invoices") && (!init || !init.method || init.method === "GET")) {
+        return { ok: true, json: async () => [invoice] };
+      }
+      if (path.endsWith(`/v1/invoices/${invoice.invoiceId}`) && (!init?.method || init.method === "GET")) {
+        return { ok: true, json: async () => invoice };
+      }
+      return { ok: false, status: 404 };
+    });
+    vi.stubGlobal("fetch", fetchImpl);
+
+    render(
+      <MemoryRouter>
+        <InvoicesPage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/12\.00 EUR/)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^view$/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /^pay$/i })).toBeInTheDocument();
+    });
+  });
+
+  it("INT-269 — prosumer has no Pay when only the issuer on the invoice", async () => {
+    const issued = {
+      ...invoice,
+      consumerId: "99999999-9999-4999-8999-999999999999",
+      producerId: "11111111-1111-1111-1111-111111111111",
+    };
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+        const path = String(url);
+        if (path.endsWith("/v1/me") && !path.includes("/invoices")) {
+          return {
+            ok: true,
+            json: async () => ({
+              participantId: issued.producerId,
+              communityId: "22222222-2222-2222-2222-222222222222",
+              roles: ["member"],
+              role: "prosumer",
+              readiness: "Ready",
+              profile: { name: "Pro", address: "1", email: "p@e.com" },
+            }),
+          };
+        }
+        if (path.endsWith("/v1/me/invoices") && (!init || !init.method || init.method === "GET")) {
+          return { ok: true, json: async () => [issued] };
+        }
+        if (path.endsWith(`/v1/invoices/${issued.invoiceId}`) && (!init?.method || init.method === "GET")) {
+          return { ok: true, json: async () => issued };
+        }
+        return { ok: false, status: 404 };
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <InvoicesPage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/12\.00 EUR/)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^view$/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Issued to consumers|Your invoices/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /^pay$/i })).toBeNull();
+  });
+
   it("shows an error when the token is missing", async () => {
     const oidc: OidcFacade = {
       login: vi.fn(),

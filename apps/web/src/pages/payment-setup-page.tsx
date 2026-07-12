@@ -233,6 +233,23 @@ export function PaymentSetupPage({
       );
       setSession(next);
       if (next.status === "complete") {
+        // INT-269 — prosumer continues to card SetupIntent after Connect KYC.
+        if (marketRole === "prosumer") {
+          const elements = await createPaymentOnboarding(
+            config.apiBaseUrl,
+            token,
+          );
+          setSession(elements);
+          if (elements.status === "complete") {
+            try {
+              setAccount(await fetchMyPaymentAccount(config.apiBaseUrl, token));
+            } catch {
+              // Summary optional.
+            }
+            onComplete?.();
+          }
+          return;
+        }
         onComplete?.();
       }
     } catch (err) {
@@ -245,37 +262,48 @@ export function PaymentSetupPage({
   const showRequirements =
     session?.mode === "requirements" && session.status !== "complete";
 
+  const asProsumer = marketRole === "prosumer";
   const asProducer =
-    isSellerRole(marketRole) || session?.mode === "requirements";
+    (isSellerRole(marketRole) && !asProsumer) ||
+    (session?.mode === "requirements" && !asProsumer);
   // INT-254 / Volt MockSetup vs MockPayment: setup titles until Ready.
   // Treat unknown readiness as incomplete so the Start CTA is not hidden while /me loads.
   const setupIncomplete = readiness !== "Ready";
-  const pageTitle = asProducer
+  const pageTitle = asProsumer
     ? setupIncomplete
-      ? "Open Stripe Connect"
-      : "Payout account"
-    : setupIncomplete
-      ? "Add a payment method"
-      : "Payment method";
-  const pageDescription = asProducer
+      ? "Payouts and card"
+      : "Payment account"
+    : asProducer
+      ? setupIncomplete
+        ? "Open Stripe Connect"
+        : "Payout account"
+      : setupIncomplete
+        ? "Add a payment method"
+        : "Payment method";
+  const pageDescription = asProsumer
     ? setupIncomplete
-      ? "Producers receive payouts on their Connect account. Complete KYC once."
-      : "Stripe Connect receives consumer payments for invoices in your name."
-    : setupIncomplete
-      ? "Save a card so open invoices can be paid in one click."
-      : "Card used when you pay open invoices.";
-  const startLabel = asProducer
-    ? "Continue to Stripe Connect"
-    : "Save card and finish";
+      ? "Complete Connect KYC, then save a card to pay when you buy."
+      : "Connect receives sales; your card pays open invoices when you buy."
+    : asProducer
+      ? setupIncomplete
+        ? "Producers receive payouts on their Connect account. Complete KYC once."
+        : "Stripe Connect receives consumer payments for invoices in your name."
+      : setupIncomplete
+        ? "Save a card so open invoices can be paid in one click."
+        : "Card used when you pay open invoices.";
+  const startLabel = asProsumer
+    ? "Start payouts and card setup"
+    : asProducer
+      ? "Continue to Stripe Connect"
+      : "Save card and finish";
 
   const brandLabel = account?.brand
     ? account.brand.charAt(0).toUpperCase() + account.brand.slice(1)
     : null;
   const readyConsumerCard =
-    !asProducer &&
-    account?.status === "complete" &&
-    Boolean(account.last4) &&
-    (!setupIncomplete || session?.status === "complete");
+    Boolean(account?.last4) &&
+    (!setupIncomplete || session?.status === "complete") &&
+    (asProsumer || (!asProducer && account?.status === "complete"));
 
   const body = (
     <>
@@ -283,13 +311,17 @@ export function PaymentSetupPage({
 
       <Card>
         <Paragraph>
-          {asProducer
+          {asProsumer
             ? setupIncomplete
-              ? "Producers receive payouts on their Connect account. Complete KYC once. Bank details go to Stripe only — this app never stores them."
-              : "Stripe Connect receives consumer payments for invoices in your name. Bank details go to Stripe only — this app never stores them."
-            : setupIncomplete
-              ? "Save a card so open invoices can be paid in one click. Card numbers go to Stripe only — this app never stores them."
-              : "Card used when you pay open invoices. Card numbers go to Stripe only — this app never stores them."}
+              ? "Prosumers need Connect for sales and a card for purchases. Bank and card details go to Stripe only — this app never stores them."
+              : "Connect receives sales; your card pays open invoices when you buy. Details stay with Stripe only."
+            : asProducer
+              ? setupIncomplete
+                ? "Producers receive payouts on their Connect account. Complete KYC once. Bank details go to Stripe only — this app never stores them."
+                : "Stripe Connect receives consumer payments for invoices in your name. Bank details go to Stripe only — this app never stores them."
+              : setupIncomplete
+                ? "Save a card so open invoices can be paid in one click. Card numbers go to Stripe only — this app never stores them."
+                : "Card used when you pay open invoices. Card numbers go to Stripe only — this app never stores them."}
         </Paragraph>
 
         {readyConsumerCard && (
@@ -305,7 +337,9 @@ export function PaymentSetupPage({
           </div>
         )}
 
-        {!setupIncomplete && asProducer && account?.stripeAccountId && (
+        {!setupIncomplete &&
+          (asProducer || asProsumer) &&
+          account?.stripeAccountId && (
           <div data-testid="payout-account-ready" style={{ marginBottom: 16 }}>
             <Paragraph type="secondary" style={{ marginBottom: 12 }}>
               Connect account <Text code>{account.stripeAccountId}</Text>

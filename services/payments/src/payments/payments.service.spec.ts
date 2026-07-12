@@ -685,5 +685,115 @@ describe("PaymentsService", () => {
     expect(payment.status).toBe("succeeded");
     expect(resolver.resolveByIdpSub).toHaveBeenCalledWith(idpSub);
   });
+
+  // INT-269 / REQ-051 — prosumer Connect then Elements; Ready only with KYC + PM.
+  it("INT-269 — prosumer Start is requirements until KYC, then elements", async () => {
+    const first = await service.startOnboarding({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "prosumer",
+    });
+    expect(first.mode).toBe("requirements");
+
+    await service.submitOnboardingRequirements({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "prosumer",
+      clientIp: "127.0.0.1",
+      submission: {
+        businessType: "individual",
+        businessProfileUrl: "https://p.example",
+        businessProfileMcc: "5734",
+        representative: {
+          firstName: "A",
+          lastName: "B",
+          email: "a@b.co",
+          address: { country: "FR" },
+        },
+        externalAccount: {
+          country: "FR",
+          currency: "eur",
+          accountNumber: "FR1420041010050500013M02606",
+        },
+        tosAccepted: true,
+      },
+    });
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
+    expect(store.getAccount(PRODUCER)?.paymentMethodId).toBeFalsy();
+
+    const second = await service.startOnboarding({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "prosumer",
+    });
+    expect(second.mode).toBe("elements");
+    expect(second.status).toBe("requirements_due");
+    expect(second.clientSecret).toBeTruthy();
+  });
+
+  it("INT-269 — prosumer Ready only after KYC and payment method (REQ-045/051)", async () => {
+    const readyCalls: Array<{ ready: boolean }> = [];
+    const notifier = {
+      applyPaymentAccountStatus: async (input: {
+        participantId: string;
+        ready: boolean;
+      }) => {
+        readyCalls.push({ ready: input.ready });
+      },
+    };
+    const svc = new PaymentsService(
+      store,
+      new OutboxService(outboxStore),
+      psp,
+      invoices,
+      notifier,
+      accountsStore,
+      new NoopParticipantsResolver(),
+    );
+    await svc.submitOnboardingRequirements({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "prosumer",
+      clientIp: "127.0.0.1",
+      submission: {
+        businessType: "individual",
+        businessProfileUrl: "https://p.example",
+        businessProfileMcc: "5734",
+        representative: {
+          firstName: "A",
+          lastName: "B",
+          email: "a@b.co",
+          address: { country: "FR" },
+        },
+        externalAccount: {
+          country: "FR",
+          currency: "eur",
+          accountNumber: "FR1420041010050500013M02606",
+        },
+        tosAccepted: true,
+      },
+    });
+    expect(readyCalls.at(-1)?.ready).toBe(false);
+
+    await svc.attachPaymentMethod(PRODUCER, "pm_card_visa");
+    expect(readyCalls.at(-1)?.ready).toBe(true);
+
+    const summary = await svc.getMyPaymentAccount(PRODUCER);
+    expect(summary.status).toBe("complete");
+    expect(summary.last4).toBeTruthy();
+    expect(summary.stripeAccountId).toMatch(/^acct_test_/);
+  });
+
+  it("INT-269 — provision prosumer attaches Connect and test PM", async () => {
+    const row = await service.provisionPaymentAccount({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "prosumer",
+      fresh: true,
+    });
+    expect(row.stripeAccountId).toMatch(/^acct_test_/);
+    expect(store.getAccount(PRODUCER)?.paymentMethodId).toBe("pm_card_visa");
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
+  });
 });
 

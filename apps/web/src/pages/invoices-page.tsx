@@ -39,11 +39,18 @@ export function InvoicesPage({
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [marketRole, setMarketRole] = useState<ParticipantRole | null>(null);
+  // INT-269 — Pay when this participant is the invoice consumer (prosumer may buy).
+  const [participantId, setParticipantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
   const asProducer = isSellerRole(marketRole);
+  const canPaySelected =
+    Boolean(selected) &&
+    Boolean(participantId) &&
+    selected!.consumerId === participantId &&
+    selected!.status !== "Paid";
 
   const reload = useCallback(async () => {
     const token = await oidc.getAccessToken();
@@ -64,6 +71,7 @@ export function InvoicesPage({
         if (!cancelled) {
           setInvoices(rows);
           setMarketRole(me.role);
+          setParticipantId(me.participantId);
         }
       } catch (err) {
         if (!cancelled) {
@@ -215,13 +223,12 @@ export function InvoicesPage({
             <Button size="small" onClick={() => openPdf(selected.invoiceId)} loading={busy}>
               Open PDF
             </Button>
-            {!asProducer && (
+            {canPaySelected && (
               <Button
                 type="primary"
                 size="small"
                 onClick={() => onPay(selected.invoiceId)}
                 loading={busy}
-                disabled={selected.status === "Paid"}
               >
                 Pay
               </Button>

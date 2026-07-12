@@ -34,4 +34,16 @@ describe("role-home (INT-252)", () => {
       /stripe connect/i,
     );
   });
+
+  it("INT-269 — prosumer Home copy and dual setup CTA", () => {
+    expect(
+      homeDescription("member", "Ready", "Demo community S1", "prosumer"),
+    ).toMatch(/buy and sell/i);
+    expect(homeNextAction("member", "Ready", "prosumer")?.label).toMatch(
+      /open invoices/i,
+    );
+    expect(
+      homeNextAction("member", "TermsAccepted", "prosumer")?.label,
+    ).toMatch(/payouts and card/i);
+  });
 });

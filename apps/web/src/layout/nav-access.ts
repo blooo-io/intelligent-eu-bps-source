@@ -236,6 +236,12 @@ export function resolveNavLabel(
     return "Issued invoices";
   }
   if (item.key === "/payment-setup") {
+    // INT-269 — prosumer needs both payout and card labels.
+    if (marketRole === "prosumer") {
+      return (READINESS_RANK[readiness ?? "Invited"] ?? 0) >= READINESS_RANK.Ready
+        ? "Payment account"
+        : "Payouts and card";
+    }
     if (isSellerRole(marketRole)) return "Payout account";
     if ((READINESS_RANK[readiness ?? "Invited"] ?? 0) >= READINESS_RANK.Ready) {
       return "Payment method";

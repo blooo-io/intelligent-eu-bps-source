@@ -386,6 +386,32 @@ export class InvoicingService {
     });
   }
 
+  /**
+   * INT-270 / INT-130 — PaymentStatusChanged → invoice Paid (BR-11).
+   * Idempotent when already Paid; ignores non-succeeded statuses.
+   */
+  async applyPaymentStatusChanged(input: {
+    invoiceId: string;
+    paymentId: string;
+    status: string;
+  }): Promise<InvoiceRecord | undefined> {
+    const normalized = input.status.toLowerCase();
+    if (normalized !== "succeeded" && normalized !== "paid") {
+      return undefined;
+    }
+    const row = this.store.get(input.invoiceId);
+    if (!row) return undefined;
+    if (row.status === "Paid") {
+      return row;
+    }
+    return this.applyStatus(row, {
+      status: "Paid",
+      reason: `payment:${input.paymentId}`,
+      actorId: "00000000-0000-4000-8000-000000000002",
+      source: "stripe",
+    });
+  }
+
   listStatusAudit(invoiceId: string) {
     const row = this.store.get(invoiceId);
     if (!row) throw new NotFoundException(`Unknown invoice ${invoiceId}`);

@@ -4,6 +4,7 @@ import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.
 import { InvoiceStore } from "./domain/store.js";
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
 import { createEventBus } from "./events/nats-event-bus.js";
+import { PaymentStatusListener } from "./events/payment-status.listener.js";
 import { SettlementCompletedListener } from "./events/settlement-completed.listener.js";
 import { InvoicingController } from "./invoicing/invoicing.controller.js";
 import { PublicInvoicingController } from "./invoicing/public.controller.js";
@@ -81,6 +82,8 @@ function resolveInvoiceProvider(): "stripe" | "mock" {
       useFactory: () => createParticipantsResolver(),
     },
     SettlementCompletedListener,
+    // INT-270 — PaymentStatusChanged → invoice Paid.
+    PaymentStatusListener,
   ],
 })
 export class AppModule implements NestModule {

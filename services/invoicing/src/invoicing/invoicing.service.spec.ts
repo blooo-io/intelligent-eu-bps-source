@@ -210,6 +210,27 @@ describe("InvoicingService", () => {
     expect(service.listStatusAudit(invoice.invoiceId)[0]?.source).toBe("stripe");
   });
 
+  it("INT-270 — PaymentStatusChanged succeeded marks invoice Paid", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    expect(invoice.status).toBe("Open");
+    const next = await service.applyPaymentStatusChanged({
+      invoiceId: invoice.invoiceId,
+      paymentId: "pay-1",
+      status: "succeeded",
+    });
+    expect(next?.status).toBe("Paid");
+    const again = await service.applyPaymentStatusChanged({
+      invoiceId: invoice.invoiceId,
+      paymentId: "pay-1",
+      status: "succeeded",
+    });
+    expect(again?.status).toBe("Paid");
+    expect(
+      service.listStatusAudit(invoice.invoiceId).filter((a) => a.status === "Paid")
+        .length,
+    ).toBe(1);
+  });
+
   it("INT-238 — getInvoiceBySettlement returns the row", async () => {
     const invoice = (await service.createFromSettlement(settlement()))!;
     expect(service.getInvoiceBySettlement(invoice.settlementId).invoiceId).toBe(

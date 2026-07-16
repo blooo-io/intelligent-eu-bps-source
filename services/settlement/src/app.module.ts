@@ -3,8 +3,16 @@ import { ModuleTemplateModule } from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
 import { SettlementStore } from "./domain/store.js";
 import { createBilledTradesStore } from "./ports/billed-trades.store.js";
+import {
+  COMMUNITY_SETTINGS_PORT,
+  createCommunitySettings,
+} from "./ports/community-settings.port.js";
 import { FixtureTradeSource } from "./ports/fixture-trade-source.js";
 import { HttpTradeSource } from "./ports/http-trade-source.js";
+import {
+  createReferenceData,
+  REFERENCE_DATA_PORT,
+} from "./ports/reference-data.port.js";
 import { TRADE_SOURCE, type TradeSourcePort } from "./ports/trade-source.port.js";
 import { SettlementController } from "./settlement/settlement.controller.js";
 import { PublicSettlementController } from "./settlement/public.controller.js";
@@ -34,6 +42,15 @@ function createTradeSource(
     {
       provide: TRADE_SOURCE,
       useFactory: () => createTradeSource(),
+    },
+    // INT-272 — AC-03 settings + AC-13 VAT/FX when URLs are set (cluster).
+    {
+      provide: COMMUNITY_SETTINGS_PORT,
+      useFactory: () => createCommunitySettings(),
+    },
+    {
+      provide: REFERENCE_DATA_PORT,
+      useFactory: () => createReferenceData(),
     },
   ],
 })

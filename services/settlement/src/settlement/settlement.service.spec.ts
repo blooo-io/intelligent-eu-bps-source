@@ -130,4 +130,143 @@ describe("SettlementService", () => {
       service.startRun({ communityId, type: "periodic" }),
     ).rejects.toThrow(/period/);
   });
+
+  it("INT-272: threshold from AC-03 settings drives carry-forward (BR-05)", async () => {
+    service.useFixtureScenario("S1", { threshold: 0.01 });
+    const settings = {
+      async get() {
+        return {
+          currency: "EUR" as const,
+          // High threshold → S1 fixture amounts stay below and carry forward.
+          threshold: 100,
+          vatRate: 0,
+          billingMode: "virtual" as const,
+        };
+      },
+    };
+    service = new SettlementService(
+      store,
+      new OutboxService(outboxStore),
+      trades,
+      settings,
+      null,
+    );
+    service.useFixtureScenario("S1");
+    const { runId } = await service.startRun({
+      communityId,
+      type: "periodic",
+      period: "2026-11",
+    });
+    for (const id of store.getRun(runId)!.settlementIds) {
+      const s = service.getPairSettlement(id);
+      expect(s.energyAmount).toBe("0.00");
+      expect(Number(s.carriedForwardOut)).toBeGreaterThan(0);
+    }
+  });
+
+  it("INT-272: AC-13 VAT overrides settings vatRate (BR-07)", async () => {
+    const settings = {
+      async get() {
+        return {
+          currency: "EUR" as const,
+          threshold: 0.01,
+          vatRate: 0,
+          billingMode: "virtual" as const,
+        };
+      },
+    };
+    const referenceData = {
+      async getVatRate() {
+        return 0.2;
+      },
+      async getRate() {
+        return 1;
+      },
+    };
+    service = new SettlementService(
+      store,
+      new OutboxService(outboxStore),
+      trades,
+      settings,
+      referenceData,
+    );
+    service.useFixtureScenario("S1");
+    const { runId } = await service.startRun({
+      communityId,
+      type: "periodic",
+      period: "2026-11",
+    });
+    const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]!);
+    expect(Number(s.energyAmount)).toBeGreaterThan(0);
+    expect(Number(s.vat)).toBeCloseTo(Number(s.energyAmount) * 0.2, 2);
+  });
+
+  it("INT-272: CHF FX falls back when primary rate date misses (BR-06)", async () => {
+    let calls = 0;
+    const referenceData = {
+      async getVatRate() {
+        return 0;
+      },
+      async getRate(_currency: "EUR" | "CHF", date: string) {
+        calls += 1;
+        if (date === "2026-11-28") {
+          throw new Error("missing");
+        }
+        return 0.94;
+      },
+    };
+    const settings = {
+      async get() {
+        return {
+          currency: "CHF" as const,
+          threshold: 0.01,
+          vatRate: 0,
+          billingMode: "virtual" as const,
+        };
+      },
+    };
+    service = new SettlementService(
+      store,
+      new OutboxService(outboxStore),
+      trades,
+      settings,
+      referenceData,
+    );
+    service.useFixtureScenario("S1");
+    const { runId } = await service.startRun({
+      communityId,
+      type: "periodic",
+      period: "2026-11",
+    });
+    expect(calls).toBe(2);
+    const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]!);
+    expect(s.currency).toBe("CHF");
+    expect(s.rate).toBe("0.94");
+  });
+
+  it("INT-272: rejects live billingMode from settings (BR-12)", async () => {
+    service = new SettlementService(
+      store,
+      new OutboxService(outboxStore),
+      trades,
+      {
+        async get() {
+          return {
+            currency: "EUR" as const,
+            threshold: 5,
+            vatRate: 0,
+            billingMode: "live" as const,
+          };
+        },
+      },
+      null,
+    );
+    await expect(
+      service.startRun({
+        communityId,
+        type: "periodic",
+        period: "2026-11",
+      }),
+    ).rejects.toThrow(/virtual/);
+  });
 });

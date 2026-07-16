@@ -18,6 +18,9 @@ keycloakEgress: false
 stripeEgress: false
 namespaceIngress: true
 # INT-232 — HttpTradeSource → AC-04 GetUnbilledTrades + mark-billed.
-# Leave unset locally/CI to keep FixtureTradeSource (S1).
+# INT-272 — GetCommunitySettings (AC-03) + GetVatRate/GetRate (AC-13).
+# Leave unset locally/CI to keep FixtureTradeSource + fixture billing context.
 env:
   TRADE_INTAKE_INTERNAL_URL: http://trade-intake:8080
+  PARTICIPANTS_INTERNAL_URL: http://participants:8080
+  REFERENCE_DATA_INTERNAL_URL: http://reference-data:8080

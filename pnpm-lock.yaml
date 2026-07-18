@@ -446,6 +446,9 @@ importers:
       '@nestjs/platform-express':
         specifier: ^11.1.6
         version: 11.2.7(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)
+      nats:
+        specifier: ^2.29.3
+        version: 2.29.3
       pg:
         specifier: ^8.16.3
         version: 8.23.1
@@ -486,6 +489,9 @@ importers:
       '@nestjs/platform-express':
         specifier: ^11.1.6
         version: 11.2.7(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)
+      nats:
+        specifier: ^2.29.3
+        version: 2.29.3
       pg:
         specifier: ^8.16.3
         version: 8.23.1
@@ -569,6 +575,9 @@ importers:
       '@nestjs/platform-express':
         specifier: ^11.1.6
         version: 11.2.7(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)
+      nats:
+        specifier: ^2.29.3
+        version: 2.29.3
       pg:
         specifier: ^8.16.3
         version: 8.23.1

@@ -12,3 +12,8 @@ ingressFrom: []
 keycloakEgress: false
 stripeEgress: false
 namespaceIngress: true
+# INT-271 — JetStream projections (same DebeziumStream as AC-06/AC-11).
+env:
+  NATS_URL: nats://nats.nats.svc.cluster.local:4222
+  NATS_SUBJECT_PREFIX: intelligent.dev
+  NATS_STREAM: DebeziumStream

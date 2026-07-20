@@ -88,6 +88,24 @@ describe("SchedulerService", () => {
     });
   });
 
+  it("INT-273: StartRun on 31 Dec dispatches type=final (BR-05)", async () => {
+    service = new SchedulerService(
+      store,
+      new OutboxService(outboxStore),
+      dispatch,
+      () => new Date("2026-12-31T15:00:00Z"),
+    );
+    const result = await service.runJob(START_RUN_ID, {
+      communityId: COMMUNITY,
+    });
+    expect(result.outcome).toBe("succeeded");
+    expect(service.recordedDispatches()[0]?.body).toEqual({
+      communityId: COMMUNITY,
+      type: "final",
+      period: "2026-12",
+    });
+  });
+
   it("returns 404 for unknown job id", async () => {
     await expect(
       service.runJob("ffffffff-ffff-4fff-8fff-ffffffffffff"),

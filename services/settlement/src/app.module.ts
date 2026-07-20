@@ -2,6 +2,9 @@ import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ModuleTemplateModule } from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
 import { SettlementStore } from "./domain/store.js";
+import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
+import { createEventBus } from "./events/nats-event-bus.js";
+import { ParticipantOffboardedListener } from "./events/participant-offboarded.listener.js";
 import { createBilledTradesStore } from "./ports/billed-trades.store.js";
 import {
   COMMUNITY_SETTINGS_PORT,
@@ -52,6 +55,9 @@ function createTradeSource(
       provide: REFERENCE_DATA_PORT,
       useFactory: () => createReferenceData(),
     },
+    // INT-273 — NATS when NATS_URL set; in-memory otherwise (CI).
+    { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
+    ParticipantOffboardedListener,
   ],
 })
 export class AppModule implements NestModule {

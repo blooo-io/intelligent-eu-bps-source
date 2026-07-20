@@ -97,6 +97,24 @@ describe("SettlementService", () => {
     expect(s.carriedForwardOut).toBe("0.00");
   });
 
+  it("INT-273: final run invoices below-threshold pairs (BR-05 / REQ-012)", async () => {
+    service.useFixtureScenario("S3");
+    communityId = trades.communityId();
+    const consumerId = createMockSuite("S3").scenario.trades[0]!.buyerActorId;
+    const { runId } = await service.startRun({
+      communityId,
+      type: "final",
+      period: "2026-11",
+      onlyParticipantId: consumerId,
+    });
+    const run = store.getRun(runId)!;
+    expect(run.type).toBe("final");
+    expect(run.settlementIds.length).toBeGreaterThan(0);
+    const s = service.getPairSettlement(run.settlementIds[0]!);
+    expect(Number(s.energyAmount)).toBeGreaterThan(0);
+    expect(s.carriedForwardOut).toBe("0.00");
+  });
+
   it("S8 / UAT-002 — CHF community uses ECB fixture rate (REQ-002)", async () => {
     service.useFixtureScenario("S8", { threshold: 0.01 });
     communityId = trades.communityId();

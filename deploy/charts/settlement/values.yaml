@@ -19,8 +19,12 @@ stripeEgress: false
 namespaceIngress: true
 # INT-232 — HttpTradeSource → AC-04 GetUnbilledTrades + mark-billed.
 # INT-272 — GetCommunitySettings (AC-03) + GetVatRate/GetRate (AC-13).
+# INT-273 — JetStream ParticipantOffboarded → StartRun(type=final).
 # Leave unset locally/CI to keep FixtureTradeSource + fixture billing context.
 env:
   TRADE_INTAKE_INTERNAL_URL: http://trade-intake:8080
   PARTICIPANTS_INTERNAL_URL: http://participants:8080
   REFERENCE_DATA_INTERNAL_URL: http://reference-data:8080
+  NATS_URL: nats://nats.nats.svc.cluster.local:4222
+  NATS_SUBJECT_PREFIX: intelligent.dev
+  NATS_STREAM: DebeziumStream

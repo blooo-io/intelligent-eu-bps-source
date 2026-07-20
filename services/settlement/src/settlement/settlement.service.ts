@@ -217,6 +217,8 @@ export class SettlementService {
     period?: string;
     /** When set, only settle this consumer→producer pair (early settle-now). */
     onlyPair?: { consumerId: string; producerId: string };
+    /** INT-273 — offboard final: settle pairs involving this participant. */
+    onlyParticipantId?: string;
   }): Promise<{ runId: string }> {
     if (!input.communityId) {
       throw new BadRequestException("communityId is required");
@@ -245,6 +247,13 @@ export class SettlementService {
         (p) =>
           p.consumerId === input.onlyPair!.consumerId &&
           p.producerId === input.onlyPair!.producerId,
+      );
+    }
+    if (input.onlyParticipantId) {
+      pairs = pairs.filter(
+        (p) =>
+          p.consumerId === input.onlyParticipantId ||
+          p.producerId === input.onlyParticipantId,
       );
     }
     const runId = randomUUID();

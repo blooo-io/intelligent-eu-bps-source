@@ -22,6 +22,8 @@ export class SchedulerService {
     @Inject(SchedulerStore) private readonly store: SchedulerStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
     @Inject(DISPATCH_PORT) private readonly dispatch: DispatchPort,
+    /** INT-273 — injectable clock for year-end final StartRun tests. */
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   resetStore(): void {
@@ -86,8 +88,9 @@ export class SchedulerService {
     if (!def) throw new NotFoundException(`Unknown job ${jobId}`);
 
     const communityId = input.communityId || DEFAULT_COMMUNITY;
-    const now = new Date().toISOString();
-    const body = this.buildBody(def.name, communityId, input.period);
+    const clock = this.now();
+    const now = clock.toISOString();
+    const body = this.buildBody(def.name, communityId, input.period, clock);
 
     const result = await this.dispatch.dispatch({ job: def, communityId, body });
 
@@ -135,14 +138,19 @@ export class SchedulerService {
     name: JobName,
     communityId: string,
     period?: string,
+    now: Date = new Date(),
   ): Record<string, unknown> {
     switch (name) {
-      case "StartRun":
+      case "StartRun": {
+        const p = period ?? currentPeriod(now);
+        // INT-273 / BR-05 — 31 Dec cron forces StartRun(type=final) (02 §4.5).
+        const type = isYearEndFinalDay(now) ? "final" : "periodic";
         return {
           communityId,
-          type: "periodic",
-          period: period ?? currentPeriod(),
+          type,
+          period: type === "final" ? `${now.getUTCFullYear()}-12` : p,
         };
+      }
       case "RefreshIntake": {
         const to = new Date();
         const from = new Date(to.getTime() - 60 * 60 * 1000);
@@ -165,8 +173,12 @@ export class SchedulerService {
   }
 }
 
-function currentPeriod(): string {
-  const d = new Date();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  return `${d.getUTCFullYear()}-${m}`;
+function currentPeriod(now: Date = new Date()): string {
+  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
+  return `${now.getUTCFullYear()}-${m}`;
+}
+
+/** True on 31 December UTC — year-end forced final invoice (INT-273). */
+export function isYearEndFinalDay(now: Date = new Date()): boolean {
+  return now.getUTCMonth() === 11 && now.getUTCDate() === 31;
 }

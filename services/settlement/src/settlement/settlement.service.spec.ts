@@ -143,6 +143,32 @@ describe("SettlementService", () => {
     expect(() => store.appendSettlement(row)).toThrow(/already exists/);
   });
 
+  it("INT-278: rerun increments version for community+period (BR-13 / REQ-005)", async () => {
+    service.useFixtureScenario("S1", { threshold: 0.01 });
+    const first = await service.startRun({
+      communityId,
+      type: "periodic",
+      period: "2026-11",
+    });
+    expect(store.getRun(first.runId)!.version).toBe(1);
+    expect(
+      service.getPairSettlement(store.getRun(first.runId)!.settlementIds[0]!)
+        .version,
+    ).toBe(1);
+    await service.resetFixtureBilled();
+    const second = await service.startRun({
+      communityId,
+      type: "periodic",
+      period: "2026-11",
+    });
+    expect(store.getRun(second.runId)!.version).toBe(2);
+    // History of version 1 is kept (append-only).
+    expect(store.getRun(first.runId)!.version).toBe(1);
+    const events = await outboxStore.list();
+    const completed = events.filter((e) => e.event.type === "BillingRunCompleted");
+    expect(completed.map((e) => e.event.data.version)).toEqual([1, 2]);
+  });
+
   it("rejects missing period for periodic runs", async () => {
     await expect(
       service.startRun({ communityId, type: "periodic" }),

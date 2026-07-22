@@ -40,6 +40,20 @@ export class SettlementStore {
     return row ? structuredClone(row) : undefined;
   }
 
+  /**
+   * INT-278 / BR-13 — next append-only version for community+period
+   * (correction creates a new version; never overwrite).
+   */
+  nextRunVersion(communityId: string, period: string): number {
+    let max = 0;
+    for (const run of this.runs.values()) {
+      if (run.communityId === communityId && run.period === period) {
+        max = Math.max(max, run.version);
+      }
+    }
+    return max + 1;
+  }
+
   pairKey(consumerId: string, producerId: string): string {
     return [consumerId, producerId].sort().join("|");
   }

@@ -258,6 +258,8 @@ export class SettlementService {
     }
     const runId = randomUUID();
     const settlementIds: string[] = [];
+    // INT-278 / BR-13 / REQ-005 — correction appends a new version; never overwrite.
+    const version = this.store.nextRunVersion(input.communityId, period);
     const fxRate = await this.resolveFxRate(period);
 
     for (const pair of pairs) {
@@ -298,7 +300,7 @@ export class SettlementService {
         carriedForwardIn: formatMoney(carriedIn),
         carriedForwardOut: formatMoney(carriedForwardOut),
         netAmount: energyAmount,
-        version: 1,
+        version,
       };
       // BR-13 — append only.
       this.store.appendSettlement(record);
@@ -314,7 +316,7 @@ export class SettlementService {
       communityId: input.communityId,
       period,
       type: input.type,
-      version: 1,
+      version,
       settlementIds,
     });
 
@@ -337,7 +339,7 @@ export class SettlementService {
       data: {
         runId,
         period,
-        version: 1,
+        version,
         counts: { pairs: settlementIds.length },
       },
     });

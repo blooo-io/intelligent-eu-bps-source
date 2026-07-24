@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-} from "@nestjs/common";
+import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
   IdempotentConsumer,
@@ -13,6 +8,11 @@ import { NotificationStore } from "../domain/store.js";
 import type { PaymentStatusEvent } from "../domain/types.js";
 import { MAIL_PORT, type MailPort } from "../mail/mail.port.js";
 import type { MailpitCatcherAdapter } from "../mail/mailpit-catcher.adapter.js";
+import {
+  MapRecipient,
+  RECIPIENT_PORT,
+  type RecipientPort,
+} from "../ports/recipient.port.js";
 
 /**
  * AC-11 notification — payment success/failure notices (INT-110, REQ-017).
@@ -26,6 +26,9 @@ export class NotificationService {
     @Inject(NotificationStore) private readonly store: NotificationStore,
     @Inject(MAIL_PORT) private readonly mail: MailPort,
     @Inject(IdempotentConsumer) private readonly consumer: IdempotentConsumer,
+    @Optional()
+    @Inject(RECIPIENT_PORT)
+    private readonly recipients: RecipientPort | null = null,
   ) {}
 
   resetStore(): void {
@@ -38,6 +41,9 @@ export class NotificationService {
 
   registerRecipient(participantId: string, email: string): void {
     this.store.registerRecipient(participantId, email);
+    if (this.recipients instanceof MapRecipient) {
+      this.recipients.register(participantId, email);
+    }
   }
 
   listLogs() {
@@ -68,11 +74,23 @@ export class NotificationService {
     if (event.status !== "succeeded" && event.status !== "failed") {
       return;
     }
-    const to = this.store.getRecipient(event.participantId);
+    // INT-274 — AC-03 profile when wired; local map / store for tests.
+    let to =
+      (this.recipients
+        ? await this.recipients.resolveEmail(event.participantId)
+        : null) ?? this.store.getRecipient(event.participantId) ?? null;
     if (!to) {
-      throw new BadRequestException(
-        `No recipient registered for participant ${event.participantId}`,
+      // Fail soft on cluster — do not nak forever when profile e-mail is missing.
+      this.logger.warn(
+        JSON.stringify(
+          redactPersonalData({
+            msg: "notification.skip_no_recipient",
+            participantId: event.participantId,
+            paymentId: event.paymentId,
+          }),
+        ),
       );
+      return;
     }
 
     const template =

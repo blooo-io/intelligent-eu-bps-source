@@ -99,7 +99,7 @@ describe("NotificationService", () => {
     expect(service.capturedMail()).toHaveLength(1);
   });
 
-  it("fails when recipient is unknown", async () => {
+  it("INT-274: fail-soft when recipient is unknown", async () => {
     await expect(
       service.onPaymentStatusChanged({
         eventId: "55555555-5555-4555-8555-555555555555",
@@ -109,6 +109,30 @@ describe("NotificationService", () => {
         participantId: "unknown-participant",
         communityId: COMMUNITY,
       }),
-    ).rejects.toThrow(/No recipient/);
+    ).resolves.toEqual({ status: "processed" });
+    expect(service.capturedMail()).toHaveLength(0);
+  });
+
+  it("INT-274: resolves recipient via RecipientPort (AC-03)", async () => {
+    const recipients = {
+      async resolveEmail(id: string) {
+        return id === PARTICIPANT ? "from-ac03@example.com" : null;
+      },
+    };
+    service = new NotificationService(
+      store,
+      mail,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      recipients,
+    );
+    await service.onPaymentStatusChanged({
+      eventId: "66666666-6666-4666-8666-666666666666",
+      paymentId: "pay-ac03",
+      invoiceId: "inv-ac03",
+      status: "succeeded",
+      participantId: PARTICIPANT,
+      communityId: COMMUNITY,
+    });
+    expect(service.capturedMail()[0]?.to).toBe("from-ac03@example.com");
   });
 });

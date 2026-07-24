@@ -95,6 +95,23 @@ export class ParticipantsService {
     return next;
   }
 
+  /**
+   * INT-274 / REQ-017 — e-mail for AC-11 payment notices (identifiers only in logs).
+   */
+  getNotificationContact(participantId: string): {
+    participantId: string;
+    email: string;
+  } {
+    const row = this.requireParticipant(participantId);
+    const email = row.profile?.email?.trim() ?? "";
+    if (!email) {
+      throw new NotFoundException(
+        `No notification contact for participant ${participantId}`,
+      );
+    }
+    return { participantId, email };
+  }
+
   checkReadiness(participantId: string): ReadinessResult {
     const row = this.requireParticipant(participantId);
     const status = deriveReadiness(row);

@@ -89,6 +89,27 @@ describe("ParticipantsService", () => {
     ).toThrow(/virtual/);
   });
 
+  it("INT-274: getNotificationContact returns profile e-mail (REQ-017)", async () => {
+    const [created] = await service.importParticipants(communityId, [
+      {
+        email: "notify@example.com",
+        marketActorId: "actor-notify",
+        meterId: "meter-notify",
+        role: "consumer",
+      },
+    ]);
+    const row = store.getParticipant(created.participantId)!;
+    await service.updateProfile(row.idpUserId!, {
+      name: "Notify Me",
+      address: "1 Test",
+      email: "notify@example.com",
+    });
+    expect(service.getNotificationContact(created.participantId)).toEqual({
+      participantId: created.participantId,
+      email: "notify@example.com",
+    });
+  });
+
   it("advances readiness through profile, terms and payment (BR-09, REQ-050)", async () => {
     const [created] = await service.importParticipants(communityId, [
       {

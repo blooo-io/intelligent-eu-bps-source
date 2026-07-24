@@ -124,6 +124,33 @@ paths:
                     $ref: '../components/schemas.yaml#/components/schemas/Uuid'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants/{participantId}/notification-contact:
+    get:
+      operationId: getNotificationContact
+      tags: [Participants]
+      summary: Read notification e-mail for a participant
+      description: >
+        GetNotificationContact(participantId). Called by AC-11 to resolve the
+        payment-notice recipient from the participant profile (INT-274 / REQ-017).
+      parameters:
+        - $ref: '#/components/parameters/ParticipantId'
+      responses:
+        '200':
+          description: Notification contact.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [participantId, email]
+                properties:
+                  participantId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  email:
+                    type: string
+                    format: email
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /participants/{participantId}/payment-account-status:
     post:
       operationId: applyPaymentAccountStatus

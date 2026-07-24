@@ -1,6 +1,6 @@
 /** AC-11 — NotificationLog (02 §6 LB-09). Identifiers only in logs. */
 
-export type NoticeTemplate = "payment-success" | "payment-failure";
+export type NoticeTemplate = "payment-success" | "payment-failure" | "operator-alert";
 
 export type NotificationLogEntry = {
   logId: string;

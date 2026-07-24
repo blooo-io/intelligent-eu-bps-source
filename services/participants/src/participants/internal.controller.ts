@@ -35,6 +35,12 @@ export class InternalParticipantsController {
     return this.participants.checkReadiness(participantId);
   }
 
+  /** INT-274 — AC-11 payment-notice recipient from profile e-mail. */
+  @Get("participants/:participantId/notification-contact")
+  getNotificationContact(@Param("participantId") participantId: string) {
+    return this.participants.getNotificationContact(participantId);
+  }
+
   /** INT-230 — IdP sub → participantId for AC-07 pay / onboarding. */
   @Get("participants\\:by-idp-sub/:idpUserId")
   resolveByIdpSub(@Param("idpUserId") idpUserId: string) {

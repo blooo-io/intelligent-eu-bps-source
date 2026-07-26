@@ -460,6 +460,66 @@ export class ParticipantsService {
     return SEED_COMMUNITY_ID;
   }
 
+  /**
+   * REQ-013 / INT-275 — anonymize registry personal data; emit ErasureCompleted (AC-03).
+   */
+  async applyErasureRequested(input: {
+    requestId: string;
+    participantId: string;
+  }): Promise<{ result: "completed" | "failed" }> {
+    const row = this.store.getParticipant(input.participantId);
+    if (!row) {
+      await this.publishErasureCompleted(
+        input.requestId,
+        "failed",
+        SEED_COMMUNITY_ID,
+      );
+      return { result: "failed" };
+    }
+    const next: ParticipantRecord = {
+      ...row,
+      profile: row.profile
+        ? { name: "[erased]", address: "[erased]", email: "[erased]" }
+        : null,
+      idpUserId: null,
+    };
+    this.store.putParticipant(next);
+    if (row.idpUserId) {
+      try {
+        await this.idp.deleteUser(row.idpUserId);
+      } catch {
+        /* fail soft — local anonymization still applied (REQ-013) */
+      }
+    }
+    await this.publishErasureCompleted(
+      input.requestId,
+      "completed",
+      row.communityId,
+    );
+    return { result: "completed" };
+  }
+
+  private async publishErasureCompleted(
+    requestId: string,
+    result: "completed" | "failed",
+    communityId: string,
+  ): Promise<void> {
+    const settings = this.store.getCommunity(communityId);
+    await this.outbox.append({
+      aggregateType: "DataSubjectRequest",
+      aggregateId: requestId,
+      type: "ErasureCompleted",
+      producer: PRODUCER,
+      communityId,
+      billingMode: settings?.billingMode ?? "virtual",
+      data: {
+        requestId,
+        module: "AC-03",
+        result,
+      },
+    });
+  }
+
   private requireParticipant(participantId: string): ParticipantRecord {
     const row = this.store.getParticipant(participantId);
     if (!row) {

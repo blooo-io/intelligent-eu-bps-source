@@ -264,4 +264,28 @@ describe("InvoicingService", () => {
     );
     expect(listed.some((r) => r.invoiceId === invoice.invoiceId)).toBe(true);
   });
+
+  it("REQ-013 / INT-275 — erasure retains invoices and emits ErasureCompleted", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    const beforeCount = store.listByParticipant(
+      "11111111-2222-4333-8444-555555555555",
+    ).length;
+    expect(beforeCount).toBeGreaterThan(0);
+
+    const result = await service.applyErasureRequested({
+      requestId: "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+      participantId: "11111111-2222-4333-8444-555555555555",
+    });
+    expect(result.invoicesRetained).toBe(beforeCount);
+    expect(store.get(invoice.invoiceId)?.invoiceId).toBe(invoice.invoiceId);
+
+    const events = await outboxStore.list();
+    const completed = events.find((e) => e.event.type === "ErasureCompleted");
+    expect(completed?.event.producer).toBe("AC-06");
+    expect(completed?.event.data).toMatchObject({
+      requestId: "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+      module: "AC-06",
+      result: "completed",
+    });
+  });
 });

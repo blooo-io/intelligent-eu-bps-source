@@ -27,6 +27,12 @@ import { MockPspAdapter } from "./psp/mock-psp.adapter.js";
 import { PSP_PORT } from "./psp/psp.port.js";
 import { resolvePspProvider } from "./psp/stripe-env.js";
 import { StripePspAdapter } from "./psp/stripe-psp.adapter.js";
+import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
+import { createEventBus } from "./events/nats-event-bus.js";
+import { ErasureRequestedListener } from "./events/erasure-requested.listener.js";
+import { MockPspEraseAdapter } from "./psp/mock-psp-erase.adapter.js";
+import { PSP_ERASE_PORT } from "./psp/psp-erase.port.js";
+import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
 
 @Module({
   imports: [
@@ -37,6 +43,8 @@ import { StripePspAdapter } from "./psp/stripe-psp.adapter.js";
     PaymentsStore,
     PaymentsService,
     MockPspAdapter,
+    MockPspEraseAdapter,
+    StripePspEraseAdapter,
     InMemoryInvoiceLookup,
     {
       provide: PAYMENT_ACCOUNTS_STORE,
@@ -53,6 +61,19 @@ import { StripePspAdapter } from "./psp/stripe-psp.adapter.js";
         return mock;
       },
       inject: [MockPspAdapter],
+    },
+    {
+      provide: PSP_ERASE_PORT,
+      useFactory: (
+        mock: MockPspEraseAdapter,
+        stripe: StripePspEraseAdapter,
+      ) => {
+        if (resolvePspProvider() === "stripe") {
+          return stripe;
+        }
+        return mock;
+      },
+      inject: [MockPspEraseAdapter, StripePspEraseAdapter],
     },
     {
       provide: INVOICE_LOOKUP,
@@ -86,6 +107,8 @@ import { StripePspAdapter } from "./psp/stripe-psp.adapter.js";
       // INT-230 — IdP sub → participantId for pay / onboarding.
       useFactory: () => createParticipantsResolver(),
     },
+    { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
+    ErasureRequestedListener,
   ],
 })
 export class AppModule implements NestModule {

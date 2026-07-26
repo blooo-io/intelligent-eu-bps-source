@@ -23,3 +23,6 @@ env:
   PSP_PROVIDER: stripe
   INVOICING_INTERNAL_URL: http://invoicing:8080
   PARTICIPANTS_INTERNAL_URL: http://participants:8080
+  NATS_URL: nats://nats.nats.svc.cluster.local:4222
+  NATS_SUBJECT_PREFIX: intelligent.dev
+  NATS_STREAM: DebeziumStream

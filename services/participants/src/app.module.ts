@@ -7,6 +7,9 @@ import { IDP_ADMIN_PORT } from "./idp/idp.port.js";
 import { InternalParticipantsController } from "./participants/internal.controller.js";
 import { PublicParticipantsController } from "./participants/public.controller.js";
 import { ParticipantsService } from "./participants/participants.service.js";
+import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
+import { createEventBus } from "./events/nats-event-bus.js";
+import { ErasureRequestedListener } from "./events/erasure-requested.listener.js";
 
 @Module({
   imports: [
@@ -18,6 +21,8 @@ import { ParticipantsService } from "./participants/participants.service.js";
     ParticipantsService,
     // INT-208 — Keycloak Admin when env present; mock otherwise / IDP_ADMIN_PROVIDER=mock
     { provide: IDP_ADMIN_PORT, useFactory: () => createIdpAdminPort() },
+    { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
+    ErasureRequestedListener,
   ],
 })
 export class AppModule implements NestModule {

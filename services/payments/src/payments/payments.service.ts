@@ -29,6 +29,10 @@ import {
   type PaymentAccountsStore,
 } from "../ports/payment-accounts.store.js";
 import {
+  PSP_ERASE_PORT,
+  type PspErasePort,
+} from "../psp/psp-erase.port.js";
+import {
   PSP_PORT,
   PRODUCER_ONBOARDING_DUE,
   type OnboardingRequirementsSubmission,
@@ -54,6 +58,7 @@ export class PaymentsService {
     private readonly accountsStore: PaymentAccountsStore,
     @Inject(PARTICIPANTS_RESOLVER)
     private readonly idpResolver: ParticipantsResolverPort,
+    @Inject(PSP_ERASE_PORT) private readonly pspErase: PspErasePort,
   ) {}
 
   resetStore(): void {
@@ -701,5 +706,49 @@ export class PaymentsService {
       ready,
       reason: ready ? undefined : "payment_account",
     });
+  }
+
+  /**
+   * REQ-013 / INT-275 — clear local payment-method cache, PSP erase (test mode), ErasureCompleted.
+   */
+  async applyErasureRequested(input: {
+    requestId: string;
+    participantId: string;
+  }): Promise<{ result: "completed" | "failed" }> {
+    const account = await this.hydrateAccount(input.participantId);
+    let result: "completed" | "failed" = "completed";
+    if (account?.stripeAccountId) {
+      try {
+        await this.pspErase.erase({
+          requestId: input.requestId,
+          participantId: input.participantId,
+          stripeCustomerId: account.stripeAccountId,
+        });
+      } catch {
+        result = "failed";
+      }
+    }
+    if (account) {
+      await this.saveAccount({
+        ...account,
+        paymentMethodId: null,
+      });
+    }
+    const communityId =
+      account?.communityId ?? "a1000000-0000-4000-8000-000000000001";
+    await this.outbox.append({
+      aggregateType: "DataSubjectRequest",
+      aggregateId: input.requestId,
+      type: "ErasureCompleted",
+      producer: PRODUCER,
+      communityId,
+      billingMode: "virtual",
+      data: {
+        requestId: input.requestId,
+        module: "AC-07",
+        result,
+      },
+    });
+    return { result };
   }
 }

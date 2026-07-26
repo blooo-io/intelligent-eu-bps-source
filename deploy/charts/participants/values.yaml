@@ -24,3 +24,6 @@ env:
   KEYCLOAK_REALM: int
   KEYCLOAK_ADMIN_CLIENT_ID: participants-admin
   KEYCLOAK_ADMIN_CLIENT_SECRET: dev-participants-admin-replace-me
+  NATS_URL: nats://nats.nats.svc.cluster.local:4222
+  NATS_SUBJECT_PREFIX: intelligent.dev
+  NATS_STREAM: DebeziumStream

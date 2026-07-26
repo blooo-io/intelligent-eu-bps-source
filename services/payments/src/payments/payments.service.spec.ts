@@ -9,6 +9,7 @@ import {
 } from "@intelligent/module-template";
 import { PaymentsStore } from "../domain/store.js";
 import { MockPspAdapter } from "../psp/mock-psp.adapter.js";
+import { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
 import { InMemoryInvoiceLookup } from "../ports/invoice-lookup.port.js";
 import { InMemoryPaymentAccountsStore } from "../ports/payment-accounts.store.js";
 import { NoopParticipantsNotifier } from "../ports/participants-notifier.port.js";
@@ -25,12 +26,14 @@ describe("PaymentsService", () => {
   let psp: MockPspAdapter;
   let invoices: InMemoryInvoiceLookup;
   let accountsStore: InMemoryPaymentAccountsStore;
+  let pspErase: MockPspEraseAdapter;
   let service: PaymentsService;
 
   beforeEach(() => {
     store = new PaymentsStore();
     outboxStore = new InMemoryOutboxStore();
     psp = new MockPspAdapter();
+    pspErase = new MockPspEraseAdapter();
     invoices = new InMemoryInvoiceLookup();
     accountsStore = new InMemoryPaymentAccountsStore();
     service = new PaymentsService(
@@ -41,6 +44,7 @@ describe("PaymentsService", () => {
       new NoopParticipantsNotifier(),
       accountsStore,
       new NoopParticipantsResolver(),
+      pspErase,
     );
   });
 
@@ -314,6 +318,7 @@ describe("PaymentsService", () => {
       failing,
       accountsStore,
       new NoopParticipantsResolver(),
+      pspErase,
     );
     await expect(
       svc.startOnboarding({
@@ -611,6 +616,7 @@ describe("PaymentsService", () => {
       new NoopParticipantsNotifier(),
       accountsStore,
       resolver,
+      pspErase,
     );
     await service.ensureParticipant({
       participantId: CONSUMER,
@@ -652,6 +658,7 @@ describe("PaymentsService", () => {
       new NoopParticipantsNotifier(),
       accountsStore,
       resolver,
+      pspErase,
     );
     // Poison: account whose primary key is the IdP sub (prior failed resolve).
     await accountsStore.put({
@@ -749,6 +756,7 @@ describe("PaymentsService", () => {
       notifier,
       accountsStore,
       new NoopParticipantsResolver(),
+      pspErase,
     );
     await svc.submitOnboardingRequirements({
       participantId: PRODUCER,
@@ -794,6 +802,70 @@ describe("PaymentsService", () => {
     expect(row.stripeAccountId).toMatch(/^acct_test_/);
     expect(store.getAccount(PRODUCER)?.paymentMethodId).toBe("pm_card_visa");
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
+  });
+
+  it("REQ-013 / INT-275 — erasure reports failed when PSP erase throws", async () => {
+    const failingErase = new MockPspEraseAdapter();
+    failingErase.erase = vi.fn().mockRejectedValue(new Error("stripe down"));
+    const svc = new PaymentsService(
+      store,
+      new OutboxService(outboxStore),
+      psp,
+      invoices,
+      new NoopParticipantsNotifier(),
+      accountsStore,
+      new NoopParticipantsResolver(),
+      failingErase,
+    );
+    await svc.provisionPaymentAccount({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      fresh: true,
+    });
+    const result = await svc.applyErasureRequested({
+      requestId: "dddddddd-eeee-4fff-8000-111111111111",
+      participantId: PRODUCER,
+    });
+    expect(result.result).toBe("failed");
+    const events = await outboxStore.list();
+    const completed = events.find((e) => e.event.type === "ErasureCompleted");
+    expect(completed?.event.data).toMatchObject({ result: "failed" });
+  });
+
+  it("REQ-013 / INT-275 — erasure completes when no payment account exists", async () => {
+    const result = await service.applyErasureRequested({
+      requestId: "eeeeeeee-ffff-4000-8000-222222222222",
+      participantId: "00000000-0000-4000-8000-000000000099",
+    });
+    expect(result.result).toBe("completed");
+    expect(pspErase.recorded()).toHaveLength(0);
+  });
+
+  it("REQ-013 / INT-275 — erasure clears payment method and emits ErasureCompleted", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    expect(store.getAccount(CONSUMER)?.paymentMethodId).toBe("pm_card_visa");
+
+    const result = await service.applyErasureRequested({
+      requestId: "cccccccc-dddd-4eee-8fff-000000000001",
+      participantId: CONSUMER,
+    });
+    expect(result.result).toBe("completed");
+    expect(store.getAccount(CONSUMER)?.paymentMethodId).toBeNull();
+
+    const events = await outboxStore.list();
+    const completed = events.find((e) => e.event.type === "ErasureCompleted");
+    expect(completed?.event.producer).toBe("AC-07");
+    expect(completed?.event.data).toMatchObject({
+      requestId: "cccccccc-dddd-4eee-8fff-000000000001",
+      module: "AC-07",
+      result: "completed",
+    });
   });
 });
 

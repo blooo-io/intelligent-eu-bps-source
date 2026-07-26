@@ -332,4 +332,30 @@ describe("ParticipantsService", () => {
     expect(next.threshold).toBe("7.50");
     expect(next.currency).toBe("CHF");
   });
+
+  it("REQ-013 / INT-275 — erasure anonymizes profile and emits ErasureCompleted", async () => {
+    const participantId = "f69e6745-3bfe-49ad-b84e-0853aa86ad05";
+    const before = store.getParticipant(participantId)!;
+    expect(before.profile?.email).toContain("@");
+
+    const result = await service.applyErasureRequested({
+      requestId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+      participantId,
+    });
+    expect(result.result).toBe("completed");
+
+    const after = store.getParticipant(participantId)!;
+    expect(after.profile?.email).toBe("[erased]");
+    expect(after.idpUserId).toBeNull();
+
+    const events = await outboxStore.list();
+    const completed = events.find((e) => e.event.type === "ErasureCompleted");
+    expect(completed?.event.producer).toBe("AC-03");
+    expect(completed?.event.data).toEqual({
+      requestId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+      module: "AC-03",
+      result: "completed",
+    });
+    expect(JSON.stringify(events)).not.toMatch(/@/);
+  });
 });

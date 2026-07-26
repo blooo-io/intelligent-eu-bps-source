@@ -39,4 +39,12 @@ export class InvoiceStore {
   list(): InvoiceRecord[] {
     return [...this.byId.values()].map((r) => structuredClone(r));
   }
+
+  /** REQ-013 — invoices involving a participant (retained under legal retention). */
+  listByParticipant(participantId: string): InvoiceRecord[] {
+    return this.list().filter(
+      (row) =>
+        row.consumerId === participantId || row.producerId === participantId,
+    );
+  }
 }

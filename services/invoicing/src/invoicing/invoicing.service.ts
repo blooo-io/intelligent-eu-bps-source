@@ -478,6 +478,31 @@ export class InvoicingService {
     return next;
   }
 
+  /**
+   * REQ-013 / INT-275 — retain invoice rows; emit ErasureCompleted (AC-06).
+   */
+  async applyErasureRequested(input: {
+    requestId: string;
+    participantId: string;
+  }): Promise<{ result: "completed" | "failed"; invoicesRetained: number }> {
+    const invoices = this.store.listByParticipant(input.participantId);
+    const communityId = invoices[0]?.communityId ?? "a1000000-0000-4000-8000-000000000001";
+    await this.outbox.append({
+      aggregateType: "DataSubjectRequest",
+      aggregateId: input.requestId,
+      type: "ErasureCompleted",
+      producer: PRODUCER,
+      communityId,
+      billingMode: "virtual",
+      data: {
+        requestId: input.requestId,
+        module: "AC-06",
+        result: "completed",
+      },
+    });
+    return { result: "completed", invoicesRetained: invoices.length };
+  }
+
   private toPublicInvoice(row: InvoiceRecord): Record<string, unknown> {
     return {
       invoiceId: row.invoiceId,

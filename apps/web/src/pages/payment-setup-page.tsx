@@ -297,9 +297,12 @@ export function PaymentSetupPage({
       ? "Continue to Stripe Connect"
       : "Save card and finish";
 
-  const brandLabel = account?.brand
-    ? account.brand.charAt(0).toUpperCase() + account.brand.slice(1)
-    : null;
+  const brandLabel =
+    account?.brand === "sepa_debit"
+      ? "SEPA"
+      : account?.brand
+        ? account.brand.charAt(0).toUpperCase() + account.brand.slice(1)
+        : null;
   const readyConsumerCard =
     Boolean(account?.last4) &&
     (!setupIncomplete || session?.status === "complete") &&

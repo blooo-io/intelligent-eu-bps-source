@@ -32,7 +32,9 @@ describe("stripe-setup-element (INT-193)", () => {
       container,
       loadStripeFn,
     });
-    expect(create).toHaveBeenCalledWith("payment");
+    expect(create).toHaveBeenCalledWith("payment", {
+      paymentMethodOrder: ["card", "sepa_debit"],
+    });
     expect(mount).toHaveBeenCalledWith(container);
 
     await expect(handle.confirm()).resolves.toEqual({ paymentMethodId: "pm_1" });

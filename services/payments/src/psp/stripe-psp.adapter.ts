@@ -162,10 +162,12 @@ export class StripePspAdapter implements PspPort {
     const customer = await this.stripe.customers.create({
       metadata: { participantId },
     });
+    // INT-276 / REQ-014 — card or SEPA Direct Debit (Twint/PayPal out of scope).
+    // Stripe SDK v23: use allowed_payment_method_types (payment_method_types removed).
     const intent = await this.stripe.setupIntents.create({
       customer: customer.id,
       usage: "off_session",
-      automatic_payment_methods: { enabled: true },
+      allowed_payment_method_types: ["card", "sepa_debit"],
       metadata: { participantId },
     });
     if (!intent.client_secret) {
@@ -189,8 +191,18 @@ export class StripePspAdapter implements PspPort {
     paymentMethodId: string,
   ): Promise<PaymentMethodDetails> {
     const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+    const type = pm.type ?? "card";
+    if (type === "sepa_debit") {
+      return {
+        paymentMethodId: pm.id,
+        type: "sepa_debit",
+        brand: "sepa_debit",
+        last4: pm.sepa_debit?.last4 ?? undefined,
+      };
+    }
     return {
       paymentMethodId: pm.id,
+      type: "card",
       brand: pm.card?.brand ?? undefined,
       last4: pm.card?.last4 ?? undefined,
     };

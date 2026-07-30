@@ -444,6 +444,8 @@ export class PaymentsService {
    */
   async getMyPaymentAccount(participantId: string): Promise<{
     status: "none" | "requirements_due" | "pending_verification" | "complete";
+    /** INT-276 — card | sepa_debit for Ready Payment method UI (REQ-014). */
+    method?: string;
     brand?: string;
     last4?: string;
     stripeAccountId?: string;
@@ -461,10 +463,12 @@ export class PaymentsService {
     // INT-269 — prosumer may have PM + Connect together; surface both.
     let brand: string | undefined;
     let last4: string | undefined;
+    let method: string | undefined;
     if (row.paymentMethodId) {
       const details = await this.psp.getPaymentMethodDetails(row.paymentMethodId);
       brand = details.brand;
       last4 = details.last4;
+      method = details.type;
     }
 
     let stripeAccountId: string | undefined;
@@ -493,6 +497,7 @@ export class PaymentsService {
         status: ready
           ? "complete"
           : (connectStatus ?? (row.paymentMethodId ? "complete" : "requirements_due")),
+        method,
         brand,
         last4,
         stripeAccountId,
@@ -571,6 +576,17 @@ export class PaymentsService {
     });
     const processingTimeMs = Math.max(0, Date.now() - started);
     const paymentId = randomUUID();
+    // INT-276 / REQ-014 — surface card vs sepa_debit (not hardcoded card).
+    let method = "card";
+    try {
+      const details = await this.psp.getPaymentMethodDetails(
+        account.paymentMethodId,
+      );
+      if (details.type === "sepa_debit") method = "sepa_debit";
+      else if (details.type) method = String(details.type);
+    } catch {
+      /* keep card default */
+    }
     this.store.putPayment({
       paymentId,
       invoiceId: input.invoiceId,
@@ -581,7 +597,7 @@ export class PaymentsService {
       stripePaymentId: pspResult.stripePaymentId,
       failureCategory: pspResult.failureCategory,
       communityId,
-      method: "card",
+      method,
       processingTimeMs,
     });
     await this.outbox.append({
@@ -596,7 +612,7 @@ export class PaymentsService {
         invoiceId: input.invoiceId,
         status: pspResult.status,
         failureCategory: pspResult.failureCategory,
-        method: "card",
+        method,
         processingTimeMs,
       },
     });
@@ -606,7 +622,7 @@ export class PaymentsService {
       amount: invoice.total,
       currency: invoice.currency,
       status: pspResult.status,
-      method: "card",
+      method,
       failureCategory: pspResult.failureCategory,
       processingTimeMs,
     };

@@ -121,14 +121,31 @@ export class MockPspAdapter implements PspPort {
   async getPaymentMethodDetails(
     paymentMethodId: string,
   ): Promise<PaymentMethodDetails> {
+    // INT-276 — SEPA test fixture (Stripe pm_sepa_debit).
+    if (
+      paymentMethodId.includes("sepa") ||
+      paymentMethodId === "pm_sepa_debit"
+    ) {
+      return {
+        paymentMethodId,
+        type: "sepa_debit",
+        brand: "sepa_debit",
+        last4: "3000",
+      };
+    }
     // Fixture ids used in UAT / seed (pm_card_visa → Visa 4242).
     if (paymentMethodId.includes("visa") || paymentMethodId === "pm_card_visa") {
-      return { paymentMethodId, brand: "visa", last4: "4242" };
+      return { paymentMethodId, type: "card", brand: "visa", last4: "4242" };
     }
     if (paymentMethodId.includes("mastercard")) {
-      return { paymentMethodId, brand: "mastercard", last4: "4444" };
+      return {
+        paymentMethodId,
+        type: "card",
+        brand: "mastercard",
+        last4: "4444",
+      };
     }
-    return { paymentMethodId, brand: "visa", last4: "4242" };
+    return { paymentMethodId, type: "card", brand: "visa", last4: "4242" };
   }
 
   async createPayment(input: {

@@ -342,9 +342,40 @@ describe("PaymentsService", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     await expect(service.getMyPaymentAccount(CONSUMER)).resolves.toEqual({
       status: "complete",
+      method: "card",
       brand: "visa",
       last4: "4242",
     });
+  });
+
+  it("INT-276: SEPA payment method surfaces method=sepa_debit on pay (REQ-014)", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_sepa_debit");
+    await expect(service.getMyPaymentAccount(CONSUMER)).resolves.toMatchObject({
+      status: "complete",
+      method: "sepa_debit",
+      brand: "sepa_debit",
+      last4: "3000",
+    });
+    invoices.put({
+      invoiceId: "inv-sepa-1",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "12.00",
+      producerStripeAccountId: "acct_test_producer",
+    });
+    const paid = await service.payInvoice({
+      invoiceId: "inv-sepa-1",
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+    });
+    expect(paid.method).toBe("sepa_debit");
   });
 
   it("getMyPaymentAccount returns dashboardUrl for Ready producer (INT-255)", async () => {

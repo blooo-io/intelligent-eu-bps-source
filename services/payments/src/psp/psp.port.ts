@@ -63,9 +63,11 @@ export type PaymentMethodRef = {
   paymentMethodId: string;
 };
 
-/** INT-255 — card display fields from Stripe PaymentMethod (never stored). */
+/** INT-255 / INT-276 — card or SEPA display fields from Stripe (never stored). */
 export type PaymentMethodDetails = {
   paymentMethodId: string;
+  /** Stripe PaymentMethod.type — card | sepa_debit (REQ-014). */
+  type?: "card" | "sepa_debit" | string;
   brand?: string;
   last4?: string;
 };

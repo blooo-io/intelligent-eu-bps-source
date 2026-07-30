@@ -34,7 +34,10 @@ export async function mountSetupPaymentElement(input: {
   const elements: StripeElements = stripe.elements({
     clientSecret: input.clientSecret,
   });
-  const paymentElement = elements.create("payment");
+  // INT-276 / REQ-014 — Payment Element offers card and SEPA when SetupIntent allows.
+  const paymentElement = elements.create("payment", {
+    paymentMethodOrder: ["card", "sepa_debit"],
+  });
   paymentElement.mount(input.container);
 
   return {

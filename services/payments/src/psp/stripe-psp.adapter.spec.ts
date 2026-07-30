@@ -85,6 +85,8 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
       expect.objectContaining({
         customer: "cus_1",
         usage: "off_session",
+        // INT-276 / REQ-014 — card or SEPA Direct Debit (Stripe SDK v23).
+        allowed_payment_method_types: ["card", "sepa_debit"],
         metadata: { participantId: "p-consumer" },
       }),
     );
@@ -369,14 +371,31 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
     });
   });
 
+  it("returns SEPA last4 for sepa_debit PaymentMethod (INT-276)", async () => {
+    paymentMethodsRetrieve.mockResolvedValue({
+      id: "pm_sepa",
+      type: "sepa_debit",
+      sepa_debit: { last4: "3000" },
+    });
+    const adapter = new StripePspAdapter(creds);
+    await expect(adapter.getPaymentMethodDetails("pm_sepa")).resolves.toEqual({
+      paymentMethodId: "pm_sepa",
+      type: "sepa_debit",
+      brand: "sepa_debit",
+      last4: "3000",
+    });
+  });
+
   it("returns brand and last4 for Ready Payment method UI (INT-255)", async () => {
     paymentMethodsRetrieve.mockResolvedValue({
       id: "pm_1",
+      type: "card",
       card: { brand: "visa", last4: "4242" },
     });
     const adapter = new StripePspAdapter(creds);
     await expect(adapter.getPaymentMethodDetails("pm_1")).resolves.toEqual({
       paymentMethodId: "pm_1",
+      type: "card",
       brand: "visa",
       last4: "4242",
     });

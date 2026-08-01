@@ -143,7 +143,15 @@ test.describe("AC-01 member screens and buttons", () => {
     await expect(view).toBeVisible({ timeout: 15_000 });
     await view.click();
     await expect(page.getByRole("button", { name: /open pdf/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^pay$/i })).toBeVisible();
+    // INT-279 — Pay only when caller is consumer and status is not Paid (INT-269 / INT-270).
+    const pay = page.getByRole("button", { name: /^pay$/i });
+    if (await pay.isVisible().catch(() => false)) {
+      await expect(pay).toBeVisible();
+    } else {
+      await expect(
+        page.getByText(/paid|open|overdue|void|draft|issued|status/i).first(),
+      ).toBeVisible();
+    }
     // Open PDF should not crash the page (new tab or blob).
     const [popup] = await Promise.all([
       page.waitForEvent("popup", { timeout: 10_000 }).catch(() => null),

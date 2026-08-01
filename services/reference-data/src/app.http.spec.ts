@@ -61,6 +61,18 @@ describe("reference-data HTTP (INT-102)", () => {
     });
   });
 
+  it("GET vat-rate returns 0.00 for UAT community (INT-279 / BR-07)", async () => {
+    const res = await fetch(
+      `${base}/internal/v1/communities/a1000000-0000-4000-8000-000000000001/vat-rate`,
+      { headers: { "x-intelligent-roles": "service" } },
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      communityId: "a1000000-0000-4000-8000-000000000001",
+      vatRate: "0.00",
+    });
+  });
+
   it("POST /internal/v1/rates:fetch returns 202", async () => {
     const res = await fetch(`${base}/internal/v1/rates:fetch`, {
       method: "POST",

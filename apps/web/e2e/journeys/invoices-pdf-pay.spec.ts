@@ -36,14 +36,17 @@ test.describe("REQ invoices PDF and pay", () => {
     await popup!.close();
 
     const pay = page.getByRole("button", { name: /^pay$/i });
-    if (await pay.isEnabled().catch(() => false)) {
+    // INT-279 — Pay may be absent when Paid or caller is not the consumer (INT-269 / INT-270).
+    if ((await pay.isVisible().catch(() => false)) && (await pay.isEnabled())) {
       await pay.click();
       await expect(
         page.getByText(/payment|paid|status|checkout|hosted/i).first(),
       ).toBeVisible({ timeout: 45_000 });
     } else {
-      // Already paid / not open — status must still be visible (UAT-014).
-      await expect(page.getByText(/paid|open|overdue|void|status/i).first()).toBeVisible();
+      // Already paid / not payable — invoice status must still be visible (UAT-014).
+      await expect(
+        page.getByText(/paid|open|overdue|void|draft|issued/i).first(),
+      ).toBeVisible({ timeout: 15_000 });
     }
   });
 });

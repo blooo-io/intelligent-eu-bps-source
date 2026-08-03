@@ -20,11 +20,11 @@ Not run on pull requests. Not a cloistered localhost SPA.
 
 Environment: GitHub **`dev`** (secret `KUBECONFIG_INTELLIGENT_EU_DEV`).
 
-Steps: checkout `develop` → restart `deploy/web` (pull floating tag) → wait HTTP 200 on `https://app.dev.intelligent-eu-bp.blooo.dev/` → Playwright auth-gate smoke (`docs/testing/ac01-e2e.md`).
+Steps: checkout `develop` → restart floating `:develop` Deployments in `int-apps` (web + AC modules, INT-178 / INT-229 / INT-280) → wait HTTP 200 on `https://app.dev.intelligent-eu-bp.blooo.dev/` → Playwright suite (`docs/testing/ac01-e2e.md`).
 
-## Why restart web
+## Why restart Deployments
 
-Charts pin `image.tag: develop` + `pullPolicy: Always`. Argo does not redeploy when only the registry digest for that tag changes. Restarting the Deployment is the documented INT-178 operator path packaged into this verification job.
+Charts pin `image.tag: develop` + `pullPolicy: Always`. Argo does not redeploy when only the registry digest for that tag changes. Restarting each Deployment is the documented INT-178 operator path packaged into this verification job. INT-280 extends the roll list beyond web/settlement so selectively rebuilt modules (e.g. `reference-data`) are not left on a stale digest.
 
 ## Optional next (Argo Notifications)
 

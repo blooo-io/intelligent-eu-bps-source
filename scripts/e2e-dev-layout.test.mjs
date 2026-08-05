@@ -13,11 +13,13 @@ test("e2e-dev workflow targets deployed app.dev after supply-chain", async () =>
   assert.match(text, /workflows:\s*\[supply-chain\]/);
   assert.match(text, /environment:\s*dev/);
   assert.match(text, /E2E_BASE_URL:\s*https:\/\/app\.dev\.intelligent-eu-bp\.blooo\.dev/);
-  // INT-194 / INT-229 / INT-280 — roll floating :develop modules after supply-chain.
+  // INT-194 / INT-229 / INT-280 / INT-281 — roll floating :develop modules after supply-chain.
   assert.match(text, /for d in \\/);
   assert.match(text, /reference-data/);
   assert.match(text, /scheduler-worker/);
   assert.match(text, /rollout restart "deploy\/\$\{d\}"/);
+  assert.match(text, /failed_critical/);
+  assert.match(text, /Critical deploy rollout failed/);
   assert.match(text, /E2E_UAT_MEMBER_USER:\s*uat-member/);
   // INT-211 — manager + operator credentials for full screen/button suite.
   assert.match(text, /E2E_UAT_MANAGER_USER:\s*uat-manager/);

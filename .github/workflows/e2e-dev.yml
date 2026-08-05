@@ -76,6 +76,10 @@ jobs:
         # otherwise leave those pods on stale digests (e2e StartRun 404 after INT-279).
         run: |
           set -euo pipefail
+          # INT-281 — continue rolling peers if one CrashLoops; fail only when a
+          # billing-path module does not become ready (so VAT/StartRun e2e still run).
+          critical="web participants trade-intake settlement invoicing payments reference-data"
+          failed_critical=0
           for d in \
             web \
             participants \
@@ -94,8 +98,17 @@ jobs:
             mocks
           do
             kubectl -n int-apps rollout restart "deploy/${d}"
-            kubectl -n int-apps rollout status "deploy/${d}" --timeout=180s
+            if ! kubectl -n int-apps rollout status "deploy/${d}" --timeout=180s; then
+              echo "WARN: rollout status failed for deploy/${d}" >&2
+              case " ${critical} " in
+                *" ${d} "*) failed_critical=1 ;;
+              esac
+            fi
           done
+          if [ "${failed_critical}" -ne 0 ]; then
+            echo "Critical deploy rollout failed" >&2
+            exit 1
+          fi
 
       - name: Wait until the public web origin answers
         run: |

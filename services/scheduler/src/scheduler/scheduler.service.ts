@@ -18,13 +18,20 @@ const DEFAULT_COMMUNITY = "00000000-0000-4000-8000-000000000000";
  */
 @Injectable()
 export class SchedulerService {
+  /** INT-273 / INT-281 — clock for year-end final StartRun; not a Nest ctor inject. */
+  private clock: () => Date = () => new Date();
+
   constructor(
     @Inject(SchedulerStore) private readonly store: SchedulerStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
     @Inject(DISPATCH_PORT) private readonly dispatch: DispatchPort,
-    /** INT-273 — injectable clock for year-end final StartRun tests. */
-    private readonly now: () => Date = () => new Date(),
   ) {}
+
+  /** Test helper — override wall clock (INT-273 year-end final). */
+  useClock(now: () => Date): this {
+    this.clock = now;
+    return this;
+  }
 
   resetStore(): void {
     this.store.reset();
@@ -88,7 +95,7 @@ export class SchedulerService {
     if (!def) throw new NotFoundException(`Unknown job ${jobId}`);
 
     const communityId = input.communityId || DEFAULT_COMMUNITY;
-    const clock = this.now();
+    const clock = this.clock();
     const now = clock.toISOString();
     const body = this.buildBody(def.name, communityId, input.period, clock);
 

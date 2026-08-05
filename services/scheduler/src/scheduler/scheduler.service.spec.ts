@@ -89,12 +89,7 @@ describe("SchedulerService", () => {
   });
 
   it("INT-273: StartRun on 31 Dec dispatches type=final (BR-05)", async () => {
-    service = new SchedulerService(
-      store,
-      new OutboxService(outboxStore),
-      dispatch,
-      () => new Date("2026-12-31T15:00:00Z"),
-    );
+    service.useClock(() => new Date("2026-12-31T15:00:00Z"));
     const result = await service.runJob(START_RUN_ID, {
       communityId: COMMUNITY,
     });

@@ -186,13 +186,14 @@ jobs:
         # INT-194 / INT-211 — three UAT IdP roles; omit E2E_SKIP_AUTH so auth suites run.
         # INT-251 — STRIPE_SECRET_KEY from previous step for Charge assertion.
         env:
-          E2E_UAT_MEMBER_USER: uat-member
+          # INT-282 — human-readable demo logins (Keycloak ids unchanged).
+          E2E_UAT_MEMBER_USER: hugo.petit
           E2E_UAT_MEMBER_PASSWORD: Intelligent-UAT-2026!
-          E2E_UAT_MANAGER_USER: uat-manager
+          E2E_UAT_MANAGER_USER: sofia.garcia
           E2E_UAT_MANAGER_PASSWORD: Intelligent-UAT-2026!
-          E2E_UAT_OPERATOR_USER: uat-operator
+          E2E_UAT_OPERATOR_USER: paul.nguyen
           E2E_UAT_OPERATOR_PASSWORD: Intelligent-UAT-2026!
-          # INT-251 — S1 consumer pays seeded Open invoices (Demo community S1).
-          E2E_S1_CONSUMER_USER: s1-consumer
+          # INT-251 / INT-282 — Léa Martin pays seeded Open invoices (S1 community).
+          E2E_S1_CONSUMER_USER: lea.martin
           E2E_S1_CONSUMER_PASSWORD: Intelligent-UAT-2026!
         run: pnpm --filter @intelligent/web test:e2e

@@ -15,7 +15,7 @@ export function LoginPage() {
     <main className="ge-login-split" data-testid="login-page">
       <aside className="ge-login-brand" aria-label="Brand">
         <Title level={2} style={{ margin: 0, color: brand.accent, fontSize: 28 }}>
-          INTELLIGENT billing
+          Intelligent Billing & Payment
         </Title>
         <Paragraph style={{ margin: 0, color: "#c5d6ce", maxWidth: 360 }}>
           Settle energy trades in your community — invoices in the producer&apos;s

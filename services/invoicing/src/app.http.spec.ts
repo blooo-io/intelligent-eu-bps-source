@@ -35,7 +35,7 @@ describe("invoicing HTTP (INT-106)", () => {
     expect(await res.json()).toEqual({ status: "ok", module: "invoicing" });
   });
 
-  it("UAT seed invoice is listed for uat-member IdP sub (INT-218)", async () => {
+  it("UAT seed invoice is listed for hugo.petit IdP sub (INT-218)", async () => {
     const list = await fetch(`${base}/v1/me/invoices`, {
       headers: {
         "x-intelligent-roles": "member",

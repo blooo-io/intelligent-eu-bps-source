@@ -20,10 +20,11 @@ test("e2e-dev workflow targets deployed app.dev after supply-chain", async () =>
   assert.match(text, /rollout restart "deploy\/\$\{d\}"/);
   assert.match(text, /failed_critical/);
   assert.match(text, /Critical deploy rollout failed/);
-  assert.match(text, /E2E_UAT_MEMBER_USER:\s*uat-member/);
-  // INT-211 — manager + operator credentials for full screen/button suite.
-  assert.match(text, /E2E_UAT_MANAGER_USER:\s*uat-manager/);
-  assert.match(text, /E2E_UAT_OPERATOR_USER:\s*uat-operator/);
+  assert.match(text, /E2E_UAT_MEMBER_USER:\s*hugo\.petit/);
+  // INT-211 / INT-282 — manager + operator credentials for full screen/button suite.
+  assert.match(text, /E2E_UAT_MANAGER_USER:\s*sofia\.garcia/);
+  assert.match(text, /E2E_UAT_OPERATOR_USER:\s*paul\.nguyen/);
+  assert.match(text, /E2E_S1_CONSUMER_USER:\s*lea\.martin/);
   assert.match(text, /test:e2e/);
   // INT-251 — money-path asserts Stripe charges using the cluster payments secret.
   assert.match(text, /STRIPE_SECRET_KEY/);

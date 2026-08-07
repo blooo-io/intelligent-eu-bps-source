@@ -16,7 +16,7 @@ AC-05 writes `SettlementCompleted` / `BillingRunCompleted` to the outbox. INT-22
 ## Preferred: fully manual portal path (INT-241 / INT-242)
 
 S1 community `c0ffee00-1234-4abc-8def-0123456789ab` has Keycloak users
-`s1-consumer` / `s1-producer-a` / `s1-producer-b` / **`s1-manager`**
+`lea.martin` / `thomas.bernard` / `claire.dubois` / **`marie.leroy`**
 (password `Intelligent-UAT-2026!`). No operator script required.
 
 **Full click-by-click script (creds, form values, pass/fail checks):**  
@@ -28,7 +28,7 @@ Summary:
    (Stripe test tokens; see `stripe-connect-test-kyc.md`) until charges enabled.
 2. **Manager** (`s1-manager`) — `/billing-runs` → Type **Early** → **Start run**
    (REQ-006). NATS `SettlementCompleted` creates Stripe invoices.
-3. **Consumer** (`s1-consumer`) — `/payment-setup` (card `4242…`) then
+3. **Consumer** (`lea.martin`) — `/payment-setup` (card `4242…`) then
    `/invoices` → View / Open PDF / **Pay**.
 
 If a prior run already marked fixture trades billed and Start run yields an

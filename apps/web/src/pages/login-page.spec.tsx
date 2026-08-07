@@ -17,7 +17,7 @@ describe("LoginPage (UAT-043 / INT-188)", () => {
     expect(screen.queryByLabelText(/password/i)).toBeNull();
     expect(screen.queryByPlaceholderText(/password/i)).toBeNull();
     expect(screen.getByTestId("login-page")).toBeInTheDocument();
-    expect(screen.getByText("INTELLIGENT billing")).toBeInTheDocument();
+    expect(screen.getByText("Intelligent Billing & Payment")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /continue with community idp/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /continue with community idp/i }));

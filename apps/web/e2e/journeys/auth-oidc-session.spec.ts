@@ -7,7 +7,7 @@ import { authSkipped, expectPageReady, loginAs } from "../helpers/auth";
 test.describe("REQ auth OIDC session", () => {
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
-  test("uat-member login establishes session then Sign out returns to IdP CTA", async ({
+  test("hugo.petit login establishes session then Sign out returns to IdP CTA", async ({
     page,
   }) => {
     test.setTimeout(90_000);

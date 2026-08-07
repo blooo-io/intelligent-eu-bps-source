@@ -1,5 +1,7 @@
 # Manual S1 portal journey (prod-shaped path)
 
+> **INT-282:** For the full French tester workbook (all personas, screenshots, input tables) see `docs/testing/cahier-de-tests-demo-intelligent-billing-and-payment.md`. Product name: **Intelligent Billing & Payment**.
+
 **Status:** Ready on `dev` after INT-235…INT-241.  
 **Audience:** Tester / product / operator walking the UI end-to-end.  
 **Mode:** Fully manual — **no** kubectl, **no** `stripe-fresh-billing-run.mjs` for the happy path.  
@@ -29,15 +31,15 @@ If login fails with wrong password / missing user, ask an operator to run `scrip
 This UUID identifies the energy community for which billing is run. Community
 settings, participants, trades and billing runs are all scoped to it. It appears
 in the app header and on manager screens (e.g. Billing runs) so you can confirm
-you are operating on the S1 demo community. Members (`s1-consumer`, producers)
+you are operating on the S1 demo community. Members (`lea.martin`, producers)
 do **not** see manager menus after INT-243.
 
 | Step | Username | Realm role | Purpose |
 |---|---|---|---|
-| 1–2 | `s1-producer-a` | member | Connect KYC (seller A) |
-| 1–2 | `s1-producer-b` | member | Connect KYC (seller B) |
-| 3 | `s1-manager` | manager | Start billing run (REQ-006) |
-| 4 | `s1-consumer` | member | Save card + view / PDF / **Pay** |
+| 1–2 | `thomas.bernard` | member | Connect KYC (seller A) |
+| 1–2 | `claire.dubois` | member | Connect KYC (seller B) |
+| 3 | `marie.leroy` | manager | Start billing run (REQ-006) |
+| 4 | `lea.martin` | member | Save card + view / PDF / **Pay** |
 
 Participant ids (for operator trace only; do not type these in the UI):
 
@@ -65,7 +67,7 @@ Use a private / incognito window per role (or **Sign out** between users).
 
 1. Open https://app.dev.intelligent-eu-bp.blooo.dev  
 2. **Sign in with IdP**  
-   - Username: `s1-producer-a`  
+   - Username: `thomas.bernard`  
    - Password: `Intelligent-UAT-2026!`  
 3. Go to **Payment setup** (`/payment-setup`).  
 4. Click **Start payment setup**.  
@@ -76,9 +78,9 @@ Use a private / incognito window per role (or **Sign out** between users).
 | Business type | `Individual` |
 | Business profile URL | `https://accessible.stripe.com` |
 | MCC | `5734` (often prefilled) |
-| First name | `S1` |
-| Last name | `ProducerA` |
-| Email | `s1-producer-a@example.invalid` |
+| First name | `Thomas` |
+| Last name | `Bernard` |
+| Email | `thomas.bernard@example.invalid` |
 | Phone | `+33600000000` (optional) |
 | DOB day / month / year | `1` / `1` / `1902` (often prefilled) |
 | Address | `address_full_match` (often prefilled) |
@@ -103,9 +105,9 @@ Repeat Step 1 with:
 
 | Field | Value |
 |---|---|
-| Username | `s1-producer-b` |
-| First name / Last name | `S1` / `ProducerB` |
-| Email | `s1-producer-b@example.invalid` |
+| Username | `claire.dubois` |
+| First name / Last name | `Claire` / `Dubois` |
+| Email | `claire.dubois@example.invalid` |
 | Same Stripe test tokens and IBAN as Step 1 |
 
 **Checks**
@@ -115,7 +117,7 @@ Repeat Step 1 with:
 
 ### Step 3 — Manager starts an early billing run
 
-1. Sign in as `s1-manager` / `Intelligent-UAT-2026!`  
+1. Sign in as `marie.leroy` / `Intelligent-UAT-2026!`  
 2. Open **Billing runs** (`/billing-runs`).  
 3. **Checks before start**  
    - [ ] Page title **Billing runs**  
@@ -135,7 +137,7 @@ If the run completes with **no invoices** later (Step 4 empty): fixture trades w
 
 ### Step 4 — Consumer pays
 
-1. Sign in as `s1-consumer` / `Intelligent-UAT-2026!`  
+1. Sign in as `lea.martin` / `Intelligent-UAT-2026!`  
 2. Open **Payment setup** → **Start payment setup**.  
 3. Consumer Stripe Payment Element — enter test card:
 
@@ -176,8 +178,8 @@ If the run completes with **no invoices** later (Step 4 empty): fixture trades w
 
 | Check | How |
 |---|---|
-| Producer sees own invoices | Login `s1-producer-a` → `/invoices` → rows where they are seller |
-| Balances empty after pay | `s1-consumer` → `/balances` → no outstanding or reduced |
+| Producer sees own invoices | Login `thomas.bernard` → `/invoices` → rows where they are seller |
+| Balances empty after pay | `lea.martin` → `/balances` → no outstanding or reduced |
 | Stripe Dashboard (test) | Connect accounts + Customers + Invoices created for the run |
 | Trace REQ-028 | From invoice detail: `tradeIds` + `pairSettlementId`; manager/operator can correlate to `runId` |
 
@@ -195,7 +197,7 @@ If the run completes with **no invoices** later (Step 4 empty): fixture trades w
 
 **Fail** examples:
 
-- Manager community is `a1000000…` → wrong user (`uat-manager`); use `s1-manager`.  
+- Manager community is `a1000000…` → wrong user (`sofia.garcia`); use `marie.leroy`.  
 - Invoices never appear after a completed run → producers not `charges_enabled` yet (wait / re-submit KYC) or trades already billed (operator reset once).  
 - Pay disabled forever on Open → consumer payment method missing (redo Step 4 card setup).
 
@@ -203,6 +205,6 @@ If the run completes with **no invoices** later (Step 4 empty): fixture trades w
 
 ## 5. Out of scope for this script
 
-- UAT community (`uat-member` / `uat-manager` / `uat-operator`) — separate portal UX path; seed invoice `UAT218-000001` is **Paid** and does not exercise S1 market → NATS → Pay.  
+- UAT community (`hugo.petit` / `sofia.garcia` / `paul.nguyen`) — separate portal UX path; seed invoice `UAT218-000001` is **Paid** and does not exercise S1 market → NATS → Pay.  
 - Operator CLI smoke (`stripe-fresh-billing-run.mjs`) — alternative for fresh Connect accounts every run; not required here.  
 - Live Stripe / production KYC documents.

@@ -35,7 +35,7 @@ Hard asserts on REQ outcomes (no soft-accept of API error alerts).
 | `e2e/journeys/privacy-reports-operator.spec.ts` | REQ-013, REQ-031, REQ-032, REQ-041 · UAT-013, UAT-031, UAT-032, UAT-052 |
 | `e2e/journeys/operator-payment-trace.spec.ts` | REQ-028 · UAT-028 |
 
-Keycloak UAT users: `uat-member` / `uat-manager` / `uat-operator` · password `Intelligent-UAT-2026!`.
+Keycloak UAT users: `hugo.petit` / `sofia.garcia` / `paul.nguyen` · password `Intelligent-UAT-2026!`.
 
 Invoice / settle / overview journeys expect seeded community data (UAT-028 / UAT-053 seed scripts).
 

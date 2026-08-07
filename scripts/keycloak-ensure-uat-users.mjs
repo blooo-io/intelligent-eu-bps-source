@@ -30,78 +30,82 @@ export const UAT_COMMUNITY_ID = "a1000000-0000-4000-8000-000000000001";
 /** INT-236 — AC-15 S1 community (market / Stripe billing fixture). */
 export const S1_COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
 
-/** Fixture users mirrored from int-realm.json (INT-194). */
+/**
+ * Fixture users mirrored from int-realm.json (INT-194 / INT-282).
+ * Human-readable logins for demo / tester workbooks; Keycloak ids stay fixed
+ * so AC-03 seed idpUserId bindings remain one chain.
+ */
 export const UAT_USERS = [
   {
     id: "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f",
-    username: "uat-member",
+    username: "hugo.petit",
     role: "member",
-    email: "uat-member@example.invalid",
+    email: "hugo.petit@example.invalid",
     communityId: UAT_COMMUNITY_ID,
-    firstName: "UAT",
-    lastName: "Member",
+    firstName: "Hugo",
+    lastName: "Petit",
   },
   {
     id: "aca5adb7-0f18-4db8-aa04-6a0ff11b8ec6",
-    username: "uat-manager",
+    username: "sofia.garcia",
     role: "manager",
-    email: "uat-manager@example.invalid",
+    email: "sofia.garcia@example.invalid",
     communityId: UAT_COMMUNITY_ID,
-    firstName: "UAT",
-    lastName: "Manager",
+    firstName: "Sofia",
+    lastName: "Garcia",
   },
   {
     id: "e4166575-164a-4c30-b801-290fadd879d1",
-    username: "uat-operator",
+    username: "paul.nguyen",
     role: "operator",
-    email: "uat-operator@example.invalid",
+    email: "paul.nguyen@example.invalid",
     communityId: UAT_COMMUNITY_ID,
-    firstName: "UAT",
-    lastName: "Operator",
+    firstName: "Paul",
+    lastName: "Nguyen",
   },
 ];
 
 /**
- * INT-236 — S1 IdP users bound to AC-03 seed idpUserId (one identity chain
- * with market trades / Connect / invoices).
+ * INT-236 / INT-282 — S1 IdP users bound to AC-03 seed idpUserId (one identity
+ * chain with market trades / Connect / invoices).
  */
 export const S1_USERS = [
   {
     id: "c1a55e01-0001-4000-8000-000000000001",
-    username: "s1-consumer",
+    username: "lea.martin",
     role: "member",
-    email: "s1-consumer@example.invalid",
+    email: "lea.martin@example.invalid",
     communityId: S1_COMMUNITY_ID,
-    firstName: "S1",
-    lastName: "Consumer",
+    firstName: "Léa",
+    lastName: "Martin",
   },
   {
     id: "c1a55e01-0002-4000-8000-000000000002",
-    username: "s1-producer-a",
+    username: "thomas.bernard",
     role: "member",
-    email: "s1-producer-a@example.invalid",
+    email: "thomas.bernard@example.invalid",
     communityId: S1_COMMUNITY_ID,
-    firstName: "S1",
-    lastName: "ProducerA",
+    firstName: "Thomas",
+    lastName: "Bernard",
   },
   {
     id: "c1a55e01-0003-4000-8000-000000000003",
-    username: "s1-producer-b",
+    username: "claire.dubois",
     role: "member",
-    email: "s1-producer-b@example.invalid",
+    email: "claire.dubois@example.invalid",
     communityId: S1_COMMUNITY_ID,
-    firstName: "S1",
-    lastName: "ProducerB",
+    firstName: "Claire",
+    lastName: "Dubois",
   },
   {
     // INT-241 — Start billing run from the portal for community c0ffee00…
     id: "c1a55e01-0004-4000-8000-000000000004",
-    username: "s1-manager",
+    username: "marie.leroy",
     role: "manager",
-    email: "s1-manager@example.invalid",
+    email: "marie.leroy@example.invalid",
     communityId: S1_COMMUNITY_ID,
-    firstName: "S1",
-    lastName: "Manager",
+    firstName: "Marie",
+    lastName: "Leroy",
   },
 ];
 
@@ -122,14 +126,17 @@ export const PARTICIPANTS_ADMIN_CLIENT = {
 export async function loadRealmUatUsers(realmPath = REALM_PATH) {
   const realm = JSON.parse(await readFile(realmPath, "utf8"));
   const users = realm.users ?? [];
-  return users.filter((u) => String(u.username ?? "").startsWith("uat-"));
+  // INT-282 — match by fixed id (usernames are human-readable, not uat-* prefix).
+  const ids = new Set(UAT_USERS.map((u) => u.id));
+  return users.filter((u) => ids.has(u.id));
 }
 
-/** INT-236 — S1 Keycloak fixtures from int-realm.json. */
+/** INT-236 / INT-282 — S1 Keycloak fixtures from int-realm.json. */
 export async function loadRealmS1Users(realmPath = REALM_PATH) {
   const realm = JSON.parse(await readFile(realmPath, "utf8"));
   const users = realm.users ?? [];
-  return users.filter((u) => String(u.username ?? "").startsWith("s1-"));
+  const ids = new Set(S1_USERS.map((u) => u.id));
+  return users.filter((u) => ids.has(u.id));
 }
 
 /** Forwarded proto so sslRequired=external accepts in-cluster HTTP (INT-218). */
@@ -238,6 +245,15 @@ async function ensureUser(baseUrl, token, fixture) {
   }
   const found = await search.json();
   let id = found[0]?.id;
+  let existing = found[0];
+  // INT-282 — username rename: fixture id may still exist under a legacy login.
+  if (!id) {
+    const byId = await fetch(`${realmBase}/users/${fixture.id}`, { headers });
+    if (byId.ok) {
+      existing = await byId.json();
+      id = existing?.id;
+    }
+  }
   if (!id || id !== fixture.id) {
     // Missing, or wrong id (Admin API create ignored fixture.id) — re-import.
     if (id && id !== fixture.id) {
@@ -250,12 +266,22 @@ async function ensureUser(baseUrl, token, fixture) {
       }
     }
     id = await importUserWithFixedId(baseUrl, token, fixture);
+  } else if (existing?.username !== fixture.username) {
+    // INT-282 — Admin PUT cannot always rename; delete then re-import fixed id.
+    const del = await fetch(`${realmBase}/users/${id}`, {
+      method: "DELETE",
+      headers,
+    });
+    if (!del.ok && del.status !== 404) {
+      throw new Error(`delete for rename ${existing.username}: ${del.status}`);
+    }
+    id = await importUserWithFixedId(baseUrl, token, fixture);
   } else {
     await fetch(`${realmBase}/users/${id}`, {
       method: "PUT",
       headers,
       body: JSON.stringify({
-        ...found[0],
+        ...existing,
         enabled: true,
         email: fixture.email,
         firstName,
@@ -415,9 +441,9 @@ export const DEV_MAILPIT_SMTP = {
   host: "mailpit.int-apps.svc.cluster.local",
   port: "1025",
   from: "noreply@dev.intelligent-eu-bp.blooo.dev",
-  fromDisplayName: "INTELLIGENT billing (dev)",
+  fromDisplayName: "Intelligent Billing & Payment (dev)",
   replyTo: "noreply@dev.intelligent-eu-bp.blooo.dev",
-  replyToDisplayName: "INTELLIGENT billing (dev)",
+  replyToDisplayName: "Intelligent Billing & Payment (dev)",
   envelopeFrom: "",
   ssl: "false",
   starttls: "false",

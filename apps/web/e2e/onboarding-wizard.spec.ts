@@ -3,7 +3,7 @@ import { authSkipped, expectPageReady, loginAs } from "./helpers/auth";
 
 /**
  * INT-194 / INT-193 / INT-211 — authenticated member journey wizard on deployed `dev`.
- * Uses Keycloak UAT fixtures (`uat-member`). Skip with E2E_SKIP_AUTH=1.
+ * Uses Keycloak UAT fixtures (`hugo.petit`). Skip with E2E_SKIP_AUTH=1.
  *
  * OIDC callback returns to `/` (not the deep-link). After Sign out is visible,
  * navigate to `/onboarding` explicitly.
@@ -11,7 +11,7 @@ import { authSkipped, expectPageReady, loginAs } from "./helpers/auth";
 test.describe("AC-01 onboarding wizard (authenticated)", () => {
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
-  test("uat-member reaches /onboarding Steps wizard (UAT-067)", async ({ page }) => {
+  test("hugo.petit reaches /onboarding Steps wizard (UAT-067)", async ({ page }) => {
     test.setTimeout(60_000);
     await loginAs(page, "member");
 

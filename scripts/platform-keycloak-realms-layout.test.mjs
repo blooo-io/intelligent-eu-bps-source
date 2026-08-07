@@ -24,16 +24,16 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(intRealm, /"claim.name": "community_id"/);
   assert.match(intRealm, /"name": "member"/);
   assert.match(intRealm, /"name": "operator"/);
-  // INT-194 — UAT IdP users for authenticated portal / wizard smoke.
-  assert.match(intRealm, /"username": "uat-member"/);
-  assert.match(intRealm, /"username": "uat-manager"/);
-  assert.match(intRealm, /"username": "uat-operator"/);
+  // INT-194 / INT-282 — UAT IdP users (human-readable logins) for portal smoke.
+  assert.match(intRealm, /"username": "hugo\.petit"/);
+  assert.match(intRealm, /"username": "sofia\.garcia"/);
+  assert.match(intRealm, /"username": "paul\.nguyen"/);
   assert.match(intRealm, /Intelligent-UAT-2026!/);
-  // INT-236 / INT-241 — S1 IdP users (community c0ffee00…) for one identity chain.
-  assert.match(intRealm, /"username": "s1-consumer"/);
-  assert.match(intRealm, /"username": "s1-producer-a"/);
-  assert.match(intRealm, /"username": "s1-producer-b"/);
-  assert.match(intRealm, /"username": "s1-manager"/);
+  // INT-236 / INT-241 / INT-282 — S1 IdP users (community c0ffee00…).
+  assert.match(intRealm, /"username": "lea\.martin"/);
+  assert.match(intRealm, /"username": "thomas\.bernard"/);
+  assert.match(intRealm, /"username": "claire\.dubois"/);
+  assert.match(intRealm, /"username": "marie\.leroy"/);
   assert.match(intRealm, /c0ffee00-1234-4abc-8def-0123456789ab/);
   // INT-215 — AC-03 Keycloak Admin service account + realm-management roles.
   assert.match(intRealm, /"clientId": "participants-admin"/);

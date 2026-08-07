@@ -16,14 +16,17 @@ import {
 } from "./keycloak-ensure-uat-users.mjs";
 import { readFile } from "node:fs/promises";
 
-test("int-realm.json packs uat-member/manager/operator (INT-194)", async () => {
+test("int-realm.json packs UAT IdP users hugo/sofia/paul (INT-194 / INT-282)", async () => {
   const users = await loadRealmUatUsers();
   const byName = Object.fromEntries(users.map((u) => [u.username, u]));
+  assert.equal(UAT_USERS.length, 3);
   for (const fixture of UAT_USERS) {
     const row = byName[fixture.username];
     assert.ok(row, `missing ${fixture.username}`);
     assert.equal(row.id, fixture.id);
     assert.equal(row.enabled, true);
+    assert.equal(row.firstName, fixture.firstName);
+    assert.equal(row.lastName, fixture.lastName);
     assert.deepEqual(row.realmRoles, [fixture.role]);
     assert.deepEqual(row.attributes?.community_id, [UAT_COMMUNITY_ID]);
     assert.equal(row.credentials?.[0]?.type, "password");
@@ -32,15 +35,17 @@ test("int-realm.json packs uat-member/manager/operator (INT-194)", async () => {
   }
 });
 
-test("int-realm.json packs s1-consumer/producer/manager users (INT-236 / INT-241)", async () => {
+test("int-realm.json packs S1 IdP users lea/thomas/claire/marie (INT-236 / INT-282)", async () => {
   const users = await loadRealmS1Users();
   const byName = Object.fromEntries(users.map((u) => [u.username, u]));
-  assert.ok(byName["s1-manager"], "missing s1-manager");
+  assert.ok(byName["marie.leroy"], "missing marie.leroy");
   for (const fixture of S1_USERS) {
     const row = byName[fixture.username];
     assert.ok(row, `missing ${fixture.username}`);
     assert.equal(row.id, fixture.id);
     assert.equal(row.enabled, true);
+    assert.equal(row.firstName, fixture.firstName);
+    assert.equal(row.lastName, fixture.lastName);
     assert.deepEqual(row.realmRoles, [fixture.role]);
     assert.deepEqual(row.attributes?.community_id, [S1_COMMUNITY_ID]);
     assert.equal(row.credentials?.[0]?.value, UAT_PASSWORD);

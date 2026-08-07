@@ -33,9 +33,9 @@ Packed in `deploy/charts/keycloak-realms/realms/int-realm.json` (V1 `dev`/`int` 
 
 | Role | Username | Password |
 |---|---|---|
-| member | `uat-member` | `Intelligent-UAT-2026!` |
-| manager | `uat-manager` | `Intelligent-UAT-2026!` |
-| operator | `uat-operator` | `Intelligent-UAT-2026!` |
+| member | `hugo.petit` | `Intelligent-UAT-2026!` |
+| manager | `sofia.garcia` | `Intelligent-UAT-2026!` |
+| operator | `paul.nguyen` | `Intelligent-UAT-2026!` |
 
 ConfigMap sync alone does not re-import users on an already-initialised realm. After deploy, ensure passwords with:
 

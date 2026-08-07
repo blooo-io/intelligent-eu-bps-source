@@ -35,7 +35,7 @@ test.describe("AC-01 member screens and buttons", () => {
       await address.fill("1 UAT Street, Brussels");
     }
     if (!(await email.inputValue()).trim()) {
-      await email.fill("uat-member@example.invalid");
+      await email.fill("hugo.petit@example.invalid");
     }
     await page.getByRole("button", { name: /save profile/i }).click();
     await expect(page.getByText(/profile saved/i)).toBeVisible({ timeout: 20_000 });

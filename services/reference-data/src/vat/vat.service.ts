@@ -7,7 +7,7 @@ export type VatRateDto = {
 
 /** S1 demo community (manual journey / money-path). */
 const S1_COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
-/** UAT IdP community (e2e-dev uat-member / uat-manager). */
+/** UAT IdP community (e2e-dev hugo.petit / sofia.garcia). */
 const UAT_COMMUNITY_ID = "a1000000-0000-4000-8000-000000000001";
 
 /**

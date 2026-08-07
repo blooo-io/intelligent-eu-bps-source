@@ -33,7 +33,7 @@ OIDC (Keycloak) → APISIX → Nest modules. Virtual communities, Stripe **test*
 
 ## Brand Commitments
 
-Product name **INTELLIGENT billing**. Visual world **Gridline Energy** (forest / mist, Plus Jakarta Sans) — INT-188. Do not invent a second brand.
+Product name **Intelligent Billing & Payment**. Visual world **Gridline Energy** (forest / mist, Plus Jakarta Sans) — INT-188. Do not invent a second brand.
 
 ## Evidence on Hand
 

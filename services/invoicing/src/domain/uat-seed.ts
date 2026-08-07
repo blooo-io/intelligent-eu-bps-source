@@ -1,8 +1,8 @@
 import type { InvoiceRecord } from "./types.js";
 
 /**
- * INT-218 — V1 UAT invoice so `/v1/me/invoices` is non-empty for uat-member
- * after pod restart (same pattern as AC-03 seedParticipants / INT-194).
+ * INT-218 — V1 UAT invoice so `/v1/me/invoices` is non-empty for hugo.petit
+ * after pod restart (same pattern as AC-03 seedParticipants / INT-194 / INT-282).
  *
  * consumerId is the Keycloak fixture subject (int-realm.json). Public list
  * matches IdP sub directly and (INT-236) also the AC-03 participantId when

@@ -12,9 +12,9 @@
     "host": "mailpit.int-apps.svc.cluster.local",
     "port": "1025",
     "from": "noreply@dev.intelligent-eu-bp.blooo.dev",
-    "fromDisplayName": "INTELLIGENT billing (dev)",
+    "fromDisplayName": "Intelligent Billing & Payment (dev)",
     "replyTo": "noreply@dev.intelligent-eu-bp.blooo.dev",
-    "replyToDisplayName": "INTELLIGENT billing (dev)",
+    "replyToDisplayName": "Intelligent Billing & Payment (dev)",
     "envelopeFrom": "",
     "ssl": "false",
     "starttls": "false",
@@ -116,12 +116,12 @@
     },
     {
       "id": "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f",
-      "username": "uat-member",
+      "username": "hugo.petit",
       "enabled": true,
-      "email": "uat-member@example.invalid",
+      "email": "hugo.petit@example.invalid",
       "emailVerified": true,
-      "firstName": "UAT",
-      "lastName": "Member",
+      "firstName": "Hugo",
+      "lastName": "Petit",
       "attributes": {
         "community_id": ["a1000000-0000-4000-8000-000000000001"]
       },
@@ -136,12 +136,12 @@
     },
     {
       "id": "aca5adb7-0f18-4db8-aa04-6a0ff11b8ec6",
-      "username": "uat-manager",
+      "username": "sofia.garcia",
       "enabled": true,
-      "email": "uat-manager@example.invalid",
+      "email": "sofia.garcia@example.invalid",
       "emailVerified": true,
-      "firstName": "UAT",
-      "lastName": "Manager",
+      "firstName": "Sofia",
+      "lastName": "Garcia",
       "attributes": {
         "community_id": ["a1000000-0000-4000-8000-000000000001"]
       },
@@ -156,12 +156,12 @@
     },
     {
       "id": "e4166575-164a-4c30-b801-290fadd879d1",
-      "username": "uat-operator",
+      "username": "paul.nguyen",
       "enabled": true,
-      "email": "uat-operator@example.invalid",
+      "email": "paul.nguyen@example.invalid",
       "emailVerified": true,
-      "firstName": "UAT",
-      "lastName": "Operator",
+      "firstName": "Paul",
+      "lastName": "Nguyen",
       "attributes": {
         "community_id": ["a1000000-0000-4000-8000-000000000001"]
       },
@@ -176,12 +176,12 @@
     },
     {
       "id": "c1a55e01-0001-4000-8000-000000000001",
-      "username": "s1-consumer",
+      "username": "lea.martin",
       "enabled": true,
-      "email": "s1-consumer@example.invalid",
+      "email": "lea.martin@example.invalid",
       "emailVerified": true,
-      "firstName": "S1",
-      "lastName": "Consumer",
+      "firstName": "Léa",
+      "lastName": "Martin",
       "attributes": {
         "community_id": ["c0ffee00-1234-4abc-8def-0123456789ab"]
       },
@@ -196,12 +196,12 @@
     },
     {
       "id": "c1a55e01-0002-4000-8000-000000000002",
-      "username": "s1-producer-a",
+      "username": "thomas.bernard",
       "enabled": true,
-      "email": "s1-producer-a@example.invalid",
+      "email": "thomas.bernard@example.invalid",
       "emailVerified": true,
-      "firstName": "S1",
-      "lastName": "ProducerA",
+      "firstName": "Thomas",
+      "lastName": "Bernard",
       "attributes": {
         "community_id": ["c0ffee00-1234-4abc-8def-0123456789ab"]
       },
@@ -216,12 +216,12 @@
     },
     {
       "id": "c1a55e01-0003-4000-8000-000000000003",
-      "username": "s1-producer-b",
+      "username": "claire.dubois",
       "enabled": true,
-      "email": "s1-producer-b@example.invalid",
+      "email": "claire.dubois@example.invalid",
       "emailVerified": true,
-      "firstName": "S1",
-      "lastName": "ProducerB",
+      "firstName": "Claire",
+      "lastName": "Dubois",
       "attributes": {
         "community_id": ["c0ffee00-1234-4abc-8def-0123456789ab"]
       },
@@ -236,12 +236,12 @@
     },
     {
       "id": "c1a55e01-0004-4000-8000-000000000004",
-      "username": "s1-manager",
+      "username": "marie.leroy",
       "enabled": true,
-      "email": "s1-manager@example.invalid",
+      "email": "marie.leroy@example.invalid",
       "emailVerified": true,
-      "firstName": "S1",
-      "lastName": "Manager",
+      "firstName": "Marie",
+      "lastName": "Leroy",
       "attributes": {
         "community_id": ["c0ffee00-1234-4abc-8def-0123456789ab"]
       },

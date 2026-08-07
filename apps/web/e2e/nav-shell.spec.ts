@@ -15,7 +15,7 @@ test.describe("AC-01 shell navigation (authenticated)", () => {
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
   test.describe.configure({ mode: "serial" });
 
-  test("uat-member sees member routes only and can Sign out", async ({ page }) => {
+  test("hugo.petit sees member routes only and can Sign out", async ({ page }) => {
     test.setTimeout(180_000);
     await loginAs(page, "member");
 

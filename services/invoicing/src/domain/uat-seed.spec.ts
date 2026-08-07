@@ -9,7 +9,7 @@ import {
 } from "./uat-seed.js";
 
 describe("UAT invoice seed (INT-218)", () => {
-  it("seeds a Paid invoice for the uat-member IdP subject", () => {
+  it("seeds a Paid invoice for the hugo.petit IdP subject", () => {
     const rows = seedUatInvoices();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({

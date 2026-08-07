@@ -1,0 +1,150 @@
+{
+  "baseUrl": "https://app.dev.intelligent-eu-bp.blooo.dev",
+  "capturedAt": "2026-10-22T05:29:10.492Z",
+  "manifest": [
+    {
+      "step": "00",
+      "file": "00-login-brand.png",
+      "note": "Login CTA"
+    },
+    {
+      "step": "p1-lea-martin-01",
+      "file": "p1-lea-martin-01-home.png",
+      "user": "lea.martin"
+    },
+    {
+      "step": "p1-lea-martin-02-onboarding.png",
+      "file": "p1-lea-martin-02-onboarding.png",
+      "user": "lea.martin",
+      "route": "/onboarding"
+    },
+    {
+      "step": "p1-lea-martin-03-profile.png",
+      "file": "p1-lea-martin-03-profile.png",
+      "user": "lea.martin",
+      "route": "/profile"
+    },
+    {
+      "step": "p1-lea-martin-04-terms.png",
+      "file": "p1-lea-martin-04-terms.png",
+      "user": "lea.martin",
+      "route": "/terms"
+    },
+    {
+      "step": "p1-lea-martin-05-payment-setup.png",
+      "file": "p1-lea-martin-05-payment-setup.png",
+      "user": "lea.martin",
+      "route": "/payment-setup"
+    },
+    {
+      "step": "p1-lea-martin-06-balances.png",
+      "file": "p1-lea-martin-06-balances.png",
+      "user": "lea.martin",
+      "route": "/balances"
+    },
+    {
+      "step": "p1-lea-martin-07-invoices.png",
+      "file": "p1-lea-martin-07-invoices.png",
+      "user": "lea.martin",
+      "route": "/invoices"
+    },
+    {
+      "step": "p1-lea-martin-08-privacy.png",
+      "file": "p1-lea-martin-08-privacy.png",
+      "user": "lea.martin",
+      "route": "/privacy"
+    },
+    {
+      "step": "p1-lea-martin-09-reports.png",
+      "file": "p1-lea-martin-09-reports.png",
+      "user": "lea.martin",
+      "route": "/reports"
+    },
+    {
+      "step": "p2-thomas-bernard-01",
+      "file": "p2-thomas-bernard-01-home.png",
+      "user": "thomas.bernard"
+    },
+    {
+      "step": "p2-thomas-bernard-02-payment-setup.png",
+      "file": "p2-thomas-bernard-02-payment-setup.png",
+      "user": "thomas.bernard",
+      "route": "/payment-setup"
+    },
+    {
+      "step": "p2-thomas-bernard-03-invoices.png",
+      "file": "p2-thomas-bernard-03-invoices.png",
+      "user": "thomas.bernard",
+      "route": "/invoices"
+    },
+    {
+      "step": "p2-thomas-bernard-04-reports.png",
+      "file": "p2-thomas-bernard-04-reports.png",
+      "user": "thomas.bernard",
+      "route": "/reports"
+    },
+    {
+      "step": "p3-claire-dubois-01",
+      "file": "p3-claire-dubois-01-home.png",
+      "user": "claire.dubois"
+    },
+    {
+      "step": "p3-claire-dubois-02-payment-setup.png",
+      "file": "p3-claire-dubois-02-payment-setup.png",
+      "user": "claire.dubois",
+      "route": "/payment-setup"
+    },
+    {
+      "step": "p4-marie-leroy-01",
+      "file": "p4-marie-leroy-01-home.png",
+      "user": "marie.leroy"
+    },
+    {
+      "step": "p4-marie-leroy-02-community-settings.png",
+      "file": "p4-marie-leroy-02-community-settings.png",
+      "user": "marie.leroy",
+      "route": "/community-settings"
+    },
+    {
+      "step": "p4-marie-leroy-03-participants.png",
+      "file": "p4-marie-leroy-03-participants.png",
+      "user": "marie.leroy",
+      "route": "/participants"
+    },
+    {
+      "step": "p4-marie-leroy-04-billing-runs.png",
+      "file": "p4-marie-leroy-04-billing-runs.png",
+      "user": "marie.leroy",
+      "route": "/billing-runs"
+    },
+    {
+      "step": "p4-marie-leroy-05-payments-overview.png",
+      "file": "p4-marie-leroy-05-payments-overview.png",
+      "user": "marie.leroy",
+      "route": "/payments-overview"
+    },
+    {
+      "step": "p4-marie-leroy-06-reports.png",
+      "file": "p4-marie-leroy-06-reports.png",
+      "user": "marie.leroy",
+      "route": "/reports"
+    },
+    {
+      "step": "p5-paul-nguyen-01",
+      "file": "p5-paul-nguyen-01-home.png",
+      "user": "paul.nguyen"
+    },
+    {
+      "step": "p5-paul-nguyen-02-operator.png",
+      "file": "p5-paul-nguyen-02-operator.png",
+      "user": "paul.nguyen",
+      "route": "/operator"
+    },
+    {
+      "step": "p5-paul-nguyen-03-reports.png",
+      "file": "p5-paul-nguyen-03-reports.png",
+      "user": "paul.nguyen",
+      "route": "/reports"
+    }
+  ]
+}

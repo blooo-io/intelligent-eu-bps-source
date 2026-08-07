@@ -3,7 +3,7 @@ import { authSkipped, expectPageReady, loginAs } from "../helpers/auth";
 
 /**
  * INT-218 — invoices view / PDF / pay (REQ-007 / REQ-014 / REQ-039 / UAT-007 / UAT-014 / UAT-050).
- * Requires seeded open invoices for uat-member (UAT-028 / UAT-053 seed path).
+ * Requires seeded open invoices for hugo.petit (UAT-028 / UAT-053 seed path).
  */
 test.describe("REQ invoices PDF and pay", () => {
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");

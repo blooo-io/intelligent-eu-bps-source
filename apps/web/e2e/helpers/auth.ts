@@ -1,8 +1,8 @@
 import { expect, type Page } from "@playwright/test";
 
 /**
- * INT-211 — shared Keycloak login for deployed-stack E2E.
- * UAT fixtures: uat-member / uat-manager / uat-operator (INT-194).
+ * INT-211 / INT-282 — shared Keycloak login for deployed-stack E2E.
+ * Human-readable fixtures (ids unchanged from INT-194 / INT-236).
  */
 export type UatRole = "member" | "manager" | "operator" | "s1-consumer";
 
@@ -12,23 +12,23 @@ const USERS: Record<UatRole, { envUser: string; envPass: string; fallback: strin
   member: {
     envUser: "E2E_UAT_MEMBER_USER",
     envPass: "E2E_UAT_MEMBER_PASSWORD",
-    fallback: "uat-member",
+    fallback: "hugo.petit",
   },
   manager: {
     envUser: "E2E_UAT_MANAGER_USER",
     envPass: "E2E_UAT_MANAGER_PASSWORD",
-    fallback: "uat-manager",
+    fallback: "sofia.garcia",
   },
   operator: {
     envUser: "E2E_UAT_OPERATOR_USER",
     envPass: "E2E_UAT_OPERATOR_PASSWORD",
-    fallback: "uat-operator",
+    fallback: "paul.nguyen",
   },
-  /** INT-251 — S1 consumer (c0ffee… community) for Stripe money path. */
+  /** INT-251 / INT-282 — Léa Martin (S1 consumer, c0ffee… community). */
   "s1-consumer": {
     envUser: "E2E_S1_CONSUMER_USER",
     envPass: "E2E_S1_CONSUMER_PASSWORD",
-    fallback: "s1-consumer",
+    fallback: "lea.martin",
   },
 };
 

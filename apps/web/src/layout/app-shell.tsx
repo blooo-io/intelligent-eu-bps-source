@@ -170,7 +170,7 @@ export function AppShell({
                     letterSpacing: "0.02em",
                   }}
                 >
-                  INTELLIGENT billing
+                  Intelligent Billing & Payment
                 </Text>
                 {communityLabel ? (
                   <Text style={{ color: brand.siderMuted, fontSize: 11 }}>
@@ -218,7 +218,7 @@ export function AppShell({
           {setupChrome ? (
             <>
               <Text strong style={{ color: brand.accent, letterSpacing: "0.02em" }}>
-                INTELLIGENT billing
+                Intelligent Billing & Payment
               </Text>
               <Space size={12}>
                 <Text

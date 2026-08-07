@@ -22,7 +22,7 @@ test.describe("REQ onboarding happy path", () => {
       await address.fill("1 UAT Street, Brussels");
     }
     if (!(await email.inputValue()).trim()) {
-      await email.fill("uat-member@example.invalid");
+      await email.fill("hugo.petit@example.invalid");
     }
     // REQ-009 — trade-attribution fields are not editable.
     await expect(page.getByLabel(/community id|market actor|meter/i)).toHaveCount(0);

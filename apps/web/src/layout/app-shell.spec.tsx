@@ -88,7 +88,7 @@ describe("AppShell (INT-187 / INT-243)", () => {
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
     });
 
-    expect(screen.getByText("INTELLIGENT billing")).toBeInTheDocument();
+    expect(screen.getByText("Intelligent Billing & Payment")).toBeInTheDocument();
     expect(screen.getByTestId("shell-user-name")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId("shell-user-roles")).toHaveTextContent(/consumer/i);
@@ -134,7 +134,7 @@ describe("AppShell (INT-187 / INT-243)", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("INTELLIGENT billing")).toBeInTheDocument();
+      expect(screen.getByText("Intelligent Billing & Payment")).toBeInTheDocument();
     });
     // Setup chrome: brand header + Sign out, no Money/Account sider links.
     expect(screen.queryByRole("link", { name: /^home$/i })).toBeNull();

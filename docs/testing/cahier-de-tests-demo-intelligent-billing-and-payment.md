@@ -19,7 +19,7 @@ Relancer la capture : `node scripts/capture-demo-workbook.mjs`.
 
 ## 0. Comptes et personas
 
-Communauté démo S1 (billing) : `c0ffee00-1234-4abc-8def-0123456789ab`
+Communauté démo **Horizon Energy** (billing) : `c0ffee00-1234-4abc-8def-0123456789ab`
 
 | Persona | Rôle métier | Login | E-mail | Mot de passe |
 |---|---|---|---|---|
@@ -197,7 +197,7 @@ Même parcours que Thomas avec :
 
 **Pass / Fail**
 
-- [ ] Communauté affichée = `c0ffee00-1234-4abc-8def-0123456789ab`  
+- [ ] Communauté affichée = **Horizon Energy** (`c0ffee00-…`)  
 - [ ] Early run **completed**  
 - [ ] Pas de menus opérateur sensibles hors rôle  
 
@@ -238,7 +238,7 @@ Durée indicative démo parlée : 15–25 minutes selon profondeur KYC.
 
 | Élément | Valeur |
 |---|---|
-| Community id | `c0ffee00-1234-4abc-8def-0123456789ab` |
+| Community | Horizon Energy (`c0ffee00-1234-4abc-8def-0123456789ab`) |
 | Consumer participantId | `11111111-2222-4333-8444-555555555555` |
 | Producer A participantId | `66666666-7777-4888-9999-aaaaaaaaaaaa` |
 | Producer B participantId | `bbbbbbbb-cccc-4ddd-8eee-ffffffffffff` |

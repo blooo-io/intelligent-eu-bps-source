@@ -3,7 +3,7 @@ import { communityDisplayName, S1_COMMUNITY_ID } from "./community-label";
 
 describe("communityDisplayName (INT-250)", () => {
   it("maps the S1 demo tenancy to a human name", () => {
-    expect(communityDisplayName(S1_COMMUNITY_ID)).toBe("Demo community S1");
+    expect(communityDisplayName(S1_COMMUNITY_ID)).toBe("Horizon Energy");
   });
 
   it("hides unknown UUIDs instead of leaking them", () => {

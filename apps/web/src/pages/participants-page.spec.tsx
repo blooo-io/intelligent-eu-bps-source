@@ -22,6 +22,8 @@ const existing: Participant = {
   status: "Invited",
   marketActorId: "actor-1",
   meterId: "meter-1",
+  name: "Léa Martin",
+  email: "lea.martin@example.invalid",
 };
 
 function stubOidc(): OidcFacade {
@@ -108,7 +110,8 @@ describe("ParticipantsPage (INT-145 / UAT-008 / UAT-012)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/actor-1/)).toBeInTheDocument();
+      expect(screen.getByText("Léa Martin")).toBeInTheDocument();
+      expect(screen.getByText("meter-1")).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByLabelText(/Participant CSV/i), {
@@ -141,7 +144,8 @@ describe("ParticipantsPage (INT-145 / UAT-008 / UAT-012)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/actor-1/)).toBeInTheDocument();
+      expect(screen.getByText("Léa Martin")).toBeInTheDocument();
+      expect(screen.getByText("meter-1")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
@@ -172,7 +176,8 @@ describe("ParticipantsPage (INT-145 / UAT-008 / UAT-012)", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/actor-1/)).toBeInTheDocument();
+      expect(screen.getByText("Léa Martin")).toBeInTheDocument();
+      expect(screen.getByText("meter-1")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));

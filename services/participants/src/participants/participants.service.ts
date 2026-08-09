@@ -154,6 +154,9 @@ export class ParticipantsService {
     status: ParticipantRecord["status"];
     marketActorId: string;
     meterId: string;
+    /** INT-283 — directory label for managers (REQ-008). */
+    name?: string;
+    email?: string;
   }> {
     if (!this.store.getCommunity(communityId)) {
       throw new NotFoundException(`Unknown community ${communityId}`);
@@ -165,6 +168,12 @@ export class ParticipantsService {
       status: deriveReadiness(row),
       marketActorId: row.marketActorId,
       meterId: row.meterId,
+      ...(row.profile?.name?.trim()
+        ? { name: row.profile.name.trim() }
+        : {}),
+      ...(row.profile?.email?.trim()
+        ? { email: row.profile.email.trim() }
+        : {}),
     }));
   }
 

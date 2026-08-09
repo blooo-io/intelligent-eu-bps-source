@@ -10,6 +10,10 @@ import {
 import { ParticipantsStore } from "../domain/store.js";
 import { MockIdpAdapter } from "../idp/mock-idp.adapter.js";
 import { ParticipantsService } from "./participants.service.js";
+import {
+  S1_COMMUNITY_ID,
+  S1_CONSUMER_ID,
+} from "../domain/seed.js";
 
 describe("ParticipantsService", () => {
   let store: ParticipantsStore;
@@ -28,6 +32,14 @@ describe("ParticipantsService", () => {
       idp,
     );
     communityId = service.seedCommunityId();
+  });
+
+  it("lists directory name and email for managers (INT-283 / REQ-008)", () => {
+    const listed = service.listParticipants(S1_COMMUNITY_ID);
+    const lea = listed.find((r) => r.participantId === S1_CONSUMER_ID);
+    expect(lea?.name).toBe("Léa Martin");
+    expect(lea?.email).toBe("lea.martin@example.invalid");
+    expect(lea?.meterId).toBe("m-lea-martin");
   });
 
   it("imports participants, provisions IdP and emits ParticipantOnboarded (REQ-008)", async () => {

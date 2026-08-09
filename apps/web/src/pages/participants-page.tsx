@@ -17,6 +17,24 @@ import { PageFrame } from "../layout/page-frame";
 
 const { Paragraph, Text } = Typography;
 
+/** INT-283 — human readiness labels (avoid raw enum codes in the registry). */
+function readinessLabel(status: string): string {
+  switch (status) {
+    case "Invited":
+      return "Invited";
+    case "ProfileComplete":
+      return "Profile complete";
+    case "TermsAccepted":
+      return "Terms accepted";
+    case "Ready":
+      return "Ready";
+    case "Offboarded":
+      return "Offboarded";
+    default:
+      return status;
+  }
+}
+
 /**
  * Manager participant registry (INT-145 / REQ-008, REQ-012, REQ-058).
  * CSV import, compact table, patch attribution ids, offboard (INT-188).
@@ -163,27 +181,37 @@ export function ParticipantsPage({
 
   const columns: ColumnsType<Participant> = [
     {
-      title: "Participant",
-      dataIndex: "participantId",
-      key: "participantId",
-      render: (id: string) => <Text code>{id}</Text>,
+      // INT-283 — show directory name, not raw UUID, for demo / manager UX.
+      title: "Member",
+      key: "member",
+      render: (_, row) => (
+        <Space direction="vertical" size={0}>
+          <Text strong>{row.name?.trim() || "Member"}</Text>
+          {row.email?.trim() ? (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {row.email.trim()}
+            </Text>
+          ) : null}
+        </Space>
+      ),
     },
     {
       title: "Role",
       dataIndex: "role",
       key: "role",
+      render: (role: string) =>
+        role.charAt(0).toUpperCase() + role.slice(1),
     },
     {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (status: string) => <Text code>{status}</Text>,
+      render: (status: string) => readinessLabel(status),
     },
     {
-      title: "Attribution",
-      key: "attribution",
-      render: (_, row) =>
-        `actor ${row.marketActorId ?? "—"} · meter ${row.meterId ?? "—"}`,
+      title: "Meter",
+      key: "meter",
+      render: (_, row) => row.meterId ?? "—",
     },
     {
       title: "",
@@ -248,7 +276,12 @@ export function ParticipantsPage({
           extra={<Text code>{selected.status}</Text>}
         >
           <Paragraph type="secondary">
-            Participant <Text code>{selected.participantId}</Text>
+            {selected.name?.trim() || "Member"}
+            {selected.email?.trim() ? (
+              <Text type="secondary" style={{ display: "block", fontSize: 12 }}>
+                {selected.email.trim()}
+              </Text>
+            ) : null}
           </Paragraph>
           <Space direction="vertical" style={{ width: "100%" }} size="small">
             <Input

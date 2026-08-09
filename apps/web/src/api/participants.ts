@@ -20,6 +20,9 @@ export type Participant = {
   status: string;
   marketActorId?: string;
   meterId?: string;
+  /** INT-283 — directory display name from AC-03 list. */
+  name?: string;
+  email?: string;
 };
 
 export type ParticipantPatch = {

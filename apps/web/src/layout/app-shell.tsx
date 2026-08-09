@@ -106,12 +106,15 @@ export function AppShell({
   const communityLabel = communityDisplayName(
     me?.communityId ?? identity?.communityId,
   );
-  // INT-252: header shows market role for members; IdP role for manager/operator.
+  // INT-252 / INT-283: header shows market role for members; IdP role for
+  // manager/operator. Never flash the raw "role unknown" string — fall back to
+  // Member while /me loads or when market role is not yet known.
   const headerRoleTags = useMemo(() => {
     if (roles.includes("manager")) return ["Manager"];
     if (roles.includes("operator")) return ["Operator"];
     const market = marketRoleLabel(me?.role);
     if (market) return [market];
+    if (roles.includes("member")) return ["Member"];
     return roles.map((r) => r.charAt(0).toUpperCase() + r.slice(1));
   }, [roles, me?.role]);
 
@@ -254,15 +257,11 @@ export function AppShell({
                   {displayName}
                 </Text>
                 <span data-testid="shell-user-roles">
-                  {headerRoleTags.length > 0 ? (
-                    headerRoleTags.map((role) => (
-                      <Tag key={role} style={{ marginInlineEnd: 4 }}>
-                        {role}
-                      </Tag>
-                    ))
-                  ) : (
-                    <Text type="secondary">role unknown</Text>
-                  )}
+                  {headerRoleTags.map((role) => (
+                    <Tag key={role} style={{ marginInlineEnd: 4 }}>
+                      {role}
+                    </Tag>
+                  ))}
                 </span>
                 {communityLabel ? (
                   <Text

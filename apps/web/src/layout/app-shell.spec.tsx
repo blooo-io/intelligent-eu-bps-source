@@ -84,7 +84,7 @@ describe("AppShell (INT-187 / INT-243)", () => {
   it("shows identity in the header", async () => {
     renderShell("/", ["member"], {
       readiness: "Ready",
-      profile: { name: "S1 Consumer", address: "1", email: "c@e.com" },
+      profile: { name: "Léa Martin", address: "1", email: "lea.martin@example.invalid" },
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
     });
 
@@ -94,7 +94,7 @@ describe("AppShell (INT-187 / INT-243)", () => {
       expect(screen.getByTestId("shell-user-roles")).toHaveTextContent(/consumer/i);
     });
     await waitFor(() => {
-      expect(screen.getByTestId("shell-user-name")).toHaveTextContent("S1 Consumer");
+      expect(screen.getByTestId("shell-user-name")).toHaveTextContent("Léa Martin");
     });
     // INT-250 — S1 maps to a human label; raw UUID never shown.
     expect(
@@ -102,7 +102,7 @@ describe("AppShell (INT-187 / INT-243)", () => {
     ).toBeNull();
     await waitFor(() => {
       expect(screen.getByTestId("shell-community")).toHaveTextContent(
-        /Demo community S1/i,
+        /Horizon Energy/i,
       );
     });
     expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
@@ -129,7 +129,7 @@ describe("AppShell (INT-187 / INT-243)", () => {
   it("hides the sider for members until Ready on any route (INT-254 / Volt MockSetup)", async () => {
     renderShell("/payment-setup", ["member"], {
       readiness: "TermsAccepted",
-      profile: { name: "S1 Consumer", address: "1", email: "c@e.com" },
+      profile: { name: "Léa Martin", address: "1", email: "lea.martin@example.invalid" },
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
     });
 
@@ -213,7 +213,7 @@ describe("AppShell (INT-187 / INT-243)", () => {
   it("keeps the sider for Ready members outside onboarding (INT-254)", async () => {
     renderShell("/payment-setup", ["member"], {
       readiness: "Ready",
-      profile: { name: "S1 Consumer", address: "1", email: "c@e.com" },
+      profile: { name: "Léa Martin", address: "1", email: "lea.martin@example.invalid" },
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
     });
 

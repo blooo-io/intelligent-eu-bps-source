@@ -16,10 +16,10 @@ describe("role-home (INT-252)", () => {
 
   it("uses consumer vs producer Home copy when Ready", () => {
     expect(
-      homeDescription("member", "Ready", "Demo community S1", "consumer"),
+      homeDescription("member", "Ready", "Horizon Energy", "consumer"),
     ).toMatch(/buy energy/i);
     expect(
-      homeDescription("member", "Ready", "Demo community S1", "producer"),
+      homeDescription("member", "Ready", "Horizon Energy", "producer"),
     ).toMatch(/self-billing/i);
   });
 
@@ -37,7 +37,7 @@ describe("role-home (INT-252)", () => {
 
   it("INT-269 — prosumer Home copy and dual setup CTA", () => {
     expect(
-      homeDescription("member", "Ready", "Demo community S1", "prosumer"),
+      homeDescription("member", "Ready", "Horizon Energy", "prosumer"),
     ).toMatch(/buy and sell/i);
     expect(homeNextAction("member", "Ready", "prosumer")?.label).toMatch(
       /open invoices/i,

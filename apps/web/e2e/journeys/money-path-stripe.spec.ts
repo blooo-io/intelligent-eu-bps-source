@@ -9,7 +9,7 @@ import {
  * INT-251 — full money path with Stripe PaymentIntent / Charge assertion
  * (REQ-014 / UAT-014 / TD-6). Fails if Pay does not create a succeeded test charge.
  *
- * Uses S1 consumer (Demo community S1), not hugo.petit — seed invoices from
+ * Uses S1 consumer (Horizon Energy), not hugo.petit — seed invoices from
  * stripe-fresh-billing-run land on participant 11111111-… (INT-236 / INT-238).
  */
 test.describe("INT-251 Stripe money path", () => {

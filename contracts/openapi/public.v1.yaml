@@ -513,7 +513,9 @@ paths:
         - $ref: '#/components/parameters/ResourceId'
       responses:
         '200':
-          description: Participants. Billing-profile personal data is not included.
+          description: >
+            Participants. Full billing-profile address is not included; optional
+            directory `name` / `email` help managers recognise members (INT-283 / REQ-008).
           content:
             application/json:
               schema:
@@ -1300,6 +1302,13 @@ components:
           type: string
         meterId:
           type: string
+        name:
+          type: string
+          description: Directory display name for community managers (INT-283).
+        email:
+          type: string
+          format: email
+          description: Directory e-mail for community managers (INT-283).
     ParticipantPatch:
       type: object
       additionalProperties: false

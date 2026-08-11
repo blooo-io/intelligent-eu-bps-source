@@ -11,9 +11,8 @@
 Les captures d’écran sont dans `docs/testing/assets/demo-workbook/`.  
 Relancer la capture : `node scripts/capture-demo-workbook.mjs`.
 
-> **Marque :** l’écran de connexion et le menu affichent **Intelligent Billing & Payment** après déploiement de INT-282.  
-> Capture de référence (build local) :  
-> ![Login — Intelligent Billing & Payment](assets/demo-workbook/00-login-brand-ibp.png)
+> Captures prises sur `app.dev` après INT-282 / INT-283 (marque, personas, Horizon Energy).  
+> ![Login — Intelligent Billing & Payment](assets/demo-workbook/00-login-brand.png)
 
 ---
 

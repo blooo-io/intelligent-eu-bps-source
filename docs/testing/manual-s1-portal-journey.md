@@ -1,6 +1,8 @@
 # Manual S1 portal journey (prod-shaped path)
 
-> **INT-282:** For the full French tester workbook (all personas, screenshots, input tables) see `docs/testing/cahier-de-tests-demo-intelligent-billing-and-payment.md`. Product name: **Intelligent Billing & Payment**.
+> **Cahier démo principal (tous personas + tous écrans en images) :**  
+> [`cahier-de-tests-demo-intelligent-billing-and-payment.md`](./cahier-de-tests-demo-intelligent-billing-and-payment.md)  
+> Index : [`docs/testing/README.md`](./README.md). Product name: **Intelligent Billing & Payment**.
 
 **Status:** Ready on `dev` after INT-235…INT-241.  
 **Audience:** Tester / product / operator walking the UI end-to-end.  

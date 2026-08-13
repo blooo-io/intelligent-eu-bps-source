@@ -1,135 +1,127 @@
 # Cahier de tests — Intelligent Billing & Payment
 
 **Produit :** Intelligent Billing & Payment  
-**Environnement :** `dev` — https://app.dev.intelligent-eu-bp.blooo.dev  
+**Environnement :** https://app.dev.intelligent-eu-bp.blooo.dev  
 **IdP :** Keycloak realm `int`  
-**Mot de passe (tous les comptes démo) :** `Intelligent-UAT-2026!`  
-**Mode Stripe :** test uniquement (BR-12)  
-**Public :** testeurs / support démo live  
-**Ticket :** INT-282  
+**Mot de passe (tous les comptes) :** `Intelligent-UAT-2026!`  
+**Communauté démo :** **Horizon Energy**  
+**Public :** testeurs / support démo  
+**Tickets :** INT-282 / INT-283 / INT-284  
 
-Les captures d’écran sont dans `docs/testing/assets/demo-workbook/`.  
-Relancer la capture : `node scripts/capture-demo-workbook.mjs`.
-
-> Captures prises sur `app.dev` après INT-282 / INT-283 (marque, personas, Horizon Energy).  
-> ![Login — Intelligent Billing & Payment](assets/demo-workbook/00-login-brand.png)
+> Ouvrir ce fichier sur GitHub (`develop`) ou dans l’IDE en mode aperçu Markdown pour voir **toutes les captures** ci-dessous.
 
 ---
 
-## 0. Comptes et personas
-
-Communauté démo **Horizon Energy** (billing) : `c0ffee00-1234-4abc-8def-0123456789ab`
-
-| Persona | Rôle métier | Login | E-mail | Mot de passe |
-|---|---|---|---|---|
-| **Léa Martin** | Consommatrice (membre) | `lea.martin` | `lea.martin@example.invalid` | `Intelligent-UAT-2026!` |
-| **Thomas Bernard** | Producteur A | `thomas.bernard` | `thomas.bernard@example.invalid` | `Intelligent-UAT-2026!` |
-| **Claire Dubois** | Productrice B | `claire.dubois` | `claire.dubois@example.invalid` | `Intelligent-UAT-2026!` |
-| **Marie Leroy** | Gestionnaire de communauté | `marie.leroy` | `marie.leroy@example.invalid` | `Intelligent-UAT-2026!` |
-| **Paul Nguyen** | Opérateur système | `paul.nguyen` | `paul.nguyen@example.invalid` | `Intelligent-UAT-2026!` |
-
-Comptes UAT (autre communauté, parcours e2e / onboarding from Invited) :
+## Personas (accès)
 
 | Persona | Rôle | Login | E-mail |
 |---|---|---|---|
-| Hugo Petit | Membre UAT | `hugo.petit` | `hugo.petit@example.invalid` |
-| Sofia Garcia | Manager UAT | `sofia.garcia` | `sofia.garcia@example.invalid` |
+| **Léa Martin** | Consommatrice | `lea.martin` | `lea.martin@example.invalid` |
+| **Thomas Bernard** | Producteur A | `thomas.bernard` | `thomas.bernard@example.invalid` |
+| **Claire Dubois** | Productrice B | `claire.dubois` | `claire.dubois@example.invalid` |
+| **Marie Leroy** | Gestionnaire | `marie.leroy` | `marie.leroy@example.invalid` |
+| **Paul Nguyen** | Opérateur | `paul.nguyen` | `paul.nguyen@example.invalid` |
 
-**Convention démo :** une fenêtre privée (ou **Sign out**) par persona.
+Comptes UAT (onboarding from Invited) : `hugo.petit` / `sofia.garcia` — même mot de passe.
 
----
-
-## 1. Connexion (commun à toutes les personas)
-
-| # | Action | Données | Attendu | Capture |
-|---|---|---|---|---|
-| 1.1 | Ouvrir l’app | URL ci-dessus | Écran Sign in + marque **Intelligent Billing & Payment** | `00-login-brand-ibp.png` |
-| 1.2 | Cliquer **Continue with community IdP** | — | Formulaire Keycloak | `_login-<persona>.png` |
-| 1.3 | Saisir login / mot de passe | voir §0 | Bouton **Sign out** visible | `p*-01-home.png` |
-
-**Pass / Fail**
-
-- [ ] Marque correcte sur l’écran de login  
-- [ ] Connexion OK avec le login **humain** (plus de `s1-consumer`)  
-- [ ] Mauvais mot de passe → erreur IdP, pas d’accès app  
+**Convention :** une fenêtre privée (ou **Sign out**) par persona.
 
 ---
 
-## 2. Persona Léa Martin — Consommatrice
+## 1. Connexion (commun)
 
-**Objectif démo :** onboarding / profil / CGU / carte / factures / paiement / soldes / privacy.
-
-### 2.1 Accueil & navigation membre
-
-| # | Action | Attendu | Capture |
+| # | Action | Attendu | Pass |
 |---|---|---|---|
-| 2.1.1 | Après login | Home membre ; badge rôle Consumer (ou équivalent) | `p1-lea-martin-01-home.png` |
-| 2.1.2 | Menu latéral (si Ready) | Home, Balances, Invoices, Payment method/setup, Privacy, My history | — |
+| 1.1 | Ouvrir l’URL | Marque **Intelligent Billing & Payment** | [ ] |
+| 1.2 | **Continue with community IdP** | Formulaire Keycloak | [ ] |
+| 1.3 | Login persona + mdp | App authentifiée, **Sign out** visible | [ ] |
 
-### 2.2 Onboarding « Get ready » (si non Ready)
+### Écran — Login marque
 
-Utiliser aussi **Hugo Petit** (`hugo.petit`) si Léa est déjà Ready (seed S1).
+![Login Intelligent Billing & Payment](assets/demo-workbook/00-login-brand.png)
 
-| # | Action | Données à saisir | Attendu | Capture |
-|---|---|---|---|---|
-| 2.2.1 | Ouvrir `/onboarding` | — | Assistant étapes | `p1-lea-martin-02-onboarding.png` |
-| 2.2.2 | Profil | Nom : `Léa Martin` ; adresse : `12 rue de la Paix, 75002 Paris` ; e-mail : `lea.martin@example.invalid` | Étape validée | `p1-lea-martin-03-profile.png` |
-| 2.2.3 | CGU / Terms | Cocher acceptation version affichée | Étape Terms OK | `p1-lea-martin-04-terms.png` |
-| 2.2.4 | Moyen de paiement | Voir §2.3 | Compte prêt | `p1-lea-martin-05-payment-setup.png` |
+---
 
-### 2.3 Moyen de paiement (carte test Stripe)
+## 2. Léa Martin — Consommatrice
+
+**Parcours :** login → home / onboarding → profil → CGU → carte → soldes → factures → privacy → historique.
+
+| Champ carte Stripe (test) | Valeur |
+|---|---|
+| Numéro | `4242 4242 4242 4242` |
+| Expiration | `12/34` |
+| CVC | `123` |
+| CP | `75002` |
+
+### 2.1 Login Keycloak
+
+![Login Léa Martin](assets/demo-workbook/_login-lea-martin.png)
+
+### 2.2 Home
+
+![Léa — Home](assets/demo-workbook/p1-lea-martin-01-home.png)
+
+- [ ] Nom **Léa Martin**, badge Consumer (ou Member)  
+- [ ] Communauté **Horizon Energy** (si affichée)  
+
+### 2.3 Onboarding
+
+![Léa — Onboarding](assets/demo-workbook/p1-lea-martin-02-onboarding.png)
+
+### 2.4 Profil
 
 | Champ | Valeur |
 |---|---|
-| Numéro | `4242 4242 4242 4242` |
-| Expiration | `12/34` (ou toute date future) |
-| CVC | `123` |
-| Code postal | `75002` (si demandé) |
+| Nom | `Léa Martin` |
+| Adresse | `12 rue de la Paix, 75002 Paris` |
+| E-mail | `lea.martin@example.invalid` |
 
-**Pass / Fail**
+![Léa — Profil](assets/demo-workbook/p1-lea-martin-03-profile.png)
 
-- [ ] **Start payment setup** puis enregistrement carte sans erreur  
-- [ ] Statut prêt (Payment method ready / last4 visible)  
+### 2.5 CGU / Terms
 
-### 2.4 Soldes, factures, PDF, paiement
+![Léa — Terms](assets/demo-workbook/p1-lea-martin-04-terms.png)
 
-Prérequis : run de facturation lancé par Marie (§4) si la liste est vide.
+- [ ] Acceptation CGU OK  
 
-| # | Action | Attendu | Capture |
-|---|---|---|---|
-| 2.4.1 | `/balances` | Soldes non facturés ou vide après paiement | `p1-lea-martin-06-balances.png` |
-| 2.4.2 | `/invoices` | Factures Open (≈ 2,00 € et 2,64 € après early run) | `p1-lea-martin-07-invoices.png` |
-| 2.4.3 | **View** puis **Open PDF** | Détail + PDF/host Stripe ; **pas de frais de réseau** (A20) | — |
-| 2.4.4 | **Pay** sur une facture Open | Statut → Paid ; Pay désactivé | — |
+### 2.6 Moyen de paiement
 
-### 2.5 Privacy (export / erasure)
+![Léa — Payment setup](assets/demo-workbook/p1-lea-martin-05-payment-setup.png)
 
-| # | Action | Attendu | Capture |
-|---|---|---|---|
-| 2.5.1 | `/privacy` | Écran Privacy / droits | `p1-lea-martin-08-privacy.png` |
-| 2.5.2 | Demande d’export (si bouton) | Accusé / statut visible | — |
-| 2.5.3 | `/reports` (My history) | Historique membre | `p1-lea-martin-09-reports.png` |
+- [ ] Carte test enregistrée / statut prêt  
+
+### 2.7 Soldes
+
+![Léa — Balances](assets/demo-workbook/p1-lea-martin-06-balances.png)
+
+### 2.8 Factures (PDF / Pay)
+
+![Léa — Invoices](assets/demo-workbook/p1-lea-martin-07-invoices.png)
+
+- [ ] Factures Open après run Marie  
+- [ ] **Open PDF** sans frais réseau (A20)  
+- [ ] **Pay** → Paid  
+
+### 2.9 Privacy
+
+![Léa — Privacy](assets/demo-workbook/p1-lea-martin-08-privacy.png)
+
+### 2.10 My history
+
+![Léa — Reports](assets/demo-workbook/p1-lea-martin-09-reports.png)
 
 **Checklist Léa**
 
 - [ ] Login `lea.martin`  
-- [ ] Profil / CGU / carte  
-- [ ] Facture + PDF + Pay  
-- [ ] Privacy accessible  
+- [ ] Onboarding / profil / CGU / carte  
+- [ ] Factures + PDF + Pay  
+- [ ] Privacy  
 
 ---
 
-## 3. Persona Thomas Bernard — Producteur A (KYC / payout)
+## 3. Thomas Bernard — Producteur A (KYC)
 
-**Objectif démo :** onboarding producteur Stripe Connect + factures émises.
-
-| # | Action | Données | Attendu | Capture |
-|---|---|---|---|---|
-| 3.1 | Login `thomas.bernard` | mdp §0 | Home producteur | `p2-thomas-bernard-01-home.png` |
-| 3.2 | `/payment-setup` → Start | — | Formulaire KYC | `p2-thomas-bernard-02-payment-setup.png` |
-| 3.3 | Soumettre KYC test | tableau ci-dessous | Compte Connect en cours / ready | — |
-| 3.4 | `/invoices` | — | Factures où Thomas est vendeur | `p2-thomas-bernard-03-invoices.png` |
-| 3.5 | `/reports` | — | Historique | `p2-thomas-bernard-04-reports.png` |
+**Parcours :** login → home → payout / KYC Connect → factures émises → historique.
 
 ### Données KYC Stripe Connect (test)
 
@@ -143,25 +135,41 @@ Prérequis : run de facturation lancé par Marie (§4) si la liste est vide.
 | Email | `thomas.bernard@example.invalid` |
 | Phone | `+33600000001` |
 | DOB | `1` / `1` / `1902` |
-| Address line | `address_full_match` |
-| City | `Paris` |
-| Postal code | `75002` |
-| Country | `FR` |
-| Identity document file id | `file_identity_document_success` |
-| Bank currency | `eur` |
+| Address | `address_full_match` |
+| City / CP / Country | `Paris` / `75002` / `FR` |
+| Identity file id | `file_identity_document_success` |
 | IBAN | `FR1420041010050500013M02606` |
-| Stripe Connected Account Agreement | **coché** |
+| Agreement | **coché** |
 
-**Pass / Fail**
+### 3.1 Login
 
-- [ ] Soumission sans erreur API rouge  
-- [ ] Statut payout prêt (ou pending puis ready après 30–60 s + refresh)  
+![Login Thomas Bernard](assets/demo-workbook/_login-thomas-bernard.png)
+
+### 3.2 Home
+
+![Thomas — Home](assets/demo-workbook/p2-thomas-bernard-01-home.png)
+
+- [ ] **Thomas Bernard**, badge Producer, **Horizon Energy**  
+
+### 3.3 Payout / KYC
+
+![Thomas — Payment setup](assets/demo-workbook/p2-thomas-bernard-02-payment-setup.png)
+
+- [ ] KYC soumis sans erreur ; compte prêt ou pending puis ready  
+
+### 3.4 Factures émises
+
+![Thomas — Invoices](assets/demo-workbook/p2-thomas-bernard-03-invoices.png)
+
+### 3.5 My history
+
+![Thomas — Reports](assets/demo-workbook/p2-thomas-bernard-04-reports.png)
 
 ---
 
-## 4. Persona Claire Dubois — Productrice B
+## 4. Claire Dubois — Productrice B (KYC)
 
-Même parcours que Thomas avec :
+Même KYC que Thomas avec :
 
 | Champ | Valeur |
 |---|---|
@@ -169,102 +177,145 @@ Même parcours que Thomas avec :
 | First / Last | `Claire` / `Dubois` |
 | Email | `claire.dubois@example.invalid` |
 | Phone | `+33600000002` |
-| Autres champs KYC | identiques à Thomas (tokens test Stripe) |
 
-| Capture | Contenu |
-|---|---|
-| `p3-claire-dubois-01-home.png` | Home |
-| `p3-claire-dubois-02-payment-setup.png` | KYC / payout |
+### 4.1 Login
+
+![Login Claire Dubois](assets/demo-workbook/_login-claire-dubois.png)
+
+### 4.2 Home
+
+![Claire — Home](assets/demo-workbook/p3-claire-dubois-01-home.png)
+
+### 4.3 Payout / KYC
+
+![Claire — Payment setup](assets/demo-workbook/p3-claire-dubois-02-payment-setup.png)
 
 - [ ] KYC Claire OK  
 - [ ] Sign out  
 
 ---
 
-## 5. Persona Marie Leroy — Gestionnaire
+## 5. Marie Leroy — Gestionnaire
 
-**Objectif démo :** paramètres communauté, participants, billing run, paiements, rapports.
+**Parcours :** login → home → settings → members → billing run → payments → reports.
 
-| # | Action | Données | Attendu | Capture |
-|---|---|---|---|---|
-| 5.1 | Login `marie.leroy` | mdp §0 | Console manager | `p4-marie-leroy-01-home.png` |
-| 5.2 | `/community-settings` | Seuil / devise / TVA selon écran | Sauvegarde OK | `p4-marie-leroy-02-community-settings.png` |
-| 5.3 | `/participants` | — | Léa, Thomas, Claire, Marie listés | `p4-marie-leroy-03-participants.png` |
-| 5.4 | `/billing-runs` → Start run | Type **Early** ; période vide | Status **completed** + `runId` | `p4-marie-leroy-04-billing-runs.png` |
-| 5.5 | `/payments-overview` | — | Vue paiements communauté | `p4-marie-leroy-05-payments-overview.png` |
-| 5.6 | `/reports` | — | Rapports communauté | `p4-marie-leroy-06-reports.png` |
+| Action billing run | Valeur |
+|---|---|
+| Type | **Early** |
+| Period | vide |
 
-**Pass / Fail**
+### 5.1 Login
 
-- [ ] Communauté affichée = **Horizon Energy** (`c0ffee00-…`)  
-- [ ] Early run **completed**  
-- [ ] Pas de menus opérateur sensibles hors rôle  
+![Login Marie Leroy](assets/demo-workbook/_login-marie-leroy.png)
 
-Si aucune facture n’apparaît chez Léa après un run completed : trades déjà facturés — demander à un opérateur le reset fixture une fois (hors produit normal).
+### 5.2 Home (console manager)
+
+![Marie — Home](assets/demo-workbook/p4-marie-leroy-01-home.png)
+
+- [ ] **Marie Leroy**, badge Manager, **Horizon Energy**  
+
+### 5.3 Community settings
+
+![Marie — Settings](assets/demo-workbook/p4-marie-leroy-02-community-settings.png)
+
+- [ ] Paramètres communauté visibles / sauvegardables  
+
+### 5.4 Members
+
+![Marie — Members](assets/demo-workbook/p4-marie-leroy-03-participants.png)
+
+- [ ] Léa, Thomas, Claire, Marie listés **par nom** (pas d’UUID en colonne principale)  
+
+### 5.5 Billing runs
+
+![Marie — Billing runs](assets/demo-workbook/p4-marie-leroy-04-billing-runs.png)
+
+- [ ] Early **Start run** → status **completed**  
+
+### 5.6 Payments overview
+
+![Marie — Payments](assets/demo-workbook/p4-marie-leroy-05-payments-overview.png)
+
+### 5.7 Community reports
+
+![Marie — Reports](assets/demo-workbook/p4-marie-leroy-06-reports.png)
+
+**Checklist Marie**
+
+- [ ] Settings / Members / Early run / Payments  
 
 ---
 
-## 6. Persona Paul Nguyen — Opérateur
+## 6. Paul Nguyen — Opérateur
 
-| # | Action | Attendu | Capture |
-|---|---|---|---|
-| 6.1 | Login `paul.nguyen` | Operator desk | `p5-paul-nguyen-01-home.png` |
-| 6.2 | `/operator` | Jobs / outils opérateur | `p5-paul-nguyen-02-operator.png` |
-| 6.3 | Déclenchement manuel (si proposé) | Job accepté / statut visible | — |
-| 6.4 | `/reports` | Vue opérateur | `p5-paul-nguyen-03-reports.png` |
+**Parcours :** login → home → operator tools → reports.
 
-**Pass / Fail**
+### 6.1 Login
 
-- [ ] Accès Operator tools  
-- [ ] Membre (`lea.martin`) **ne voit pas** Operator tools  
+![Login Paul Nguyen](assets/demo-workbook/_login-paul-nguyen.png)
+
+### 6.2 Home
+
+![Paul — Home](assets/demo-workbook/p5-paul-nguyen-01-home.png)
+
+- [ ] **Paul Nguyen**, badge Operator  
+- [ ] Pas de menus manager membres  
+
+### 6.3 Operator desk
+
+![Paul — Operator](assets/demo-workbook/p5-paul-nguyen-02-operator.png)
+
+- [ ] Jobs / anomalies / reconciliation visibles  
+- [ ] Léa **ne voit pas** Operator tools  
+
+### 6.4 Reports
+
+![Paul — Reports](assets/demo-workbook/p5-paul-nguyen-03-reports.png)
 
 ---
 
-## 7. Scénario démo enchaîné (ordre recommandé)
+## 7. Ordre démo recommandé (15–25 min)
 
 1. **Thomas** + **Claire** — KYC payout (§3–4)  
-2. **Marie** — Early billing run (§5.4)  
-3. **Léa** — carte (si besoin) → Invoices → PDF → Pay (§2)  
-4. **Marie** — Payments overview (§5.5)  
+2. **Marie** — Early billing run (§5.5)  
+3. **Léa** — carte si besoin → Invoices → PDF → Pay (§2)  
+4. **Marie** — Payments overview (§5.6)  
 5. **Paul** — Operator (§6)  
-6. **Léa** — Privacy (§2.5)  
-
-Durée indicative démo parlée : 15–25 minutes selon profondeur KYC.
+6. **Léa** — Privacy (§2.9)  
 
 ---
 
-## 8. Données métier de référence (S1)
+## 8. Données métier S1 (référence)
 
 | Élément | Valeur |
 |---|---|
 | Community | Horizon Energy (`c0ffee00-1234-4abc-8def-0123456789ab`) |
 | Consumer participantId | `11111111-2222-4333-8444-555555555555` |
-| Producer A participantId | `66666666-7777-4888-9999-aaaaaaaaaaaa` |
-| Producer B participantId | `bbbbbbbb-cccc-4ddd-8eee-ffffffffffff` |
-| Manager participantId | `dddddddd-eeee-4fff-8000-111111111111` |
-| Trade A | `0x8f3a1c2b4d5e6f708192a3b4c5d6e7f8` (~€2,00) |
-| Trade B | `0x1a2b3c4d5e6f708192a3b4c5d6e7f809` (~€2,64) |
+| Producer A | `66666666-7777-4888-9999-aaaaaaaaaaaa` |
+| Producer B | `bbbbbbbb-cccc-4ddd-8eee-ffffffffffff` |
+| Manager | `dddddddd-eeee-4fff-8000-111111111111` |
+| Trade A / B | `0x8f3a…` (~€2,00) / `0x1a2b…` (~€2,64) |
 
 ---
 
-## 9. Synthèse Pass / Fail globale
+## 9. Pass / Fail global
 
 | Zone | Pass si… |
 |---|---|
-| Marque | « Intelligent Billing & Payment » visible |
-| Identités | Logins prénom.nom ; noms affichés cohérents |
-| Producteurs | KYC test OK pour Thomas et Claire |
-| Manager | Early run completed sur communauté S1 |
-| Consommatrice | Factures Open, PDF, Pay → Paid, sans frais réseau |
-| Opérateur | Écran operator accessible à Paul seulement |
-| Privacy | Écran privacy / droits accessible à Léa |
+| Marque | Intelligent Billing & Payment |
+| Identités | Logins `prénom.nom`, noms cohérents |
+| Producteurs | KYC Thomas + Claire OK |
+| Manager | Early run completed, Members par nom |
+| Consommatrice | Factures, PDF, Pay, sans frais réseau |
+| Opérateur | Operator tools pour Paul seulement |
 
 ---
 
-## 10. Hors périmètre de ce cahier
+## 10. Fichiers liés
 
-- Stripe live / documents KYC réels  
-- Mutations cluster hors GitOps  
-- Scripts opérateur CLI (`stripe-fresh-billing-run.mjs`) sauf secours  
-
-Parcours S1 historique (mis à jour personas) : `docs/testing/manual-s1-portal-journey.md`.
+| Fichier | Rôle |
+|---|---|
+| [`docs/testing/README.md`](./README.md) | Index testing |
+| [`assets/demo-workbook/`](./assets/demo-workbook/) | PNG sources |
+| [`manual-s1-portal-journey.md`](./manual-s1-portal-journey.md) | Parcours argent S1 (texte) |
+| `scripts/capture-demo-workbook.mjs` | Recapture des écrans |

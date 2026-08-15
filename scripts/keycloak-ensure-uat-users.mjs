@@ -107,6 +107,16 @@ export const S1_USERS = [
     firstName: "Marie",
     lastName: "Leroy",
   },
+  {
+    // INT-285 — Invited consumer on Horizon Energy (full onboarding demo).
+    id: "c1a55e01-0005-4000-8000-000000000005",
+    username: "hugo.moreau",
+    role: "member",
+    email: "hugo.moreau@example.invalid",
+    communityId: S1_COMMUNITY_ID,
+    firstName: "Hugo",
+    lastName: "Moreau",
+  },
 ];
 
 export const UAT_PASSWORD = "Intelligent-UAT-2026!";
@@ -120,6 +130,8 @@ export const PARTICIPANTS_ADMIN_CLIENT = {
     "view-users",
     "query-users",
     "view-clients",
+    // INT-285 — GET /roles/{name} + realm role-mappings for CSV invite createUser
+    "query-roles",
   ],
 };
 

@@ -29,33 +29,59 @@ describe("KeycloakIdpAdapter (INT-208)", () => {
     ).toThrow(/requires/);
   });
 
-  it("createUser posts Admin API and reads Location id", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: "tok" }),
-      })
-      .mockResolvedValueOnce({
-        status: 201,
-        headers: {
-          get: (name: string) =>
-            name.toLowerCase() === "location"
-              ? "https://idp.example.test/admin/realms/int/users/user-42"
-              : null,
-        },
-      });
+  it("createUser posts community_id + maps realm role member (INT-285)", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes("/protocol/openid-connect/token")) {
+        return { ok: true, json: async () => ({ access_token: "tok" }) };
+      }
+      if (init?.method === "POST" && u.endsWith("/users")) {
+        return {
+          status: 201,
+          headers: {
+            get: (name: string) =>
+              name.toLowerCase() === "location"
+                ? "https://idp.example.test/admin/realms/int/users/user-42"
+                : null,
+          },
+        };
+      }
+      if (u.endsWith("/roles/member")) {
+        return {
+          ok: true,
+          json: async () => ({ id: "role-member", name: "member" }),
+        };
+      }
+      if (u.includes("/role-mappings/realm")) {
+        return { ok: true, status: 204 };
+      }
+      return { ok: false, status: 500 };
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const adapter = new KeycloakIdpAdapter(config);
     const user = await adapter.createUser({
       email: "member@example.test",
       communityId: "com-1",
-      role: "member",
+      role: "consumer",
     });
     expect(user.userId).toBe("user-42");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[1]![0])).toContain("/admin/realms/int/users");
+    const createCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith("/users") && init?.method === "POST",
+    );
+    expect(createCall).toBeDefined();
+    const body = JSON.parse(String(createCall![1]!.body)) as {
+      attributes: Record<string, string[]>;
+    };
+    expect(body.attributes.community_id).toEqual(["com-1"]);
+    expect(body.attributes.communityId).toBeUndefined();
+    expect(body.attributes.role).toBeUndefined();
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).includes("/users/user-42/role-mappings/realm"),
+      ),
+    ).toBe(true);
   });
 
   it("sends Forwarded proto=https on cluster-internal HTTP (INT-218)", async () => {

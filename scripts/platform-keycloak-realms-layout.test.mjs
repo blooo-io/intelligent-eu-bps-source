@@ -34,6 +34,7 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(intRealm, /"username": "thomas\.bernard"/);
   assert.match(intRealm, /"username": "claire\.dubois"/);
   assert.match(intRealm, /"username": "marie\.leroy"/);
+  assert.match(intRealm, /"username": "hugo\.moreau"/);
   assert.match(intRealm, /c0ffee00-1234-4abc-8def-0123456789ab/);
   // INT-215 — AC-03 Keycloak Admin service account + realm-management roles.
   assert.match(intRealm, /"clientId": "participants-admin"/);

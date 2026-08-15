@@ -37,23 +37,27 @@ export class KeycloakIdpAdapter implements IdpAdminPort {
 
   async createUser(input: IdpCreateUserInput): Promise<IdpUser> {
     const token = await this.token();
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      ...this.proxyHeaders(),
+    };
+    // Attribute must match the oidc-usermodel-attribute-mapper claim
+    // `community_id` in int-realm.json (not camelCase). Market role
+    // (consumer|producer|prosumer) stays in AC-03; IdP realm role is member.
+    void input.role;
     const res = await fetch(
       `${this.config.baseUrl}/admin/realms/${encodeURIComponent(this.config.realm)}/users`,
       {
         method: "POST",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json",
-          ...this.proxyHeaders(),
-        },
+        headers,
         body: JSON.stringify({
           enabled: true,
           email: input.email,
           username: input.email,
           emailVerified: false,
           attributes: {
-            communityId: [input.communityId],
-            role: [input.role],
+            community_id: [input.communityId],
           },
         }),
       },
@@ -66,7 +70,43 @@ export class KeycloakIdpAdapter implements IdpAdminPort {
     if (!userId) {
       throw new Error("Keycloak createUser missing Location user id");
     }
+    await this.assignRealmRole(userId, "member", headers);
     return { userId };
+  }
+
+  /**
+   * REQ-008 invitees are community members. Keycloak ignores realmRoles on
+   * POST /users — map via role-mappings after create (same pattern as
+   * scripts/keycloak-ensure-uat-users.mjs).
+   */
+  private async assignRealmRole(
+    userId: string,
+    roleName: string,
+    headers: Record<string, string>,
+  ): Promise<void> {
+    const roleRes = await fetch(
+      `${this.config.baseUrl}/admin/realms/${encodeURIComponent(this.config.realm)}/roles/${encodeURIComponent(roleName)}`,
+      { headers },
+    );
+    if (!roleRes.ok) {
+      throw new Error(
+        `Keycloak get role ${roleName} failed with HTTP ${roleRes.status}`,
+      );
+    }
+    const role = (await roleRes.json()) as Record<string, unknown>;
+    const map = await fetch(
+      `${this.config.baseUrl}/admin/realms/${encodeURIComponent(this.config.realm)}/users/${encodeURIComponent(userId)}/role-mappings/realm`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify([role]),
+      },
+    );
+    if (!map.ok && map.status !== 409) {
+      throw new Error(
+        `Keycloak role-map ${roleName} failed with HTTP ${map.status}`,
+      );
+    }
   }
 
   async sendInvitation(userId: string): Promise<void> {

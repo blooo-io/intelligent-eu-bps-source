@@ -3,319 +3,386 @@
 **Produit :** Intelligent Billing & Payment  
 **Environnement :** https://app.dev.intelligent-eu-bp.blooo.dev  
 **IdP :** Keycloak realm `int`  
-**Mot de passe (tous les comptes) :** `Intelligent-UAT-2026!`  
+**Mot de passe (tous) :** `Intelligent-UAT-2026!`  
 **Communauté démo :** **Horizon Energy**  
-**Public :** testeurs / support démo  
-**Tickets :** INT-282 / INT-283 / INT-284  
+**Tickets :** INT-282 … INT-285  
 
-> Ouvrir ce fichier sur GitHub (`develop`) ou dans l’IDE en mode aperçu Markdown pour voir **toutes les captures** ci-dessous.
+> Ouvrir en aperçu Markdown (GitHub / IDE) pour voir les captures.
 
 ---
 
-## Personas (accès)
+## Comment lire ce cahier
 
-| Persona | Rôle | Login | E-mail |
+Trois parcours **sur la même communauté** Horizon Energy :
+
+| Parcours | Persona | État seed | Objectif démo |
 |---|---|---|---|
-| **Léa Martin** | Consommatrice | `lea.martin` | `lea.martin@example.invalid` |
-| **Thomas Bernard** | Producteur A | `thomas.bernard` | `thomas.bernard@example.invalid` |
-| **Claire Dubois** | Productrice B | `claire.dubois` | `claire.dubois@example.invalid` |
-| **Marie Leroy** | Gestionnaire | `marie.leroy` | `marie.leroy@example.invalid` |
-| **Paul Nguyen** | Opérateur | `paul.nguyen` | `paul.nguyen@example.invalid` |
+| **A — Onboarding complet** | Hugo Moreau | `Invited` (seed) | Profil → CGU → carte (wizard from scratch) |
+| **B — Argent** | Léa / Thomas / Claire / Marie | Léa `TermsAccepted` ; producteurs Ready | KYC, run, factures, Pay |
+| **C — Invite live** | Marie → nouvel invité | — | CSV Invite (REQ-008) → Mailpit → 1ʳᵉ connexion |
 
-Comptes UAT (onboarding from Invited) : `hugo.petit` / `sofia.garcia` — même mot de passe.
+### Subtilité UI — barre latérale (INT-254)
 
-**Convention :** une fenêtre privée (ou **Sign out**) par persona.
+Un **membre** (pas manager/operator) **sans statut Ready** n’a **pas de sider** : seulement le header + le contenu (« setup chrome »).  
+Dès que le payment setup est Ready, le menu gauche apparaît.
+
+Ce n’est **pas** un bug si Léa ou Hugo voient Invoices / Balances sans menu.
+
+### Empty states vs bugs
+
+- Message du type « No unbilled balances yet » / « No payments yet » = **état vide attendu**.  
+- Un **spinner** seul = capture trop tôt ou API lente — **pas** l’écran final.
 
 ---
 
-## 1. Connexion (commun)
+## Personas Horizon Energy
+
+| Persona | Login | Rôle | État attendu au login |
+|---|---|---|---|
+| **Hugo Moreau** | `hugo.moreau` | Consommateur Invited | Wizard étape 1 — profil à saisir |
+| **Léa Martin** | `lea.martin` | Consommatrice | Profil + CGU déjà OK ; payment à finir |
+| **Thomas Bernard** | `thomas.bernard` | Producteur A | Ready (KYC fait) + sider |
+| **Claire Dubois** | `claire.dubois` | Productrice B | Ready + sider |
+| **Marie Leroy** | `marie.leroy` | Gestionnaire | Console manager + sider |
+| **Paul Nguyen** | `paul.nguyen` | Opérateur | Operator desk (communauté UAT IdP ; outils plateforme) |
+
+UAT (e2e uniquement, autre communauté) : `hugo.petit` / `sofia.garcia` — **ne pas utiliser pour la démo Horizon Energy**.
+
+---
+
+## 1. Connexion
 
 | # | Action | Attendu | Pass |
 |---|---|---|---|
-| 1.1 | Ouvrir l’URL | Marque **Intelligent Billing & Payment** | [ ] |
-| 1.2 | **Continue with community IdP** | Formulaire Keycloak | [ ] |
-| 1.3 | Login persona + mdp | App authentifiée, **Sign out** visible | [ ] |
+| 1.1 | Ouvrir l’URL | **Intelligent Billing & Payment** | [ ] |
+| 1.2 | Continue with community IdP | Keycloak | [ ] |
+| 1.3 | Login + mdp | **Sign out** visible | [ ] |
 
-### Écran — Login marque
-
-![Login Intelligent Billing & Payment](assets/demo-workbook/00-login-brand.png)
+![Login marque](assets/demo-workbook/00-login-brand.png)
 
 ---
 
-## 2. Léa Martin — Consommatrice
+## 2. Parcours A — Hugo Moreau (onboarding from scratch)
 
-**Parcours :** login → home / onboarding → profil → CGU → carte → soldes → factures → privacy → historique.
+**Pourquoi Hugo et pas Léa :** le seed S1 pré-accepte profil/CGU pour Léa afin d’enchaîner factures/Stripe. Hugo est un **2ᵉ consommateur Invited** sur Horizon Energy (INT-285), sans toucher Léa.
 
-| Champ carte Stripe (test) | Valeur |
-|---|---|
-| Numéro | `4242 4242 4242 4242` |
-| Expiration | `12/34` |
-| CVC | `123` |
-| CP | `75002` |
+### Données à saisir
 
-### 2.1 Login Keycloak
+| Étape | Champ | Valeur |
+|---|---|---|
+| Profil | Nom | `Hugo Moreau` |
+| Profil | Adresse | `8 avenue Victor Hugo, 75016 Paris` |
+| Profil | E-mail | `hugo.moreau@example.invalid` |
+| CGU | Acceptation | cocher version affichée |
+| Carte | Numéro | `4242 4242 4242 4242` |
+| Carte | Exp / CVC / CP | `12/34` / `123` / `75016` |
 
-![Login Léa Martin](assets/demo-workbook/_login-lea-martin.png)
+### 2.1 Login
 
-### 2.2 Home
+![Login Hugo Moreau](assets/demo-workbook/_login-hugo-moreau.png)
 
-![Léa — Home](assets/demo-workbook/p1-lea-martin-01-home.png)
+### 2.2 Home — Get ready (rien de pré-coché)
 
-- [ ] Nom **Léa Martin**, badge Consumer (ou Member)  
-- [ ] Communauté **Horizon Energy** (si affichée)  
+![Hugo — Home Invited](assets/demo-workbook/p0-hugo-moreau-01-home.png)
 
-### 2.3 Onboarding
+- [ ] Checklist : profil / terms / payment **pas** déjà verts  
+- [ ] **Pas de sider** (setup chrome)  
+- [ ] Communauté Horizon Energy (si affichée) ou parcours Get ready  
 
-![Léa — Onboarding](assets/demo-workbook/p1-lea-martin-02-onboarding.png)
+### 2.3 Onboarding wizard
+
+![Hugo — Onboarding](assets/demo-workbook/p0-hugo-moreau-02-onboarding.png)
+
+- [ ] Étape 1 Profile active, formulaire à remplir  
 
 ### 2.4 Profil
 
+![Hugo — Profile](assets/demo-workbook/p0-hugo-moreau-03-profile.png)
+
+- [ ] Save profile → étape Terms  
+
+### 2.5 Terms
+
+![Hugo — Terms](assets/demo-workbook/p0-hugo-moreau-04-terms.png)
+
+- [ ] Accept → étape Pay  
+
+### 2.6 Payment setup
+
+![Hugo — Payment](assets/demo-workbook/p0-hugo-moreau-05-payment-setup.png)
+
+- [ ] Carte enregistrée → Ready → **sider apparaît**  
+
+**Checklist Hugo**
+
+- [ ] Parcours Invited → Ready sans étapes déjà cochées  
+- [ ] Sign out  
+
+---
+
+## 3. Parcours B — Léa Martin (argent / payment restant)
+
+**État seed :** profil + CGU **déjà OK** ; seul « Complete payment setup » reste.  
+Ne pas refaire le profil/CGU — ce n’est pas le parcours onboarding.
+
+### 3.1 Login
+
+![Login Léa](assets/demo-workbook/_login-lea-martin.png)
+
+### 3.2 Home — deux checks verts, payment rouge
+
+![Léa — Home](assets/demo-workbook/p1-lea-martin-01-home.png)
+
+- [ ] **Léa Martin** / Consumer  
+- [ ] Pas de sider tant que non Ready  
+- [ ] CTA Finish payment setup  
+
+### 3.3 Onboarding (raccourci payment)
+
+![Léa — Onboarding](assets/demo-workbook/p1-lea-martin-02-onboarding.png)
+
+### 3.4 Payment setup
+
 | Champ | Valeur |
 |---|---|
-| Nom | `Léa Martin` |
-| Adresse | `12 rue de la Paix, 75002 Paris` |
-| E-mail | `lea.martin@example.invalid` |
+| Carte | `4242 4242 4242 4242` |
+| Exp / CVC | `12/34` / `123` |
 
-![Léa — Profil](assets/demo-workbook/p1-lea-martin-03-profile.png)
+![Léa — Payment](assets/demo-workbook/p1-lea-martin-05-payment-setup.png)
 
-### 2.5 CGU / Terms
+- [ ] Payment method ready  
 
-![Léa — Terms](assets/demo-workbook/p1-lea-martin-04-terms.png)
-
-- [ ] Acceptation CGU OK  
-
-### 2.6 Moyen de paiement
-
-![Léa — Payment setup](assets/demo-workbook/p1-lea-martin-05-payment-setup.png)
-
-- [ ] Carte test enregistrée / statut prêt  
-
-### 2.7 Soldes
+### 3.5 Balances (empty state possible)
 
 ![Léa — Balances](assets/demo-workbook/p1-lea-martin-06-balances.png)
 
-### 2.8 Factures (PDF / Pay)
+> Si « No unbilled balances yet » après un run qui a tout facturé → **normal**.
+
+### 3.6 Factures / PDF / Pay
 
 ![Léa — Invoices](assets/demo-workbook/p1-lea-martin-07-invoices.png)
 
-- [ ] Factures Open après run Marie  
-- [ ] **Open PDF** sans frais réseau (A20)  
-- [ ] **Pay** → Paid  
+- [ ] Factures Open (après run Marie) ≈ 2,00 € et 2,64 €  
+- [ ] Sans sider si encore non Ready ; avec sider une fois Ready  
+- [ ] Open PDF — **pas de frais réseau** (A20)  
+- [ ] Pay → Paid  
 
-### 2.9 Privacy
+### 3.7 Privacy
 
 ![Léa — Privacy](assets/demo-workbook/p1-lea-martin-08-privacy.png)
 
-### 2.10 My history
+### 3.8 My history
 
 ![Léa — Reports](assets/demo-workbook/p1-lea-martin-09-reports.png)
 
 **Checklist Léa**
 
-- [ ] Login `lea.martin`  
-- [ ] Onboarding / profil / CGU / carte  
+- [ ] Payment setup (seul step manquant au seed)  
 - [ ] Factures + PDF + Pay  
 - [ ] Privacy  
 
 ---
 
-## 3. Thomas Bernard — Producteur A (KYC)
+## 4. Thomas Bernard — Producteur A (KYC)
 
-**Parcours :** login → home → payout / KYC Connect → factures émises → historique.
+Ready → **sider visible**.
 
-### Données KYC Stripe Connect (test)
+### KYC Stripe test
 
 | Champ | Valeur |
 |---|---|
-| Business type | `Individual` |
-| Business profile URL | `https://accessible.stripe.com` |
+| Business type | Individual |
+| URL | `https://accessible.stripe.com` |
 | MCC | `5734` |
-| First name | `Thomas` |
-| Last name | `Bernard` |
+| First / Last | `Thomas` / `Bernard` |
 | Email | `thomas.bernard@example.invalid` |
 | Phone | `+33600000001` |
 | DOB | `1` / `1` / `1902` |
-| Address | `address_full_match` |
-| City / CP / Country | `Paris` / `75002` / `FR` |
-| Identity file id | `file_identity_document_success` |
+| Address / City / CP | `address_full_match` / `Paris` / `75002` |
+| Identity file | `file_identity_document_success` |
 | IBAN | `FR1420041010050500013M02606` |
-| Agreement | **coché** |
+| Agreement | coché |
 
-### 3.1 Login
-
-![Login Thomas Bernard](assets/demo-workbook/_login-thomas-bernard.png)
-
-### 3.2 Home
+![Login Thomas](assets/demo-workbook/_login-thomas-bernard.png)
 
 ![Thomas — Home](assets/demo-workbook/p2-thomas-bernard-01-home.png)
 
-- [ ] **Thomas Bernard**, badge Producer, **Horizon Energy**  
-
-### 3.3 Payout / KYC
-
-![Thomas — Payment setup](assets/demo-workbook/p2-thomas-bernard-02-payment-setup.png)
-
-- [ ] KYC soumis sans erreur ; compte prêt ou pending puis ready  
-
-### 3.4 Factures émises
+![Thomas — Payout](assets/demo-workbook/p2-thomas-bernard-02-payment-setup.png)
 
 ![Thomas — Invoices](assets/demo-workbook/p2-thomas-bernard-03-invoices.png)
 
-### 3.5 My history
-
 ![Thomas — Reports](assets/demo-workbook/p2-thomas-bernard-04-reports.png)
+
+- [ ] KYC OK ; sider présent ; factures vendeur  
 
 ---
 
-## 4. Claire Dubois — Productrice B (KYC)
+## 5. Claire Dubois — Productrice B
 
-Même KYC que Thomas avec :
+Même KYC avec Claire / Dubois / `claire.dubois@example.invalid` / `+33600000002`.
 
-| Champ | Valeur |
-|---|---|
-| Login | `claire.dubois` |
-| First / Last | `Claire` / `Dubois` |
-| Email | `claire.dubois@example.invalid` |
-| Phone | `+33600000002` |
-
-### 4.1 Login
-
-![Login Claire Dubois](assets/demo-workbook/_login-claire-dubois.png)
-
-### 4.2 Home
+![Login Claire](assets/demo-workbook/_login-claire-dubois.png)
 
 ![Claire — Home](assets/demo-workbook/p3-claire-dubois-01-home.png)
 
-### 4.3 Payout / KYC
-
-![Claire — Payment setup](assets/demo-workbook/p3-claire-dubois-02-payment-setup.png)
+![Claire — Payout](assets/demo-workbook/p3-claire-dubois-02-payment-setup.png)
 
 - [ ] KYC Claire OK  
-- [ ] Sign out  
 
 ---
 
-## 5. Marie Leroy — Gestionnaire
+## 6. Marie Leroy — Gestionnaire
 
-**Parcours :** login → home → settings → members → billing run → payments → reports.
+Titre Home = **Community pulse** (pas seulement « Home »).
 
-| Action billing run | Valeur |
-|---|---|
-| Type | **Early** |
-| Period | vide |
+### 6.1 Login / Home
 
-### 5.1 Login
+![Login Marie](assets/demo-workbook/_login-marie-leroy.png)
 
-![Login Marie Leroy](assets/demo-workbook/_login-marie-leroy.png)
+![Marie — Community pulse](assets/demo-workbook/p4-marie-leroy-01-home.png)
 
-### 5.2 Home (console manager)
+- [ ] Marie Leroy / Manager / Horizon Energy + sider  
 
-![Marie — Home](assets/demo-workbook/p4-marie-leroy-01-home.png)
-
-- [ ] **Marie Leroy**, badge Manager, **Horizon Energy**  
-
-### 5.3 Community settings
+### 6.2 Community settings (formulaire chargé)
 
 ![Marie — Settings](assets/demo-workbook/p4-marie-leroy-02-community-settings.png)
 
-- [ ] Paramètres communauté visibles / sauvegardables  
+- [ ] Formulaire currency / period / threshold / VAT visible (**pas** un spinner)  
 
-### 5.4 Members
+### 6.3 Members
 
 ![Marie — Members](assets/demo-workbook/p4-marie-leroy-03-participants.png)
 
-- [ ] Léa, Thomas, Claire, Marie listés **par nom** (pas d’UUID en colonne principale)  
+- [ ] Léa, Thomas, Claire, Marie, **Hugo Moreau** listés par nom  
 
-### 5.5 Billing runs
+### 6.4 Billing runs — Early
+
+| Champ | Valeur |
+|---|---|
+| Type | Early |
+| Period | vide |
 
 ![Marie — Billing runs](assets/demo-workbook/p4-marie-leroy-04-billing-runs.png)
 
-- [ ] Early **Start run** → status **completed**  
+- [ ] Start run → **completed**  
 
-### 5.6 Payments overview
+### 6.5 Payments overview
 
 ![Marie — Payments](assets/demo-workbook/p4-marie-leroy-05-payments-overview.png)
 
-### 5.7 Community reports
+> « No payments yet » / compteurs à 0 = empty state **OK** tant qu’aucun Pay Léa.  
+> Spinner seul = capture invalide.
+
+### 6.6 Reports
 
 ![Marie — Reports](assets/demo-workbook/p4-marie-leroy-06-reports.png)
 
-**Checklist Marie**
+---
 
-- [ ] Settings / Members / Early run / Payments  
+## 7. Parcours C — Invite CSV (Marie → nouvel invité)
+
+**REQ-008 / UAT-008.** La manager crée un compte IdP + envoie l’invitation ; le membre complète ensuite le même wizard que Hugo (parcours A).
+
+### Prérequis
+
+- Connexion **Marie Leroy** (`marie.leroy`)
+- Accès Mailpit (catcher SMTP du cluster) pour lire le mail d’invitation :
+  `kubectl -n int-apps port-forward svc/mailpit 8025:8025` puis http://127.0.0.1:8025
+- E-mail **unique** (ne pas réutiliser un login déjà seedé)
+
+### Données CSV (exemple)
+
+Coller dans **Members → Invite (CSV)** (colonnes : `email,marketActorId,meterId,role`) :
+
+```text
+email,marketActorId,meterId,role
+camille.rousseau@example.invalid,actor-camille-demo,meter-camille-demo,consumer
+```
+
+| Champ | Valeur démo |
+|---|---|
+| email | `camille.rousseau@example.invalid` (ou autre unused) |
+| marketActorId | `actor-camille-demo` (unique) |
+| meterId | `meter-camille-demo` (unique) |
+| role | `consumer` (ou `producer` / `prosumer`) |
+
+### Étapes
+
+| # | Action | Attendu | Pass |
+|---|---|---|---|
+| C.1 | Marie → **Members** | Liste (Léa, Thomas, Claire, Marie, Hugo…) | [ ] |
+| C.2 | Coller le CSV + **Invite member** | Message import OK ; nouvelle ligne **Invited** | [ ] |
+| C.3 | Ouvrir Mailpit | Mail Keycloak (VERIFY_EMAIL / UPDATE_PASSWORD) vers l’e-mail CSV | [ ] |
+| C.4 | Suivre le lien → définir mot de passe | Compte utilisable | [ ] |
+| C.5 | Login app avec le nouvel e-mail | Home Invited / wizard (pas de sider — INT-254) | [ ] |
+| C.6 | Profil → CGU → carte test | Ready + sider (comme parcours A) | [ ] |
+
+**Points de contrôle IdP (INT-285)** — après invite, le user Keycloak doit avoir :
+
+- attribut `community_id` = `c0ffee00-1234-4abc-8def-0123456789ab` (Horizon Energy)
+- realm role `member` (pas le rôle marché consumer/producer — celui-ci reste dans le registry)
+
+> En démo courte : s’arrêter à C.2–C.3 si le temps manque ; C.5–C.6 = rejoue A avec un compte créé live.
 
 ---
 
-## 6. Paul Nguyen — Opérateur
+## 8. Paul Nguyen — Opérateur
 
-**Parcours :** login → home → operator tools → reports.
-
-### 6.1 Login
-
-![Login Paul Nguyen](assets/demo-workbook/_login-paul-nguyen.png)
-
-### 6.2 Home
+![Login Paul](assets/demo-workbook/_login-paul-nguyen.png)
 
 ![Paul — Home](assets/demo-workbook/p5-paul-nguyen-01-home.png)
 
-- [ ] **Paul Nguyen**, badge Operator  
-- [ ] Pas de menus manager membres  
+![Paul — Operator desk](assets/demo-workbook/p5-paul-nguyen-02-operator.png)
 
-### 6.3 Operator desk
-
-![Paul — Operator](assets/demo-workbook/p5-paul-nguyen-02-operator.png)
-
-- [ ] Jobs / anomalies / reconciliation visibles  
-- [ ] Léa **ne voit pas** Operator tools  
-
-### 6.4 Reports
+- [ ] Menu **Operator desk** ; jobs / anomalies visibles (pas spinner)  
+- [ ] Membre Horizon Energy **ne voit pas** ce menu  
 
 ![Paul — Reports](assets/demo-workbook/p5-paul-nguyen-03-reports.png)
 
 ---
 
-## 7. Ordre démo recommandé (15–25 min)
+## 9. Ordre démo recommandé (25–35 min)
 
-1. **Thomas** + **Claire** — KYC payout (§3–4)  
-2. **Marie** — Early billing run (§5.5)  
-3. **Léa** — carte si besoin → Invoices → PDF → Pay (§2)  
-4. **Marie** — Payments overview (§5.6)  
-5. **Paul** — Operator (§6)  
-6. **Léa** — Privacy (§2.9)  
+1. **Hugo** — onboarding Invited → Ready (§2)  
+2. **Thomas** + **Claire** — KYC si besoin (§4–5)  
+3. **Marie** — Settings coup d’œil + Early run (§6)  
+4. **Léa** — payment si besoin → Invoices → PDF → Pay (§3)  
+5. **Marie** — Payments overview (§6.5)  
+6. **Marie** — Invite CSV + Mailpit (§7, parcours C) — optionnel si temps  
+7. **Paul** — Operator desk (§8)  
 
 ---
 
-## 8. Données métier S1 (référence)
+## 10. Référence métier
 
 | Élément | Valeur |
 |---|---|
 | Community | Horizon Energy (`c0ffee00-1234-4abc-8def-0123456789ab`) |
-| Consumer participantId | `11111111-2222-4333-8444-555555555555` |
-| Producer A | `66666666-7777-4888-9999-aaaaaaaaaaaa` |
-| Producer B | `bbbbbbbb-cccc-4ddd-8eee-ffffffffffff` |
-| Manager | `dddddddd-eeee-4fff-8000-111111111111` |
-| Trade A / B | `0x8f3a…` (~€2,00) / `0x1a2b…` (~€2,64) |
+| Léa participantId | `11111111-2222-4333-8444-555555555555` |
+| Hugo Invited participantId | `e1000000-0000-4000-8000-000000000001` |
+| Trades démo | `0x8f3a…` (~€2,00) / `0x1a2b…` (~€2,64) |
+| Invite CSV | Members → Invite (CSV) ; mail dans Mailpit (`svc/mailpit`) |
 
 ---
 
-## 9. Pass / Fail global
+## 11. Pass / Fail global
 
 | Zone | Pass si… |
 |---|---|
-| Marque | Intelligent Billing & Payment |
-| Identités | Logins `prénom.nom`, noms cohérents |
-| Producteurs | KYC Thomas + Claire OK |
-| Manager | Early run completed, Members par nom |
-| Consommatrice | Factures, PDF, Pay, sans frais réseau |
-| Opérateur | Operator tools pour Paul seulement |
+| Onboarding | Hugo part de Invited, aucune case déjà verte |
+| Argent | Léa paie des factures Open après run Marie |
+| Invite | CSV → ligne Invited + mail Mailpit + `community_id` IdP |
+| Setup chrome | Pas de sider avant Ready ; sider après |
+| Captures | Pas de spinner présenté comme écran final |
+| Members | Noms humains dont Hugo Moreau |
 
 ---
 
-## 10. Fichiers liés
+## 12. Fichiers
 
 | Fichier | Rôle |
 |---|---|
-| [`docs/testing/README.md`](./README.md) | Index testing |
-| [`assets/demo-workbook/`](./assets/demo-workbook/) | PNG sources |
-| [`manual-s1-portal-journey.md`](./manual-s1-portal-journey.md) | Parcours argent S1 (texte) |
-| `scripts/capture-demo-workbook.mjs` | Recapture des écrans |
+| [`README.md`](./README.md) | Index |
+| [`assets/demo-workbook/`](./assets/demo-workbook/) | PNG |
+| `scripts/capture-demo-workbook.mjs` | Recapture (`wait` anti-spinner) |
+| [`manual-s1-portal-journey.md`](./manual-s1-portal-journey.md) | Parcours argent (texte) |

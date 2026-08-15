@@ -35,10 +35,12 @@ test("int-realm.json packs UAT IdP users hugo/sofia/paul (INT-194 / INT-282)", a
   }
 });
 
-test("int-realm.json packs S1 IdP users lea/thomas/claire/marie (INT-236 / INT-282)", async () => {
+test("int-realm.json packs S1 IdP users lea/thomas/claire/marie/hugo (INT-236 / INT-285)", async () => {
   const users = await loadRealmS1Users();
   const byName = Object.fromEntries(users.map((u) => [u.username, u]));
   assert.ok(byName["marie.leroy"], "missing marie.leroy");
+  assert.ok(byName["hugo.moreau"], "missing hugo.moreau");
+  assert.equal(S1_USERS.length, 5);
   for (const fixture of S1_USERS) {
     const row = byName[fixture.username];
     assert.ok(row, `missing ${fixture.username}`);
@@ -73,6 +75,11 @@ test("ensure script packs participants-admin client secret (INT-218)", async () 
   assert.equal(client.secret, PARTICIPANTS_ADMIN_CLIENT.secret);
   assert.equal(client.serviceAccountsEnabled, true);
   assert.equal(PARTICIPANTS_ADMIN_CLIENT.realmManagementRoles.includes("manage-users"), true);
+  assert.equal(
+    PARTICIPANTS_ADMIN_CLIENT.realmManagementRoles.includes("query-roles"),
+    true,
+    "INT-285 CSV invite needs GET /roles/{name}",
+  );
 });
 
 test("int-realm.json packs Mailpit SMTP (INT-224)", async () => {

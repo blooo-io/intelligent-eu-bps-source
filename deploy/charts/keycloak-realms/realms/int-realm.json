@@ -24,10 +24,22 @@
   },
   "roles": {
     "realm": [
-      { "name": "member", "description": "Billing community member" },
-      { "name": "manager", "description": "Billing community manager" },
-      { "name": "operator", "description": "Billing platform operator" },
-      { "name": "service", "description": "Internal service principal" }
+      {
+        "name": "member",
+        "description": "Billing community member"
+      },
+      {
+        "name": "manager",
+        "description": "Billing community manager"
+      },
+      {
+        "name": "operator",
+        "description": "Billing platform operator"
+      },
+      {
+        "name": "service",
+        "description": "Internal service principal"
+      }
     ]
   },
   "clients": [
@@ -45,8 +57,19 @@
       "attributes": {
         "access.token.lifespan": "300"
       },
-      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
     },
     {
       "clientId": "participants-admin",
@@ -59,8 +82,19 @@
       "serviceAccountsEnabled": true,
       "secret": "dev-participants-admin-replace-me",
       "protocol": "openid-connect",
-      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
     },
     {
       "clientId": "web",
@@ -110,7 +144,8 @@
           "manage-users",
           "view-users",
           "query-users",
-          "view-clients"
+          "view-clients",
+          "query-roles"
         ]
       }
     },
@@ -123,9 +158,13 @@
       "firstName": "Hugo",
       "lastName": "Petit",
       "attributes": {
-        "community_id": ["a1000000-0000-4000-8000-000000000001"]
+        "community_id": [
+          "a1000000-0000-4000-8000-000000000001"
+        ]
       },
-      "realmRoles": ["member"],
+      "realmRoles": [
+        "member"
+      ],
       "credentials": [
         {
           "type": "password",
@@ -143,9 +182,13 @@
       "firstName": "Sofia",
       "lastName": "Garcia",
       "attributes": {
-        "community_id": ["a1000000-0000-4000-8000-000000000001"]
+        "community_id": [
+          "a1000000-0000-4000-8000-000000000001"
+        ]
       },
-      "realmRoles": ["manager"],
+      "realmRoles": [
+        "manager"
+      ],
       "credentials": [
         {
           "type": "password",
@@ -163,9 +206,13 @@
       "firstName": "Paul",
       "lastName": "Nguyen",
       "attributes": {
-        "community_id": ["a1000000-0000-4000-8000-000000000001"]
+        "community_id": [
+          "a1000000-0000-4000-8000-000000000001"
+        ]
       },
-      "realmRoles": ["operator"],
+      "realmRoles": [
+        "operator"
+      ],
       "credentials": [
         {
           "type": "password",
@@ -180,12 +227,16 @@
       "enabled": true,
       "email": "lea.martin@example.invalid",
       "emailVerified": true,
-      "firstName": "Léa",
+      "firstName": "L\u00e9a",
       "lastName": "Martin",
       "attributes": {
-        "community_id": ["c0ffee00-1234-4abc-8def-0123456789ab"]
+        "community_id": [
+          "c0ffee00-1234-4abc-8def-0123456789ab"
+        ]
       },
-      "realmRoles": ["member"],
+      "realmRoles": [
+        "member"
+      ],
       "credentials": [
         {
           "type": "password",
@@ -203,9 +254,13 @@
       "firstName": "Thomas",
       "lastName": "Bernard",
       "attributes": {
-        "community_id": ["c0ffee00-1234-4abc-8def-0123456789ab"]
+        "community_id": [
+          "c0ffee00-1234-4abc-8def-0123456789ab"
+        ]
       },
-      "realmRoles": ["member"],
+      "realmRoles": [
+        "member"
+      ],
       "credentials": [
         {
           "type": "password",
@@ -223,9 +278,13 @@
       "firstName": "Claire",
       "lastName": "Dubois",
       "attributes": {
-        "community_id": ["c0ffee00-1234-4abc-8def-0123456789ab"]
+        "community_id": [
+          "c0ffee00-1234-4abc-8def-0123456789ab"
+        ]
       },
-      "realmRoles": ["member"],
+      "realmRoles": [
+        "member"
+      ],
       "credentials": [
         {
           "type": "password",
@@ -243,9 +302,37 @@
       "firstName": "Marie",
       "lastName": "Leroy",
       "attributes": {
-        "community_id": ["c0ffee00-1234-4abc-8def-0123456789ab"]
+        "community_id": [
+          "c0ffee00-1234-4abc-8def-0123456789ab"
+        ]
       },
-      "realmRoles": ["manager"],
+      "realmRoles": [
+        "manager"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "temporary": false,
+          "value": "Intelligent-UAT-2026!"
+        }
+      ]
+    },
+    {
+      "id": "c1a55e01-0005-4000-8000-000000000005",
+      "username": "hugo.moreau",
+      "enabled": true,
+      "email": "hugo.moreau@example.invalid",
+      "emailVerified": true,
+      "firstName": "Hugo",
+      "lastName": "Moreau",
+      "attributes": {
+        "community_id": [
+          "c0ffee00-1234-4abc-8def-0123456789ab"
+        ]
+      },
+      "realmRoles": [
+        "member"
+      ],
       "credentials": [
         {
           "type": "password",

@@ -14,9 +14,11 @@ export const S1_PRODUCER_A_ID = "66666666-7777-4888-9999-aaaaaaaaaaaa";
 export const S1_PRODUCER_B_ID = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
 /** INT-241 — S1 community manager (Start billing run from the portal). */
 export const S1_MANAGER_ID = "dddddddd-eeee-4fff-8000-111111111111";
+/** INT-285 — Invited consumer on Horizon Energy for full onboarding demo. */
+export const S1_INVITED_ID = "e1000000-0000-4000-8000-000000000001";
 
 /**
- * INT-236 / INT-241 — Keycloak user ids for S1 actors (`int-realm.json` /
+ * INT-236 / INT-241 / INT-285 — Keycloak user ids for S1 actors (`int-realm.json` /
  * ensure script). Distinct from participantIds (same pattern as UAT); bound
  * via idpUserId.
  */
@@ -24,6 +26,7 @@ export const S1_CONSUMER_IDP_USER_ID = "c1a55e01-0001-4000-8000-000000000001";
 export const S1_PRODUCER_A_IDP_USER_ID = "c1a55e01-0002-4000-8000-000000000002";
 export const S1_PRODUCER_B_IDP_USER_ID = "c1a55e01-0003-4000-8000-000000000003";
 export const S1_MANAGER_IDP_USER_ID = "c1a55e01-0004-4000-8000-000000000004";
+export const S1_INVITED_IDP_USER_ID = "c1a55e01-0005-4000-8000-000000000005";
 
 export const SEED_TERMS: TermsDocument = {
   termsVersion: "v1.0.0",
@@ -191,6 +194,26 @@ export function seedS1Participants(): ParticipantRecord[] {
       profile: readyProfile("Marie Leroy", "marie.leroy@example.invalid"),
       termsVersionAccepted: SEED_TERMS.termsVersion,
       selfBillingMandate: true,
+      paymentAccountReady: false,
+      paymentBlockReason: null,
+    },
+    // INT-285 — full Get-ready wizard on Horizon Energy; Léa stays TermsAccepted
+    // for the money path (trades → invoices → Pay).
+    {
+      participantId: S1_INVITED_ID,
+      communityId,
+      role: "consumer",
+      status: "Invited",
+      marketActorId: "mkt-hugo-moreau",
+      meterId: "m-hugo-moreau",
+      idpUserId: S1_INVITED_IDP_USER_ID,
+      profile: {
+        name: "Hugo Moreau",
+        address: "",
+        email: "hugo.moreau@example.invalid",
+      },
+      termsVersionAccepted: null,
+      selfBillingMandate: false,
       paymentAccountReady: false,
       paymentBlockReason: null,
     },

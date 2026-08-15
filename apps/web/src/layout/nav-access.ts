@@ -143,7 +143,8 @@ export const NAV_CATALOG: readonly NavItemDef[] = [
   },
   {
     key: "/operator",
-    label: "Operator tools",
+    // INT-285 — short label avoids sider wrap ("Operatortools").
+    label: "Operator desk",
     to: "/operator",
     group: "Ops",
     roles: ["operator"],

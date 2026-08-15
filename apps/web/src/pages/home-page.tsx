@@ -282,7 +282,7 @@ export function HomePage({
       {audience === "operator" && (
         <Card title="Operator focus" size="small">
           <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            Open Operator tools for discrepancies, intake anomalies and job runs.
+            Open Operator desk for discrepancies, intake anomalies and job runs.
             This desk does not replace the member or manager portals.
           </Paragraph>
         </Card>

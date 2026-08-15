@@ -97,7 +97,7 @@ export function homeNextAction(
     return { label: "Start billing run", to: "/billing-runs", primary: true };
   }
   if (audience === "operator") {
-    return { label: "Open operator tools", to: "/operator", primary: true };
+    return { label: "Open operator desk", to: "/operator", primary: true };
   }
   if (audience !== "member") return null;
 

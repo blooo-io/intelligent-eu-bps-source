@@ -4,7 +4,12 @@
  */
 export type IdpCreateUserInput = {
   email: string;
+  /** Billing community UUID — stored as Keycloak attribute `community_id`. */
   communityId: string;
+  /**
+   * Market role from CSV (consumer|producer|prosumer). Kept for the mock /
+   * registry; Keycloak invitees always receive realm role `member`.
+   */
   role: string;
 };
 

@@ -4,6 +4,8 @@ import {
   S1_COMMUNITY_ID,
   S1_CONSUMER_ID,
   S1_CONSUMER_IDP_USER_ID,
+  S1_INVITED_ID,
+  S1_INVITED_IDP_USER_ID,
   S1_MANAGER_ID,
   S1_MANAGER_IDP_USER_ID,
   S1_PRODUCER_A_ID,
@@ -15,7 +17,7 @@ import {
   seedS1Participants,
 } from "./seed.js";
 
-describe("seed (INT-230 / INT-236 / INT-241)", () => {
+describe("seed (INT-230 / INT-236 / INT-241 / INT-285)", () => {
   it("seeds UAT and S1 communities with S1 actor UUIDs", () => {
     const store = new ParticipantsStore();
     expect(store.getCommunity(SEED_COMMUNITY_ID)?.billingMode).toBe("virtual");
@@ -29,7 +31,7 @@ describe("seed (INT-230 / INT-236 / INT-241)", () => {
     expect(store.getParticipant(S1_PRODUCER_B_ID)?.termsVersionAccepted).toBe(
       "v1.0.0",
     );
-    expect(seedS1Participants()).toHaveLength(4);
+    expect(seedS1Participants()).toHaveLength(5);
     expect(seedParticipants().length).toBeGreaterThanOrEqual(7);
   });
 
@@ -46,6 +48,13 @@ describe("seed (INT-230 / INT-236 / INT-241)", () => {
     );
     expect(store.getParticipant(S1_MANAGER_ID)?.idpUserId).toBe(
       S1_MANAGER_IDP_USER_ID,
+    );
+    expect(store.getParticipant(S1_INVITED_ID)?.status).toBe("Invited");
+    expect(store.getParticipant(S1_INVITED_ID)?.idpUserId).toBe(
+      S1_INVITED_IDP_USER_ID,
+    );
+    expect(store.getParticipant(S1_INVITED_ID)?.profile?.name).toBe(
+      "Hugo Moreau",
     );
     expect(store.findByIdpSub(S1_CONSUMER_IDP_USER_ID)?.participantId).toBe(
       S1_CONSUMER_ID,

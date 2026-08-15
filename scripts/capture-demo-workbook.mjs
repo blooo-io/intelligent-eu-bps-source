@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * INT-282 — capture demo workbook screenshots against app.dev.
+ * INT-282 / INT-285 — capture demo workbook screenshots against app.dev.
  *
  * Usage:
  *   E2E_BASE_URL=https://app.dev.intelligent-eu-bp.blooo.dev \
@@ -25,13 +25,16 @@ const password = "Intelligent-UAT-2026!";
 /** @type {Array<{ id: string; user: string; routes: string[] }>} */
 const PERSONAS = [
   {
+    id: "p0-hugo-moreau",
+    user: "hugo.moreau",
+    routes: ["/", "/onboarding", "/profile", "/terms", "/payment-setup"],
+  },
+  {
     id: "p1-lea-martin",
     user: "lea.martin",
     routes: [
       "/",
       "/onboarding",
-      "/profile",
-      "/terms",
       "/payment-setup",
       "/balances",
       "/invoices",
@@ -75,8 +78,34 @@ async function gotoApp(page, route = "/login") {
   });
 }
 
+/** Wait until Ant Design spin is gone and page frame (or login) is visible. */
+async function waitContent(page) {
+  await page.waitForTimeout(400);
+  // Prefer page-frame when authenticated; login page has no frame.
+  const frame = page.getByTestId("page-frame").first();
+  const login = page.getByTestId("login-page").first();
+  try {
+    await Promise.race([
+      frame.waitFor({ state: "visible", timeout: 20_000 }),
+      login.waitFor({ state: "visible", timeout: 20_000 }),
+      page.getByRole("heading").first().waitFor({ state: "visible", timeout: 20_000 }),
+    ]);
+  } catch {
+    /* fall through — still screenshot */
+  }
+  // INT-285 — do not capture mid-fetch spinners (Marie settings / Paul operator).
+  const spin = page.locator(".ant-spin-spinning");
+  try {
+    await spin.first().waitFor({ state: "hidden", timeout: 25_000 });
+  } catch {
+    /* no spinner or stuck — continue */
+  }
+  await page.waitForTimeout(500);
+}
+
 async function login(page, user) {
   await gotoApp(page, "/login");
+  await waitContent(page);
   await page.getByRole("button", { name: /continue with community idp/i }).click();
   await page.locator("#username, input[name='username']").first().waitFor({
     timeout: 30_000,
@@ -91,10 +120,11 @@ async function login(page, user) {
   await page.getByRole("button", { name: /sign out/i }).waitFor({
     timeout: 60_000,
   });
+  await waitContent(page);
 }
 
 async function shot(page, file) {
-  await page.waitForTimeout(600);
+  await waitContent(page);
   await page.screenshot({
     path: path.join(outDir, file),
     fullPage: true,
@@ -107,7 +137,6 @@ async function logout(page) {
     await btn.click();
     await page.waitForTimeout(1000);
   }
-  // Clear storage so the next persona starts clean.
   await page.context().clearCookies();
   await page.goto("about:blank");
 }
@@ -123,7 +152,6 @@ async function main() {
   page.setDefaultTimeout(60_000);
   const manifest = [];
 
-  // Unauthenticated login brand / CTA
   await gotoApp(page, "/login");
   await shot(page, "00-login-brand.png");
   manifest.push({ step: "00", file: "00-login-brand.png", note: "Login CTA" });

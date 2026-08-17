@@ -130,8 +130,9 @@ export const PARTICIPANTS_ADMIN_CLIENT = {
     "view-users",
     "query-users",
     "view-clients",
-    // INT-285 — GET /roles/{name} + realm role-mappings for CSV invite createUser
-    "query-roles",
+    // INT-285 — GET /roles/{name} for CSV invite createUser (Keycloakx has
+    // view-realm; query-roles is not present on this realm-management client).
+    "view-realm",
   ],
 };
 

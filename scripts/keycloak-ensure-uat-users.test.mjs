@@ -76,9 +76,9 @@ test("ensure script packs participants-admin client secret (INT-218)", async () 
   assert.equal(client.serviceAccountsEnabled, true);
   assert.equal(PARTICIPANTS_ADMIN_CLIENT.realmManagementRoles.includes("manage-users"), true);
   assert.equal(
-    PARTICIPANTS_ADMIN_CLIENT.realmManagementRoles.includes("query-roles"),
+    PARTICIPANTS_ADMIN_CLIENT.realmManagementRoles.includes("view-realm"),
     true,
-    "INT-285 CSV invite needs GET /roles/{name}",
+    "INT-285 CSV invite needs GET /roles/{name} via view-realm",
   );
 });
 

@@ -145,7 +145,7 @@
           "view-users",
           "query-users",
           "view-clients",
-          "query-roles"
+          "view-realm"
         ]
       }
     },

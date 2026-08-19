@@ -1,11 +1,40 @@
 {
   "baseUrl": "https://app.dev.intelligent-eu-bp.blooo.dev",
-  "capturedAt": "2026-10-22T06:32:05.575Z",
+  "capturedAt": "2026-10-22T08:35:15.700Z",
   "manifest": [
     {
       "step": "00",
       "file": "00-login-brand.png",
       "note": "Login CTA"
+    },
+    {
+      "step": "p0-hugo-moreau-01",
+      "file": "p0-hugo-moreau-01-home.png",
+      "user": "hugo.moreau"
+    },
+    {
+      "step": "p0-hugo-moreau-02-onboarding.png",
+      "file": "p0-hugo-moreau-02-onboarding.png",
+      "user": "hugo.moreau",
+      "route": "/onboarding"
+    },
+    {
+      "step": "p0-hugo-moreau-03-profile.png",
+      "file": "p0-hugo-moreau-03-profile.png",
+      "user": "hugo.moreau",
+      "route": "/profile"
+    },
+    {
+      "step": "p0-hugo-moreau-04-terms.png",
+      "file": "p0-hugo-moreau-04-terms.png",
+      "user": "hugo.moreau",
+      "route": "/terms"
+    },
+    {
+      "step": "p0-hugo-moreau-05-payment-setup.png",
+      "file": "p0-hugo-moreau-05-payment-setup.png",
+      "user": "hugo.moreau",
+      "route": "/payment-setup"
     },
     {
       "step": "p1-lea-martin-01",
@@ -19,44 +48,32 @@
       "route": "/onboarding"
     },
     {
-      "step": "p1-lea-martin-03-profile.png",
-      "file": "p1-lea-martin-03-profile.png",
-      "user": "lea.martin",
-      "route": "/profile"
-    },
-    {
-      "step": "p1-lea-martin-04-terms.png",
-      "file": "p1-lea-martin-04-terms.png",
-      "user": "lea.martin",
-      "route": "/terms"
-    },
-    {
-      "step": "p1-lea-martin-05-payment-setup.png",
-      "file": "p1-lea-martin-05-payment-setup.png",
+      "step": "p1-lea-martin-03-payment-setup.png",
+      "file": "p1-lea-martin-03-payment-setup.png",
       "user": "lea.martin",
       "route": "/payment-setup"
     },
     {
-      "step": "p1-lea-martin-06-balances.png",
-      "file": "p1-lea-martin-06-balances.png",
+      "step": "p1-lea-martin-04-balances.png",
+      "file": "p1-lea-martin-04-balances.png",
       "user": "lea.martin",
       "route": "/balances"
     },
     {
-      "step": "p1-lea-martin-07-invoices.png",
-      "file": "p1-lea-martin-07-invoices.png",
+      "step": "p1-lea-martin-05-invoices.png",
+      "file": "p1-lea-martin-05-invoices.png",
       "user": "lea.martin",
       "route": "/invoices"
     },
     {
-      "step": "p1-lea-martin-08-privacy.png",
-      "file": "p1-lea-martin-08-privacy.png",
+      "step": "p1-lea-martin-06-privacy.png",
+      "file": "p1-lea-martin-06-privacy.png",
       "user": "lea.martin",
       "route": "/privacy"
     },
     {
-      "step": "p1-lea-martin-09-reports.png",
-      "file": "p1-lea-martin-09-reports.png",
+      "step": "p1-lea-martin-07-reports.png",
+      "file": "p1-lea-martin-07-reports.png",
       "user": "lea.martin",
       "route": "/reports"
     },

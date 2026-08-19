@@ -148,19 +148,19 @@ Ne pas refaire le profil/CGU — ce n’est pas le parcours onboarding.
 | Carte | `4242 4242 4242 4242` |
 | Exp / CVC | `12/34` / `123` |
 
-![Léa — Payment](assets/demo-workbook/p1-lea-martin-05-payment-setup.png)
+![Léa — Payment](assets/demo-workbook/p1-lea-martin-03-payment-setup.png)
 
 - [ ] Payment method ready  
 
 ### 3.5 Balances (empty state possible)
 
-![Léa — Balances](assets/demo-workbook/p1-lea-martin-06-balances.png)
+![Léa — Balances](assets/demo-workbook/p1-lea-martin-04-balances.png)
 
 > Si « No unbilled balances yet » après un run qui a tout facturé → **normal**.
 
 ### 3.6 Factures / PDF / Pay
 
-![Léa — Invoices](assets/demo-workbook/p1-lea-martin-07-invoices.png)
+![Léa — Invoices](assets/demo-workbook/p1-lea-martin-05-invoices.png)
 
 - [ ] Factures Open (après run Marie) ≈ 2,00 € et 2,64 €  
 - [ ] Sans sider si encore non Ready ; avec sider une fois Ready  
@@ -169,11 +169,11 @@ Ne pas refaire le profil/CGU — ce n’est pas le parcours onboarding.
 
 ### 3.7 Privacy
 
-![Léa — Privacy](assets/demo-workbook/p1-lea-martin-08-privacy.png)
+![Léa — Privacy](assets/demo-workbook/p1-lea-martin-06-privacy.png)
 
 ### 3.8 My history
 
-![Léa — Reports](assets/demo-workbook/p1-lea-martin-09-reports.png)
+![Léa — Reports](assets/demo-workbook/p1-lea-martin-07-reports.png)
 
 **Checklist Léa**
 

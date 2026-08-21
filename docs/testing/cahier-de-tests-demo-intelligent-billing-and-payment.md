@@ -7,7 +7,8 @@
 **Communauté démo :** **Horizon Energy**  
 **Tickets :** INT-282 … INT-285  
 
-> Ouvrir en aperçu Markdown (GitHub / IDE) pour voir les captures.
+> Ouvrir en aperçu Markdown (GitHub / IDE) pour voir les captures.  
+> Version imprimable : [`cahier-de-tests-demo-intelligent-billing-and-payment.pdf`](./cahier-de-tests-demo-intelligent-billing-and-payment.pdf).
 
 ---
 

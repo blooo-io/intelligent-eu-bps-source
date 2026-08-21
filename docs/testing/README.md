@@ -4,7 +4,8 @@
 
 **Document principal pour la démo live :**
 
-→ [`cahier-de-tests-demo-intelligent-billing-and-payment.md`](./cahier-de-tests-demo-intelligent-billing-and-payment.md)
+→ [`cahier-de-tests-demo-intelligent-billing-and-payment.md`](./cahier-de-tests-demo-intelligent-billing-and-payment.md)  
+→ PDF : [`cahier-de-tests-demo-intelligent-billing-and-payment.pdf`](./cahier-de-tests-demo-intelligent-billing-and-payment.pdf)
 
 Contient **tous les personas Horizon Energy** (Hugo Moreau onboarding Invited, Léa argent, Thomas/Claire KYC, Marie, Paul), le **parcours C Invite CSV** (REQ-008 / Mailpit), les données à saisir, les cases Pass/Fail, et **tous les écrans en capture** (`assets/demo-workbook/`).
 

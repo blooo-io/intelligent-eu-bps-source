@@ -15,8 +15,9 @@ Hosting: Scaleway Kapsule, region **nl-ams**. Public hosts under `*.intelligent-
 ## GitOps
 
 1. CI on `develop` builds, tests and pushes images to GHCR (`:<sha>` and floating `:develop`).
-2. Argo CD Applications under `deploy/argocd/` sync Helm releases from Git.
-3. Agents must not mutate the cluster ad hoc (INT-157). Investigation: `kubectl get|describe|logs` only.
+2. Quality analysis: workflow `sonarqube` (INT-291) — see [`sonarqube.md`](./sonarqube.md) (`SONAR_TOKEN` required to enforce the gate).
+3. Argo CD Applications under `deploy/argocd/` sync Helm releases from Git.
+4. Agents must not mutate the cluster ad hoc (INT-157). Investigation: `kubectl get|describe|logs` only.
 
 Bootstrap and operator scripts: `deploy/README.md`, `deploy/argocd/README.md`, `node scripts/argocd-bootstrap.mjs --print`.
 

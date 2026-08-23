@@ -78,6 +78,56 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # INT-291 — SonarQube / SonarCloud quality gate (skips until SONAR_TOKEN is set).
+  sonarqube:
+    name: sonarqube
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage reports
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Resolve lcov report paths
+        id: lcov
+        run: node scripts/sonar-lcov-paths.mjs --github
+
+      - name: Skip when SONAR_TOKEN is not configured
+        id: gate
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SONAR_TOKEN secret missing — Sonar scan skipped. See docs/release/sonarqube.md"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: SonarQube Scan
+        if: steps.gate.outputs.configured == 'true'
+        uses: SonarSource/sonarqube-scan-action@v5.3.1
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+        with:
+          args: >
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION || 'blooo-io' }}
+            -Dsonar.javascript.lcov.reportPaths=${{ steps.lcov.outputs.lcov_report_paths }}
+            -Dsonar.qualitygate.wait=true
+
   # INT-135: lint every module chart against the shared module library.
   charts:
     runs-on: ubuntu-latest

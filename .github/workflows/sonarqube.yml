@@ -1,0 +1,51 @@
+# INT-291 — Optional on-demand SonarQube re-analysis (manual).
+# Everyday PR/develop quality gate runs as job `sonarqube` inside `ci.yml`
+# (reuses the coverage artifact — no second full test run).
+name: sonarqube
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  analyze:
+    name: sonarqube
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Produce Vitest lcov coverage
+        run: node scripts/run-tests.mjs
+
+      - name: Resolve lcov report paths
+        id: lcov
+        run: node scripts/sonar-lcov-paths.mjs --github
+
+      - name: Require SONAR_TOKEN
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "::error::SONAR_TOKEN secret missing. See docs/release/sonarqube.md"
+            exit 1
+          fi
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5.3.1
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+        with:
+          args: >
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION || 'blooo-io' }}
+            -Dsonar.javascript.lcov.reportPaths=${{ steps.lcov.outputs.lcov_report_paths }}
+            -Dsonar.qualitygate.wait=true

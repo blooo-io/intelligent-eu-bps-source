@@ -10,3 +10,4 @@ Operator-facing notes for the V1 Billing & Payment Service release package. Arch
 | [RELEASE-NOTES.md](RELEASE-NOTES.md) | INT-95 | What ships, limitations, licence |
 | [PACKAGE-CONSISTENCY.md](PACKAGE-CONSISTENCY.md) | INT-96 | Internal consistency review / approval |
 | [FREEZE.md](FREEZE.md) | INT-97 | Source freeze for partner review |
+| [sonarqube.md](sonarqube.md) | INT-291 | SonarQube / SonarCloud quality gate in CI |

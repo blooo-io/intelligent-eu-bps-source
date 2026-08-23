@@ -54,3 +54,15 @@ test("INT-96 / INT-97 consistency and freeze notes are linked", async () => {
   assert.match(freeze, /v1\.0\.0/);
   assert.match(freeze, /INT-90|INT-91/);
 });
+
+test("INT-291 SonarQube quality note is linked", async () => {
+  const index = await readFile("docs/release/README.md", "utf8");
+  const sonar = await readFile("docs/release/sonarqube.md", "utf8");
+  const deploy = await readFile("docs/release/deployment.md", "utf8");
+
+  assert.match(index, /INT-291/);
+  assert.match(index, /sonarqube\.md/);
+  assert.match(sonar, /SONAR_TOKEN/);
+  assert.match(sonar, /qualitygate\.wait/);
+  assert.match(deploy, /sonarqube\.md/);
+});

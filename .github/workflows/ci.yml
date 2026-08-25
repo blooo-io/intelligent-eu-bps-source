@@ -116,17 +116,15 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: SonarQube Scan
+      - name: SonarQube Scan (CLI)
         if: steps.gate.outputs.configured == 'true'
-        uses: SonarSource/sonarqube-scan-action@v5.3.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}
-        with:
-          args: >
-            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION || 'blooo-io' }}
-            -Dsonar.javascript.lcov.reportPaths=${{ steps.lcov.outputs.lcov_report_paths }}
-            -Dsonar.qualitygate.wait=true
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION || 'blooo-io' }}
+          SONAR_LCOV_REPORT_PATHS: ${{ steps.lcov.outputs.lcov_report_paths }}
+          GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/sonar-scan.mjs
 
   # INT-135: lint every module chart against the shared module library.
   charts:

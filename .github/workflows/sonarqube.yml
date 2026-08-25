@@ -1,6 +1,7 @@
 # INT-291 — Optional on-demand SonarQube re-analysis (manual).
 # Everyday PR/develop quality gate runs as job `sonarqube` inside `ci.yml`
 # (reuses the coverage artifact — no second full test run).
+# Scanner: official SonarScanner CLI via Docker (`scripts/sonar-scan.mjs`).
 name: sonarqube
 
 on:
@@ -39,13 +40,10 @@ jobs:
             exit 1
           fi
 
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v5.3.1
+      - name: SonarQube Scan (CLI)
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}
-        with:
-          args: >
-            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION || 'blooo-io' }}
-            -Dsonar.javascript.lcov.reportPaths=${{ steps.lcov.outputs.lcov_report_paths }}
-            -Dsonar.qualitygate.wait=true
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION || 'blooo-io' }}
+          SONAR_LCOV_REPORT_PATHS: ${{ steps.lcov.outputs.lcov_report_paths }}
+        run: node scripts/sonar-scan.mjs

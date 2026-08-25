@@ -4,12 +4,14 @@ Measures maintainability, reliability, security hotspots and test coverage for t
 
 ## What runs
 
-1. **CI job `sonarqube`** in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) on every pull request and on `develop` — downloads the Vitest coverage artifact from the `test` job (no second full test run), then runs the official scanner.
+1. **CI job `sonarqube`** in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) on every pull request and on `develop` — downloads the Vitest coverage artifact from the `test` job (no second full test run), then runs the **official SonarScanner CLI** in Docker via [`scripts/sonar-scan.mjs`](../../scripts/sonar-scan.mjs).
 2. **Manual re-scan** via [`.github/workflows/sonarqube.yml`](../../.github/workflows/sonarqube.yml) (`workflow_dispatch`) when operators want an on-demand analysis.
 
 Both wait on the Sonar **quality gate** (`sonar.qualitygate.wait=true`) when `SONAR_TOKEN` is set — a failed gate fails the job.
 
 Project descriptor: [`sonar-project.properties`](../../sonar-project.properties).
+
+Scanner image: `sonarsource/sonar-scanner-cli:11.3` (override with `SONAR_SCANNER_IMAGE`).
 
 ## Backend options
 
@@ -39,14 +41,15 @@ Until `SONAR_TOKEN` is set, the workflow **skips the scan** with an explicit not
 
 ## Local dry-run
 
+Requires Docker (same image as CI).
+
 ```bash
 # After tests have written coverage/*/lcov.info:
 node scripts/sonar-lcov-paths.mjs
-# With a local SonarQube or SonarCloud token:
+# With a SonarCloud or SonarQube token:
 export SONAR_TOKEN=...
 export SONAR_HOST_URL=https://sonarcloud.io   # or your server
-npx --yes @sonar/scan \
-  -Dsonar.javascript.lcov.reportPaths="$(node scripts/sonar-lcov-paths.mjs)"
+node scripts/sonar-scan.mjs
 ```
 
 Do not commit tokens. Do not point production analysis at the `dev` IdP secrets.

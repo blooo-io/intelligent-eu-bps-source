@@ -11,6 +11,9 @@
   (dict "name" "app" "host" .Values.hosts.app)
   (dict "name" "docs" "host" .Values.hosts.docs)
 }}
+{{- if .Values.hosts.sonar }}
+{{- $hosts = append $hosts (dict "name" "sonar" "host" .Values.hosts.sonar) }}
+{{- end }}
 {{- range $hosts }}
 apiVersion: cert-manager.io/v1
 kind: Certificate

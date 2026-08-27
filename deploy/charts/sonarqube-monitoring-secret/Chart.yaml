@@ -1,0 +1,7 @@
+# INT-292 — ExternalSecret for SonarQube monitoring passcode (from OpenBao).
+apiVersion: v2
+name: sonarqube-monitoring-secret
+description: ExternalSecret packaging for SonarQube monitoringPasscode
+type: application
+version: 0.1.0
+appVersion: "1"

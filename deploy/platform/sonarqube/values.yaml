@@ -1,0 +1,59 @@
+# SonarQube Community Build — official chart 2026.5.1002 (INT-292).
+# Separate unmodified service (TP-2 exception). No secret values in Git.
+# JDBC credentials: CNPG-managed Secret `sonarqube` (basic-auth).
+# Monitoring passcode: ExternalSecret `sonarqube-monitoring` ← OpenBao platform/sonarqube.
+
+fullnameOverride: platform-sonarqube
+
+community:
+  enabled: true
+  buildNumber: "26.9.0.129388"
+
+replicaCount: 1
+
+# V1 / virtual dev — smaller than chart defaults (still enough for ES + web).
+resources:
+  requests:
+    cpu: 500m
+    memory: 2Gi
+    ephemeral-storage: 2Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+    ephemeral-storage: 8Gi
+
+persistence:
+  enabled: true
+  size: 20Gi
+
+jdbcOverwrite:
+  enabled: true
+  jdbcUrl: "jdbc:postgresql://sonarqube-rw.sonarqube.svc.cluster.local:5432/sonarqube"
+  jdbcUsername: sonarqube
+  jdbcSecretName: sonarqube
+  jdbcSecretPasswordKey: password
+
+monitoringPasscodeSecretName: sonarqube-monitoring
+monitoringPasscodeSecretKey: monitoring_passcode
+
+# Chart helm tests are not part of Argo sync.
+tests:
+  enabled: false
+
+# Public UI/API via APISIX host sonar.intelligent-eu-bp.blooo.dev (INT-292).
+# Ingress stays off — APISIX ExternalName + ApisixRoute owns the edge.
+ingress:
+  enabled: false
+
+service:
+  type: ClusterIP
+  externalPort: 9000
+  internalPort: 9000
+
+# Agents / MCP stay off for V1 quality gate only.
+agentOrchestrator:
+  enabled: false
+hunterAgent:
+  enabled: false
+remediationAgent:
+  enabled: false

@@ -1,0 +1,5 @@
+# Path under OpenBao KV mount `secret/` (no values here).
+storeName: openbao
+secretName: sonarqube-monitoring
+openbaoPath: platform/sonarqube
+openbaoProperty: monitoring_passcode

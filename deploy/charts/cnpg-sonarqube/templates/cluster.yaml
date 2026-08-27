@@ -1,0 +1,77 @@
+{{- /*
+  INT-292 — SonarQube DB. Role password via ESO Password generator (create once).
+*/ -}}
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: Password
+metadata:
+  name: {{ .Values.clusterName }}-db-password
+  labels:
+    app.kubernetes.io/name: cnpg-sonarqube
+spec:
+  length: 32
+  # ESO Password CRD expects integer counts, not booleans (INT-163).
+  digits: 5
+  symbols: 0
+  allowRepeat: true
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .Values.database.owner }}-db
+  labels:
+    app.kubernetes.io/name: cnpg-sonarqube
+spec:
+  refreshInterval: "0"
+  target:
+    name: {{ .Values.database.owner }}
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      engineVersion: v2
+      data:
+        username: {{ .Values.database.owner | quote }}
+        password: "{{ `{{ .password }}` }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: Password
+          name: {{ .Values.clusterName }}-db-password
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.clusterName }}
+  labels:
+    app.kubernetes.io/name: cnpg-sonarqube
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: quality-database
+spec:
+  instances: {{ .Values.instances }}
+  imageName: {{ .Values.imageName | quote }}
+  storage:
+    size: {{ .Values.storage.size | quote }}
+  enableSuperuserAccess: false
+  managed:
+    roles:
+      - name: {{ .Values.database.owner }}
+        ensure: present
+        login: true
+        comment: "SonarQube database owner (INT-292)"
+        passwordSecret:
+          name: {{ .Values.database.owner }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ .Values.database.name }}
+  labels:
+    app.kubernetes.io/name: cnpg-sonarqube
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: quality-database
+spec:
+  name: {{ .Values.database.name }}
+  owner: {{ .Values.database.owner }}
+  ensure: present
+  cluster:
+    name: {{ .Values.clusterName }}

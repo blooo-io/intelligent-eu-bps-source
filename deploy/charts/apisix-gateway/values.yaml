@@ -9,6 +9,8 @@ hosts:
   app: app.dev.intelligent-eu-bp.blooo.dev
   # INT-244 / physical §3 — Redocly public OpenAPI + integrator landing.
   docs: docs.intelligent-eu-bp.blooo.dev
+  # INT-292 / physical §4 — SonarQube Community Build (CI quality gate + UI).
+  sonar: sonar.intelligent-eu-bp.blooo.dev
 
 # INT-187 — browser SPA on the app host calls the api host (TD-8 CORS).
 # Comma-separated origins; must be explicit when allow_credential is true.
@@ -39,6 +41,10 @@ backends:
   keycloak:
     externalName: platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
     port: 80
+  # INT-292 — SonarQube Community Build (token auth for scanner; UI login).
+  sonarqube:
+    externalName: platform-sonarqube.sonarqube.svc.cluster.local
+    port: 9000
   modules:
     - name: participants
       port: 8080

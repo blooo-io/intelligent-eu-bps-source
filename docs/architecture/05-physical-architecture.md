@@ -114,6 +114,7 @@ Base domain: **`intelligent-eu-bp.blooo.dev`**. In the table, `<env>` is `int` o
 | `api.<env>.intelligent-eu-bp.blooo.dev/webhooks/payment-provider` | AC-07 | Only unauthenticated route: Stripe signature verified, rate-limited. Registered as the webhook endpoint in each Stripe test account |
 | `auth.intelligent-eu-bp.blooo.dev` | Keycloak (realms `int`, `demo`) | Login pages and OIDC endpoints |
 | `docs.intelligent-eu-bp.blooo.dev` | Redocly API documentation, Prism mock for R2M | Public contract (D5.5 is PU) |
+| `sonar.intelligent-eu-bp.blooo.dev` | SonarQube Community Build (INT-292) | CI quality gate + UI; Sonar token/login (not Keycloak OIDC) |
 | `ops.intelligent-eu-bp.blooo.dev` | Argo CD, Perses, Jaeger (via APISIX) | Keycloak login, Blooo operators only |
 
 DNS: in the `blooo.dev` zone, the records of `*.intelligent-eu-bp.blooo.dev` point to the Scaleway load balancer of the cluster. cert-manager issues one Let's Encrypt certificate per host (HTTP-01 challenge). A wildcard certificate (DNS-01) is possible later if the DNS provider of `blooo.dev` offers an API.

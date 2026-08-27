@@ -124,6 +124,40 @@ KUBECONFIG=… node scripts/openbao-seed-stripe-test.mjs --apply
 
 5. `ClusterIssuer` for Let's Encrypt (public hosts) lands when DNS + APISIX exist; cert-manager itself is enough for INT-133 packaging.
 
+## Quality — SonarQube Community Build (INT-292 / TP-2 exception)
+
+Official SonarSource Helm chart (not vendored). Values only in Git; no secret values. Same packaging rule as OpenBao: **separate unmodified service**.
+
+| Piece | Upstream / chart (pinned) | Namespace | Argo Application | Sync wave |
+|---|---|---|---|---|
+| SonarQube DB (CNPG) | local `deploy/charts/cnpg-sonarqube` | `sonarqube` | `platform-cnpg-sonarqube` | 1 |
+| Monitoring passcode ExternalSecret | local `deploy/charts/sonarqube-monitoring-secret` | `sonarqube` | `platform-sonarqube-monitoring-secret` | 2 |
+| SonarQube Community Build | `sonarqube` **2026.5.1002** (`community.enabled=true`) | `sonarqube` | `platform-sonarqube` | 2 |
+
+Values: `deploy/platform/sonarqube/values.yaml`. JDBC → CNPG `sonarqube-rw.sonarqube.svc.cluster.local` with role Secret `sonarqube`. `monitoringPasscode` from OpenBao path `platform/sonarqube` (seed placeholder `monitoring_passcode=dev-only-replace-me`). Public host `sonar.intelligent-eu-bp.blooo.dev` via APISIX (ExternalName + ApisixRoute; TLS when DNS points at the LB).
+
+### Operator steps after Argo sync (not in Git)
+
+1. Ensure OpenBao placeholder exists (re-run seed if needed):
+
+```bash
+KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
+```
+
+2. Register platform Applications (INT-155):
+
+```bash
+kubectl apply -f deploy/argocd/platform/
+```
+
+3. Wait until `platform-sonarqube` pods are Ready. First boot prints the admin credentials in the SonarQube pod log (change the admin password immediately).
+
+4. In the UI: create project key `blooo-io_intelligent-eu-billing-and-payment`, create a project analysis token, add GitHub Actions secret `SONAR_TOKEN`, and set variable `SONAR_HOST_URL=https://sonar.intelligent-eu-bp.blooo.dev` (see `docs/release/sonarqube.md`).
+
+5. DNS: add `sonar.intelligent-eu-bp.blooo.dev` → APISIX LoadBalancer (same as other public hosts) so cert-manager can issue TLS.
+
+Do not `helm install` SonarQube by hand outside Argo (INT-157).
+
 ## Observability (TD-10 / INT-134)
 
 100 % Apache-2.0 stack. **Grafana is not packaged** (AGPL — TD-10). Namespace: `observability` (physical § namespaces).

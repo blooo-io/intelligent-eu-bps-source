@@ -258,3 +258,27 @@ spec:
       backends:
         - serviceName: docs-portal
           servicePort: 8080
+---
+{{- if .Values.hosts.sonar }}
+# INT-292 — SonarQube Community Build (scanner token + UI login; not Keycloak OIDC).
+apiVersion: apisix.apache.org/v2
+kind: ApisixRoute
+metadata:
+  name: sonarqube
+  labels:
+    app.kubernetes.io/name: apisix-gateway
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+spec:
+  ingressClassName: {{ .Values.ingressClassName | quote }}
+  http:
+    - name: sonar
+      priority: 10
+      match:
+        hosts:
+          - {{ .Values.hosts.sonar | quote }}
+        paths:
+          - /*
+      backends:
+        - serviceName: sonarqube
+          servicePort: {{ .Values.backends.sonarqube.port }}
+{{- end }}

@@ -19,6 +19,7 @@ test("dev placeholder paths cover modules, debezium, nats, keycloak and apisix (
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("platform/nats/accounts"));
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("platform/keycloak"));
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("platform/apisix"));
+  assert.ok(DEV_PLACEHOLDER_PATHS.includes("platform/sonarqube"));
   assert.equal(
     DEV_PLACEHOLDER_PATHS.some((p) => /sk_live|sk_test|whsec_/.test(p)),
     false,

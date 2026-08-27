@@ -38,3 +38,22 @@ spec:
       port: {{ .Values.backends.keycloak.port }}
       targetPort: {{ .Values.backends.keycloak.port }}
       protocol: TCP
+---
+{{- if .Values.backends.sonarqube }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarqube
+  labels:
+    app.kubernetes.io/name: apisix-gateway
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: gateway-backend
+spec:
+  type: ExternalName
+  externalName: {{ .Values.backends.sonarqube.externalName | quote }}
+  ports:
+    - name: http
+      port: {{ .Values.backends.sonarqube.port }}
+      targetPort: {{ .Values.backends.sonarqube.port }}
+      protocol: TCP
+{{- end }}

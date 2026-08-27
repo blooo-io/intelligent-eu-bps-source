@@ -44,6 +44,8 @@ export const DEV_PLACEHOLDER_PATHS = [
   "platform/keycloak",
   // INT-161 — APISIX Admin API keys (properties `admin` / `viewer`; V1 placeholders only).
   "platform/apisix",
+  // INT-292 — SonarQube monitoringPasscode (property `monitoring_passcode`; V1 placeholder only).
+  "platform/sonarqube",
 ];
 
 /** Extra kv pairs per path (default is seeded=true only). Never real Stripe/live secrets. */
@@ -54,6 +56,10 @@ export const DEV_PLACEHOLDER_FIELDS = {
     "viewer=dev-only-replace-me",
     // INT-169 — satisfies APISIX openid-connect schema; match Keycloak client secret.
     "oidc_client_secret=dev-only-replace-me",
+    "seeded=true",
+  ],
+  "platform/sonarqube": [
+    "monitoring_passcode=dev-only-replace-me",
     "seeded=true",
   ],
 };

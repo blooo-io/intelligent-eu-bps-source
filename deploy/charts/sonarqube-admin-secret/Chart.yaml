@@ -1,0 +1,7 @@
+# INT-293 — ExternalSecret for SonarQube admin password (from OpenBao).
+apiVersion: v2
+name: sonarqube-admin-secret
+description: ExternalSecret packaging for SonarQube admin password
+type: application
+version: 0.1.0
+appVersion: "1"

@@ -20,6 +20,13 @@ test("SonarQube Argo apps land in sonarqube with sync waves (INT-292)", async ()
   assert.match(mon, /sync-wave: "2"/);
   assert.match(mon, /path: deploy\/charts\/sonarqube-monitoring-secret/);
 
+  const admin = await readFile(
+    "deploy/argocd/platform/sonarqube-admin-secret.yaml",
+    "utf8",
+  );
+  assert.match(admin, /sync-wave: "2"/);
+  assert.match(admin, /path: deploy\/charts\/sonarqube-admin-secret/);
+
   const sq = await readFile("deploy/argocd/platform/sonarqube.yaml", "utf8");
   assert.match(sq, /sync-wave: "2"/);
   assert.match(sq, /chart: sonarqube/);

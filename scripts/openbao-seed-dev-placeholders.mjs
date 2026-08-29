@@ -60,6 +60,8 @@ export const DEV_PLACEHOLDER_FIELDS = {
   ],
   "platform/sonarqube": [
     "monitoring_passcode=dev-only-replace-me",
+    // INT-293 — replaced by sonarqube-bootstrap.mjs with a generated password on --apply.
+    "admin_password=dev-only-replace-me",
     "seeded=true",
   ],
 };

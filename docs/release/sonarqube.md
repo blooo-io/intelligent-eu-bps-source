@@ -1,4 +1,4 @@
-# SonarQube quality pipeline (INT-291 / INT-292)
+# SonarQube quality pipeline (INT-291 / INT-292 / INT-293)
 
 Measures maintainability, reliability, security hotspots and test coverage for the billing monorepo. Complements the existing 80% Vitest gate (`config/coverage-thresholds.json`) with a Sonar quality gate.
 
@@ -23,40 +23,46 @@ Preferred for this project: **self-hosted SonarQube Community Build** on `k8s-in
 | Official Helm chart | `sonarqube` **2026.5.1002**, `community.enabled=true` → Argo `platform-sonarqube` |
 | Values | `deploy/platform/sonarqube/values.yaml` |
 | Public URL | `https://sonar.intelligent-eu-bp.blooo.dev` (APISIX) |
+| Bootstrap | [`scripts/sonarqube-bootstrap.mjs`](../../scripts/sonarqube-bootstrap.mjs) (INT-293) |
 
 Operator packaging notes: [`deploy/platform/README.md`](../../deploy/platform/README.md) (Quality section).
-
-SonarCloud remains a possible alternative if the cluster backend is unavailable.
 
 ## Secrets and variables (GitHub)
 
 | Name | Type | Required | Purpose |
 |---|---|---|---|
-| `SONAR_TOKEN` | Actions secret | **yes** to enable the job | SonarQube project analysis token (or SonarCloud token) |
-| `SONAR_HOST_URL` | Actions variable | **yes** for cluster Sonar | `https://sonar.intelligent-eu-bp.blooo.dev` (defaults to SonarCloud if unset) |
-| `SONAR_ORGANIZATION` | Actions variable | SonarCloud only | Defaults to `blooo-io`; unused by self-hosted Community Build |
+| `SONAR_TOKEN` | Actions secret | **yes** to enable the job | Project analysis token from OpenBao `platform/sonarqube` field `analysis_token` |
+| `SONAR_HOST_URL` | Actions variable | **yes** for cluster Sonar | `https://sonar.intelligent-eu-bp.blooo.dev` |
+| `SONAR_ORGANIZATION` | Actions variable | SonarCloud only | Unused by self-hosted Community Build |
 
-Until `SONAR_TOKEN` is set, the workflow **skips the scan** with an explicit notice (CI stays green). After the token is configured, the quality gate is enforced.
+Until `SONAR_TOKEN` is set, the workflow **skips the scan** with an explicit notice (CI stays green).
 
-### Cluster Sonar setup (operators)
+### Cluster bootstrap (operators) — INT-293
 
-1. Sync Argo apps (`platform-cnpg-sonarqube`, `platform-sonarqube-monitoring-secret`, `platform-sonarqube`) from `develop`.
-2. Seed OpenBao placeholder `platform/sonarqube` (`monitoring_passcode`) via `openbao-seed-dev-placeholders.mjs --apply` if missing.
-3. Point DNS `sonar.intelligent-eu-bp.blooo.dev` at the APISIX LoadBalancer; wait for Certificate Ready.
-4. Open the UI, change the default admin password from the first-boot log.
-5. Create project key `blooo-io_intelligent-eu-billing-and-payment` and an analysis token.
-6. Add repository secret `SONAR_TOKEN` and variable `SONAR_HOST_URL=https://sonar.intelligent-eu-bp.blooo.dev`.
-7. Re-run the `sonarqube` workflow (or push to `develop`) and open the project dashboard.
+After Argo sync + DNS/TLS:
+
+```bash
+KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply   # if needed
+KUBECONFIG=… node scripts/sonarqube-bootstrap.mjs --apply
+```
+
+The bootstrap script (idempotent):
+
+1. Generates / stores `admin_password` in OpenBao (replaces default `admin`/`admin`)
+2. Ensures project key `blooo-io_intelligent-eu-billing-and-payment`
+3. Ensures analysis token named `ci-intelligent-eu` and stores `analysis_token` in OpenBao
+4. Prints `gh` commands to set GitHub `SONAR_HOST_URL` + `SONAR_TOKEN`
+
+Cloud-agent GitHub tokens typically **cannot** write repository secrets (HTTP 403). An operator with repo admin runs the printed `gh secret set` / `gh variable set` once. Do not put tokens in Git.
 
 ## Local dry-run
 
 Requires Docker (same image as CI).
 
 ```bash
-# After tests have written coverage/*/lcov.info:
 node scripts/sonar-lcov-paths.mjs
-export SONAR_TOKEN=...
 export SONAR_HOST_URL=https://sonar.intelligent-eu-bp.blooo.dev
+export SONAR_TOKEN="$(… from OpenBao analysis_token …)"
 node scripts/sonar-scan.mjs
 ```
 

@@ -132,13 +132,14 @@ Official SonarSource Helm chart (not vendored). Values only in Git; no secret va
 |---|---|---|---|---|
 | SonarQube DB (CNPG) | local `deploy/charts/cnpg-sonarqube` | `sonarqube` | `platform-cnpg-sonarqube` | 1 |
 | Monitoring passcode ExternalSecret | local `deploy/charts/sonarqube-monitoring-secret` | `sonarqube` | `platform-sonarqube-monitoring-secret` | 2 |
+| Admin password ExternalSecret | local `deploy/charts/sonarqube-admin-secret` | `sonarqube` | `platform-sonarqube-admin-secret` | 2 |
 | SonarQube Community Build | `sonarqube` **2026.5.1002** (`community.enabled=true`) | `sonarqube` | `platform-sonarqube` | 2 |
 
-Values: `deploy/platform/sonarqube/values.yaml`. JDBC → CNPG `sonarqube-rw.sonarqube.svc.cluster.local` with role Secret `sonarqube`. `monitoringPasscode` from OpenBao path `platform/sonarqube` (seed placeholder `monitoring_passcode=dev-only-replace-me`). Public host `sonar.intelligent-eu-bp.blooo.dev` via APISIX (ExternalName + ApisixRoute; TLS when DNS points at the LB).
+Values: `deploy/platform/sonarqube/values.yaml`. JDBC → CNPG `sonarqube-rw.sonarqube.svc.cluster.local` with role Secret `sonarqube`. OpenBao path `platform/sonarqube` holds `monitoring_passcode`, `admin_password`, and (after bootstrap) `analysis_token`. Public host `sonar.intelligent-eu-bp.blooo.dev` via APISIX.
 
 ### Operator steps after Argo sync (not in Git)
 
-1. Ensure OpenBao placeholder exists (re-run seed if needed):
+1. Ensure OpenBao placeholders exist:
 
 ```bash
 KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
@@ -150,11 +151,17 @@ KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
 kubectl apply -f deploy/argocd/platform/
 ```
 
-3. Wait until `platform-sonarqube` pods are Ready. First boot prints the admin credentials in the SonarQube pod log (change the admin password immediately).
+3. Wait until `platform-sonarqube` is Healthy. DNS `sonar.intelligent-eu-bp.blooo.dev` → APISIX LoadBalancer (TLS via cert-manager).
 
-4. In the UI: create project key `blooo-io_intelligent-eu-billing-and-payment`, create a project analysis token, add GitHub Actions secret `SONAR_TOKEN`, and set variable `SONAR_HOST_URL=https://sonar.intelligent-eu-bp.blooo.dev` (see `docs/release/sonarqube.md`).
+4. **Bootstrap** admin password, project, and CI analysis token (INT-293) — replaces manual UI setup:
 
-5. DNS: add `sonar.intelligent-eu-bp.blooo.dev` → APISIX LoadBalancer (same as other public hosts) so cert-manager can issue TLS.
+```bash
+KUBECONFIG=… node scripts/sonarqube-bootstrap.mjs --apply
+```
+
+   Writes generated `admin_password` + `analysis_token` into OpenBao `platform/sonarqube` (never into Git). Prints `gh secret set` / `gh variable set` one-liners for GitHub Actions (`SONAR_TOKEN`, `SONAR_HOST_URL`). Agent GitHub tokens often lack secret-write permission — an operator with repo admin must run those two `gh` commands once.
+
+5. Admin UI login: user `admin`, password from OpenBao (`bao kv get -mount=secret -field=admin_password platform/sonarqube`) or Secret `sonarqube-admin`.
 
 Do not `helm install` SonarQube by hand outside Argo (INT-157).
 

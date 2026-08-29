@@ -1,0 +1,4 @@
+storeName: openbao
+secretName: sonarqube-admin
+openbaoPath: platform/sonarqube
+openbaoProperty: admin_password

@@ -6,6 +6,7 @@ import {
   DEFAULT_SCANNER_IMAGE,
   buildDockerArgs,
   buildScannerArgs,
+  isSonarCloudHost,
 } from "./sonar-scan.mjs";
 
 // INT-291 — SonarQube quality pipeline packaging (Scanner CLI via Docker).
@@ -47,10 +48,15 @@ test("manual sonarqube workflow_dispatch uses Scanner CLI", async () => {
   assert.doesNotMatch(text, /SonarSource\/sonarqube-scan-action/);
 });
 
-test("buildScannerArgs sets quality gate and PR decoration", () => {
+test("isSonarCloudHost detects SonarCloud only", () => {
+  assert.equal(isSonarCloudHost("https://sonarcloud.io"), true);
+  assert.equal(isSonarCloudHost("https://sonar.intelligent-eu-bp.blooo.dev"), false);
+});
+
+test("buildScannerArgs sets PR decoration on SonarCloud", () => {
   const args = buildScannerArgs(
     {
-      SONAR_HOST_URL: "https://sonar.example",
+      SONAR_HOST_URL: "https://sonarcloud.io",
       SONAR_ORGANIZATION: "acme",
       GITHUB_EVENT_NAME: "pull_request",
       GITHUB_EVENT_PULL_REQUEST_NUMBER: "42",
@@ -60,7 +66,7 @@ test("buildScannerArgs sets quality gate and PR decoration", () => {
     },
     "services/payments/coverage/lcov.info",
   );
-  assert.ok(args.includes("-Dsonar.host.url=https://sonar.example"));
+  assert.ok(args.includes("-Dsonar.host.url=https://sonarcloud.io"));
   assert.ok(args.includes("-Dsonar.organization=acme"));
   assert.ok(args.includes("-Dsonar.qualitygate.wait=true"));
   assert.ok(
@@ -79,8 +85,28 @@ test("buildScannerArgs sets quality gate and PR decoration", () => {
   );
 });
 
-test("buildScannerArgs sets branch name on push", () => {
+test("buildScannerArgs omits PR/branch props for Community Build host", () => {
+  const args = buildScannerArgs(
+    {
+      SONAR_HOST_URL: "https://sonar.intelligent-eu-bp.blooo.dev",
+      GITHUB_EVENT_NAME: "pull_request",
+      GITHUB_EVENT_PULL_REQUEST_NUMBER: "199",
+      GITHUB_HEAD_REF: "feature/x",
+      GITHUB_BASE_REF: "develop",
+      GITHUB_REPOSITORY: "blooo-io/intelligent-eu-billing-and-payment",
+    },
+    "services/payments/coverage/lcov.info",
+  );
+  assert.ok(args.includes("-Dsonar.host.url=https://sonar.intelligent-eu-bp.blooo.dev"));
+  assert.ok(args.includes("-Dsonar.qualitygate.wait=true"));
+  assert.equal(args.some((a) => a.startsWith("-Dsonar.organization=")), false);
+  assert.equal(args.some((a) => a.startsWith("-Dsonar.pullrequest.")), false);
+  assert.equal(args.some((a) => a.startsWith("-Dsonar.branch.")), false);
+});
+
+test("buildScannerArgs sets branch name on SonarCloud push", () => {
   const args = buildScannerArgs({
+    SONAR_HOST_URL: "https://sonarcloud.io",
     GITHUB_EVENT_NAME: "push",
     GITHUB_REF_NAME: "develop",
   });

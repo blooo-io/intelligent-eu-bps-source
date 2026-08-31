@@ -37,6 +37,8 @@ Operator packaging notes: [`deploy/platform/README.md`](../../deploy/platform/RE
 
 Until `SONAR_TOKEN` is set, the workflow **skips the scan** with an explicit notice (CI stays green).
 
+**Community Build note:** self-hosted Community does **not** support pull-request or multi-branch decoration (`sonar.pullrequest.*` / `sonar.branch.name` require Developer Edition+). CI therefore analyses the checked-out tree as the project main branch against `https://sonar.intelligent-eu-bp.blooo.dev`. SonarCloud hosts still get PR decoration when `SONAR_HOST_URL` points at `sonarcloud.io`.
+
 ### Cluster bootstrap (operators) — INT-293
 
 After Argo sync + DNS/TLS:

@@ -20,30 +20,49 @@ import { collectLcovPaths } from "./sonar-lcov-paths.mjs";
 
 export const DEFAULT_SCANNER_IMAGE = "sonarsource/sonar-scanner-cli:11.3";
 
+/** SonarCloud (and commercial Server) support PR/branch decoration; Community Build does not. */
+export function isSonarCloudHost(host = "") {
+  try {
+    const { hostname } = new URL(host);
+    return hostname === "sonarcloud.io" || hostname.endsWith(".sonarcloud.io");
+  } catch {
+    return false;
+  }
+}
+
 export function buildScannerArgs(env = process.env, lcovPaths = "") {
   const host = env.SONAR_HOST_URL || "https://sonarcloud.io";
   const org = env.SONAR_ORGANIZATION || "blooo-io";
+  const cloud = isSonarCloudHost(host);
   const args = [
     `-Dsonar.host.url=${host}`,
-    `-Dsonar.organization=${org}`,
     `-Dsonar.qualitygate.wait=true`,
   ];
+  // organization is a SonarCloud concept; omit for self-hosted Community (INT-292).
+  if (cloud) {
+    args.push(`-Dsonar.organization=${org}`);
+  }
   if (lcovPaths) {
     args.push(`-Dsonar.javascript.lcov.reportPaths=${lcovPaths}`);
   }
-  if (env.GITHUB_EVENT_NAME === "pull_request") {
-    const key =
-      env.GITHUB_EVENT_PULL_REQUEST_NUMBER || env.SONAR_PULLREQUEST_KEY;
-    const branch = env.GITHUB_HEAD_REF || env.SONAR_PULLREQUEST_BRANCH;
-    const base = env.GITHUB_BASE_REF || env.SONAR_PULLREQUEST_BASE;
-    const repo = env.GITHUB_REPOSITORY || env.SONAR_PULLREQUEST_GITHUB_REPOSITORY;
-    if (key) args.push(`-Dsonar.pullrequest.key=${key}`);
-    if (branch) args.push(`-Dsonar.pullrequest.branch=${branch}`);
-    if (base) args.push(`-Dsonar.pullrequest.base=${base}`);
-    args.push("-Dsonar.pullrequest.provider=github");
-    if (repo) args.push(`-Dsonar.pullrequest.github.repository=${repo}`);
-  } else if (env.GITHUB_REF_NAME) {
-    args.push(`-Dsonar.branch.name=${env.GITHUB_REF_NAME}`);
+  // INT-293 follow-up: Community Build rejects sonar.pullrequest.* and sonar.branch.name
+  // (Developer Edition+). Analyze the checked-out tree as the project main branch instead.
+  if (cloud) {
+    if (env.GITHUB_EVENT_NAME === "pull_request") {
+      const key =
+        env.GITHUB_EVENT_PULL_REQUEST_NUMBER || env.SONAR_PULLREQUEST_KEY;
+      const branch = env.GITHUB_HEAD_REF || env.SONAR_PULLREQUEST_BRANCH;
+      const base = env.GITHUB_BASE_REF || env.SONAR_PULLREQUEST_BASE;
+      const repo =
+        env.GITHUB_REPOSITORY || env.SONAR_PULLREQUEST_GITHUB_REPOSITORY;
+      if (key) args.push(`-Dsonar.pullrequest.key=${key}`);
+      if (branch) args.push(`-Dsonar.pullrequest.branch=${branch}`);
+      if (base) args.push(`-Dsonar.pullrequest.base=${base}`);
+      args.push("-Dsonar.pullrequest.provider=github");
+      if (repo) args.push(`-Dsonar.pullrequest.github.repository=${repo}`);
+    } else if (env.GITHUB_REF_NAME) {
+      args.push(`-Dsonar.branch.name=${env.GITHUB_REF_NAME}`);
+    }
   }
   return args;
 }

@@ -103,7 +103,7 @@ for (const pkg of packages) {
   if (hasSource) {
     commands.push([pkg, "test:coverage"]);
   }
-  for (const script of Object.keys(pkg.scripts).sort()) {
+  for (const script of Object.keys(pkg.scripts).sort((a, b) => a.localeCompare(b))) {
     if (script !== "test" && !script.startsWith("test:")) continue;
     if (isSkippedTestScript(script)) continue;
     if (script === "test" && pkg.scripts["test:coverage"]) continue;
@@ -163,7 +163,7 @@ async function discoverPackages(globs) {
   }
 
   const packages = [];
-  for (const directory of [...directories].sort()) {
+  for (const directory of [...directories].sort((a, b) => a.localeCompare(b))) {
     const manifestPath = path.join(directory, "package.json");
     if (!(await exists(manifestPath))) continue;
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));

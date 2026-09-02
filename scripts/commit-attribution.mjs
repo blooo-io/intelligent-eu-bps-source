@@ -2,6 +2,7 @@
 // Keep commit authorship with the people who own the change.
 import { execFileSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
+import { operatorEnv } from "./lib/operator-env.mjs";
 
 const ASSISTANT_TRAILER =
   /^Co-authored-by:\s*Cursor\s*<cursoragent@cursor\.com>\s*$/i;
@@ -33,7 +34,7 @@ export function textCreditsAssistant(text) {
 }
 
 function git(args) {
-  return execFileSync("git", args, { encoding: "utf8" });
+  return execFileSync("git", args, { encoding: "utf8", env: operatorEnv() });
 }
 
 function commitsAfter(base) {

@@ -124,7 +124,7 @@ KUBECONFIG=… node scripts/openbao-seed-stripe-test.mjs --apply
 
 5. `ClusterIssuer` for Let's Encrypt (public hosts) lands when DNS + APISIX exist; cert-manager itself is enough for INT-133 packaging.
 
-## Quality — SonarQube Community Build (INT-292 / TP-2 exception)
+## Quality — SonarQube Community Build (INT-292 / INT-294 / TP-2 exception)
 
 Official SonarSource Helm chart (not vendored). Values only in Git; no secret values. Same packaging rule as OpenBao: **separate unmodified service**.
 
@@ -153,13 +153,15 @@ kubectl apply -f deploy/argocd/platform/
 
 3. Wait until `platform-sonarqube` is Healthy. DNS `sonar.intelligent-eu-bp.blooo.dev` → APISIX LoadBalancer (TLS via cert-manager).
 
-4. **Bootstrap** admin password, project, and CI analysis token (INT-293) — replaces manual UI setup:
+4. **Bootstrap** admin password, project, CI analysis token (INT-293), and quality gate **Intelligent V1** (INT-294) — replaces manual UI setup:
 
 ```bash
 KUBECONFIG=… node scripts/sonarqube-bootstrap.mjs --apply
+# Or only the gate:
+KUBECONFIG=… node scripts/sonarqube-quality-gate.mjs --apply
 ```
 
-   Writes generated `admin_password` + `analysis_token` into OpenBao `platform/sonarqube` (never into Git). Prints `gh secret set` / `gh variable set` one-liners for GitHub Actions (`SONAR_TOKEN`, `SONAR_HOST_URL`). Agent GitHub tokens often lack secret-write permission — an operator with repo admin must run those two `gh` commands once.
+   Writes generated `admin_password` + `analysis_token` into OpenBao `platform/sonarqube` (never into Git). Selects quality gate **Intelligent V1** (overall Security / Reliability / Maintainability rating A, coverage ≥ 80%, duplication ≤ 10%, plus Sonar way on new code). Prints `gh secret set` / `gh variable set` one-liners for GitHub Actions (`SONAR_TOKEN`, `SONAR_HOST_URL`). Agent GitHub tokens often lack secret-write permission — an operator with repo admin must run those two `gh` commands once.
 
 5. Admin UI login: user `admin`, password from OpenBao (`bao kv get -mount=secret -field=admin_password platform/sonarqube`) or Secret `sonarqube-admin`.
 

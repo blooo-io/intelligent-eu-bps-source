@@ -11,7 +11,8 @@
  *   3. Replace default `admin`/`admin` with OpenBao admin password when still default
  *   4. Ensure project `blooo-io_intelligent-eu-billing-and-payment`
  *   5. Ensure project analysis token `ci-intelligent-eu`; store value in OpenBao `analysis_token`
- *   6. Print one-liner to sync GitHub Actions `SONAR_TOKEN` / `SONAR_HOST_URL`
+ *   6. Ensure quality gate "Intelligent V1" (rating A overall + 80% coverage) — INT-294
+ *   7. Print one-liner to sync GitHub Actions `SONAR_TOKEN` / `SONAR_HOST_URL`
  *      (this agent token cannot write GitHub secrets — 403)
  *
  * Optional:
@@ -25,6 +26,7 @@ import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { operatorEnv } from "./lib/operator-env.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OPENBAO_NS = "openbao";
@@ -42,7 +44,7 @@ export const DEFAULT_ADMIN_PASSWORD = "admin";
 function kubectl(args) {
   const result = spawnSync("kubectl", args, {
     encoding: "utf8",
-    env: process.env,
+    env: operatorEnv(),
     maxBuffer: 10 * 1024 * 1024,
   });
   if (result.status !== 0) {
@@ -369,6 +371,10 @@ export async function applyBootstrap({
     writeKvMerge(token, { analysis_token: analysis.token });
   }
 
+  // Dynamic import avoids a static cycle with sonarqube-quality-gate.mjs (INT-294).
+  const { ensureQualityGate } = await import("./sonarqube-quality-gate.mjs");
+  const qualityGate = await ensureQualityGate(hostUrl, session);
+
   return {
     hostUrl,
     projectKey: PROJECT_KEY,
@@ -376,6 +382,7 @@ export async function applyBootstrap({
     adminPasswordChanged: session.changedDefault,
     tokenRotated: analysis.rotated,
     tokenType: analysis.type ?? "existing",
+    qualityGate,
     githubSync: buildGithubSyncCommands({ hostUrl }),
   };
 }
@@ -402,6 +409,7 @@ if (isDirectRun) {
         adminPasswordChanged: result.adminPasswordChanged,
         tokenRotated: result.tokenRotated,
         tokenType: result.tokenType,
+        qualityGate: result.qualityGate?.name,
       }),
     );
     process.stdout.write(`\n${result.githubSync}\n`);

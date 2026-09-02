@@ -25,7 +25,7 @@ export async function collectLcovPaths(repoRoot = root) {
       }
     }
   }
-  found.sort();
+  found.sort((a, b) => a.localeCompare(b));
   return found;
 }
 

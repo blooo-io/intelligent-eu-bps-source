@@ -15,6 +15,7 @@ import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { operatorEnv } from "./lib/operator-env.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_URL = "https://github.com/blooo-io/intelligent-eu-billing-and-payment.git";
@@ -68,7 +69,7 @@ export function applyRepoCredential({
     throw new Error("KUBECONFIG is required for --apply");
   }
 
-  const env = { ...process.env, KUBECONFIG: kubeconfig };
+  const env = operatorEnv({ KUBECONFIG: kubeconfig });
   // Delete then create — avoids echoing secret on patch.
   spawnSync(
     "kubectl",

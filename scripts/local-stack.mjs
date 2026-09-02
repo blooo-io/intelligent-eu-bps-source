@@ -9,6 +9,7 @@ import { access, readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { operatorEnv } from "./lib/operator-env.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLUSTER = "intelligent-local";
@@ -50,6 +51,7 @@ function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: root,
     stdio: "inherit",
+    env: operatorEnv(),
     ...options,
   });
   if (result.status !== 0) {
@@ -60,6 +62,7 @@ function run(command, args, options = {}) {
 function which(binary) {
   const result = spawnSync("sh", ["-c", `command -v ${binary}`], {
     encoding: "utf8",
+    env: operatorEnv(),
   });
   return result.status === 0;
 }
@@ -74,6 +77,7 @@ async function up() {
   }
   const existing = spawnSync("k3d", ["cluster", "list", CLUSTER], {
     encoding: "utf8",
+    env: operatorEnv(),
   });
   if (existing.status !== 0) {
     run("k3d", [

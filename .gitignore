@@ -50,3 +50,9 @@ tilt_modules/
 # Helm packaged dependencies (built in CI)
 deploy/charts/*/charts/
 deploy/charts/*/Chart.lock
+
+# Operator / UAT local evidence (never commit)
+artifacts/
+
+# SonarScanner working directory (local CLI runs)
+.scannerwork/

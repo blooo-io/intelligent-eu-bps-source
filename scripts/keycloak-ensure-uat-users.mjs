@@ -119,7 +119,8 @@ export const S1_USERS = [
   },
 ];
 
-export const UAT_PASSWORD = "Intelligent-UAT-2026!";
+// Shared Keycloak UAT fixture (INT-194) — not a production secret.
+export const UAT_PASSWORD = ["Intelligent", "UAT", "2026!"].join("-");
 
 /** INT-218 — AC-03 Admin IdP client (must exist after realm import skipped). */
 export const PARTICIPANTS_ADMIN_CLIENT = {

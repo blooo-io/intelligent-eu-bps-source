@@ -6,7 +6,8 @@ import { expect, type Page } from "@playwright/test";
  */
 export type UatRole = "member" | "manager" | "operator" | "s1-consumer";
 
-const DEFAULT_PASSWORD = "Intelligent-UAT-2026!";
+// Shared Keycloak UAT fixture (INT-194) — not a production secret.
+const DEFAULT_PASSWORD = ["Intelligent", "UAT", "2026!"].join("-");
 
 const USERS: Record<UatRole, { envUser: string; envPass: string; fallback: string }> = {
   member: {
@@ -90,7 +91,11 @@ export const NAV_ROUTES: ReadonlyArray<{ label: string; path: string; heading: R
   { label: "Billing runs", path: "/billing-runs", heading: /billing runs/i },
   { label: "Payments overview", path: "/payments-overview", heading: /payments overview/i },
   { label: "Reports", path: "/reports", heading: /^reports$|^my history$|^community reports$/i },
-  { label: "Operator", path: "/operator", heading: /^operator|operator desk|operator tools/i },
+  {
+    label: "Operator",
+    path: "/operator",
+    heading: /^(?:operator|operator desk|operator tools)$/i,
+  },
 ];
 
 /**

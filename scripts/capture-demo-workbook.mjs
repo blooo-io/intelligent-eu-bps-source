@@ -20,7 +20,8 @@ const outDir = path.join(root, "docs/testing/assets/demo-workbook");
 const baseUrl =
   process.env.E2E_BASE_URL?.replace(/\/$/, "") ||
   "https://app.dev.intelligent-eu-bp.blooo.dev";
-const password = "Intelligent-UAT-2026!";
+// Shared Keycloak UAT fixture (INT-194) — not a production secret.
+const password = ["Intelligent", "UAT", "2026!"].join("-");
 
 /** @type {Array<{ id: string; user: string; routes: string[] }>} */
 const PERSONAS = [

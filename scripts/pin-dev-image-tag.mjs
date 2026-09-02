@@ -10,17 +10,37 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const VALUES = path.join(root, "deploy/envs/dev/values.yaml");
 
+/**
+ * Replace `image.tag` without nested `.*` quantifiers (javascript:S5852).
+ */
 export function pinImageTag(yamlText, sha) {
   if (!/^[0-9a-f]{7,40}$/i.test(sha)) {
     throw new Error(`invalid sha: ${sha}`);
   }
-  if (!/^image:\n(?:.*\n)*?\s*tag:\s*".*"/m.test(yamlText) && !/tag:\s*".*"/.test(yamlText)) {
+  const lines = yamlText.split("\n");
+  let inImage = false;
+  let replaced = false;
+  const out = lines.map((line) => {
+    if (/^image:\s*$/.test(line)) {
+      inImage = true;
+      return line;
+    }
+    if (inImage && line.length > 0 && !/^[ \t]/.test(line)) {
+      inImage = false;
+    }
+    if (inImage) {
+      const match = /^([ \t]+tag:\s*")([^"]*)(")\s*$/.exec(line);
+      if (match) {
+        replaced = true;
+        return `${match[1]}${sha}${match[3]}`;
+      }
+    }
+    return line;
+  });
+  if (!replaced) {
     throw new Error("deploy/envs/dev/values.yaml missing image.tag");
   }
-  return yamlText.replace(
-    /(^image:\n(?:[ \t]+.*\n)*?[ \t]+tag:\s*")[^"]*(")/m,
-    `$1${sha}$2`,
-  );
+  return out.join("\n");
 }
 
 export async function pinDevImageTag(sha, valuesPath = VALUES) {

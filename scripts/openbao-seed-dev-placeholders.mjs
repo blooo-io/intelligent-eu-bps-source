@@ -15,6 +15,7 @@ import { access, readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { operatorEnv } from "./lib/operator-env.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const NS = "openbao";
@@ -69,7 +70,7 @@ export const DEV_PLACEHOLDER_FIELDS = {
 function kubectl(args) {
   const result = spawnSync("kubectl", args, {
     encoding: "utf8",
-    env: process.env,
+    env: operatorEnv(),
     maxBuffer: 10 * 1024 * 1024,
   });
   if (result.status !== 0) {

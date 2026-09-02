@@ -17,6 +17,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { collectLcovPaths } from "./sonar-lcov-paths.mjs";
+import { operatorEnv } from "./lib/operator-env.mjs";
 
 export const DEFAULT_SCANNER_IMAGE = "sonarsource/sonar-scanner-cli:11.3";
 
@@ -107,7 +108,7 @@ async function main() {
   console.log(`sonar-scan: docker ${dockerArgs.join(" ")}`);
   const child = spawn("docker", dockerArgs, {
     stdio: "inherit",
-    env: process.env,
+    env: operatorEnv(),
   });
   child.on("exit", (code, signal) => {
     if (signal) process.exit(1);

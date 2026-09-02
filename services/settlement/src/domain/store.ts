@@ -55,7 +55,7 @@ export class SettlementStore {
   }
 
   pairKey(consumerId: string, producerId: string): string {
-    return [consumerId, producerId].sort().join("|");
+    return [consumerId, producerId].sort((a, b) => a.localeCompare(b)).join("|");
   }
 
   getCarry(consumerId: string, producerId: string): number {

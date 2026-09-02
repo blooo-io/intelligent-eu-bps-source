@@ -1,4 +1,4 @@
-# SonarQube quality pipeline (INT-291 / INT-292 / INT-293)
+# SonarQube quality pipeline (INT-291 / INT-292 / INT-293 / INT-294)
 
 Measures maintainability, reliability, security hotspots and test coverage for the billing monorepo. Complements the existing 80% Vitest gate (`config/coverage-thresholds.json`) with a Sonar quality gate.
 
@@ -24,8 +24,31 @@ Preferred for this project: **self-hosted SonarQube Community Build** on `k8s-in
 | Values | `deploy/platform/sonarqube/values.yaml` |
 | Public URL | `https://sonar.intelligent-eu-bp.blooo.dev` (APISIX) |
 | Bootstrap | [`scripts/sonarqube-bootstrap.mjs`](../../scripts/sonarqube-bootstrap.mjs) (INT-293) |
+| Quality gate | [`scripts/sonarqube-quality-gate.mjs`](../../scripts/sonarqube-quality-gate.mjs) **Intelligent V1** (INT-294) |
 
 Operator packaging notes: [`deploy/platform/README.md`](../../deploy/platform/README.md) (Quality section).
+
+## Quality gate **Intelligent V1** (INT-294)
+
+Default built-in **Sonar way** only fails on *new* code. **Intelligent V1** keeps those Clean-as-You-Code conditions and adds overall conditions so the dashboard stays at rating **A**:
+
+| Condition | Operator | Threshold | Meaning |
+|---|---|---|---|
+| `security_rating` | worse than | A | zero vulnerabilities on the main branch |
+| `reliability_rating` | worse than | A | zero bugs on the main branch |
+| `sqale_rating` (maintainability) | worse than | A | maintainability rating A |
+| `coverage` | less than | 80% | aligns with Vitest monorepo floor |
+| `duplicated_lines_density` | greater than | 10% | overall duplication ceiling |
+
+Plus Sonar way on new code: `new_violations = 0`, `new_coverage ≥ 80`, `new_duplicated_lines_density ≤ 10` (aligned with overall; Community has no PR decoration), security hotspots reviewed 100%.
+
+Operator `scripts/**` are excluded from coverage/CPD and from rule `javascript:S4036` (PATH is pinned in `scripts/lib/operator-env.mjs`; the rule does not resolve that helper across modules).
+
+Apply (idempotent; also part of bootstrap `--apply`):
+
+```bash
+KUBECONFIG=… node scripts/sonarqube-quality-gate.mjs --apply
+```
 
 ## Secrets and variables (GitHub)
 

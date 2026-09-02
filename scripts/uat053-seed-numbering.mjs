@@ -18,8 +18,11 @@
  *     node scripts/uat053-seed-numbering.mjs validate
  */
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SETTLEMENT_URL = (
   process.env.SETTLEMENT_URL ?? "http://127.0.0.1:18085"
 ).replace(/\/$/, "");
@@ -28,8 +31,10 @@ const INVOICING_URL = (
 ).replace(/\/$/, "");
 const STRIPE_SECRET_KEY = (process.env.STRIPE_SECRET_KEY ?? "").trim();
 const PERIOD = (process.env.PERIOD ?? "2026-11").trim();
+/** Prefer a repo-local path over world-writable /tmp (javascript:S5443). */
 const EVIDENCE_PATH =
-  process.env.UAT053_EVIDENCE ?? "/tmp/uat053-seed-evidence.json";
+  process.env.UAT053_EVIDENCE ??
+  path.join(root, "artifacts", "uat053-seed-evidence.json");
 
 /** Mock S1 community (AC-15). */
 const COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
@@ -159,7 +164,8 @@ async function cmdSeed() {
   const batch = await seedPeriod(PERIOD);
   const prev = await loadEvidence();
   const next = [...prev, ...batch];
-  await writeFile(EVIDENCE_PATH, JSON.stringify(next, null, 2));
+  await mkdir(path.dirname(EVIDENCE_PATH), { recursive: true, mode: 0o700 });
+  await writeFile(EVIDENCE_PATH, JSON.stringify(next, null, 2), { mode: 0o600 });
   console.log(
     JSON.stringify(
       { step: "seed", period: PERIOD, count: batch.length, batch, evidencePath: EVIDENCE_PATH },

@@ -15,6 +15,7 @@ import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { operatorEnv } from "./lib/operator-env.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const NS = "openbao";
@@ -27,7 +28,7 @@ function kubectl(args, { input, env } = {}) {
   const result = spawnSync("kubectl", args, {
     encoding: "utf8",
     input,
-    env: env ?? process.env,
+    env: env ?? operatorEnv(),
     maxBuffer: 10 * 1024 * 1024,
   });
   if (result.status !== 0) {
@@ -79,7 +80,7 @@ function statusInitialized() {
   const result = spawnSync(
     "kubectl",
     ["-n", NS, "exec", POD, "--", "bao", "status", "-format=json"],
-    { encoding: "utf8", env: process.env, maxBuffer: 10 * 1024 * 1024 },
+    { encoding: "utf8", env: operatorEnv(), maxBuffer: 10 * 1024 * 1024 },
   );
   const raw = `${result.stdout || ""}\n${result.stderr || ""}`;
   const jsonStart = raw.indexOf("{");
@@ -99,7 +100,7 @@ function ensureBootstrapSecret(initJson) {
   spawnSync(
     "kubectl",
     ["-n", NS, "delete", "secret", BOOTSTRAP_SECRET, "--ignore-not-found"],
-    { encoding: "utf8", env: process.env },
+    { encoding: "utf8", env: operatorEnv() },
   );
   kubectl([
     "-n",
@@ -143,7 +144,7 @@ function writeEsoToken(rootToken) {
   spawnSync(
     "kubectl",
     ["-n", ESO_NS, "delete", "secret", ESO_TOKEN_SECRET, "--ignore-not-found"],
-    { encoding: "utf8", env: process.env },
+    { encoding: "utf8", env: operatorEnv() },
   );
   // V1 virtual / Stripe-test only: ESO uses the root token. Tighten later.
   kubectl([

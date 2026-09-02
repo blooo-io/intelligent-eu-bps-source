@@ -10,6 +10,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { operatorEnv } from "./lib/operator-env.mjs";
 
 const NS = "openbao";
 
@@ -20,7 +21,7 @@ const PATH_KEY = "platform/ghcr-pull";
 function kubectl(args) {
   const result = spawnSync("kubectl", args, {
     encoding: "utf8",
-    env: process.env,
+    env: operatorEnv(),
     maxBuffer: 10 * 1024 * 1024,
   });
   if (result.status !== 0) {

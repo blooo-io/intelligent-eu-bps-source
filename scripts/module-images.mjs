@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { operatorEnv } from "./lib/operator-env.mjs";
 
 const IMAGE_ROOTS = ["services", "apps", "packages", "mocks"];
 
@@ -46,7 +47,7 @@ export async function findDockerfiles(root) {
   for (const directory of IMAGE_ROOTS) {
     await walk(root, directory, found);
   }
-  return found.sort();
+  return found.sort((a, b) => a.localeCompare(b));
 }
 
 export function imageSuffix(relativeDockerfile) {
@@ -127,7 +128,7 @@ export function selectDockerfilesForChangedPaths(changedPaths, allDockerfiles) {
     return [];
   }
 
-  return [...selected].sort();
+  return [...selected].sort((a, b) => a.localeCompare(b));
 }
 
 /**
@@ -237,6 +238,7 @@ function defaultRunGit(root, args) {
     cwd: root,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
+    env: operatorEnv(),
   });
 }
 

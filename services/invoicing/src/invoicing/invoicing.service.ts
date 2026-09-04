@@ -92,7 +92,7 @@ export class InvoicingService {
         "producer Connect account required (provision via AC-07; no synthetic acct_test_*)",
       );
     }
-    return `acct_test_${settlement.producerId.replace(/-/g, "").slice(0, 16)}`;
+    return `acct_test_${settlement.producerId.replaceAll("-", "").slice(0, 16)}`;
   }
 
   getInvoice(invoiceId: string): {

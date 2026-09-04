@@ -27,7 +27,7 @@ export class MockPspAdapter implements PspPort {
   async createAccountToken(
     submission: OnboardingRequirementsSubmission,
   ): Promise<string> {
-    const id = `ct_test_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
+    const id = `ct_test_${randomUUID().replaceAll("-", "").slice(0, 16)}`;
     this.tokens.push(id);
     void submission;
     return id;
@@ -43,7 +43,7 @@ export class MockPspAdapter implements PspPort {
     }
     // INT-228 — each create returns a new id (mirrors live Stripe accounts.create).
     this.accountSeq += 1;
-    const stripeAccountId = `acct_test_${input.participantId.replace(/-/g, "").slice(0, 12)}${this.accountSeq}`;
+    const stripeAccountId = `acct_test_${input.participantId.replaceAll("-", "").slice(0, 12)}${this.accountSeq}`;
     this.accounts.set(input.participantId, stripeAccountId);
     // Token covers legal entity / ToS; remaining due are outside the token.
     this.dueByAccount.set(stripeAccountId, [
@@ -106,7 +106,7 @@ export class MockPspAdapter implements PspPort {
     participantId: string,
   ): Promise<{ clientSecret: string }> {
     return {
-      clientSecret: `seti_test_${participantId.replace(/-/g, "").slice(0, 12)}_secret_test`,
+      clientSecret: `seti_test_${participantId.replaceAll("-", "").slice(0, 12)}_secret_test`,
     };
   }
 

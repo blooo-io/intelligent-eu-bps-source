@@ -19,7 +19,9 @@ export function stripAssistantAttribution(message) {
     .split(/\r?\n/)
     .filter((line) => !ASSISTANT_TRAILER.test(line.trim()))
     .join("\n")
-    .replace(/[ \t]+$/gm, "")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
     .replace(/\n{3,}/g, "\n\n");
   if (stripped.length === 0 || stripped.endsWith("\n")) return stripped;
   return `${stripped}\n`;

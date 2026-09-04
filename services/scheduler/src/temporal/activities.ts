@@ -15,7 +15,7 @@ export async function invokeOwnerModule(input: InvokeOwnerInput): Promise<{
 }> {
   const host = resolveOwnerHost(input.ownerModule);
   const base =
-    process.env[`OWNER_BASE_URL_${input.ownerModule.replace(/-/g, "_")}`] ??
+    process.env[`OWNER_BASE_URL_${input.ownerModule.replaceAll("-", "_")}`] ??
     process.env.OWNER_BASE_URL_TEMPLATE?.replace("{host}", host) ??
     `http://${host}:8080`;
   const url = `${base.replace(/\/$/, "")}/internal/v1${input.path}`;

@@ -19,7 +19,7 @@ export class MockStripeInvoiceAdapter implements StripeInvoicePort {
     this.seq.set(opts.stripeAccountId, n);
     // BR-10 — sequential legal number per producer Connect account.
     const result: StripeInvoiceCreateResult = {
-      stripeInvoiceId: `in_test_${randomUUID().replace(/-/g, "").slice(0, 24)}`,
+      stripeInvoiceId: `in_test_${randomUUID().replaceAll("-", "").slice(0, 24)}`,
       legalNumber: `${opts.stripeAccountId.slice(0, 8).toUpperCase()}-${String(n).padStart(6, "0")}`,
       hostedInvoiceUrl: `https://invoice.stripe.com/i/test_${settlement.settlementId}`,
       status: "open",

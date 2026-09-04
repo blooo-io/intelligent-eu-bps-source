@@ -34,11 +34,13 @@ Default built-in **Sonar way** only fails on *new* code. **Intelligent V1** keep
 
 | Condition | Operator | Threshold | Meaning |
 |---|---|---|---|
-| `security_rating` | worse than | A | zero vulnerabilities on the main branch |
-| `reliability_rating` | worse than | A | zero bugs on the main branch |
-| `sqale_rating` (maintainability) | worse than | A | maintainability rating A |
+| `software_quality_security_rating` | worse than | A | MQR Security circle A (dashboard) |
+| `software_quality_reliability_rating` | worse than | A | MQR Reliability circle A |
+| `software_quality_maintainability_rating` | worse than | A | MQR Maintainability circle A |
 | `coverage` | less than | 80% | aligns with Vitest monorepo floor |
 | `duplicated_lines_density` | greater than | 10% | overall duplication ceiling |
+
+Community Build treats classic `security_rating` / `reliability_rating` / `sqale_rating` as **equivalent** to the MQR metrics — only one family can be on the gate. Intelligent V1 uses MQR so the gate matches the Overall Code circles (INT-295).
 
 Plus Sonar way on new code: `new_violations = 0`, `new_coverage ≥ 80`, `new_duplicated_lines_density ≤ 10` (aligned with overall; Community has no PR decoration), security hotspots reviewed 100%.
 

@@ -372,7 +372,7 @@ export function PaymentSetupPage({
             <a href={session.url} rel="noreferrer">
               open Stripe payment-method setup
             </a>
-            .
+            {"."}
           </Paragraph>
         )}
 

@@ -67,6 +67,36 @@ export const DEV_PLACEHOLDER_FIELDS = {
   ],
 };
 
+/**
+ * Paths that hold Stripe test credentials (INT-186 / INT-191).
+ * Placeholder apply must not wipe them with a bare `seeded=true` put (INT-295).
+ */
+export const STRIPE_PROTECTED_PATHS = ["dev/payments", "dev/invoicing", "dev/web"];
+
+/** True when OpenBao already holds a non-placeholder Stripe field. */
+export function hasRealStripeCredentials(data = {}) {
+  return Object.entries(data).some(([key, value]) => {
+    if (!key.startsWith("stripe_")) return false;
+    const text = String(value ?? "");
+    if (!text || text === "dev-only-replace-me") return false;
+    if (text.includes("REPLACE") || text.includes("replace-me")) return false;
+    return (
+      text.startsWith("sk_test_") ||
+      text.startsWith("pk_test_") ||
+      text.startsWith("whsec_")
+    );
+  });
+}
+
+export function parseFieldArgs(fieldArgs) {
+  return Object.fromEntries(
+    fieldArgs.map((entry) => {
+      const idx = entry.indexOf("=");
+      return [entry.slice(0, idx), entry.slice(idx + 1)];
+    }),
+  );
+}
+
 function kubectl(args) {
   const result = spawnSync("kubectl", args, {
     encoding: "utf8",
@@ -134,18 +164,59 @@ KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
 `;
 }
 
+function readKvMap(token, kvPath) {
+  try {
+    const raw = bao(token, [
+      "kv",
+      "get",
+      "-mount=secret",
+      "-format=json",
+      kvPath,
+    ]);
+    return JSON.parse(raw)?.data?.data ?? {};
+  } catch {
+    return {};
+  }
+}
+
 export function applySeedPlaceholders() {
   if (!process.env.KUBECONFIG) {
     throw new Error("KUBECONFIG is required for --apply");
   }
   const token = rootToken();
   const written = [];
+  const skipped = [];
   for (const kvPath of DEV_PLACEHOLDER_PATHS) {
+    const existing = readKvMap(token, kvPath);
+    // INT-295 — bare `kv put seeded=true` replaced Stripe test keys and crashed
+    // invoicing/payments on e2e rollout (`requires stripe_secret_key`).
+    if (
+      STRIPE_PROTECTED_PATHS.includes(kvPath) &&
+      hasRealStripeCredentials(existing)
+    ) {
+      skipped.push(kvPath);
+      continue;
+    }
     const fields = DEV_PLACEHOLDER_FIELDS[kvPath] ?? ["seeded=true"];
-    bao(token, ["kv", "put", "-mount=secret", kvPath, ...fields]);
+    // Merge for platform paths so bootstrap-generated admin_password survives.
+    const patch = parseFieldArgs(fields);
+    const merged = { ...existing };
+    for (const [key, value] of Object.entries(patch)) {
+      const current = merged[key];
+      if (
+        current &&
+        current !== "dev-only-replace-me" &&
+        (key === "admin_password" || key === "analysis_token" || key.startsWith("stripe_"))
+      ) {
+        continue;
+      }
+      merged[key] = value;
+    }
+    const putFields = Object.entries(merged).map(([k, v]) => `${k}=${v}`);
+    bao(token, ["kv", "put", "-mount=secret", kvPath, ...putFields]);
     written.push(kvPath);
   }
-  return { written: written.length, mount: "secret" };
+  return { written: written.length, skipped: skipped.length, mount: "secret" };
 }
 
 const isDirectRun =

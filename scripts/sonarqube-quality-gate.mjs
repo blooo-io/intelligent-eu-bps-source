@@ -32,10 +32,22 @@ export const QUALITY_GATE_NAME = "Intelligent V1";
 export const SOURCE_GATE_NAME = "Sonar way";
 
 /** Rating metrics: 1 = A. Fail when value is worse than A (GT 1). */
+/**
+ * MQR overall ratings (dashboard "Overall Code" circles).
+ * Community rejects pairing these with classic security_rating /
+ * reliability_rating / sqale_rating on the same gate ("equivalent metric").
+ */
 export const OVERALL_RATING_CONDITIONS = [
-  { metric: "security_rating", op: "GT", error: "1" },
-  { metric: "reliability_rating", op: "GT", error: "1" },
-  { metric: "sqale_rating", op: "GT", error: "1" },
+  { metric: "software_quality_security_rating", op: "GT", error: "1" },
+  { metric: "software_quality_reliability_rating", op: "GT", error: "1" },
+  { metric: "software_quality_maintainability_rating", op: "GT", error: "1" },
+];
+
+/** Classic ratings superseded by MQR — remove if still present on the gate. */
+export const LEGACY_RATING_METRICS = [
+  "security_rating",
+  "reliability_rating",
+  "sqale_rating",
 ];
 
 export const OVERALL_METRIC_CONDITIONS = [
@@ -214,6 +226,27 @@ async function upsertCondition(hostUrl, session, existing, cond) {
   return { ...cond, updated: false };
 }
 
+async function deleteLegacyRatingConditions(hostUrl, session, existing) {
+  let removed = 0;
+  for (const cond of existing) {
+    if (!LEGACY_RATING_METRICS.includes(cond.metric)) continue;
+    const del = await sonarForm(hostUrl, {
+      method: "POST",
+      apiPath: "/api/qualitygates/delete_condition",
+      login: session.login,
+      password: session.password,
+      body: { id: cond.id },
+    });
+    if (!del.ok && del.status !== 204) {
+      throw new Error(
+        `qualitygates/delete_condition ${cond.metric} failed: HTTP ${del.status} ${del.text.slice(0, 160)}`,
+      );
+    }
+    removed += 1;
+  }
+  return removed;
+}
+
 async function syncGateConditions(hostUrl, session) {
   const show = await sonarForm(hostUrl, {
     apiPath: `/api/qualitygates/show?name=${encodeURIComponent(QUALITY_GATE_NAME)}`,
@@ -223,12 +256,24 @@ async function syncGateConditions(hostUrl, session) {
   if (!show.ok) {
     throw new Error(`qualitygates/show failed: HTTP ${show.status}`);
   }
-  const existing = show.json?.conditions ?? [];
+  let existing = show.json?.conditions ?? [];
+  const removedLegacy = await deleteLegacyRatingConditions(hostUrl, session, existing);
+  if (removedLegacy > 0) {
+    const refresh = await sonarForm(hostUrl, {
+      apiPath: `/api/qualitygates/show?name=${encodeURIComponent(QUALITY_GATE_NAME)}`,
+      login: session.login,
+      password: session.password,
+    });
+    if (!refresh.ok) {
+      throw new Error(`qualitygates/show failed: HTTP ${refresh.status}`);
+    }
+    existing = refresh.json?.conditions ?? [];
+  }
   const added = [];
   for (const cond of missingOverallConditions(existing)) {
     added.push(await upsertCondition(hostUrl, session, existing, cond));
   }
-  return added;
+  return { added, removedLegacy };
 }
 
 async function selectGateForProject(hostUrl, session) {
@@ -258,12 +303,13 @@ async function selectGateForProject(hostUrl, session) {
 
 export async function ensureQualityGate(hostUrl, session) {
   const created = await ensureGateCopied(hostUrl, session);
-  const added = await syncGateConditions(hostUrl, session);
+  const { added, removedLegacy } = await syncGateConditions(hostUrl, session);
   await selectGateForProject(hostUrl, session);
   return {
     name: QUALITY_GATE_NAME,
     created,
     conditionsAdded: added.length,
+    legacyConditionsRemoved: removedLegacy,
     projectKey: PROJECT_KEY,
   };
 }

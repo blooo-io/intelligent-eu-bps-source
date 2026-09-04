@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   DEV_PLACEHOLDER_PATHS,
+  STRIPE_PROTECTED_PATHS,
   checkSeedLayout,
+  hasRealStripeCredentials,
   printSeedSteps,
 } from "./openbao-seed-dev-placeholders.mjs";
 
@@ -42,4 +44,25 @@ test("platform README references the seed script", async () => {
     "utf8",
   );
   assert.match(text, /openbao-seed-dev-placeholders\.mjs/);
+});
+
+test("INT-295 placeholder seed detects real Stripe credentials to protect", () => {
+  assert.deepEqual(STRIPE_PROTECTED_PATHS.sort(), [
+    "dev/invoicing",
+    "dev/payments",
+    "dev/web",
+  ].sort());
+  assert.equal(
+    hasRealStripeCredentials({ seeded: "true", stripe_secret_key: "sk_test_abc" }),
+    true,
+  );
+  assert.equal(
+    hasRealStripeCredentials({ seeded: "true", stripe_publishable_key: "pk_test_abc" }),
+    true,
+  );
+  assert.equal(
+    hasRealStripeCredentials({ seeded: "true", stripe_secret_key: "dev-only-replace-me" }),
+    false,
+  );
+  assert.equal(hasRealStripeCredentials({ seeded: "true" }), false);
 });

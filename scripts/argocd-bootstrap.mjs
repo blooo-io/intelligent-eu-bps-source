@@ -26,7 +26,11 @@ export async function checkBootstrapLayout(repoRoot = root) {
     path.join(repoRoot, "deploy/argocd/bootstrap/values.yaml"),
     "utf8",
   );
-  if (values.includes("stringData:") || /^\s*kind:\s*Secret\s*$/m.test(values)) {
+  const hasEmbeddedSecretKind = values.split(/\r?\n/).some((line) => {
+    const trimmed = line.trim();
+    return trimmed.startsWith("kind:") && trimmed.slice("kind:".length).trim() === "Secret";
+  });
+  if (values.includes("stringData:") || hasEmbeddedSecretKind) {
     throw new Error("bootstrap values must not embed Kubernetes Secret data");
   }
   if (!values.includes("server.insecure: true")) {

@@ -57,7 +57,7 @@ export function imageSuffix(relativeDockerfile) {
 }
 
 export function dockerfileRunsAsNonRoot(source) {
-  const users = [...source.matchAll(/^\s*USER\s+(?:"([^"]+)"|(\S+))/gm)].map(
+  const users = [...source.matchAll(/^[ \t]*USER[ \t]+(?:"([^"]+)"|([^\s]+))/gm)].map(
     (match) => match[1] ?? match[2],
   );
   if (users.length === 0) return false;

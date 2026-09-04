@@ -168,7 +168,7 @@ async function main() {
 
     for (const [i, route] of persona.routes.entries()) {
       if (route === "/") continue;
-      const slug = route.replace(/^\//, "").replace(/\//g, "-") || "home";
+      const slug = route.replace(/^\//, "").replaceAll("/", "-") || "home";
       const file = `${persona.id}-${String(i + 1).padStart(2, "0")}-${slug}.png`;
       await gotoApp(page, route);
       await shot(page, file);

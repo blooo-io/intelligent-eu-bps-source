@@ -145,7 +145,7 @@ for (const [pkg, script] of commands) {
 
 async function readWorkspaceGlobs() {
   const raw = await readFile(path.join(root, "pnpm-workspace.yaml"), "utf8");
-  return [...raw.matchAll(/^\s*-\s+"([^"]+)"/gm)].map((match) => match[1]);
+  return [...raw.matchAll(/^[ \t]*-[ \t]+"([^"]+)"/gm)].map((match) => match[1]);
 }
 
 async function discoverPackages(globs) {

@@ -108,6 +108,8 @@ KUBECONFIG=… node scripts/openbao-dev-bootstrap.mjs --apply
 KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
 ```
 
+   INT-295: skips `dev/payments`, `dev/invoicing` and `dev/web` when they already hold real Stripe test keys — a bare `kv put seeded=true` must not wipe INT-186 seeds (that crashed invoicing/payments on e2e rollout).
+
    Replace those paths later with Stripe test keys / webhook secret under `secret/data/<env>/<module>` — still never in Git.
 
 4. **Stripe test credentials (INT-186):** after placeholders exist, seed real **test** keys (never live, never in Git):

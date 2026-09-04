@@ -220,7 +220,7 @@ async function main() {
         { headers },
       );
       const pair = pairRes.ok ? await pairRes.json() : null;
-      const energy = Number(pair?.energyAmount ?? pair?.netAmount ?? NaN);
+      const energy = Number(pair?.energyAmount ?? pair?.netAmount ?? Number.NaN);
       if (Number.isFinite(energy) && energy === 0) {
         pending.push({ settlementId, reason: "zero_amount_carry_forward" });
       } else {

@@ -137,11 +137,12 @@ export class ReconciliationService {
     }
 
     for (const anomaly of this.store.listAnomalies(communityId)) {
+      const anomalyDetails = anomaly.details ? ` ${anomaly.details}` : "";
       await this.recordDiscrepancy({
         key: `market:anomaly:${anomaly.marketId}:${anomaly.type}`,
         scope: "market",
         expected: `market ${anomaly.marketId} clearing match`,
-        actual: `market ${anomaly.marketId} anomaly=${anomaly.type}${anomaly.details ? ` ${anomaly.details}` : ""}`,
+        actual: `market ${anomaly.marketId} anomaly=${anomaly.type}${anomalyDetails}`,
         status: "open",
         communityId: anomaly.communityId,
       });

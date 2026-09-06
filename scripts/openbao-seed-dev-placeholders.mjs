@@ -224,12 +224,12 @@ const isDirectRun =
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isDirectRun) {
-  const args = process.argv.slice(2);
-  if (args.includes("--check")) {
+  const args = new Set(process.argv.slice(2));
+  if (args.has("--check")) {
     console.log(JSON.stringify(await checkSeedLayout()));
   } else if (args.includes("--print")) {
     process.stdout.write(printSeedSteps());
-  } else if (args.includes("--apply")) {
+  } else if (args.has("--apply")) {
     console.log(JSON.stringify({ applied: true, ...applySeedPlaceholders() }));
   } else {
     console.error("Usage: --check | --print | --apply");

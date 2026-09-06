@@ -5,9 +5,9 @@ import type {
 } from "./types.js";
 
 export class PublicationStore {
-  private invoices = new Map<string, InvoiceProjection>();
-  private payments = new Map<string, PaymentProjection>();
-  private outbound = new Map<string, OutboundMessage>();
+  private readonly invoices = new Map<string, InvoiceProjection>();
+  private readonly payments = new Map<string, PaymentProjection>();
+  private readonly outbound = new Map<string, OutboundMessage>();
 
   reset(): void {
     this.invoices.clear();

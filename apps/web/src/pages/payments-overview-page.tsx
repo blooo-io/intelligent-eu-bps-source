@@ -31,10 +31,10 @@ const STATUS_OPTIONS: InvoiceStatus[] = [
 export function PaymentsOverviewPage({
   config,
   oidc,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
-}) {
+}>) {
   const [communityId, setCommunityId] = useState<string | null>(null);
   const [payments, setPayments] = useState<OverviewPayment[]>([]);
   const [loading, setLoading] = useState(true);

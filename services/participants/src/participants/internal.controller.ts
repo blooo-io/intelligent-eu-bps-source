@@ -19,7 +19,7 @@ export class InternalParticipantsController {
     @Inject(ParticipantsService) private readonly participants: ParticipantsService,
   ) {}
 
-  @Post("parties\\:resolve")
+  @Post(String.raw`parties\:resolve`)
   @HttpCode(200)
   resolveParty(@Body() body: { marketId: string }) {
     return this.participants.resolveParty(body.marketId);
@@ -42,7 +42,7 @@ export class InternalParticipantsController {
   }
 
   /** INT-230 — IdP sub → participantId for AC-07 pay / onboarding. */
-  @Get("participants\\:by-idp-sub/:idpUserId")
+  @Get(String.raw`participants\:by-idp-sub/:idpUserId`)
   resolveByIdpSub(@Param("idpUserId") idpUserId: string) {
     return this.participants.resolveByIdpSub(idpUserId);
   }

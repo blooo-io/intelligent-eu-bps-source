@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, Button, Card, Form, Input, Select, Typography } from "antd";
-import { fetchMe } from "../api/me";
+import { ApiError, fetchMe } from "../api/me";
 import {
   fetchCommunitySettings,
   putCommunitySettings,
@@ -8,7 +8,6 @@ import {
   type CommunitySettingsWrite,
 } from "../api/community-settings";
 import type { WebConfig } from "../api/config";
-import { ApiError } from "../api/me";
 import { userFacingMessage } from "../api/user-facing-error";
 import type { OidcFacade } from "../auth/oidc";
 import { AccessNotice } from "../layout/access-notice";
@@ -25,10 +24,10 @@ type SettingsForm = CommunitySettingsWrite;
 export function CommunitySettingsPage({
   config,
   oidc,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
-}) {
+}>) {
   const [communityId, setCommunityId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

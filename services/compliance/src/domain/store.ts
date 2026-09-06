@@ -11,9 +11,9 @@ export const DEFAULT_RETENTION: RetentionPolicy = {
 };
 
 export class ComplianceStore {
-  private requests = new Map<string, DataSubjectRequest>();
+  private readonly requests = new Map<string, DataSubjectRequest>();
   private audits: AuditEvent[] = [];
-  private personal = new Map<string, PersonalDataRecord>();
+  private readonly personal = new Map<string, PersonalDataRecord>();
   private retention: RetentionPolicy = { ...DEFAULT_RETENTION };
 
   reset(): void {

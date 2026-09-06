@@ -60,7 +60,9 @@ async function main(): Promise<void> {
   await worker.run();
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error(err);
   process.exit(1);
-});
+}

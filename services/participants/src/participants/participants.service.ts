@@ -21,6 +21,22 @@ import { deriveReadiness, isInvoiceReady } from "./readiness.js";
 
 const PRODUCER = "AC-03";
 
+function invoiceNotReadyReason(
+  status: ParticipantRecord["status"],
+  paymentBlockReason?: string | null,
+): string {
+  if (paymentBlockReason) {
+    return paymentBlockReason;
+  }
+  if (status === "Offboarded") {
+    return "offboarded";
+  }
+  if (status === "Restricted") {
+    return "restricted";
+  }
+  return `readiness is ${status}`;
+}
+
 export type ResolvePartyResult = {
   participantId: string;
   communityId: string;
@@ -72,11 +88,7 @@ export class ParticipantsService {
   }
 
   getCommunitySettings(communityId: string): CommunitySettings {
-    const settings = this.store.getCommunity(communityId);
-    if (!settings) {
-      throw new NotFoundException(`Unknown community ${communityId}`);
-    }
-    return settings;
+    return this.requireCommunity(communityId);
   }
 
   updateCommunitySettings(
@@ -122,13 +134,7 @@ export class ParticipantsService {
       status,
     };
     if (!ready) {
-      result.reason =
-        row.paymentBlockReason ??
-        (status === "Offboarded"
-          ? "offboarded"
-          : status === "Restricted"
-            ? "restricted"
-            : `readiness is ${status}`);
+      result.reason = invoiceNotReadyReason(status, row.paymentBlockReason);
     }
     return result;
   }
@@ -546,7 +552,7 @@ export class ParticipantsService {
   }
 
   private async emitReadinessIfChanged(
-    previous: ParticipantRecord,
+    _previous: ParticipantRecord,
     previousStatus: ParticipantRecord["status"],
     next: ParticipantRecord,
   ): Promise<void> {
@@ -570,6 +576,5 @@ export class ParticipantsService {
           (nextStatus !== "Ready" ? `readiness is ${nextStatus}` : undefined),
       },
     });
-    void previous;
   }
 }

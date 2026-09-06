@@ -6,6 +6,7 @@ import { authSkipped, expectPageReady, loginAs } from "../helpers/auth";
  * Asserts profile save + terms accept outcomes (payment Stripe complete deferred).
  */
 test.describe("REQ onboarding happy path", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("profile save then terms accept advances readiness gates", async ({ page }) => {

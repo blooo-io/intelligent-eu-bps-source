@@ -9,6 +9,7 @@ import { authSkipped, expectPageReady, loginAs } from "./helpers/auth";
  * navigate to `/onboarding` explicitly.
  */
 test.describe("AC-01 onboarding wizard (authenticated)", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("hugo.petit reaches /onboarding Steps wizard (UAT-067)", async ({ page }) => {

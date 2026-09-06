@@ -3,7 +3,7 @@ import type { NotificationLogEntry } from "./types.js";
 export class NotificationStore {
   private logs: NotificationLogEntry[] = [];
   /** V1 fixture: participantId → delivery address (not logged). */
-  private recipients = new Map<string, string>();
+  private readonly recipients = new Map<string, string>();
 
   reset(): void {
     this.logs = [];

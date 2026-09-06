@@ -6,6 +6,7 @@ import { authSkipped, expectPageReady, loginAs } from "../helpers/auth";
  * CSV shape: email,marketActorId,meterId,role (textarea, not file upload).
  */
 test.describe("REQ participant import", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("CSV import creates a participant row", async ({ page }) => {

@@ -6,10 +6,10 @@ import type {
 } from "./types.js";
 
 export class ReportingStore {
-  private invoices = new Map<string, InvoiceProjection>();
-  private payments = new Map<string, PaymentProjection>();
-  private reports = new Map<string, BuiltReport>();
-  private kpiExports = new Map<string, BuiltKpiExport>();
+  private readonly invoices = new Map<string, InvoiceProjection>();
+  private readonly payments = new Map<string, PaymentProjection>();
+  private readonly reports = new Map<string, BuiltReport>();
+  private readonly kpiExports = new Map<string, BuiltKpiExport>();
 
   reset(): void {
     this.invoices.clear();

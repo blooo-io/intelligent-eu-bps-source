@@ -15,9 +15,9 @@ import {
  * replace this store when CNPG wiring lands; the service API stays the same.
  */
 export class ParticipantsStore {
-  private communities = new Map<string, CommunitySettings>();
-  private participants = new Map<string, ParticipantRecord>();
-  private marketIndex = new Map<string, string>();
+  private readonly communities = new Map<string, CommunitySettings>();
+  private readonly participants = new Map<string, ParticipantRecord>();
+  private readonly marketIndex = new Map<string, string>();
   private terms: TermsDocument = { ...SEED_TERMS };
 
   constructor() {

@@ -8,11 +8,11 @@ import type {
 
 /** In-memory read projections + discrepancy store for V1 (TP-7 rebuildable cache). */
 export class ReconciliationStore {
-  private invoices = new Map<string, InvoiceProjection>();
-  private payments = new Map<string, PaymentProjection>();
-  private markets = new Map<string, MarketProjection>();
-  private anomalies = new Map<string, IntakeAnomalyProjection>();
-  private discrepancies = new Map<string, Discrepancy>();
+  private readonly invoices = new Map<string, InvoiceProjection>();
+  private readonly payments = new Map<string, PaymentProjection>();
+  private readonly markets = new Map<string, MarketProjection>();
+  private readonly anomalies = new Map<string, IntakeAnomalyProjection>();
+  private readonly discrepancies = new Map<string, Discrepancy>();
 
   reset(): void {
     this.invoices.clear();

@@ -5,6 +5,7 @@ import { authSkipped, expectPageReady, loginAs } from "../helpers/auth";
  * INT-218 — OIDC session journeys (REQ-033 / REQ-035 / UAT-043 / UAT-045).
  */
 test.describe("REQ auth OIDC session", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("hugo.petit login establishes session then Sign out returns to IdP CTA", async ({

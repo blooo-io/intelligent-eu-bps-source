@@ -1,3 +1,4 @@
+import { asString } from "@intelligent/module-template";
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ReconciliationService } from "../reconciliation/reconciliation.service.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
@@ -26,31 +27,31 @@ export class BillingEventsListener implements OnModuleInit {
   async onInvoice(payload: unknown): Promise<void> {
     const env = asEnvelope(payload);
     const data = env.data;
-    const invoiceId = String(data.invoiceId ?? "");
+    const invoiceId = asString(data.invoiceId);
     if (!invoiceId) return;
     const amounts = (data.amounts as Record<string, unknown> | undefined) ?? {};
     this.reconciliation.projectInvoice({
       invoiceId,
       communityId: env.communityId,
-      currency: String(data.currency ?? "EUR"),
-      status: String(data.status ?? "Open"),
-      total: String(amounts.total ?? data.total ?? "0.00"),
+      currency: asString(data.currency, "EUR"),
+      status: asString(data.status, "Open"),
+      total: asString(amounts.total ?? data.total, "0.00"),
     });
   }
 
   async onPayment(payload: unknown): Promise<void> {
     const env = asEnvelope(payload);
     const data = env.data;
-    const paymentId = String(data.paymentId ?? "");
-    const invoiceId = String(data.invoiceId ?? "");
+    const paymentId = asString(data.paymentId);
+    const invoiceId = asString(data.invoiceId);
     if (!paymentId || !invoiceId) return;
     this.reconciliation.projectPayment({
       paymentId,
       invoiceId,
       communityId: env.communityId,
-      amount: String(data.amount ?? "0.00"),
-      currency: String(data.currency ?? "EUR"),
-      status: String(data.status ?? ""),
+      amount: asString(data.amount, "0.00"),
+      currency: asString(data.currency, "EUR"),
+      status: asString(data.status),
     });
   }
 
@@ -73,7 +74,7 @@ function asEnvelope(payload: unknown): {
     data?: Record<string, unknown>;
   };
   return {
-    communityId: String(envelope.communityId ?? ""),
+    communityId: asString(envelope.communityId),
     data: envelope.data ?? {},
   };
 }

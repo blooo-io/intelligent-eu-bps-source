@@ -1,3 +1,4 @@
+import { asString } from "@intelligent/module-template";
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ReportingService } from "../reporting/reporting.service.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
@@ -25,18 +26,18 @@ export class BillingEventsListener implements OnModuleInit {
   async onInvoice(payload: unknown): Promise<void> {
     const env = asEnvelope(payload);
     const data = env.data;
-    const invoiceId = String(data.invoiceId ?? "");
+    const invoiceId = asString(data.invoiceId);
     if (!invoiceId) return;
     const amounts = (data.amounts as Record<string, unknown> | undefined) ?? {};
     this.reporting.projectInvoice({
       invoiceId,
       communityId: env.communityId,
-      producerId: String(data.issuerId ?? data.producerId ?? ""),
-      consumerId: String(data.recipientId ?? data.consumerId ?? ""),
-      period: String(data.period ?? "unknown"),
-      currency: String(data.currency ?? "EUR"),
-      status: String(data.status ?? "Open"),
-      total: String(amounts.total ?? data.total ?? "0.00"),
+      producerId: asString(data.issuerId ?? data.producerId),
+      consumerId: asString(data.recipientId ?? data.consumerId),
+      period: asString(data.period, "unknown"),
+      currency: asString(data.currency, "EUR"),
+      status: asString(data.status, "Open"),
+      total: asString(amounts.total ?? data.total, "0.00"),
       tradeIds: Array.isArray(data.tradeIds)
         ? data.tradeIds.map(String)
         : [],
@@ -46,16 +47,16 @@ export class BillingEventsListener implements OnModuleInit {
   async onPayment(payload: unknown): Promise<void> {
     const env = asEnvelope(payload);
     const data = env.data;
-    const paymentId = String(data.paymentId ?? "");
-    const invoiceId = String(data.invoiceId ?? "");
+    const paymentId = asString(data.paymentId);
+    const invoiceId = asString(data.invoiceId);
     if (!paymentId || !invoiceId) return;
     this.reporting.projectPayment({
       paymentId,
       invoiceId,
       communityId: env.communityId,
-      amount: String(data.amount ?? "0.00"),
-      currency: String(data.currency ?? "EUR"),
-      status: String(data.status ?? ""),
+      amount: asString(data.amount, "0.00"),
+      currency: asString(data.currency, "EUR"),
+      status: asString(data.status),
       method: typeof data.method === "string" ? data.method : undefined,
       failureCategory:
         typeof data.failureCategory === "string"
@@ -72,7 +73,7 @@ export class BillingEventsListener implements OnModuleInit {
 
   async onBillingRun(payload: unknown): Promise<void> {
     const env = asEnvelope(payload);
-    const period = String(env.data.period ?? "");
+    const period = asString(env.data.period);
     if (!env.communityId || !period) return;
     await this.reporting.buildReport({
       communityId: env.communityId,
@@ -90,7 +91,7 @@ function asEnvelope(payload: unknown): {
     data?: Record<string, unknown>;
   };
   return {
-    communityId: String(envelope.communityId ?? ""),
+    communityId: asString(envelope.communityId),
     data: envelope.data ?? {},
   };
 }

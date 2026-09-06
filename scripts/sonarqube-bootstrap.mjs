@@ -125,7 +125,8 @@ async function waitForUp(hostUrl, { attempts = 60, delayMs = 5000 } = {}) {
 }
 
 function basicAuth(login, password) {
-  return `Basic ${Buffer.from(`${login}:${password}`, "utf8").toString("base64")}`;
+  const credentials = `${login}:${password}`;
+  return `Basic ${Buffer.from(credentials, "utf8").toString("base64")}`;
 }
 
 async function api(hostUrl, { method = "GET", path: apiPath, login, password, body }) {
@@ -346,15 +347,12 @@ ${buildGithubSyncCommands()}
 
 export async function applyBootstrap({
   hostUrl = process.env.SONAR_HOST_URL || DEFAULT_SONAR_HOST_URL,
-  kubectlFn = kubectl,
+  kubectlFn: _kubectlFn = kubectl,
   baoReadWrite = true,
 } = {}) {
   if (!process.env.KUBECONFIG && baoReadWrite) {
     throw new Error("KUBECONFIG is required for --apply");
   }
-  // Touch kubectlFn so tests can inject without OpenBao.
-  void kubectlFn;
-
   const token = rootToken();
   let kv = readKvMap(token);
   let adminPassword = kv.admin_password;
@@ -392,12 +390,12 @@ const isDirectRun =
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isDirectRun) {
-  const args = process.argv.slice(2);
-  if (args.includes("--check")) {
+  const args = new Set(process.argv.slice(2));
+  if (args.has("--check")) {
     console.log(JSON.stringify(await checkBootstrapLayout()));
-  } else if (args.includes("--print")) {
+  } else if (args.has("--print")) {
     process.stdout.write(printBootstrapSteps());
-  } else if (args.includes("--apply")) {
+  } else if (args.has("--apply")) {
     const result = await applyBootstrap();
     // Never print admin password or analysis token.
     console.log(

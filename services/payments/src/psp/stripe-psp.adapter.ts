@@ -115,9 +115,8 @@ export class StripePspAdapter implements PspPort {
   async submitAccountRequirements(
     stripeAccountId: string,
     submission: OnboardingRequirementsSubmission,
-    clientIp: string,
+    _clientIp: string,
   ): Promise<OnboardingSession> {
-    void clientIp;
     const params: Stripe.AccountUpdateParams = {};
 
     // INT-191 — legal entity / ToS via account_token (required for FR platforms).
@@ -177,13 +176,12 @@ export class StripePspAdapter implements PspPort {
   }
 
   async attachPaymentMethod(
-    participantId: string,
+    _participantId: string,
     paymentMethodId: string,
   ): Promise<PaymentMethodRef> {
     // Validate the PaymentMethod exists in test mode; attachment to a Customer
     // is deferred until pay time if the PM is already platform-scoped.
     const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
-    void participantId;
     return { paymentMethodId: pm.id };
   }
 

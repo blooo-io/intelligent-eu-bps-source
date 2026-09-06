@@ -20,7 +20,7 @@ export const INVOICE_LOOKUP = Symbol("INVOICE_LOOKUP");
 
 /** In-memory stub for unit tests. */
 export class InMemoryInvoiceLookup implements InvoiceLookupPort {
-  private rows = new Map<string, InvoiceLookupResult>();
+  private readonly rows = new Map<string, InvoiceLookupResult>();
 
   put(row: InvoiceLookupResult): void {
     this.rows.set(row.invoiceId, { ...row });

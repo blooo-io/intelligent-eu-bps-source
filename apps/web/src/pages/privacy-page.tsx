@@ -34,10 +34,10 @@ function readStoredRequest(): DataSubjectRequest | null {
 export function PrivacyPage({
   config,
   oidc,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
-}) {
+}>) {
   const [requestType, setRequestType] = useState<DataSubjectRequestType>("export");
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);

@@ -13,6 +13,18 @@ export type SetupElementHandle = {
   destroy: () => void;
 };
 
+function paymentMethodIdFromSetupIntent(
+  paymentMethod: string | { id: string } | null | undefined,
+): string | undefined {
+  if (typeof paymentMethod === "string") {
+    return paymentMethod;
+  }
+  if (paymentMethod && typeof paymentMethod === "object") {
+    return paymentMethod.id;
+  }
+  return undefined;
+}
+
 /**
  * Mount a Payment Element bound to a SetupIntent client secret.
  * Caller must keep the container mounted until destroy().
@@ -52,9 +64,9 @@ export async function mountSetupPaymentElement(input: {
       if (error) {
         throw new Error(error.message ?? "Payment method setup failed");
       }
-      const pm = setupIntent?.payment_method;
-      const paymentMethodId =
-        typeof pm === "string" ? pm : pm && typeof pm === "object" ? pm.id : undefined;
+      const paymentMethodId = paymentMethodIdFromSetupIntent(
+        setupIntent?.payment_method,
+      );
       if (!paymentMethodId) {
         throw new Error("SetupIntent succeeded without payment_method");
       }

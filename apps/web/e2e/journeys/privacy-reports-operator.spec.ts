@@ -5,6 +5,7 @@ import { authSkipped, clickRadioButton, expectPageReady, loginAs } from "../help
  * INT-218 — privacy (REQ-013), reports (REQ-031/032), operator (REQ-041 / UAT-052).
  */
 test.describe("REQ privacy reports operator", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("privacy export request returns status", async ({ page }) => {

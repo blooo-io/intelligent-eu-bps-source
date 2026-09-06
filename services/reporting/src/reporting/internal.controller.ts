@@ -17,7 +17,7 @@ export class InternalReportingController {
     @Inject(ReportingService) private readonly reporting: ReportingService,
   ) {}
 
-  @Post("reports\\:build")
+  @Post(String.raw`reports\:build`)
   @HttpCode(202)
   async buildReport(
     @Body() body: { communityId: string; period: string },

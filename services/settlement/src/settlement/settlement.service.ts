@@ -273,15 +273,9 @@ export class SettlementService {
         input.type === "early" || input.type === "final" || gross === 0;
       const belowThreshold = Math.abs(gross) < this.context.threshold;
 
-      let energyAmount = 0;
-      let carriedForwardOut = 0;
-      if (!forceInvoice && belowThreshold && gross !== 0) {
-        carriedForwardOut = gross;
-        energyAmount = 0;
-      } else {
-        energyAmount = gross;
-        carriedForwardOut = 0;
-      }
+      const carryPair = !forceInvoice && belowThreshold && gross !== 0;
+      const energyAmount = carryPair ? 0 : gross;
+      const carriedForwardOut = carryPair ? gross : 0;
 
       // BR-07 — VAT at community rate (default 0).
       const vat = roundCent(energyAmount * this.context.vatRate);

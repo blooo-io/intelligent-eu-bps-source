@@ -67,7 +67,7 @@ export type PaymentMethodRef = {
 export type PaymentMethodDetails = {
   paymentMethodId: string;
   /** Stripe PaymentMethod.type — card | sepa_debit (REQ-014). */
-  type?: "card" | "sepa_debit" | string;
+  type?: "card" | "sepa_debit";
   brand?: string;
   last4?: string;
 };

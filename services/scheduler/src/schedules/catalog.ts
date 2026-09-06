@@ -104,7 +104,7 @@ export function materializeBody(
   body: Record<string, unknown> | undefined,
   now: Date = new Date(),
 ): Record<string, unknown> {
-  const out = { ...(body ?? {}) };
+  const out: Record<string, unknown> = { ...body };
   if (out.period === "YEAR-12") {
     out.period = `${now.getUTCFullYear()}-12`;
   }

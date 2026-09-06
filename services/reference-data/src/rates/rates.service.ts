@@ -51,7 +51,6 @@ export class RatesService {
   fetchRates(date: string): { date: string; accepted: true } {
     // V1 fixture is static; refresh re-binds the same ECB table for the date.
     this.fx = createV1FxPort();
-    void date;
     return { date, accepted: true };
   }
 }

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { redactPersonalData } from "@intelligent/module-template";
+import { asString, redactPersonalData } from "@intelligent/module-template";
 import { MAIL_PORT, type MailPort } from "../mail/mail.port.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
 
@@ -70,8 +70,8 @@ function asEnvelope(payload: unknown): {
     data?: Record<string, unknown>;
   };
   return {
-    eventId: String(envelope.eventId ?? ""),
-    communityId: String(envelope.communityId ?? ""),
+    eventId: asString(envelope.eventId),
+    communityId: asString(envelope.communityId),
     data: envelope.data ?? {},
   };
 }
@@ -83,7 +83,7 @@ function summarize(
   const parts = [`alert=${subject}`];
   for (const key of ["jobId", "error", "scope", "expected", "actual", "type", "marketId", "details"]) {
     if (data[key] !== undefined) {
-      parts.push(`${key}=${String(data[key])}`);
+      parts.push(`${key}=${asString(data[key])}`);
     }
   }
   return parts.join("\n");

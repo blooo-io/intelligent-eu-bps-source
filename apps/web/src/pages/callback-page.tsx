@@ -6,7 +6,7 @@ import type { OidcFacade } from "../auth/oidc";
 const { Text } = Typography;
 
 /** OIDC redirect landing — exchanges the code for tokens (PKCE). */
-export function CallbackPage({ oidc }: { oidc: OidcFacade }) {
+export function CallbackPage({ oidc }: Readonly<{ oidc: OidcFacade }>) {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
 

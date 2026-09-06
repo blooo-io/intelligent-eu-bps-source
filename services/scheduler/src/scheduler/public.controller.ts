@@ -28,7 +28,7 @@ export class PublicSchedulerController {
     return this.scheduler.listJobs(communityId);
   }
 
-  @Post("jobs/:id\\:run")
+  @Post(String.raw`jobs/:id\:run`)
   @HttpCode(202)
   @UseGuards(new ModuleAuthGuard({ roles: ["operator", "manager"] }))
   async run(

@@ -32,7 +32,10 @@ import { appTheme } from "./theme";
  * Auth gate uses react-router `<Navigate>` (INT-181) — not Refine
  * `<Authenticated>` / `useGo`, which no-ops without a routerProvider.
  */
-export function App({ config, oidc }: { config: WebConfig; oidc: OidcFacade }) {
+export function App({
+  config,
+  oidc,
+}: Readonly<{ config: WebConfig; oidc: OidcFacade }>) {
   // Stable authProvider identity — a new object each render can reset Refine auth.
   const authProvider = useMemo(() => createAuthProvider(oidc), [oidc]);
 

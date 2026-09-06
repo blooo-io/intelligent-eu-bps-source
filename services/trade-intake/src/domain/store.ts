@@ -5,7 +5,7 @@ import type { IntakeAnomaly, StoredTrade } from "./types.js";
  * Status is immutable once written (BR-11).
  */
 export class TradeStore {
-  private trades = new Map<string, StoredTrade>();
+  private readonly trades = new Map<string, StoredTrade>();
   private anomalies: IntakeAnomaly[] = [];
 
   reset(): void {

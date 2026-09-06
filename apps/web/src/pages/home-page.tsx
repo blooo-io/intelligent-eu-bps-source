@@ -66,10 +66,10 @@ function sumBalances(
 export function HomePage({
   config,
   oidc,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
-}) {
+}>) {
   const { data: identity } = useGetIdentity<Identity>();
   const [me, setMe] = useState<Me | null>(null);
   const [pulse, setPulse] = useState<Pulse | null>(null);

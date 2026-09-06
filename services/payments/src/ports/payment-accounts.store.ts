@@ -36,8 +36,7 @@ export class PostgresPaymentAccountsStore implements PaymentAccountsStore {
   constructor(private readonly pool: Pool) {}
 
   private async ensureSchema(): Promise<void> {
-    if (!this.ready) {
-      this.ready = this.pool
+    this.ready ??= this.pool
         .query(
           `CREATE TABLE IF NOT EXISTS payment_accounts (
              participant_id     TEXT PRIMARY KEY,
@@ -50,7 +49,6 @@ export class PostgresPaymentAccountsStore implements PaymentAccountsStore {
            )`,
         )
         .then(() => undefined);
-    }
     await this.ready;
   }
 

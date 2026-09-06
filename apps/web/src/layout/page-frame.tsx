@@ -15,13 +15,13 @@ export function PageFrame({
   actions,
   loading,
   children,
-}: {
+}: Readonly<{
   title: string;
   description?: string;
   actions?: ReactNode;
   loading?: boolean;
   children?: ReactNode;
-}) {
+}>) {
   if (loading) {
     return (
       <div style={{ display: "grid", placeItems: "center", minHeight: 200 }} data-testid="page-loading">

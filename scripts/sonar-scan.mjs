@@ -31,6 +31,18 @@ export function isSonarCloudHost(host = "") {
   }
 }
 
+function appendPullRequestArgs(args, env) {
+  const key = env.GITHUB_EVENT_PULL_REQUEST_NUMBER || env.SONAR_PULLREQUEST_KEY;
+  const branch = env.GITHUB_HEAD_REF || env.SONAR_PULLREQUEST_BRANCH;
+  const base = env.GITHUB_BASE_REF || env.SONAR_PULLREQUEST_BASE;
+  const repo = env.GITHUB_REPOSITORY || env.SONAR_PULLREQUEST_GITHUB_REPOSITORY;
+  if (key) args.push(`-Dsonar.pullrequest.key=${key}`);
+  if (branch) args.push(`-Dsonar.pullrequest.branch=${branch}`);
+  if (base) args.push(`-Dsonar.pullrequest.base=${base}`);
+  args.push("-Dsonar.pullrequest.provider=github");
+  if (repo) args.push(`-Dsonar.pullrequest.github.repository=${repo}`);
+}
+
 export function buildScannerArgs(env = process.env, lcovPaths = "") {
   const host = env.SONAR_HOST_URL || "https://sonarcloud.io";
   const org = env.SONAR_ORGANIZATION || "blooo-io";
@@ -48,22 +60,13 @@ export function buildScannerArgs(env = process.env, lcovPaths = "") {
   }
   // INT-293 follow-up: Community Build rejects sonar.pullrequest.* and sonar.branch.name
   // (Developer Edition+). Analyze the checked-out tree as the project main branch instead.
-  if (cloud) {
-    if (env.GITHUB_EVENT_NAME === "pull_request") {
-      const key =
-        env.GITHUB_EVENT_PULL_REQUEST_NUMBER || env.SONAR_PULLREQUEST_KEY;
-      const branch = env.GITHUB_HEAD_REF || env.SONAR_PULLREQUEST_BRANCH;
-      const base = env.GITHUB_BASE_REF || env.SONAR_PULLREQUEST_BASE;
-      const repo =
-        env.GITHUB_REPOSITORY || env.SONAR_PULLREQUEST_GITHUB_REPOSITORY;
-      if (key) args.push(`-Dsonar.pullrequest.key=${key}`);
-      if (branch) args.push(`-Dsonar.pullrequest.branch=${branch}`);
-      if (base) args.push(`-Dsonar.pullrequest.base=${base}`);
-      args.push("-Dsonar.pullrequest.provider=github");
-      if (repo) args.push(`-Dsonar.pullrequest.github.repository=${repo}`);
-    } else if (env.GITHUB_REF_NAME) {
-      args.push(`-Dsonar.branch.name=${env.GITHUB_REF_NAME}`);
-    }
+  if (!cloud) {
+    return args;
+  }
+  if (env.GITHUB_EVENT_NAME === "pull_request") {
+    appendPullRequestArgs(args, env);
+  } else if (env.GITHUB_REF_NAME) {
+    args.push(`-Dsonar.branch.name=${env.GITHUB_REF_NAME}`);
   }
   return args;
 }
@@ -117,8 +120,10 @@ async function main() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch((err) => {
+  try {
+    await main();
+  } catch (err) {
     console.error(err);
     process.exit(1);
-  });
+  }
 }

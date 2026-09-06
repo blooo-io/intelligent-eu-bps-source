@@ -6,6 +6,7 @@ import { authSkipped, expectPageReady, loginAs } from "../helpers/auth";
  * Requires seeded open invoices for hugo.petit (UAT-028 / UAT-053 seed path).
  */
 test.describe("REQ invoices PDF and pay", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("view invoice shows amounts without grid fees; Open PDF; Pay when open", async ({

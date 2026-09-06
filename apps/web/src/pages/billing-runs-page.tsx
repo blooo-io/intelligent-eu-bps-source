@@ -26,10 +26,10 @@ type FormValues = {
 export function BillingRunsPage({
   config,
   oidc,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
-}) {
+}>) {
   const [communityId, setCommunityId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);

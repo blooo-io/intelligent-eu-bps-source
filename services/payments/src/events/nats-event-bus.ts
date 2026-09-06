@@ -99,9 +99,7 @@ export class NatsEventBus implements EventBusPort {
   }
 
   private async ensureConnected(): Promise<NatsConnection> {
-    if (!this.nc) {
-      this.nc = await connect({ servers: this.url });
-    }
+    this.nc ??= await connect({ servers: this.url });
     return this.nc;
   }
 }

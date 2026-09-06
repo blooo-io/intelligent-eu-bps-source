@@ -6,6 +6,7 @@ import { authSkipped, clickRadioButton, expectPageReady, loginAs } from "./helpe
  * Exercises CTAs without destructive offboard / void.
  */
 test.describe("AC-01 manager screens and buttons", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test.beforeEach(async ({ page }) => {

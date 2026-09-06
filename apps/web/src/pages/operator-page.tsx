@@ -24,10 +24,10 @@ const { Paragraph, Text } = Typography;
 export function OperatorPage({
   config,
   oidc,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
-}) {
+}>) {
   const [anomalies, setAnomalies] = useState<IntakeAnomaly[]>([]);
   const [discrepancies, setDiscrepancies] = useState<Discrepancy[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);

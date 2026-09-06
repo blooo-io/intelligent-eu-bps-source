@@ -21,10 +21,10 @@ const { Paragraph, Text } = Typography;
 export function BalancesPage({
   config,
   oidc,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
-}) {
+}>) {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [loading, setLoading] = useState(true);
   const [settlingId, setSettlingId] = useState<string | null>(null);

@@ -109,7 +109,7 @@ describe("ReconciliationService", () => {
 
     const discrepancies = service.listDiscrepancies(COMMUNITY);
     const invoiceOnes = discrepancies.filter((d) => d.scope === "invoice");
-    expect(invoiceOnes.length).toBe(3);
+    expect(invoiceOnes).toHaveLength(3);
 
     expect(
       invoiceOnes.some(
@@ -137,7 +137,7 @@ describe("ReconciliationService", () => {
 
     const events = await outboxStore.list();
     const detected = events.filter((e) => e.event.type === "DiscrepancyDetected");
-    expect(detected.length).toBe(3);
+    expect(detected).toHaveLength(3);
     expect(detected.every((e) => e.event.producer === "AC-08")).toBe(true);
     expect(detected.every((e) => e.event.data.scope === "invoice")).toBe(true);
   });

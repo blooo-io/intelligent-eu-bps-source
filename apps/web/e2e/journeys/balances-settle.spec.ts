@@ -6,6 +6,7 @@ import { authSkipped, expectPageReady, loginAs } from "../helpers/auth";
  * Prefer Settle now when unbilled rows exist; otherwise assert empty state clearly.
  */
 test.describe("REQ balances settle now", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("balances load without 404; Settle now when rows exist", async ({ page }) => {

@@ -6,6 +6,18 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+function asString(value, fallback = "") {
+  if (typeof value === "string") return value;
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return String(value);
+  }
+  return fallback;
+}
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs"]);
 const SKIPPED_TEST_SCRIPTS = new Set([
   "test:coverage",
@@ -31,25 +43,9 @@ for (const metric of ["statements", "branches", "functions", "lines"]) {
 
 const workspaceGlobs = await readWorkspaceGlobs();
 const packages = await discoverPackages(workspaceGlobs);
-const failures = [];
-
-for (const pkg of packages) {
-  const hasSource = await hasExecutableSource(pkg.directory);
-  if (!hasSource) continue;
-
-  if (!pkg.scripts["test:coverage"]) {
-    failures.push(`${pkg.name} has executable source and no test:coverage script`);
-    continue;
-  }
-  if (!(await usesSharedCoverage(pkg.directory))) {
-    failures.push(
-      `${pkg.name} must load config/vitest.shared.mjs so the 80% thresholds apply`,
-    );
-  }
-}
-
-if (failures.length > 0) {
-  console.error(failures.join("\n"));
+const validationFailures = await validateCoveragePackages(packages);
+if (validationFailures.length > 0) {
+  console.error(validationFailures.join("\n"));
   process.exit(1);
 }
 
@@ -97,20 +93,7 @@ await run(process.execPath, ["--test", path.join(root, "scripts/uat053-seed-numb
 
 await run(process.execPath, ["--test", path.join(root, "scripts/local-stack.test.mjs")]);
 
-const commands = [];
-for (const pkg of packages) {
-  const hasSource = await hasExecutableSource(pkg.directory);
-  if (hasSource) {
-    commands.push([pkg, "test:coverage"]);
-  }
-  for (const script of Object.keys(pkg.scripts).sort((a, b) => a.localeCompare(b))) {
-    if (script !== "test" && !script.startsWith("test:")) continue;
-    if (isSkippedTestScript(script)) continue;
-    if (script === "test" && pkg.scripts["test:coverage"]) continue;
-    if (!hasSource && script === "test:coverage") continue;
-    commands.push([pkg, script]);
-  }
-}
+const commands = await collectTestCommands(packages);
 
 if (commands.length === 0) {
   console.log(
@@ -139,7 +122,7 @@ for (const pkg of packages) {
 }
 
 for (const [pkg, script] of commands) {
-  console.log(`\n== ${pkg.name} ${script} ==`);
+  console.log(`\n== ${pkg.name} ${asString(script)} ==`);
   await run("pnpm", ["--dir", pkg.directory, "run", script], root);
 }
 
@@ -148,17 +131,24 @@ async function readWorkspaceGlobs() {
   return [...raw.matchAll(/^[ \t]*-[ \t]+"([^"]+)"/gm)].map((match) => match[1]);
 }
 
+async function expandWorkspacePattern(pattern) {
+  if (!pattern.endsWith("/*")) {
+    return [path.join(root, pattern)];
+  }
+  const parent = path.join(root, pattern.slice(0, -2));
+  if (!(await exists(parent))) return [];
+  const directories = [];
+  for (const entry of await readdir(parent, { withFileTypes: true })) {
+    if (entry.isDirectory()) directories.push(path.join(parent, entry.name));
+  }
+  return directories;
+}
+
 async function discoverPackages(globs) {
   const directories = new Set();
   for (const pattern of globs) {
-    if (pattern.endsWith("/*")) {
-      const parent = path.join(root, pattern.slice(0, -2));
-      if (!(await exists(parent))) continue;
-      for (const entry of await readdir(parent, { withFileTypes: true })) {
-        if (entry.isDirectory()) directories.add(path.join(parent, entry.name));
-      }
-    } else {
-      directories.add(path.join(root, pattern));
+    for (const directory of await expandWorkspacePattern(pattern)) {
+      directories.add(directory);
     }
   }
 
@@ -176,10 +166,64 @@ async function discoverPackages(globs) {
   return packages;
 }
 
+async function validateCoveragePackages(packages) {
+  const failures = [];
+  for (const pkg of packages) {
+    const hasSource = await hasExecutableSource(pkg.directory);
+    if (!hasSource) continue;
+    if (!pkg.scripts["test:coverage"]) {
+      failures.push(`${pkg.name} has executable source and no test:coverage script`);
+      continue;
+    }
+    if (!(await usesSharedCoverage(pkg.directory))) {
+      failures.push(
+        `${pkg.name} must load config/vitest.shared.mjs so the 80% thresholds apply`,
+      );
+    }
+  }
+  return failures;
+}
+
+function isRunnableWorkspaceTestScript(script, pkg, hasSource) {
+  if (script !== "test" && !script.startsWith("test:")) return false;
+  if (isSkippedTestScript(script)) return false;
+  if (script === "test" && pkg.scripts["test:coverage"]) return false;
+  if (!hasSource && script === "test:coverage") return false;
+  return true;
+}
+
+function extraTestScripts(pkg, hasSource) {
+  return Object.keys(pkg.scripts)
+    .sort((a, b) => a.localeCompare(b))
+    .filter((script) => isRunnableWorkspaceTestScript(script, pkg, hasSource));
+}
+
+async function collectTestCommands(packages) {
+  const commands = [];
+  for (const pkg of packages) {
+    const hasSource = await hasExecutableSource(pkg.directory);
+    if (hasSource) {
+      commands.push([pkg, "test:coverage"]);
+    }
+    for (const script of extraTestScripts(pkg, hasSource)) {
+      commands.push([pkg, script]);
+    }
+  }
+  return commands;
+}
+
 async function hasExecutableSource(directory) {
   const sourceRoot = path.join(directory, "src");
   if (!(await exists(sourceRoot))) return false;
   return walk(sourceRoot);
+}
+
+function isExecutableSourceFile(name) {
+  const extension = path.extname(name);
+  if (!SOURCE_EXTENSIONS.has(extension) || name.endsWith(".d.ts")) {
+    return false;
+  }
+  return !/\.(spec|test)\.[cm]?[jt]sx?$/.test(name);
 }
 
 async function walk(directory) {
@@ -190,10 +234,7 @@ async function walk(directory) {
       if (await walk(fullPath)) return true;
       continue;
     }
-    const extension = path.extname(entry.name);
-    if (!SOURCE_EXTENSIONS.has(extension) || entry.name.endsWith(".d.ts")) continue;
-    if (/\.(spec|test)\.[cm]?[jt]sx?$/.test(entry.name)) continue;
-    return true;
+    if (isExecutableSourceFile(entry.name)) return true;
   }
   return false;
 }

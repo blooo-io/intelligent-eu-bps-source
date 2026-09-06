@@ -6,6 +6,7 @@ import { authSkipped, expectPageReady, loginAs } from "../helpers/auth";
  * Asserts operator surfaces for intake anomalies / discrepancies / jobs used in the trace.
  */
 test.describe("REQ operator payment trade trace", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("operator can open discrepancy and jobs panels for seeded runs", async ({

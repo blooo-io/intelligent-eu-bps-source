@@ -5,6 +5,7 @@ import { authSkipped, expectPageReady, loginAs } from "../helpers/auth";
  * INT-218 — manager payments overview (REQ-016 / REQ-018 area).
  */
 test.describe("REQ payments overview", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("overview loads invoice rows or empty state without API errors", async ({

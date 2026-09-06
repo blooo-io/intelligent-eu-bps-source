@@ -39,7 +39,7 @@ const PRODUCER = "AC-06";
 @Injectable()
 export class InvoicingService {
   /** Unit-test / mock fixture: producerId → Stripe Connect account id. */
-  private connectAccounts = new Map<string, string>();
+  private readonly connectAccounts = new Map<string, string>();
 
   constructor(
     @Inject(InvoiceStore) private readonly store: InvoiceStore,

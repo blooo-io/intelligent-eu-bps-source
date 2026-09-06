@@ -5,6 +5,7 @@ import { authSkipped, clickRadioButton, expectPageReady, loginAs } from "../help
  * INT-218 — manager billing run (REQ-006 / UAT-006) + community settings (REQ-043).
  */
 test.describe("REQ manager billing and settings", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("community settings save round-trip", async ({ page }) => {

@@ -61,7 +61,7 @@ export function dockerfileRunsAsNonRoot(source) {
     (match) => match[1] ?? match[2],
   );
   if (users.length === 0) return false;
-  const last = users[users.length - 1];
+  const last = users.at(-1);
   return last !== "root" && last !== "0";
 }
 
@@ -80,6 +80,38 @@ export function dockerfileRunsAsNonRoot(source) {
  * @param {string[]} allDockerfiles
  * @returns {string[]}
  */
+/**
+ * @returns {"all" | "skip" | "module"}
+ */
+function classifyChangedPath(filePath, known, selected) {
+  if (filePath === LOCKFILE_PATH) {
+    return "skip";
+  }
+  if (isSkipOnlyPath(filePath)) {
+    return "skip";
+  }
+  const dockerfile = dockerfileForModulePath(filePath);
+  if (dockerfile && known.has(dockerfile)) {
+    selected.add(dockerfile);
+    return "module";
+  }
+  if (!dockerfile) {
+    return "all";
+  }
+  return "module";
+}
+
+function mergeLockfileDockerfiles(paths, known, selected, normalizedAll) {
+  const lockDecision = lockfileRebuildScope(paths, known);
+  if (lockDecision.includes("*")) {
+    return [...normalizedAll];
+  }
+  for (const dockerfile of lockDecision) {
+    selected.add(dockerfile);
+  }
+  return null;
+}
+
 export function selectDockerfilesForChangedPaths(changedPaths, allDockerfiles) {
   const normalizedAll = allDockerfiles.map((d) => d.split(path.sep).join("/"));
   const known = new Set(normalizedAll);
@@ -96,35 +128,19 @@ export function selectDockerfilesForChangedPaths(changedPaths, allDockerfiles) {
 
   const lockfileChanged = paths.includes(LOCKFILE_PATH);
   const selected = new Set();
-  let sawNonSkip = false;
-
-  for (const filePath of paths) {
-    if (filePath === LOCKFILE_PATH) {
-      sawNonSkip = true;
-      continue;
-    }
-    if (isSkipOnlyPath(filePath)) continue;
-    sawNonSkip = true;
-    const dockerfile = dockerfileForModulePath(filePath);
-    if (dockerfile && known.has(dockerfile)) {
-      selected.add(dockerfile);
-    } else if (!dockerfile) {
-      // Unknown layout — rebuild everything rather than miss an image.
-      return [...normalizedAll];
-    }
+  const scan = scanChangedPaths(paths, known, selected);
+  if (scan === "all") {
+    return [...normalizedAll];
   }
 
   if (lockfileChanged) {
-    const lockDecision = lockfileRebuildScope(paths, known);
-    if (lockDecision === "all") {
-      return [...normalizedAll];
-    }
-    for (const dockerfile of lockDecision) {
-      selected.add(dockerfile);
+    const full = mergeLockfileDockerfiles(paths, known, selected, normalizedAll);
+    if (full) {
+      return full;
     }
   }
 
-  if (!sawNonSkip) {
+  if (!scan) {
     return [];
   }
 
@@ -132,26 +148,36 @@ export function selectDockerfilesForChangedPaths(changedPaths, allDockerfiles) {
 }
 
 /**
- * INT-185 — interpret pnpm-lock.yaml with companion package.json changes.
- * @returns {"all" | string[]}
+ * @returns {"all" | boolean} — false when only skip-only paths changed.
  */
-export function lockfileRebuildScope(changedPaths, knownDockerfiles) {
-  const manifests = changedPaths.filter(
-    (p) => p === "package.json" || p.endsWith("/package.json"),
-  );
-
-  if (
-    manifests.some(
-      (p) =>
-        p === "package.json" ||
-        p.startsWith("packages/") ||
-        p.startsWith("services/") ||
-        p.startsWith("mocks/"),
-    )
-  ) {
-    return "all";
+function scanChangedPaths(paths, known, selected) {
+  let sawNonSkip = false;
+  for (const filePath of paths) {
+    const kind = classifyChangedPath(filePath, known, selected);
+    if (kind === "all") {
+      return "all";
+    }
+    if (kind !== "skip" || filePath === LOCKFILE_PATH) {
+      sawNonSkip = true;
+    }
   }
+  return sawNonSkip;
+}
 
+/**
+ * INT-185 — interpret pnpm-lock.yaml with companion package.json changes.
+ */
+function manifestsForceFullRebuild(manifests) {
+  return manifests.some(
+    (p) =>
+      p === "package.json" ||
+      p.startsWith("packages/") ||
+      p.startsWith("services/") ||
+      p.startsWith("mocks/"),
+  );
+}
+
+function dockerfilesFromAppManifests(manifests, knownDockerfiles) {
   const fromApps = [];
   for (const manifest of manifests) {
     const match = manifest.match(/^apps\/([^/]+)\/package\.json$/);
@@ -159,19 +185,34 @@ export function lockfileRebuildScope(changedPaths, knownDockerfiles) {
     const dockerfile = `apps/${match[1]}/Dockerfile`;
     if (knownDockerfiles.has(dockerfile)) fromApps.push(dockerfile);
   }
+  return fromApps;
+}
 
-  // Lockfile + only app manifests (or lockfile + app sources already selected):
-  // rebuild those apps. Lockfile with no manifests → rely on module source hits;
-  // if none, FULL (unsafe to skip a lockfile-only push).
+function lockfileModuleHits(changedPaths, knownDockerfiles) {
+  return changedPaths
+    .map((p) => dockerfileForModulePath(p))
+    .filter((d) => d && knownDockerfiles.has(d));
+}
+
+/** @returns {string[]} Dockerfile paths, or `["*"]` meaning rebuild every image. */
+export function lockfileRebuildScope(changedPaths, knownDockerfiles) {
+  const manifests = changedPaths.filter(
+    (p) => p === "package.json" || p.endsWith("/package.json"),
+  );
+
+  if (manifestsForceFullRebuild(manifests)) {
+    return ["*"];
+  }
+
+  const fromApps = dockerfilesFromAppManifests(manifests, knownDockerfiles);
+
   if (fromApps.length > 0) return fromApps;
   if (manifests.length === 0) {
-    const moduleHits = changedPaths
-      .map((p) => dockerfileForModulePath(p))
-      .filter((d) => d && knownDockerfiles.has(d));
+    const moduleHits = lockfileModuleHits(changedPaths, knownDockerfiles);
     if (moduleHits.length > 0) return [...new Set(moduleHits)];
-    return "all";
+    return ["*"];
   }
-  return "all";
+  return ["*"];
 }
 
 export function isGlobalImageRebuildPath(filePath) {
@@ -198,7 +239,8 @@ export function isSkipOnlyPath(filePath) {
  */
 export function dockerfileForModulePath(filePath) {
   const normalized = filePath.split(path.sep).join("/");
-  const match = normalized.match(/^(services|apps|mocks)\/([^/]+)\//);
+  const modulePathRe = /^(services|apps|mocks)\/([^/]+)\//;
+  const match = modulePathRe.exec(normalized);
   if (!match) return null;
   return `${match[1]}/${match[2]}/Dockerfile`;
 }
@@ -316,6 +358,90 @@ export function resolveDockerfilesToBuild(
   };
 }
 
+function logImageSelection(selection) {
+  console.log(`INT-183 image selection: ${selection.reason}`);
+  if (!selection.changed) return;
+  console.log(`Changed paths (${selection.changed.length}):`);
+  for (const filePath of selection.changed.slice(0, 50)) {
+    console.log(`  - ${filePath}`);
+  }
+  if (selection.changed.length > 50) {
+    console.log(`  … ${selection.changed.length - 50} more`);
+  }
+}
+
+function dockerLoginGhcr(root, push) {
+  if (!push) return;
+  const token = process.env.GITHUB_TOKEN;
+  const actor = process.env.GITHUB_ACTOR;
+  if (!token || !actor) {
+    throw new Error("GHCR push requires GITHUB_TOKEN and GITHUB_ACTOR");
+  }
+  run("docker", ["login", "ghcr.io", "-u", actor, "--password-stdin"], {
+    cwd: root,
+    input: token,
+    stdio: ["pipe", "inherit", "inherit"],
+  });
+}
+
+function tryDockerRmi(root, tag) {
+  try {
+    run("docker", ["rmi", "-f", tag], { cwd: root });
+  } catch {
+    // Image may already be gone; continue with the next module.
+  }
+}
+
+async function buildScanOneImage(root, dockerfile, repository, sha, push) {
+  const source = await readFile(path.join(root, dockerfile), "utf8");
+  if (!dockerfileRunsAsNonRoot(source)) {
+    throw new Error(`${dockerfile} must set a non-root USER`);
+  }
+  const tag = `ghcr.io/${repository}/${imageSuffix(dockerfile)}:${sha}`;
+  const floating = process.env.IMAGE_FLOATING_TAG?.trim();
+  const floatingTag = floating
+    ? `ghcr.io/${repository}/${imageSuffix(dockerfile)}:${floating}`
+    : null;
+  run("docker", ["build", "-f", dockerfile, "-t", tag, "."], { cwd: root });
+  if (floatingTag) {
+    run("docker", ["tag", tag, floatingTag], { cwd: root });
+  }
+  run("docker", [
+    "run",
+    "--rm",
+    "-v",
+    "/var/run/docker.sock:/var/run/docker.sock",
+    "-v",
+    `${root}:/work`,
+    "-w",
+    "/work",
+    "ghcr.io/aquasecurity/trivy:0.75.0",
+    "image",
+    "--config",
+    "/work/trivy-image.yaml",
+    "--exit-code",
+    "1",
+    tag,
+  ], { cwd: root });
+  if (push) {
+    run("docker", ["push", tag], { cwd: root });
+    if (floatingTag) {
+      run("docker", ["push", floatingTag], { cwd: root });
+    }
+  }
+  if (!push) {
+    tryDockerRmi(root, tag);
+    if (floatingTag) {
+      tryDockerRmi(root, floatingTag);
+    }
+  }
+  try {
+    run("docker", ["builder", "prune", "-f"], { cwd: root });
+  } catch {
+    // Older Docker without buildx prune — ignore.
+  }
+}
+
 async function buildImages(root) {
   const allDockerfiles = await findDockerfiles(root);
   if (allDockerfiles.length === 0) {
@@ -326,16 +452,7 @@ async function buildImages(root) {
   }
 
   const selection = resolveDockerfilesToBuild(root, allDockerfiles);
-  console.log(`INT-183 image selection: ${selection.reason}`);
-  if (selection.changed) {
-    console.log(`Changed paths (${selection.changed.length}):`);
-    for (const filePath of selection.changed.slice(0, 50)) {
-      console.log(`  - ${filePath}`);
-    }
-    if (selection.changed.length > 50) {
-      console.log(`  … ${selection.changed.length - 50} more`);
-    }
-  }
+  logImageSelection(selection);
 
   const dockerfiles = selection.dockerfiles;
   if (dockerfiles.length === 0) {
@@ -352,77 +469,10 @@ async function buildImages(root) {
   ).toLowerCase();
   const sha = process.env.GITHUB_SHA || "local";
   const push = process.env.IMAGE_PUSH === "true";
-  if (push) {
-    const token = process.env.GITHUB_TOKEN;
-    const actor = process.env.GITHUB_ACTOR;
-    if (!token || !actor) throw new Error("GHCR push requires GITHUB_TOKEN and GITHUB_ACTOR");
-    run("docker", ["login", "ghcr.io", "-u", actor, "--password-stdin"], {
-      cwd: root,
-      input: token,
-      stdio: ["pipe", "inherit", "inherit"],
-    });
-  }
+  dockerLoginGhcr(root, push);
 
   for (const dockerfile of dockerfiles) {
-    const source = await readFile(path.join(root, dockerfile), "utf8");
-    if (!dockerfileRunsAsNonRoot(source)) {
-      throw new Error(`${dockerfile} must set a non-root USER`);
-    }
-    const tag = `ghcr.io/${repository}/${imageSuffix(dockerfile)}:${sha}`;
-    // INT-178 — also publish a floating tag for Argo on develop (branch
-    // protection blocks bot commits that would pin the SHA in Git).
-    const floating = process.env.IMAGE_FLOATING_TAG?.trim();
-    const floatingTag = floating
-      ? `ghcr.io/${repository}/${imageSuffix(dockerfile)}:${floating}`
-      : null;
-    run("docker", ["build", "-f", dockerfile, "-t", tag, "."], { cwd: root });
-    if (floatingTag) {
-      run("docker", ["tag", tag, floatingTag], { cwd: root });
-    }
-    run("docker", [
-      "run",
-      "--rm",
-      "-v",
-      "/var/run/docker.sock:/var/run/docker.sock",
-      "-v",
-      `${root}:/work`,
-      "-w",
-      "/work",
-      "ghcr.io/aquasecurity/trivy:0.75.0",
-      "image",
-      "--config",
-      "/work/trivy-image.yaml",
-      "--exit-code",
-      "1",
-      tag,
-    ], { cwd: root });
-    if (push) {
-      run("docker", ["push", tag], { cwd: root });
-      if (floatingTag) {
-        run("docker", ["push", floatingTag], { cwd: root });
-      }
-    }
-    // Free runner disk between modules (INT-107 supply-chain: "No space left on device").
-    // Keep the tag only when pushing to GHCR; otherwise drop it after the scan.
-    if (!push) {
-      try {
-        run("docker", ["rmi", "-f", tag], { cwd: root });
-      } catch {
-        // Image may already be gone; continue with the next module.
-      }
-      if (floatingTag) {
-        try {
-          run("docker", ["rmi", "-f", floatingTag], { cwd: root });
-        } catch {
-          // optional floating tag may already be gone
-        }
-      }
-    }
-    try {
-      run("docker", ["builder", "prune", "-f"], { cwd: root });
-    } catch {
-      // Older Docker without buildx prune — ignore.
-    }
+    await buildScanOneImage(root, dockerfile, repository, sha, push);
   }
 }
 

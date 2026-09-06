@@ -244,7 +244,9 @@ async function cmdValidate() {
 
 const cmd = process.argv[2] ?? "seed";
 const run = cmd === "validate" ? cmdValidate : cmdSeed;
-run().catch((err) => {
+try {
+  await run();
+} catch (err) {
   console.error(err);
   process.exit(1);
-});
+}

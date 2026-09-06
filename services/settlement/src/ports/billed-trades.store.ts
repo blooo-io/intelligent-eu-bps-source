@@ -33,16 +33,14 @@ export class PostgresBilledTradesStore implements BilledTradesStore {
   constructor(private readonly pool: Pool) {}
 
   private async ensureSchema(): Promise<void> {
-    if (!this.ready) {
-      this.ready = this.pool
-        .query(
-          `CREATE TABLE IF NOT EXISTS fixture_billed_trades (
-             trade_id   TEXT PRIMARY KEY,
-             marked_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-           )`,
-        )
-        .then(() => undefined);
-    }
+    this.ready ??= this.pool
+      .query(
+        `CREATE TABLE IF NOT EXISTS fixture_billed_trades (
+           trade_id   TEXT PRIMARY KEY,
+           marked_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+         )`,
+      )
+      .then(() => undefined);
     await this.ready;
   }
 

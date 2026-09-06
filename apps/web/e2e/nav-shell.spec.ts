@@ -12,6 +12,7 @@ import {
  * Members must not see manager/operator links (avoids raw 403 dead-ends).
  */
 test.describe("AC-01 shell navigation (authenticated)", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
   test.describe.configure({ mode: "serial" });
 

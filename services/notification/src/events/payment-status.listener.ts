@@ -1,3 +1,4 @@
+import { asString } from "@intelligent/module-template";
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import type { PaymentStatusEvent } from "../domain/types.js";
 import { NotificationService } from "../notification/notification.service.js";
@@ -37,12 +38,12 @@ function mapEnvelope(payload: unknown): PaymentStatusEvent {
   };
   const data = envelope.data ?? {};
   return {
-    eventId: String(envelope.eventId ?? ""),
-    communityId: String(envelope.communityId ?? ""),
-    paymentId: String(data.paymentId ?? ""),
-    invoiceId: String(data.invoiceId ?? ""),
-    status: String(data.status ?? ""),
-    participantId: String(data.participantId ?? ""),
+    eventId: asString(envelope.eventId),
+    communityId: asString(envelope.communityId),
+    paymentId: asString(data.paymentId),
+    invoiceId: asString(data.invoiceId),
+    status: asString(data.status),
+    participantId: asString(data.participantId),
     failureCategory:
       typeof data.failureCategory === "string"
         ? data.failureCategory

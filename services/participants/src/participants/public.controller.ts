@@ -88,7 +88,7 @@ export class PublicParticipantsController {
     return this.participants.updateCommunitySettings(communityId, body);
   }
 
-  @Post("communities/:communityId/participants\\:import")
+  @Post(String.raw`communities/:communityId/participants\:import`)
   @HttpCode(201)
   @UseGuards(
     new ModuleAuthGuard({
@@ -126,7 +126,7 @@ export class PublicParticipantsController {
   }
 
   // OpenAPI custom method `/participants/{id}:offboard` — escape `:` for path-to-regexp.
-  @Post("participants/:participantId\\:offboard")
+  @Post(String.raw`participants/:participantId\:offboard`)
   @HttpCode(202)
   @UseGuards(new ModuleAuthGuard({ roles: ["manager"] }))
   async offboardParticipant(

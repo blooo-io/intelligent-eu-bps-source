@@ -260,7 +260,7 @@ describe("PaymentsService", () => {
     });
     expect(session.status).toBe("complete");
     expect(store.getAccount(PRODUCER)?.stripeAccountId).toMatch(/^acct_test_/);
-    expect(psp.tokens.length).toBe(1);
+    expect(psp.tokens).toHaveLength(1);
   });
 
   it("attaches payment method and emits PaymentAccountStatusChanged (REQ-040)", async () => {

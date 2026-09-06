@@ -13,7 +13,6 @@ export class PublicIntakeController {
   @Get("intake/anomalies")
   @UseGuards(new ModuleAuthGuard({ roles: ["operator"] }))
   listAnomalies(@Query("communityId") _communityId?: string) {
-    void _communityId;
     return this.intake.listAnomalies();
   }
 }

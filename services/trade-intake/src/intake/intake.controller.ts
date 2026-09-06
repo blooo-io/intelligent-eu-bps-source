@@ -33,26 +33,26 @@ export class IntakeController {
   }
 
   /** INT-232 — AC-05 marks trades consumed after pair settlement. */
-  @Post("trades\\:mark-billed")
+  @Post(String.raw`trades\:mark-billed`)
   @HttpCode(204)
   markTradesBilled(@Body() body: { tradeIds?: string[] }) {
     this.intake.markBilled(body?.tradeIds ?? []);
   }
 
   /** INT-232 — operator seed: re-open trades for another billing run. */
-  @Post("trades\\:reset-billed")
+  @Post(String.raw`trades\:reset-billed`)
   @HttpCode(200)
   resetTradesBilled() {
     return this.intake.resetBilled();
   }
 
-  @Post("intake\\:refresh")
+  @Post(String.raw`intake\:refresh`)
   @HttpCode(202)
   async refreshIntake(@Body() body: { from: string; to: string }) {
     return this.intake.refreshIntake(body);
   }
 
-  @Post("intake\\:check-health")
+  @Post(String.raw`intake\:check-health`)
   @HttpCode(204)
   async checkIntakeHealth() {
     await this.intake.checkIntakeHealth();

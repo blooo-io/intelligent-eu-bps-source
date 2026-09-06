@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Button, Layout, Menu, Space, Tag, Typography, theme } from "antd";
+import { Layout, theme } from "antd";
 import type { ItemType } from "antd/es/menu/interface";
 import { useGetIdentity, useLogout } from "@refinedev/core";
 import { Link, Outlet, useLocation } from "react-router";
@@ -9,6 +9,8 @@ import type { OidcFacade } from "../auth/oidc";
 import { brand } from "../theme";
 import { communityDisplayName } from "./community-label";
 import { effectiveRoles } from "./effective-roles";
+import { AppShellHeaderBar } from "./app-shell-header";
+import { AppShellSider } from "./app-shell-sider";
 import {
   labeledNavItems,
   navItemsByGroup,
@@ -16,8 +18,7 @@ import {
 } from "./nav-access";
 import { marketRoleLabel } from "./role-home";
 
-const { Header, Sider, Content } = Layout;
-const { Text } = Typography;
+const { Content } = Layout;
 
 type Identity = {
   id?: string;
@@ -25,6 +26,32 @@ type Identity = {
   roles?: string[];
   communityId?: string;
 };
+
+function headerRoleTagsFor(
+  roles: string[],
+  marketRole: Me["role"] | undefined,
+): string[] {
+  if (roles.includes("manager")) return ["Manager"];
+  if (roles.includes("operator")) return ["Operator"];
+  const market = marketRoleLabel(marketRole);
+  if (market) return [market];
+  if (roles.includes("member")) return ["Member"];
+  return roles.map((r) => r.charAt(0).toUpperCase() + r.slice(1));
+}
+
+function memberSetupChrome(
+  roles: string[],
+  me: Me | null,
+): { isMemberOnly: boolean; setupChrome: boolean; showSider: boolean } {
+  const isMemberOnly =
+    roles.includes("member") &&
+    !roles.includes("manager") &&
+    !roles.includes("operator");
+  const setupChrome =
+    isMemberOnly && me !== null && me.readiness !== "Ready";
+  const showSider = !isMemberOnly || me === null || me.readiness === "Ready";
+  return { isMemberOnly, setupChrome, showSider };
+}
 
 /**
  * Authenticated shell (INT-187 / INT-243 / INT-250 / INT-254 / INT-256).
@@ -106,29 +133,12 @@ export function AppShell({
   const communityLabel = communityDisplayName(
     me?.communityId ?? identity?.communityId,
   );
-  // INT-252 / INT-283: header shows market role for members; IdP role for
-  // manager/operator. Never flash the raw "role unknown" string — fall back to
-  // Member while /me loads or when market role is not yet known.
-  const headerRoleTags = useMemo(() => {
-    if (roles.includes("manager")) return ["Manager"];
-    if (roles.includes("operator")) return ["Operator"];
-    const market = marketRoleLabel(me?.role);
-    if (market) return [market];
-    if (roles.includes("member")) return ["Member"];
-    return roles.map((r) => r.charAt(0).toUpperCase() + r.slice(1));
-  }, [roles, me?.role]);
+  const headerRoleTags = useMemo(
+    () => headerRoleTagsFor(roles, me?.role),
+    [roles, me?.role],
+  );
 
-  // INT-254 — member not Ready: no sider on any route (not only /onboarding).
-  // Managers/operators keep the desk. Wait for /v1/me so Ready members do not
-  // flash setup chrome; once readiness is known and incomplete, hide the menu.
-  const isMemberOnly =
-    roles.includes("member") &&
-    !roles.includes("manager") &&
-    !roles.includes("operator");
-  const setupChrome =
-    isMemberOnly && me !== null && me.readiness !== "Ready";
-  // Desk sider while me is unknown (avoid setup flash for Ready) or Ready.
-  const showSider = !isMemberOnly || me === null || me.readiness === "Ready";
+  const { setupChrome, showSider } = memberSetupChrome(roles, me);
 
   return (
     <Layout
@@ -138,147 +148,22 @@ export function AppShell({
       }}
     >
       {showSider ? (
-        <Sider
-          collapsible
+        <AppShellSider
           collapsed={collapsed}
           onCollapse={setCollapsed}
-          width={260}
-          collapsedWidth={72}
-          theme="dark"
-          style={{ background: brand.sider }}
-        >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-              padding: collapsed ? "16px 10px" : "16px 18px",
-              borderBottom: `1px solid ${brand.siderHover}`,
-              minHeight: 56,
-            }}
-          >
-            {collapsed ? (
-              <Text strong style={{ color: brand.accent, fontSize: 12 }}>
-                IB
-              </Text>
-            ) : (
-              <>
-                <Text
-                  strong
-                  style={{
-                    color: brand.accent,
-                    display: "block",
-                    whiteSpace: "nowrap",
-                    fontSize: 13,
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  Intelligent Billing & Payment
-                </Text>
-                {communityLabel ? (
-                  <Text style={{ color: brand.siderMuted, fontSize: 11 }}>
-                    {communityLabel}
-                  </Text>
-                ) : null}
-              </>
-            )}
-          </div>
-          <Menu
-            theme="dark"
-            mode="inline"
-            selectedKeys={selected}
-            items={menuItems}
-            style={{ borderInlineEnd: 0, background: brand.sider }}
-          />
-        </Sider>
+          communityLabel={communityLabel}
+          menuItems={menuItems}
+          selectedKeys={selected}
+        />
       ) : null}
       <Layout>
-        <Header
-          style={
-            setupChrome
-              ? {
-                  background: brand.sider,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingInline: 20,
-                  height: 56,
-                  lineHeight: "56px",
-                }
-              : {
-                  background: token.colorBgContainer,
-                  borderBottom: `1px solid ${token.colorBorderSecondary}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  paddingInline: 20,
-                  height: 52,
-                  lineHeight: "52px",
-                }
-          }
-        >
-          {setupChrome ? (
-            <>
-              <Text strong style={{ color: brand.accent, letterSpacing: "0.02em" }}>
-                Intelligent Billing & Payment
-              </Text>
-              <Space size={12}>
-                <Text
-                  data-testid="shell-user-name"
-                  style={{ color: "#D7E0DA", fontSize: 13 }}
-                >
-                  {displayName}
-                </Text>
-                <span data-testid="shell-user-roles">
-                  {headerRoleTags.map((role) => (
-                    <Tag
-                      key={role}
-                      style={{
-                        marginInlineEnd: 4,
-                        color: brand.sider,
-                        background: brand.accent,
-                        border: "none",
-                      }}
-                    >
-                      {role}
-                    </Tag>
-                  ))}
-                </span>
-                <Button size="small" onClick={() => logout()}>
-                  Sign out
-                </Button>
-              </Space>
-            </>
-          ) : (
-            <>
-              <Space size={8} wrap style={{ lineHeight: 1.3, maxWidth: "78%" }}>
-                <Text strong data-testid="shell-user-name">
-                  {displayName}
-                </Text>
-                <span data-testid="shell-user-roles">
-                  {headerRoleTags.map((role) => (
-                    <Tag key={role} style={{ marginInlineEnd: 4 }}>
-                      {role}
-                    </Tag>
-                  ))}
-                </span>
-                {communityLabel ? (
-                  <Text
-                    type="secondary"
-                    data-testid="shell-community"
-                    style={{ fontSize: 12 }}
-                  >
-                    {communityLabel}
-                  </Text>
-                ) : null}
-              </Space>
-              <Button size="small" onClick={() => logout()}>
-                Sign out
-              </Button>
-            </>
-          )}
-        </Header>
+        <AppShellHeaderBar
+          setupChrome={setupChrome}
+          displayName={displayName}
+          headerRoleTags={headerRoleTags}
+          communityLabel={communityLabel}
+          onLogout={() => logout()}
+        />
         <Content
           style={
             setupChrome
@@ -291,7 +176,6 @@ export function AppShell({
               : { padding: "20px 24px", background: token.colorBgLayout }
           }
         >
-          {/* Stable wrapper — never remount Outlet when chrome toggles (INT-256). */}
           <div
             style={
               setupChrome ? undefined : { maxWidth: 1280, margin: "0 auto" }

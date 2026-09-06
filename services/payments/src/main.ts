@@ -13,4 +13,4 @@ async function bootstrap(): Promise<void> {
   console.log(JSON.stringify({ msg: "payments listening", port }));
 }
 
-void bootstrap();
+await bootstrap();

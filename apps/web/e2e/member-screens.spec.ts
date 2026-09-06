@@ -6,6 +6,7 @@ import { authSkipped, clickRadioButton, expectPageReady, loginAs } from "./helpe
  * Covers UAT-043 (session), UAT-067 (wizard), UAT-064 (screens), UAT-013 (privacy).
  */
 test.describe("AC-01 member screens and buttons", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test.beforeEach(async ({ page }) => {

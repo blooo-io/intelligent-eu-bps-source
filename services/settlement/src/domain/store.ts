@@ -4,10 +4,10 @@ import type { BillingRunRecord, PairSettlementRecord } from "./types.js";
  * Immutable settlement store (BR-13): append-only; no overwrite of computed rows.
  */
 export class SettlementStore {
-  private settlements = new Map<string, PairSettlementRecord>();
-  private runs = new Map<string, BillingRunRecord>();
+  private readonly settlements = new Map<string, PairSettlementRecord>();
+  private readonly runs = new Map<string, BillingRunRecord>();
   /** Carry-forward balances per unordered pair key, community currency. */
-  private carry = new Map<string, number>();
+  private readonly carry = new Map<string, number>();
 
   reset(): void {
     this.settlements.clear();

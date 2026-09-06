@@ -17,12 +17,10 @@ export class SdkTemporalClient implements TemporalClientPort {
   ) {}
 
   private async client(): Promise<Client> {
-    if (!this.clientPromise) {
-      this.clientPromise = (async () => {
-        const connection = await Connection.connect({ address: this.address });
-        return new Client({ connection, namespace: this.namespace });
-      })();
-    }
+    this.clientPromise ??= (async () => {
+      const connection = await Connection.connect({ address: this.address });
+      return new Client({ connection, namespace: this.namespace });
+    })();
     return this.clientPromise;
   }
 

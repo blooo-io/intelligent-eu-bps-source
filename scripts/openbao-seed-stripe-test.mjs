@@ -123,14 +123,14 @@ export async function checkStripeSeedLayout(repoRoot = root) {
 }
 
 export function printStripeSeedSteps() {
-  return `# INT-186 / INT-191 — seed Stripe test credentials into OpenBao (dev)
+  return String.raw`# INT-186 / INT-191 — seed Stripe test credentials into OpenBao (dev)
 # Requires prior: openbao-dev-bootstrap + openbao-seed-dev-placeholders (or equivalent paths).
 # Run only after this script is on the merged branch (INT-157). Never commit env values.
 
-STRIPE_SECRET_KEY=sk_test_… \\
-STRIPE_PUBLISHABLE_KEY=pk_test_… \\
-STRIPE_WEBHOOK_SECRET=whsec_… \\
-STRIPE_CONNECT_WEBHOOK_SECRET=whsec_… \\
+STRIPE_SECRET_KEY=sk_test_… \
+STRIPE_PUBLISHABLE_KEY=pk_test_… \
+STRIPE_WEBHOOK_SECRET=whsec_… \
+STRIPE_CONNECT_WEBHOOK_SECRET=whsec_… \
 KUBECONFIG=… node scripts/openbao-seed-stripe-test.mjs --apply
 
 # Writes secret/dev/payments and secret/dev/invoicing (secret + webhook).
@@ -198,12 +198,12 @@ const isDirectRun =
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isDirectRun) {
-  const args = process.argv.slice(2);
-  if (args.includes("--check")) {
+  const args = new Set(process.argv.slice(2));
+  if (args.has("--check")) {
     console.log(JSON.stringify(await checkStripeSeedLayout()));
-  } else if (args.includes("--print")) {
+  } else if (args.has("--print")) {
     process.stdout.write(printStripeSeedSteps());
-  } else if (args.includes("--apply")) {
+  } else if (args.has("--apply")) {
     console.log(JSON.stringify({ applied: true, ...applyStripeSeed() }));
   } else {
     console.error("Usage: --check | --print | --apply");

@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { OutboxService } from "@intelligent/module-template";
+import { asString, OutboxService } from "@intelligent/module-template";
 import {
   PaymentsStore,
   type AccountRecord,
@@ -41,6 +41,8 @@ import {
 } from "../psp/psp.port.js";
 
 const PRODUCER = "AC-07";
+
+type ProvisionRole = "consumer" | "producer" | "prosumer";
 
 /**
  * AC-07 payments — Stripe Connect test mode (INT-107, BR-12, P-PSP).
@@ -115,7 +117,7 @@ export class PaymentsService {
   async ensureParticipant(input: {
     participantId: string;
     communityId: string;
-    role: "consumer" | "producer" | "prosumer";
+    role: ProvisionRole;
   }): Promise<void> {
     if (this.store.getAccount(input.participantId)) {
       return;
@@ -165,43 +167,20 @@ export class PaymentsService {
    * INT-228 — always create a fresh Stripe Connect Custom account (test KYC)
    * when fresh=true so each operator/seed run leaves Dashboard-visible entities.
    */
-  async provisionPaymentAccount(input: {
-    participantId: string;
-    communityId: string;
-    role: "consumer" | "producer" | "prosumer";
-    fresh?: boolean;
-  }): Promise<AccountRecord & { chargesEnabled?: boolean }> {
-    const fresh = input.fresh !== false;
-    await this.ensureParticipant(input);
-    const existing = this.store.getAccount(input.participantId)!;
-
-    if (input.role === "consumer") {
-      if (!fresh && existing.paymentMethodId) {
-        return { ...existing, chargesEnabled: undefined };
-      }
-      // Consumer SetupIntent creates a Stripe Customer; bind a test PM id in mock,
-      // or leave method empty until Elements — seed scripts attach pm_card_visa.
-      const setup = await this.psp.createSetupIntent(input.participantId);
-      void setup;
-      return { ...existing, chargesEnabled: undefined };
-    }
-
-    if (!fresh && existing.stripeAccountId) {
-      return this.getPaymentAccount(input.participantId);
-    }
-
+  private seedProducerSubmission(
+    participantId: string,
+  ): OnboardingRequirementsSubmission {
     const runTag = Date.now().toString(36);
-    const submission: OnboardingRequirementsSubmission = {
+    return {
       tosAccepted: true,
       businessType: "individual",
       country: "FR",
-      // Stripe Connect test helper URL (docs/connect/testing); example.com is rejected.
       businessProfileUrl: "https://accessible.stripe.com",
       businessProfileMcc: "5734",
       representative: {
         firstName: "Test",
         lastName: `Producer${runTag}`,
-        email: `producer-${input.participantId.slice(0, 8)}-${runTag}@example.com`,
+        email: `producer-${participantId.slice(0, 8)}-${runTag}@example.com`,
         phone: "+33600000000",
         dob: { day: 1, month: 1, year: 1902 },
         address: {
@@ -211,7 +190,6 @@ export class PaymentsService {
           country: "FR",
         },
       },
-      // INT-195 — magic test file tokens for charges_enabled.
       identityDocumentFront: "file_identity_document_success",
       identityDocumentAdditionalFront: "file_identity_document_success",
       externalAccount: {
@@ -220,25 +198,15 @@ export class PaymentsService {
         accountNumber: "FR1420041010050500013M02606",
       },
     };
+  }
 
-    const accountToken = await this.psp.createAccountToken(submission);
-    const created = await this.psp.createProducerAccount({
-      participantId: input.participantId,
-      accountToken,
-      country: "FR",
-    });
-    // Persist immediately so a later Stripe validation error still leaves a real acct_*.
-    await this.saveAccount({
-      ...existing,
-      stripeAccountId: created.stripeAccountId,
-      kycStatus: "pending",
-      role: input.role,
-      communityId: input.communityId,
-    });
-    let session: OnboardingSession;
+  private async submitSeedProducerRequirements(
+    stripeAccountId: string,
+    submission: OnboardingRequirementsSubmission,
+  ): Promise<OnboardingSession> {
     try {
-      session = await this.psp.submitAccountRequirements(
-        created.stripeAccountId,
+      return await this.psp.submitAccountRequirements(
+        stripeAccountId,
         {
           businessProfileUrl: submission.businessProfileUrl,
           businessProfileMcc: submission.businessProfileMcc,
@@ -247,13 +215,12 @@ export class PaymentsService {
         "127.0.0.1",
       );
     } catch (err) {
-      // Retry without URL if Stripe still rejects business_profile[url].
       const msg = err instanceof Error ? err.message : String(err);
       if (!/url/i.test(msg)) {
         throw err;
       }
-      session = await this.psp.submitAccountRequirements(
-        created.stripeAccountId,
+      return this.psp.submitAccountRequirements(
+        stripeAccountId,
         {
           businessProfileMcc: submission.businessProfileMcc,
           externalAccount: submission.externalAccount,
@@ -261,6 +228,72 @@ export class PaymentsService {
         "127.0.0.1",
       );
     }
+  }
+
+  private async attachProsumerSeedPaymentMethod(
+    participantId: string,
+    existing: AccountRecord,
+  ): Promise<void> {
+    if (existing.paymentMethodId) return;
+    await this.psp.createSetupIntent(participantId);
+    await this.psp.attachPaymentMethod(participantId, "pm_card_visa");
+    await this.saveAccount({
+      ...this.store.getAccount(participantId)!,
+      paymentMethodId: "pm_card_visa",
+    });
+  }
+
+  private async provisionConsumerAccount(
+    input: {
+      participantId: string;
+      fresh?: boolean;
+    },
+    existing: AccountRecord,
+  ): Promise<AccountRecord & { chargesEnabled?: boolean }> {
+    const fresh = input.fresh !== false;
+    if (!fresh && existing.paymentMethodId) {
+      return { ...existing, chargesEnabled: undefined };
+    }
+    await this.psp.createSetupIntent(input.participantId);
+    return { ...existing, chargesEnabled: undefined };
+  }
+
+  async provisionPaymentAccount(input: {
+    participantId: string;
+    communityId: string;
+    role: ProvisionRole;
+    fresh?: boolean;
+  }): Promise<AccountRecord & { chargesEnabled?: boolean }> {
+    const fresh = input.fresh !== false;
+    await this.ensureParticipant(input);
+    const existing = this.store.getAccount(input.participantId)!;
+
+    if (input.role === "consumer") {
+      return this.provisionConsumerAccount(input, existing);
+    }
+
+    if (!fresh && existing.stripeAccountId) {
+      return this.getPaymentAccount(input.participantId);
+    }
+
+    const submission = this.seedProducerSubmission(input.participantId);
+    const accountToken = await this.psp.createAccountToken(submission);
+    const created = await this.psp.createProducerAccount({
+      participantId: input.participantId,
+      accountToken,
+      country: "FR",
+    });
+    await this.saveAccount({
+      ...existing,
+      stripeAccountId: created.stripeAccountId,
+      kycStatus: "pending",
+      role: input.role,
+      communityId: input.communityId,
+    });
+    const session = await this.submitSeedProducerRequirements(
+      created.stripeAccountId,
+      submission,
+    );
     const verified =
       session.status === "complete" || session.status === "pending_verification";
     await this.saveAccount({
@@ -271,14 +304,8 @@ export class PaymentsService {
       communityId: input.communityId,
     });
     if (verified) {
-      // INT-269 — prosumer seed/provision also needs a consumer PM for dual Ready.
-      if (input.role === "prosumer" && !existing.paymentMethodId) {
-        await this.psp.createSetupIntent(input.participantId);
-        await this.psp.attachPaymentMethod(input.participantId, "pm_card_visa");
-        await this.saveAccount({
-          ...this.store.getAccount(input.participantId)!,
-          paymentMethodId: "pm_card_visa",
-        });
+      if (input.role === "prosumer") {
+        await this.attachProsumerSeedPaymentMethod(input.participantId, existing);
       }
       await this.emitAccountStatus(input.participantId);
     }
@@ -291,7 +318,7 @@ export class PaymentsService {
   async startOnboarding(input: {
     participantId: string;
     communityId: string;
-    role: "consumer" | "producer" | "prosumer";
+    role: ProvisionRole;
   }): Promise<OnboardingSession> {
     await this.ensureParticipant(input);
     const account = this.store.getAccount(input.participantId)!;
@@ -353,7 +380,7 @@ export class PaymentsService {
   async submitOnboardingRequirements(input: {
     participantId: string;
     communityId: string;
-    role: "consumer" | "producer" | "prosumer";
+    role: ProvisionRole;
     submission: OnboardingRequirementsSubmission;
     clientIp: string;
   }): Promise<OnboardingSession> {
@@ -442,6 +469,69 @@ export class PaymentsService {
    * INT-255 — public GET /me/payment-account for Ready Payment method /
    * Payout account UI. Brand/last4 from Stripe (TP-7); not persisted.
    */
+  private async loadStoredAccount(
+    participantId: string,
+  ): Promise<AccountRecord | undefined> {
+    let row = this.store.getAccount(participantId);
+    if (!row) {
+      row = await this.accountsStore.get(participantId);
+      if (row) this.store.putAccount(row);
+    }
+    return row;
+  }
+
+  private async paymentMethodSummary(row: AccountRecord) {
+    if (!row.paymentMethodId) {
+      return { brand: undefined, last4: undefined, method: undefined };
+    }
+    const details = await this.psp.getPaymentMethodDetails(row.paymentMethodId);
+    return { brand: details.brand, last4: details.last4, method: details.type };
+  }
+
+  private async connectAccountSummary(row: AccountRecord) {
+    if (!row.stripeAccountId) {
+      return {
+        stripeAccountId: undefined,
+        dashboardUrl: undefined,
+        connectStatus: undefined,
+      };
+    }
+    let connectStatus:
+      | "requirements_due"
+      | "pending_verification"
+      | "complete"
+      | undefined;
+    try {
+      const session = await this.psp.getAccountSession(row.stripeAccountId);
+      connectStatus = session.status;
+    } catch {
+      connectStatus =
+        row.kycStatus === "verified" ? "complete" : "requirements_due";
+    }
+    return {
+      stripeAccountId: row.stripeAccountId,
+      dashboardUrl: `https://dashboard.stripe.com/test/connect/accounts/${row.stripeAccountId}`,
+      connectStatus,
+    };
+  }
+
+  private myPaymentAccountStatus(
+    row: AccountRecord,
+    connectStatus:
+      | "requirements_due"
+      | "pending_verification"
+      | "complete"
+      | undefined,
+  ): "complete" | "requirements_due" | "pending_verification" {
+    if (this.isPaymentAccountReady(row)) {
+      return "complete";
+    }
+    if (connectStatus) {
+      return connectStatus;
+    }
+    return row.paymentMethodId ? "complete" : "requirements_due";
+  }
+
   async getMyPaymentAccount(participantId: string): Promise<{
     status: "none" | "requirements_due" | "pending_verification" | "complete";
     /** INT-276 — card | sepa_debit for Ready Payment method UI (REQ-014). */
@@ -451,52 +541,18 @@ export class PaymentsService {
     stripeAccountId?: string;
     dashboardUrl?: string;
   }> {
-    let row = this.store.getAccount(participantId);
-    if (!row) {
-      row = await this.accountsStore.get(participantId);
-      if (row) this.store.putAccount(row);
-    }
+    const row = await this.loadStoredAccount(participantId);
     if (!row) {
       return { status: "none" };
     }
 
-    // INT-269 — prosumer may have PM + Connect together; surface both.
-    let brand: string | undefined;
-    let last4: string | undefined;
-    let method: string | undefined;
-    if (row.paymentMethodId) {
-      const details = await this.psp.getPaymentMethodDetails(row.paymentMethodId);
-      brand = details.brand;
-      last4 = details.last4;
-      method = details.type;
-    }
-
-    let stripeAccountId: string | undefined;
-    let dashboardUrl: string | undefined;
-    let connectStatus:
-      | "requirements_due"
-      | "pending_verification"
-      | "complete"
-      | undefined;
-    if (row.stripeAccountId) {
-      try {
-        const session = await this.psp.getAccountSession(row.stripeAccountId);
-        connectStatus = session.status;
-      } catch {
-        connectStatus =
-          row.kycStatus === "verified" ? "complete" : "requirements_due";
-      }
-      stripeAccountId = row.stripeAccountId;
-      // Custom Connect has stripe_dashboard: none — platform Dashboard deep-link.
-      dashboardUrl = `https://dashboard.stripe.com/test/connect/accounts/${row.stripeAccountId}`;
-    }
+    const { brand, last4, method } = await this.paymentMethodSummary(row);
+    const { stripeAccountId, dashboardUrl, connectStatus } =
+      await this.connectAccountSummary(row);
 
     if (brand || last4 || stripeAccountId) {
-      const ready = this.isPaymentAccountReady(row);
       return {
-        status: ready
-          ? "complete"
-          : (connectStatus ?? (row.paymentMethodId ? "complete" : "requirements_due")),
+        status: this.myPaymentAccountStatus(row, connectStatus),
         method,
         brand,
         last4,
@@ -628,6 +684,51 @@ export class PaymentsService {
     };
   }
 
+  private async handleAccountUpdatedWebhook(
+    payload: Record<string, unknown> | undefined,
+  ): Promise<void> {
+    const participantId = asString(payload?.participantId);
+    if (!participantId) return;
+    await this.completeProducerKyc(participantId);
+  }
+
+  private async handlePaymentIntentWebhook(
+    eventType: string,
+    payload: Record<string, unknown> | undefined,
+  ): Promise<void> {
+    const stripePaymentId = asString(payload?.stripePaymentId);
+    const row = this.store.findByStripePaymentId(stripePaymentId);
+    if (!row) {
+      return;
+    }
+    const status =
+      eventType === "payment_intent.succeeded" ? "succeeded" : "failed";
+    if (row.status === status) {
+      return;
+    }
+    this.store.putPayment({
+      ...row,
+      status,
+      failureCategory:
+        status === "failed"
+          ? asString(payload?.failureCategory ?? row.failureCategory, "declined")
+          : row.failureCategory,
+    });
+    await this.outbox.append({
+      aggregateType: "Payment",
+      aggregateId: row.paymentId,
+      type: "PaymentStatusChanged",
+      producer: PRODUCER,
+      communityId: row.communityId,
+      billingMode: "virtual",
+      data: {
+        paymentId: row.paymentId,
+        invoiceId: row.invoiceId,
+        status,
+      },
+    });
+  }
+
   async receiveWebhook(rawBody: string, signature: string | undefined): Promise<void> {
     if (!signature) {
       throw new UnauthorizedException("Missing Stripe-Signature");
@@ -636,48 +737,18 @@ export class PaymentsService {
     if (!verified.ok) {
       throw new BadRequestException("Invalid webhook signature");
     }
-    // Opaque provider payload beyond signature (NFR-015) — map known test types.
     if (verified.eventType === "account.updated") {
-      const participantId = String(verified.payload?.participantId ?? "");
-      if (participantId) {
-        await this.completeProducerKyc(participantId);
-      }
+      await this.handleAccountUpdatedWebhook(verified.payload);
+      return;
     }
     if (
       verified.eventType === "payment_intent.succeeded" ||
       verified.eventType === "payment_intent.payment_failed"
     ) {
-      const stripePaymentId = String(verified.payload?.stripePaymentId ?? "");
-      const row = this.store.findByStripePaymentId(stripePaymentId);
-      if (!row) {
-        return;
-      }
-      const status =
-        verified.eventType === "payment_intent.succeeded" ? "succeeded" : "failed";
-      if (row.status === status) {
-        return;
-      }
-      this.store.putPayment({
-        ...row,
-        status,
-        failureCategory:
-          status === "failed"
-            ? String(verified.payload?.failureCategory ?? row.failureCategory ?? "declined")
-            : row.failureCategory,
-      });
-      await this.outbox.append({
-        aggregateType: "Payment",
-        aggregateId: row.paymentId,
-        type: "PaymentStatusChanged",
-        producer: PRODUCER,
-        communityId: row.communityId,
-        billingMode: "virtual",
-        data: {
-          paymentId: row.paymentId,
-          invoiceId: row.invoiceId,
-          status,
-        },
-      });
+      await this.handlePaymentIntentWebhook(
+        verified.eventType,
+        verified.payload,
+      );
     }
   }
 

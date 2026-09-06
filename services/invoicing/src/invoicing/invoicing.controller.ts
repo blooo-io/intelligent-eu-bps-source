@@ -27,12 +27,12 @@ export class InvoicingController {
   }
 
   /** INT-238 — poll invoice created by NATS SettlementCompleted (or bridge). */
-  @Get("invoices\\:by-settlement/:settlementId")
+  @Get(String.raw`invoices\:by-settlement/:settlementId`)
   getInvoiceBySettlement(@Param("settlementId") settlementId: string) {
     return this.invoicing.getInvoiceBySettlement(settlementId);
   }
 
-  @Post("invoices\\:mark-overdue")
+  @Post(String.raw`invoices\:mark-overdue`)
   @HttpCode(202)
   async markOverdue(@Body() body: { asOf: string }) {
     return this.invoicing.markOverdue(body.asOf);
@@ -42,7 +42,7 @@ export class InvoicingController {
    * INT-196 / UAT-028 — operator / seed bridge AC-05 → AC-06.
    * Primary path is SettlementCompleted NATS consumer (INT-223 / INT-238).
    */
-  @Post("invoices\\:from-settlement")
+  @Post(String.raw`invoices\:from-settlement`)
   async createFromSettlement(
     @Body() body: PairSettlementInput,
     @Res({ passthrough: true }) res: Response,

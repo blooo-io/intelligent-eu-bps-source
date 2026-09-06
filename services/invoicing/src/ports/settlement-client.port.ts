@@ -1,3 +1,4 @@
+import { asString } from "@intelligent/module-template";
 import type { PairSettlementInput } from "../domain/types.js";
 
 export const SETTLEMENT_CLIENT = Symbol("SETTLEMENT_CLIENT");
@@ -43,19 +44,19 @@ export class HttpSettlementClient implements SettlementClientPort {
     }
     const body = (await res.json()) as Record<string, unknown>;
     return {
-      settlementId: String(body.settlementId ?? settlementId),
-      runId: String(body.runId ?? ""),
-      consumerId: String(body.consumerId ?? ""),
-      producerId: String(body.producerId ?? ""),
+      settlementId: asString(body.settlementId, settlementId),
+      runId: asString(body.runId),
+      consumerId: asString(body.consumerId),
+      producerId: asString(body.producerId),
       tradeIds: Array.isArray(body.tradeIds)
         ? body.tradeIds.map(String)
         : [],
-      kWh: String(body.kWh ?? "0"),
-      energyAmount: String(body.energyAmount ?? "0"),
-      vat: String(body.vat ?? "0"),
-      currency: String(body.currency ?? "EUR"),
-      rate: String(body.rate ?? "1"),
-      communityId: String(body.communityId ?? ""),
+      kWh: asString(body.kWh, "0"),
+      energyAmount: asString(body.energyAmount, "0"),
+      vat: asString(body.vat, "0"),
+      currency: asString(body.currency, "EUR"),
+      rate: asString(body.rate, "1"),
+      communityId: asString(body.communityId),
       ...(typeof body.producerStripeAccountId === "string"
         ? { producerStripeAccountId: body.producerStripeAccountId }
         : {}),

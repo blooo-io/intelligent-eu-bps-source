@@ -185,7 +185,9 @@ async function main() {
   console.log(JSON.stringify({ ok: true, outDir, count: manifest.length }, null, 2));
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error(err);
   process.exit(1);
-});
+}

@@ -7,6 +7,14 @@ import { acceptTerms, fetchCurrentTerms, type Terms, type TermsAcceptance } from
 
 const { Paragraph, Text } = Typography;
 
+function termsAcceptanceDescription(acceptance: TermsAcceptance): string {
+  const mandate = acceptance.selfBillingMandate ? "yes" : "no";
+  if (acceptance.acceptedAt) {
+    return `Recorded at ${acceptance.acceptedAt}. Self-billing mandate: ${mandate}.`;
+  }
+  return `Self-billing mandate: ${mandate}.`;
+}
+
 /**
  * Terms & self-billing mandate screen (INT-139 / REQ-050 / UAT-062).
  * Producers must tick the self-billing mandate; the API rejects otherwise.
@@ -16,11 +24,11 @@ export function TermsPage({
   config,
   oidc,
   embedded = false,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
   embedded?: boolean;
-}) {
+}>) {
   const [terms, setTerms] = useState<Terms | null>(null);
   const [mandate, setMandate] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -82,13 +90,7 @@ export function TermsPage({
           type="success"
           showIcon
           message={`Terms ${acceptance.termsVersion} accepted`}
-          description={
-            acceptance.acceptedAt
-              ? `Recorded at ${acceptance.acceptedAt}. Self-billing mandate: ${
-                  acceptance.selfBillingMandate ? "yes" : "no"
-                }.`
-              : `Self-billing mandate: ${acceptance.selfBillingMandate ? "yes" : "no"}.`
-          }
+          description={termsAcceptanceDescription(acceptance)}
         />
       )}
 

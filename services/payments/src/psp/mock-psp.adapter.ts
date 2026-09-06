@@ -25,11 +25,10 @@ export class MockPspAdapter implements PspPort {
   readonly tokens: string[] = [];
 
   async createAccountToken(
-    submission: OnboardingRequirementsSubmission,
+    _submission: OnboardingRequirementsSubmission,
   ): Promise<string> {
     const id = `ct_test_${randomUUID().replaceAll("-", "").slice(0, 16)}`;
     this.tokens.push(id);
-    void submission;
     return id;
   }
 
@@ -68,9 +67,8 @@ export class MockPspAdapter implements PspPort {
   async submitAccountRequirements(
     stripeAccountId: string,
     submission: OnboardingRequirementsSubmission,
-    clientIp: string,
+    _clientIp: string,
   ): Promise<OnboardingSession> {
-    void clientIp;
     const remaining = new Set(this.dueByAccount.get(stripeAccountId) ?? []);
     if (submission.accountToken || submission.tosAccepted) {
       remaining.delete("tos_acceptance.date");
@@ -155,15 +153,18 @@ export class MockPspAdapter implements PspPort {
     producerStripeAccountId: string;
     consumerPaymentMethodId: string;
   }): Promise<PspPaymentResult> {
-    void input.amount;
-    void input.currency;
-    void input.producerStripeAccountId;
-    const fail = input.consumerPaymentMethodId.startsWith("pm_fail_");
+    const {
+      amount: _amount,
+      currency: _currency,
+      producerStripeAccountId: _producerStripeAccountId,
+      consumerPaymentMethodId,
+    } = input;
+    const fail = consumerPaymentMethodId.startsWith("pm_fail_");
     const result: PspPaymentResult = fail
       ? {
           stripePaymentId: `pi_test_${randomUUID().slice(0, 8)}`,
           status: "failed",
-          failureCategory: input.consumerPaymentMethodId.includes("insufficient")
+          failureCategory: consumerPaymentMethodId.includes("insufficient")
             ? "insufficient_funds"
             : "declined",
         }
@@ -175,8 +176,7 @@ export class MockPspAdapter implements PspPort {
     return result;
   }
 
-  async refund(stripePaymentId: string): Promise<{ status: "refunded" }> {
-    void stripePaymentId;
+  async refund(_stripePaymentId: string): Promise<{ status: "refunded" }> {
     return { status: "refunded" };
   }
 

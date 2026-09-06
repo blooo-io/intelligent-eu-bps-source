@@ -49,7 +49,7 @@ export function resolveStripeInvoiceProvider(
 export function toMinorUnits(amount: string): number {
   const n = Number(amount);
   if (!Number.isFinite(n)) {
-    throw new Error(`Invalid amount: ${amount}`);
+    throw new TypeError(`Invalid amount: ${amount}`);
   }
   return Math.round(n * 100);
 }

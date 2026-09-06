@@ -183,6 +183,50 @@ function hideAfterReady(
   return have >= (READINESS_RANK[hideAt] ?? 0);
 }
 
+function skipManagerDuplicateReports(
+  roles: ReadonlyArray<string>,
+  item: NavItemDef,
+): boolean {
+  return (
+    roles.includes("manager") &&
+    item.key === "/reports" &&
+    item.roles.includes("member") &&
+    !item.roles.includes("manager")
+  );
+}
+
+function privilegedNavVisible(
+  roles: ReadonlyArray<string>,
+  item: NavItemDef,
+): boolean | undefined {
+  if (!roles.includes("manager") && !roles.includes("operator")) {
+    return undefined;
+  }
+  if (!item.roles.includes("member")) return true;
+  if (roles.includes("manager") && item.roles.includes("manager")) {
+    return true;
+  }
+  return undefined;
+}
+
+function isNavItemVisible(
+  item: NavItemDef,
+  roles: ReadonlyArray<string>,
+  readiness?: string,
+): boolean {
+  if (!hasRole(roles, item.roles)) return false;
+  if (skipManagerDuplicateReports(roles, item)) return false;
+  const privileged = privilegedNavVisible(roles, item);
+  if (privileged === true) return true;
+  if (
+    roles.includes("member") &&
+    hideAfterReady(readiness, item.hideWhenMemberReadinessAtLeast)
+  ) {
+    return false;
+  }
+  return readinessOk(readiness, item.minMemberReadiness);
+}
+
 /**
  * Filter nav for the signed-in principal.
  * Manager-only items ignore member readiness; member items may require terms.
@@ -191,39 +235,36 @@ export function visibleNavItems(
   roles: ReadonlyArray<string>,
   readiness?: string,
 ): NavItemDef[] {
-  return NAV_CATALOG.filter((item) => {
-    if (!hasRole(roles, item.roles)) return false;
-    // INT-255 — managers get Billing Reports; skip the member Money duplicate.
-    if (
-      roles.includes("manager") &&
-      item.key === "/reports" &&
-      item.roles.includes("member") &&
-      !item.roles.includes("manager")
-    ) {
-      return false;
-    }
-    // Manager/operator accessing a shared item (e.g. Home) — no readiness gate.
-    if (roles.includes("manager") || roles.includes("operator")) {
-      if (!item.roles.includes("member")) return true;
-      // Shared member+manager item: managers always see it.
-      if (roles.includes("manager") && item.roles.includes("manager")) {
-        return true;
-      }
-    }
-    if (
-      roles.includes("member") &&
-      hideAfterReady(readiness, item.hideWhenMemberReadinessAtLeast)
-    ) {
-      return false;
-    }
-    return readinessOk(readiness, item.minMemberReadiness);
-  });
+  return NAV_CATALOG.filter((item) => isNavItemVisible(item, roles, readiness));
 }
 
 /**
  * Volt mockup labels per market role (INT-252).
  * Managers keep "Reports"; members get "My history".
  */
+function isReady(readiness?: string): boolean {
+  return (READINESS_RANK[readiness ?? "Invited"] ?? 0) >= READINESS_RANK.Ready;
+}
+
+function paymentSetupLabel(
+  marketRole: ParticipantRole | null | undefined,
+  readiness?: string,
+): string {
+  // INT-269 — prosumer needs both payout and card labels.
+  if (marketRole === "prosumer") {
+    return isReady(readiness) ? "Payment account" : "Payouts and card";
+  }
+  if (isSellerRole(marketRole)) return "Payout account";
+  if (isReady(readiness)) return "Payment method";
+  return "Payment setup";
+}
+
+function reportsLabel(roles: ReadonlyArray<string>, fallback: string): string {
+  if (roles.includes("manager")) return "Reports";
+  if (roles.includes("member")) return "My history";
+  return fallback;
+}
+
 export function resolveNavLabel(
   item: NavItemDef,
   opts: {
@@ -237,21 +278,10 @@ export function resolveNavLabel(
     return "Issued invoices";
   }
   if (item.key === "/payment-setup") {
-    // INT-269 — prosumer needs both payout and card labels.
-    if (marketRole === "prosumer") {
-      return (READINESS_RANK[readiness ?? "Invited"] ?? 0) >= READINESS_RANK.Ready
-        ? "Payment account"
-        : "Payouts and card";
-    }
-    if (isSellerRole(marketRole)) return "Payout account";
-    if ((READINESS_RANK[readiness ?? "Invited"] ?? 0) >= READINESS_RANK.Ready) {
-      return "Payment method";
-    }
-    return "Payment setup";
+    return paymentSetupLabel(marketRole, readiness);
   }
   if (item.key === "/reports") {
-    if (roles.includes("manager")) return "Reports";
-    if (roles.includes("member")) return "My history";
+    return reportsLabel(roles, item.label);
   }
   return item.label;
 }

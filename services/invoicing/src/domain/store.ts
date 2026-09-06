@@ -3,8 +3,8 @@ import { seedUatInvoices } from "./uat-seed.js";
 
 /** Rebuildable Stripe read cache + local invoice ids (TP-7). */
 export class InvoiceStore {
-  private byId = new Map<string, InvoiceRecord>();
-  private bySettlement = new Map<string, string>();
+  private readonly byId = new Map<string, InvoiceRecord>();
+  private readonly bySettlement = new Map<string, string>();
 
   constructor() {
     // INT-218 — load UAT fixture invoices once (survives nothing; re-seed on construct).

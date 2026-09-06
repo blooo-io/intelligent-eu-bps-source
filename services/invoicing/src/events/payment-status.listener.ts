@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { IdempotentConsumer } from "@intelligent/module-template";
+import { asString, IdempotentConsumer } from "@intelligent/module-template";
 import { InvoicingService } from "../invoicing/invoicing.service.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
 
@@ -60,9 +60,9 @@ function mapEnvelope(payload: unknown): {
   };
   const data = envelope.data ?? {};
   return {
-    eventId: String(envelope.eventId ?? ""),
-    invoiceId: String(data.invoiceId ?? ""),
-    paymentId: String(data.paymentId ?? ""),
-    status: String(data.status ?? ""),
+    eventId: asString(envelope.eventId),
+    invoiceId: asString(data.invoiceId),
+    paymentId: asString(data.paymentId),
+    status: asString(data.status),
   };
 }

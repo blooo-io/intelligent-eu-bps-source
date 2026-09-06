@@ -239,17 +239,17 @@ async function importUserWithFixedId(baseUrl, token, fixture) {
   return fixture.id;
 }
 
-async function ensureUser(baseUrl, token, fixture) {
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-    Accept: "application/json",
-    ...proxyHeaders(baseUrl),
-  };
-  const realmBase = `${baseUrl.replace(/\/$/, "")}/admin/realms/int`;
-  const communityId = fixture.communityId ?? UAT_COMMUNITY_ID;
-  const firstName = fixture.firstName ?? "UAT";
-  const lastName = fixture.lastName ?? fixture.role;
+async function deleteUserIfPresent(realmBase, headers, id, context) {
+  const del = await fetch(`${realmBase}/users/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!del.ok && del.status !== 404) {
+    throw new Error(`${context}: ${del.status}`);
+  }
+}
+
+async function lookupFixtureUser(realmBase, headers, fixture) {
   const search = await fetch(
     `${realmBase}/users?username=${encodeURIComponent(fixture.username)}&exact=true`,
     { headers },
@@ -260,7 +260,6 @@ async function ensureUser(baseUrl, token, fixture) {
   const found = await search.json();
   let id = found[0]?.id;
   let existing = found[0];
-  // INT-282 — username rename: fixture id may still exist under a legacy login.
   if (!id) {
     const byId = await fetch(`${realmBase}/users/${fixture.id}`, { headers });
     if (byId.ok) {
@@ -268,42 +267,79 @@ async function ensureUser(baseUrl, token, fixture) {
       id = existing?.id;
     }
   }
+  return { id, existing };
+}
+
+async function syncFixtureUserRecord(
+  baseUrl,
+  token,
+  realmBase,
+  headers,
+  fixture,
+  id,
+  existing,
+) {
+  const communityId = fixture.communityId ?? UAT_COMMUNITY_ID;
+  const firstName = fixture.firstName ?? "UAT";
+  const lastName = fixture.lastName ?? fixture.role;
+
   if (!id || id !== fixture.id) {
-    // Missing, or wrong id (Admin API create ignored fixture.id) — re-import.
     if (id && id !== fixture.id) {
-      const del = await fetch(`${realmBase}/users/${id}`, {
-        method: "DELETE",
+      await deleteUserIfPresent(
+        realmBase,
         headers,
-      });
-      if (!del.ok && del.status !== 404) {
-        throw new Error(`delete mismatched ${fixture.username}: ${del.status}`);
-      }
+        id,
+        `delete mismatched ${fixture.username}`,
+      );
     }
-    id = await importUserWithFixedId(baseUrl, token, fixture);
-  } else if (existing?.username !== fixture.username) {
-    // INT-282 — Admin PUT cannot always rename; delete then re-import fixed id.
-    const del = await fetch(`${realmBase}/users/${id}`, {
-      method: "DELETE",
-      headers,
-    });
-    if (!del.ok && del.status !== 404) {
-      throw new Error(`delete for rename ${existing.username}: ${del.status}`);
-    }
-    id = await importUserWithFixedId(baseUrl, token, fixture);
-  } else {
-    await fetch(`${realmBase}/users/${id}`, {
-      method: "PUT",
-      headers,
-      body: JSON.stringify({
-        ...existing,
-        enabled: true,
-        email: fixture.email,
-        firstName,
-        lastName,
-        attributes: { community_id: [communityId] },
-      }),
-    });
+    return importUserWithFixedId(baseUrl, token, fixture);
   }
+  if (existing?.username !== fixture.username) {
+    await deleteUserIfPresent(
+      realmBase,
+      headers,
+      id,
+      `delete for rename ${existing.username}`,
+    );
+    return importUserWithFixedId(baseUrl, token, fixture);
+  }
+  await fetch(`${realmBase}/users/${id}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({
+      ...existing,
+      enabled: true,
+      email: fixture.email,
+      firstName,
+      lastName,
+      attributes: { community_id: [communityId] },
+    }),
+  });
+  return id;
+}
+
+async function ensureUser(baseUrl, token, fixture) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...proxyHeaders(baseUrl),
+  };
+  const realmBase = `${baseUrl.replace(/\/$/, "")}/admin/realms/int`;
+  const { id: foundId, existing } = await lookupFixtureUser(
+    realmBase,
+    headers,
+    fixture,
+  );
+  const id = await syncFixtureUserRecord(
+    baseUrl,
+    token,
+    realmBase,
+    headers,
+    fixture,
+    foundId,
+    existing,
+  );
 
   const pw = await fetch(`${realmBase}/users/${id}/reset-password`, {
     method: "PUT",
@@ -339,16 +375,7 @@ async function ensureUser(baseUrl, token, fixture) {
  * INT-218 — create/update participants-admin confidential client + realm-management roles.
  * Realm ConfigMap import does not re-apply clients on an already-initialised realm.
  */
-export async function ensureParticipantsAdminClient(baseUrl, token) {
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-    Accept: "application/json",
-    ...proxyHeaders(baseUrl),
-  };
-  const realmBase = `${baseUrl.replace(/\/$/, "")}/admin/realms/int`;
-  const { clientId, secret, realmManagementRoles } = PARTICIPANTS_ADMIN_CLIENT;
-
+async function resolveParticipantsAdminClientId(realmBase, headers, clientId, secret) {
   const search = await fetch(
     `${realmBase}/clients?clientId=${encodeURIComponent(clientId)}`,
     { headers },
@@ -383,25 +410,43 @@ export async function ensureParticipantsAdminClient(baseUrl, token) {
       { headers },
     );
     internalId = (await again.json())[0]?.id;
-  } else {
-    // Align secret + service-account flags with chart values (INT-218).
-    const cur = found[0];
-    const put = await fetch(`${realmBase}/clients/${internalId}`, {
-      method: "PUT",
-      headers,
-      body: JSON.stringify({
-        ...cur,
-        secret,
-        serviceAccountsEnabled: true,
-        publicClient: false,
-        standardFlowEnabled: false,
-        directAccessGrantsEnabled: false,
-      }),
-    });
-    if (!put.ok) {
-      throw new Error(`update client ${clientId}: ${put.status}`);
-    }
+    return internalId;
   }
+  const cur = found[0];
+  const put = await fetch(`${realmBase}/clients/${internalId}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({
+      ...cur,
+      secret,
+      serviceAccountsEnabled: true,
+      publicClient: false,
+      standardFlowEnabled: false,
+      directAccessGrantsEnabled: false,
+    }),
+  });
+  if (!put.ok) {
+    throw new Error(`update client ${clientId}: ${put.status}`);
+  }
+  return internalId;
+}
+
+export async function ensureParticipantsAdminClient(baseUrl, token) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...proxyHeaders(baseUrl),
+  };
+  const realmBase = `${baseUrl.replace(/\/$/, "")}/admin/realms/int`;
+  const { clientId, secret, realmManagementRoles } = PARTICIPANTS_ADMIN_CLIENT;
+
+  const internalId = await resolveParticipantsAdminClientId(
+    realmBase,
+    headers,
+    clientId,
+    secret,
+  );
   if (!internalId) {
     throw new Error(`client ${clientId} missing after create`);
   }

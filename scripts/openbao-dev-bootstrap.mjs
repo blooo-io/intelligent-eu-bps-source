@@ -207,12 +207,12 @@ const isDirectRun =
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isDirectRun) {
-  const args = process.argv.slice(2);
-  if (args.includes("--check")) {
+  const args = new Set(process.argv.slice(2));
+  if (args.has("--check")) {
     console.log(JSON.stringify(await checkOpenbaoDevBootstrapLayout()));
-  } else if (args.includes("--print")) {
+  } else if (args.has("--print")) {
     process.stdout.write(printOpenbaoDevBootstrapSteps());
-  } else if (args.includes("--apply")) {
+  } else if (args.has("--apply")) {
     // Do not print secrets — summary only.
     console.log(JSON.stringify({ applied: true, ...applyOpenbaoDevBootstrap() }));
   } else {

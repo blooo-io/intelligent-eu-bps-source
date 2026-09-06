@@ -1,3 +1,4 @@
+import { asString } from "@intelligent/module-template";
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { PublicationService } from "../publication/publication.service.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
@@ -27,7 +28,7 @@ export class BillingEventsListener implements OnModuleInit {
   async onInvoiceIssued(payload: unknown): Promise<void> {
     const env = asEnvelope(payload);
     const data = env.data;
-    const invoiceId = String(data.invoiceId ?? "");
+    const invoiceId = asString(data.invoiceId);
     if (!invoiceId) return;
     const amounts = (data.amounts as Record<string, unknown> | undefined) ?? {};
     const total = Number(amounts.total ?? data.total ?? 0);
@@ -40,14 +41,14 @@ export class BillingEventsListener implements OnModuleInit {
       communityId: env.communityId,
       billingMode: env.billingMode,
       settlementType: "periodic",
-      billingPeriodFrom: String(data.periodFrom ?? now.slice(0, 10)),
-      billingPeriodUntil: String(data.periodUntil ?? now.slice(0, 10)),
-      invoiceStatus: String(data.status ?? "Open"),
+      billingPeriodFrom: asString(data.periodFrom, now.slice(0, 10)),
+      billingPeriodUntil: asString(data.periodUntil, now.slice(0, 10)),
+      invoiceStatus: asString(data.status, "Open"),
       invoiceIssueDate: now.slice(0, 10),
-      invoiceIssuedTo: String(data.recipientId ?? data.consumerId ?? ""),
-      invoiceIssuedBy: String(data.issuerId ?? data.producerId ?? ""),
+      invoiceIssuedTo: asString(data.recipientId ?? data.consumerId),
+      invoiceIssuedBy: asString(data.issuerId ?? data.producerId),
       selfBilling: true,
-      invoiceDueDate: String(data.dueDate ?? now.slice(0, 10)),
+      invoiceDueDate: asString(data.dueDate, now.slice(0, 10)),
       totalEnergyKWh: 0,
       totalAmount: total,
       outstandingAmount: total,
@@ -55,9 +56,9 @@ export class BillingEventsListener implements OnModuleInit {
       taxAmount: vat,
       vatRate: 0,
       carriedForwardAmount: 0,
-      currency: String(data.currency ?? "EUR"),
+      currency: asString(data.currency, "EUR"),
       exchangeRate: {
-        sourceCurrency: String(data.currency ?? "EUR"),
+        sourceCurrency: asString(data.currency, "EUR"),
         rate: 1,
         rateDate: now.slice(0, 10),
         rateSource: "identity",
@@ -72,12 +73,12 @@ export class BillingEventsListener implements OnModuleInit {
   async onInvoiceStatus(payload: unknown): Promise<void> {
     const env = asEnvelope(payload);
     const data = env.data;
-    const invoiceId = String(data.invoiceId ?? "");
+    const invoiceId = asString(data.invoiceId);
     if (!invoiceId) return;
     try {
       await this.publication.onInvoiceStatusChanged({
         invoiceId,
-        status: String(data.status ?? ""),
+        status: asString(data.status),
         outstanding:
           data.outstanding !== undefined
             ? Number(data.outstanding)
@@ -94,8 +95,8 @@ export class BillingEventsListener implements OnModuleInit {
   async onPayment(payload: unknown): Promise<void> {
     const env = asEnvelope(payload);
     const data = env.data;
-    const paymentId = String(data.paymentId ?? "");
-    const invoiceId = String(data.invoiceId ?? "");
+    const paymentId = asString(data.paymentId);
+    const invoiceId = asString(data.invoiceId);
     if (!paymentId || !invoiceId) return;
     const now = new Date().toISOString();
     const amount = Number(data.amount ?? 0);
@@ -104,14 +105,14 @@ export class BillingEventsListener implements OnModuleInit {
       invoiceId,
       communityId: env.communityId,
       billingMode: env.billingMode,
-      payerId: String(data.participantId ?? ""),
+      payerId: asString(data.participantId),
       payeeId: "",
       paymentDate: now.slice(0, 10),
       paymentAmount: amount,
-      currency: String(data.currency ?? "EUR"),
-      paymentMethod: String(data.method ?? "card"),
+      currency: asString(data.currency, "EUR"),
+      paymentMethod: asString(data.method, "card"),
       paymentProvider: "stripe",
-      paymentStatus: String(data.status ?? ""),
+      paymentStatus: asString(data.status),
       failureCategory:
         typeof data.failureCategory === "string" ? data.failureCategory : null,
       createdAt: now,
@@ -131,7 +132,7 @@ function asEnvelope(payload: unknown): {
     data?: Record<string, unknown>;
   };
   return {
-    communityId: String(envelope.communityId ?? ""),
+    communityId: asString(envelope.communityId),
     billingMode: envelope.billingMode === "live" ? "live" : "virtual",
     data: envelope.data ?? {},
   };

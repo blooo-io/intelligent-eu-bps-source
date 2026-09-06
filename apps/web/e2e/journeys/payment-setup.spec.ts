@@ -5,6 +5,7 @@ import { authSkipped, expectPageReady, loginAs } from "../helpers/auth";
  * INT-218 — payment setup / Connect path (REQ-009 payment leg / REQ-015 / UAT-015).
  */
 test.describe("REQ payment setup", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("payment setup page exposes Stripe Connect or payment-method CTA", async ({

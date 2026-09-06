@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { IdempotentConsumer } from "@intelligent/module-template";
+import { asString, IdempotentConsumer } from "@intelligent/module-template";
 import { InvoicingService } from "../invoicing/invoicing.service.js";
 import {
   SETTLEMENT_CLIENT,
@@ -95,6 +95,39 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function parseJsonUnknown(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function unwrapDebeziumAfter(rec: Record<string, unknown>): Record<string, unknown> {
+  if (rec.after === undefined || typeof rec.after !== "object") return rec;
+  const after = asRecord(rec.after);
+  if (after.event === undefined) return rec;
+  const event =
+    typeof after.event === "string" ? parseJsonUnknown(after.event) : after.event;
+  return asRecord(event);
+}
+
+function unwrapCloudEvents(rec: Record<string, unknown>): Record<string, unknown> {
+  if (
+    typeof rec.id !== "string" ||
+    rec.data === undefined ||
+    rec.eventId ||
+    rec.pairSettlementIds
+  ) {
+    return rec;
+  }
+  const data = asRecord(rec.data);
+  if (data.eventId || data.pairSettlementIds || data.data) {
+    return data.eventId ? data : { eventId: rec.id, data };
+  }
+  return { eventId: rec.id, data };
+}
+
 /**
  * Unwrap Debezium EventRouter / JSON converter / CloudEvents shapes to the
  * AsyncAPI envelope (eventId + data.pairSettlementIds).
@@ -102,44 +135,17 @@ function asRecord(value: unknown): Record<string, unknown> {
 export function unwrapEnvelope(payload: unknown): Record<string, unknown> {
   let cur: unknown = payload;
   if (typeof cur === "string") {
-    try {
-      cur = JSON.parse(cur);
-    } catch {
-      return {};
-    }
+    const parsed = parseJsonUnknown(cur);
+    if (parsed === undefined) return {};
+    cur = parsed;
   }
   let rec = asRecord(cur);
-
   // JSON Converter: { schema, payload }
   if (rec.payload !== undefined && rec.schema !== undefined) {
     rec = asRecord(rec.payload);
   }
-  // Raw CDC before EventRouter: { after: { event: {...} } }
-  if (rec.after !== undefined && typeof rec.after === "object") {
-    const after = asRecord(rec.after);
-    if (after.event !== undefined) {
-      const event =
-        typeof after.event === "string"
-          ? JSON.parse(after.event)
-          : after.event;
-      rec = asRecord(event);
-    }
-  }
-  // CloudEvents: { id, data: envelope | data-only }
-  if (
-    typeof rec.id === "string" &&
-    rec.data !== undefined &&
-    !rec.eventId &&
-    !rec.pairSettlementIds
-  ) {
-    const data = asRecord(rec.data);
-    if (data.eventId || data.pairSettlementIds || data.data) {
-      rec = data.eventId ? data : { eventId: rec.id, data };
-    } else {
-      rec = { eventId: String(rec.id), data };
-    }
-  }
-  return rec;
+  rec = unwrapDebeziumAfter(rec);
+  return unwrapCloudEvents(rec);
 }
 
 export function mapEnvelope(payload: unknown): {
@@ -149,17 +155,14 @@ export function mapEnvelope(payload: unknown): {
   const envelope = unwrapEnvelope(payload);
   const data = asRecord(envelope.data);
   // Some sinks flatten data onto the root.
-  const raw =
-    data.pairSettlementIds ??
-    envelope.pairSettlementIds ??
-    [];
-  const pairSettlementIds = Array.isArray(raw) ? raw.map(String) : [];
-  const eventId = String(
-    envelope.eventId ??
-      envelope.id ??
-      (pairSettlementIds.length > 0
-        ? `settlement:${String(data.runId ?? envelope.runId ?? "unknown")}:${pairSettlementIds.join(",")}`
-        : ""),
-  );
+  const raw = data.pairSettlementIds ?? envelope.pairSettlementIds ?? [];
+  const pairSettlementIds = Array.isArray(raw)
+    ? raw.map((id) => asString(id))
+    : [];
+  const fallbackId =
+    pairSettlementIds.length > 0
+      ? `settlement:${asString(data.runId ?? envelope.runId, "unknown")}:${pairSettlementIds.join(",")}`
+      : "";
+  const eventId = asString(envelope.eventId ?? envelope.id, fallbackId);
   return { eventId, pairSettlementIds };
 }

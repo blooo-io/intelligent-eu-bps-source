@@ -64,10 +64,7 @@ export class PublicationService {
     const next: InvoiceProjection = {
       ...existing,
       invoiceStatus: input.status,
-      outstandingAmount:
-        input.outstanding !== undefined
-          ? input.outstanding
-          : existing.outstandingAmount,
+      outstandingAmount: input.outstanding ?? existing.outstandingAmount,
       updatedAt: input.updatedAt ?? new Date().toISOString(),
     };
     this.store.putInvoice(next);

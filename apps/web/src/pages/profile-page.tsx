@@ -18,11 +18,11 @@ export function ProfilePage({
   config,
   oidc,
   embedded = false,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
   embedded?: boolean;
-}) {
+}>) {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

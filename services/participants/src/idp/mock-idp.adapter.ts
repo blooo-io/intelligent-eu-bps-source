@@ -11,7 +11,6 @@ export class MockIdpAdapter implements IdpAdminPort {
   readonly deleted = new Set<string>();
 
   async createUser(input: IdpCreateUserInput): Promise<IdpUser> {
-    void input.email;
     const userId = randomUUID();
     this.created.set(userId, {
       communityId: input.communityId,

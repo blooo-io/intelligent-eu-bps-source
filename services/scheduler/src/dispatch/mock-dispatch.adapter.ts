@@ -12,7 +12,7 @@ import type {
 @Injectable()
 export class MockDispatchAdapter implements DispatchPort {
   private readonly calls: DispatchCommand[] = [];
-  private failNames = new Set<string>();
+  private readonly failNames = new Set<string>();
 
   reset(): void {
     this.calls.length = 0;

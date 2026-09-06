@@ -24,10 +24,10 @@ type HistoryPayment = MemberHistory["payments"][number];
 export function ReportsPage({
   config,
   oidc,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
-}) {
+}>) {
   const [communityId, setCommunityId] = useState<string | null>(null);
   const [participantId, setParticipantId] = useState("");
   const [period, setPeriod] = useState("");

@@ -24,8 +24,8 @@ export type AccountRecord = {
 };
 
 export class PaymentsStore {
-  private payments = new Map<string, PaymentRecord>();
-  private accounts = new Map<string, AccountRecord>();
+  private readonly payments = new Map<string, PaymentRecord>();
+  private readonly accounts = new Map<string, AccountRecord>();
 
   reset(): void {
     this.payments.clear();

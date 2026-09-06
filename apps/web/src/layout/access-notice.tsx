@@ -11,11 +11,11 @@ export function AccessNotice({
   title = "This screen is not available for your role",
   detail = "Use the menu on the left for pages that match your signed-in role. If you need manager or operator access, ask your community administrator.",
   homeTo = "/",
-}: {
+}: Readonly<{
   title?: string;
   detail?: string;
   homeTo?: string;
-}) {
+}>) {
   return (
     <Alert
       type="warning"

@@ -29,13 +29,13 @@ export function InvoicesPage({
   openBlobUrl = (url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
   },
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
   /** Hide PageFrame when nested in the onboarding wizard (INT-211). */
   embedded?: boolean;
   openBlobUrl?: (url: string) => void;
-}) {
+}>) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [marketRole, setMarketRole] = useState<ParticipantRole | null>(null);

@@ -1,7 +1,7 @@
 import type { ReadinessStatus } from "../api/me";
 
 /** Human labels for readiness (INT-248 — no raw enum codes in the UI). */
-export function readinessLabel(status: ReadinessStatus | string | undefined): string {
+export function readinessLabel(status?: ReadinessStatus): string {
   switch (status) {
     case "Invited":
       return "Invited — complete your profile";

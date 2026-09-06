@@ -10,13 +10,13 @@ export class InternalPublicationController {
     @Inject(PublicationService) private readonly publication: PublicationService,
   ) {}
 
-  @Post("publication\\:retry-pending")
+  @Post(String.raw`publication\:retry-pending`)
   @HttpCode(202)
   async retryPending() {
     return this.publication.retryPending();
   }
 
-  @Post("publication\\:purge-cache")
+  @Post(String.raw`publication\:purge-cache`)
   @HttpCode(202)
   async purgeCache(@Body() body: { before: string }) {
     return this.publication.purgeCache(body.before);

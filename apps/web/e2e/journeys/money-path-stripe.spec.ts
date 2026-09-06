@@ -13,6 +13,7 @@ import {
  * stripe-fresh-billing-run land on participant 11111111-… (INT-236 / INT-238).
  */
 test.describe("INT-251 Stripe money path", () => {
+  // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
 
   test("Pay open invoice creates a succeeded Stripe charge", async ({

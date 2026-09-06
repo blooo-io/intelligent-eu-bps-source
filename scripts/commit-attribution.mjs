@@ -108,6 +108,6 @@ async function main() {
   }
 }
 
-if (process.argv[1] && process.argv[1].endsWith("commit-attribution.mjs")) {
+if (process.argv[1]?.endsWith("commit-attribution.mjs")) {
   await main();
 }

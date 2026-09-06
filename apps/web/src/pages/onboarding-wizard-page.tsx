@@ -1,40 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, Steps, Typography } from "antd";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useMemo } from "react";
+import { Alert, Card, Steps, Typography } from "antd";
+import { Link } from "react-router";
 import type { WebConfig } from "../api/config";
-import { fetchMe, type Me, type ReadinessStatus } from "../api/me";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
 import { readinessLabel } from "../layout/readiness-label";
-import { isSellerRole } from "../layout/role-home";
-import { PaymentSetupPage } from "./payment-setup-page";
-import { ProfilePage } from "./profile-page";
-import { TermsPage } from "./terms-page";
+import { wizardStepItems } from "./onboarding-wizard-step-model";
+import { OnboardingWizardStepPanel } from "./onboarding-wizard-steps";
+import {
+  STEP_KEYS,
+  stepIndex,
+  useOnboardingWizard,
+} from "./use-onboarding-wizard";
 
 const { Paragraph } = Typography;
-
-/** INT-255 / Volt MockSetup — three steps only (profile → terms → pay/payouts). */
-const STEP_KEYS = ["profile", "terms", "payment"] as const;
-type StepKey = (typeof STEP_KEYS)[number];
-
-function stepFromReadiness(status: ReadinessStatus): StepKey {
-  switch (status) {
-    case "Invited":
-      return "profile";
-    case "ProfileCompleted":
-      return "terms";
-    case "TermsAccepted":
-      return "payment";
-    case "Ready":
-      return "payment";
-    default:
-      return "profile";
-  }
-}
-
-function stepIndex(key: StepKey): number {
-  return STEP_KEYS.indexOf(key);
-}
 
 /**
  * Member journey wizard (INT-193 / INT-255 / NFR-016 / UAT-067).
@@ -43,124 +22,14 @@ function stepIndex(key: StepKey): number {
 export function OnboardingWizardPage({
   config,
   oidc,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
-}) {
-  const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
-  const [me, setMe] = useState<Me | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+}>) {
+  const { me, error, loading, current, stepNumber, go, afterGate } =
+    useOnboardingWizard(config, oidc);
 
-  const reloadMe = useCallback(async () => {
-    const token = await oidc.getAccessToken();
-    if (!token) throw new Error("No access token");
-    return fetchMe(config.apiBaseUrl, token);
-  }, [config.apiBaseUrl, oidc]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const result = await reloadMe();
-        if (!cancelled) setMe(result);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load profile");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadMe]);
-
-  // Legacy ?step=pay → invoices once Ready (or payment step).
-  useEffect(() => {
-    if (params.get("step") === "pay") {
-      if (me?.readiness === "Ready") {
-        navigate("/invoices", { replace: true });
-      } else {
-        setParams({ step: "payment" }, { replace: true });
-      }
-    }
-  }, [params, me?.readiness, navigate, setParams]);
-
-  const suggested = me ? stepFromReadiness(me.readiness) : "profile";
-  const paramStep = params.get("step") as StepKey | null;
-  const current: StepKey =
-    paramStep && (STEP_KEYS as readonly string[]).includes(paramStep)
-      ? (paramStep as StepKey)
-      : suggested;
-
-  const stepNumber = stepIndex(current) + 1;
-
-  const items = useMemo(
-    () => [
-      {
-        title: "Profile",
-        description: "Billing identity",
-        status:
-          me && stepIndex(stepFromReadiness(me.readiness)) > 0
-            ? ("finish" as const)
-            : current === "profile"
-              ? ("process" as const)
-              : ("wait" as const),
-      },
-      {
-        title: "Terms",
-        description: "Accept & self-billing",
-        status:
-          me && stepIndex(stepFromReadiness(me.readiness)) > 1
-            ? ("finish" as const)
-            : current === "terms"
-              ? ("process" as const)
-              : ("wait" as const),
-      },
-      {
-        title:
-          me?.role === "prosumer"
-            ? "Payouts & pay"
-            : isSellerRole(me?.role)
-              ? "Payouts"
-              : "Pay",
-        description:
-          me?.role === "prosumer"
-            ? "Connect + card"
-            : isSellerRole(me?.role)
-              ? "Stripe Connect"
-              : "Card",
-        status:
-          me && me.readiness === "Ready"
-            ? ("finish" as const)
-            : current === "payment"
-              ? ("process" as const)
-              : ("wait" as const),
-      },
-    ],
-    [current, me],
-  );
-
-  function go(step: StepKey) {
-    setParams({ step });
-  }
-
-  async function afterGate() {
-    try {
-      const next = await reloadMe();
-      setMe(next);
-      if (next.readiness === "Ready") {
-        navigate("/invoices");
-        return;
-      }
-      go(stepFromReadiness(next.readiness));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Refresh failed");
-    }
-  }
+  const items = useMemo(() => wizardStepItems(me, current), [current, me]);
 
   return (
     <PageFrame
@@ -185,41 +54,13 @@ export function OnboardingWizardPage({
         </Paragraph>
       </Card>
 
-      {me?.readiness === "Ready" && current === "payment" ? (
-        <Card size="small">
-          <Paragraph>You are ready. Money screens are unlocked.</Paragraph>
-          <Button type="primary" onClick={() => navigate("/invoices")}>
-            Go to invoices
-          </Button>
-        </Card>
-      ) : null}
-
-      {current === "profile" && me?.readiness !== "Ready" && (
-        <div>
-          <ProfilePage config={config} oidc={oidc} embedded />
-          <Button type="primary" style={{ marginTop: 16 }} onClick={() => void afterGate()}>
-            Continue to terms
-          </Button>
-        </div>
-      )}
-
-      {current === "terms" && me?.readiness !== "Ready" && (
-        <div>
-          <TermsPage config={config} oidc={oidc} embedded />
-          <Button type="primary" style={{ marginTop: 16 }} onClick={() => void afterGate()}>
-            Continue to payment setup
-          </Button>
-        </div>
-      )}
-
-      {current === "payment" && me?.readiness !== "Ready" && (
-        <PaymentSetupPage
-          config={config}
-          oidc={oidc}
-          embedded
-          onComplete={() => void afterGate()}
-        />
-      )}
+      <OnboardingWizardStepPanel
+        current={current}
+        me={me}
+        config={config}
+        oidc={oidc}
+        onAfterGate={() => void afterGate()}
+      />
     </PageFrame>
   );
 }

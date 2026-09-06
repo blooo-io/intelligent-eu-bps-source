@@ -1,3 +1,4 @@
+import { asString } from "@intelligent/module-template";
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { SettlementService } from "../settlement/settlement.service.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
@@ -71,16 +72,16 @@ function mapEnvelope(payload: unknown): {
     if (after.event !== undefined) {
       const event =
         typeof after.event === "string"
-          ? JSON.parse(String(after.event))
+          ? JSON.parse(after.event)
           : after.event;
       env = asRecord(event);
     }
   }
   const data = asRecord(env.data);
   return {
-    communityId: String(env.communityId ?? data.communityId ?? ""),
-    participantId: String(data.participantId ?? env.participantId ?? ""),
-    effectiveAt: String(data.effectiveAt ?? env.effectiveAt ?? ""),
+    communityId: asString(env.communityId ?? data.communityId),
+    participantId: asString(data.participantId ?? env.participantId),
+    effectiveAt: asString(data.effectiveAt ?? env.effectiveAt),
   };
 }
 

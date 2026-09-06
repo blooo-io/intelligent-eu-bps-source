@@ -226,9 +226,8 @@ describe("InvoicingService", () => {
     });
     expect(again?.status).toBe("Paid");
     expect(
-      service.listStatusAudit(invoice.invoiceId).filter((a) => a.status === "Paid")
-        .length,
-    ).toBe(1);
+      service.listStatusAudit(invoice.invoiceId).filter((a) => a.status === "Paid"),
+    ).toHaveLength(1);
   });
 
   it("INT-238 — getInvoiceBySettlement returns the row", async () => {

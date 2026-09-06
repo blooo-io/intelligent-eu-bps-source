@@ -45,7 +45,6 @@ export class KeycloakIdpAdapter implements IdpAdminPort {
     // Attribute must match the oidc-usermodel-attribute-mapper claim
     // `community_id` in int-realm.json (not camelCase). Market role
     // (consumer|producer|prosumer) stays in AC-03; IdP realm role is member.
-    void input.role;
     const res = await fetch(
       `${this.config.baseUrl}/admin/realms/${encodeURIComponent(this.config.realm)}/users`,
       {

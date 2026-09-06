@@ -24,7 +24,7 @@ export class InternalPaymentsController {
     return this.payments.getPaymentAccount(participantId);
   }
 
-  @Post("payment-accounts\\:provision")
+  @Post(String.raw`payment-accounts\:provision`)
   @HttpCode(201)
   provision(
     @Body()

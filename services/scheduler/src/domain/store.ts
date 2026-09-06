@@ -3,7 +3,7 @@ import { buildJobCatalog } from "./catalog.js";
 
 export class SchedulerStore {
   private readonly catalog: JobDefinition[] = buildJobCatalog();
-  private executions = new Map<string, JobExecution>();
+  private readonly executions = new Map<string, JobExecution>();
 
   reset(): void {
     this.executions.clear();

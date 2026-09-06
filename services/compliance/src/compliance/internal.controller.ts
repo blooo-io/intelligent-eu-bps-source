@@ -10,7 +10,7 @@ export class InternalComplianceController {
     @Inject(ComplianceService) private readonly compliance: ComplianceService,
   ) {}
 
-  @Post("retention\\:apply")
+  @Post(String.raw`retention\:apply`)
   @HttpCode(202)
   async applyRetention() {
     return this.compliance.applyRetention();

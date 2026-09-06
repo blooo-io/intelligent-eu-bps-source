@@ -50,7 +50,6 @@ export class FixtureTradeSource implements TradeSourcePort {
     communityId: string,
     _until: string,
   ): Promise<UnbilledTrade[]> {
-    void _until;
     if (communityId !== this.suite.scenario.communityId) {
       return [];
     }

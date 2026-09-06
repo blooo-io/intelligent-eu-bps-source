@@ -52,18 +52,18 @@ export async function checkBootstrapLayout(repoRoot = root) {
 }
 
 export function printOperatorSteps({ argoChartVersion = ARGO_CHART_VERSION } = {}) {
-  return `# INT-155 Argo CD bootstrap — run on the operator laptop
+  return String.raw`# INT-155 Argo CD bootstrap — run on the operator laptop
 # Expected: kubectl config current-context → ${EXPECTED_CONTEXT}
 
 kubectl config current-context
 
 helm repo add argo https://argoproj.github.io/argo-helm
 helm repo update
-helm upgrade --install argocd argo/argo-cd \\
-  --namespace argocd \\
-  --create-namespace \\
-  --version ${argoChartVersion} \\
-  -f deploy/argocd/bootstrap/values.yaml \\
+helm upgrade --install argocd argo/argo-cd \
+  --namespace argocd \
+  --create-namespace \
+  --version ${argoChartVersion} \
+  -f deploy/argocd/bootstrap/values.yaml \
   --wait
 
 # Repository credentials (private GitHub) — token never committed
@@ -73,7 +73,7 @@ node scripts/argocd-repo-credentials.mjs --print
 kubectl apply -f deploy/argocd/dev/
 kubectl apply -f deploy/argocd/platform/
 
-kubectl -n argocd get secret argocd-initial-admin-secret \\
+kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d; echo
 kubectl -n argocd port-forward svc/argocd-server 8080:443
 `;
@@ -84,17 +84,17 @@ const isDirectRun =
   import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isDirectRun) {
-  const args = process.argv.slice(2);
-  if (args.includes("--check")) {
+  const args = new Set(process.argv.slice(2));
+  if (args.has("--check")) {
     const summary = await checkBootstrapLayout();
     console.log(
       `Argo bootstrap layout OK (${summary.devApplicationCount} dev Applications; context ${summary.expectedContext}).`,
     );
   }
-  if (args.includes("--print")) {
+  if (args.has("--print")) {
     process.stdout.write(printOperatorSteps());
   }
-  if (!args.includes("--check") && !args.includes("--print")) {
+  if (!args.has("--check") && !args.has("--print")) {
     console.error("Usage: node scripts/argocd-bootstrap.mjs --check | --print");
     process.exit(1);
   }

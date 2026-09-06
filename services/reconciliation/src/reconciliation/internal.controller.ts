@@ -12,7 +12,7 @@ export class InternalReconciliationController {
     private readonly reconciliation: ReconciliationService,
   ) {}
 
-  @Post("reconciliation\\:run")
+  @Post(String.raw`reconciliation\:run`)
   @HttpCode(202)
   async reconcile(
     @Body() body: { scope: DiscrepancyScope; communityId?: string },

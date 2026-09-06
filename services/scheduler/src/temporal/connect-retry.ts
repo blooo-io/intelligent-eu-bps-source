@@ -1,3 +1,4 @@
+import { asString } from "@intelligent/module-template";
 import { NativeConnection } from "@temporalio/worker";
 
 /** INT-227 — retry Temporal connect so boot races do not CrashLoop the worker. */
@@ -35,7 +36,7 @@ export async function connectWithRetry(
           attempts,
           delayMs: delay,
           address,
-          error: err instanceof Error ? err.message : String(err),
+          error: err instanceof Error ? err.message : asString(err),
         }),
       );
       await sleep(delay);
@@ -43,5 +44,5 @@ export async function connectWithRetry(
   }
   throw lastError instanceof Error
     ? lastError
-    : new Error(String(lastError ?? "temporal connect failed"));
+    : new Error(asString(lastError, "temporal connect failed"));
 }

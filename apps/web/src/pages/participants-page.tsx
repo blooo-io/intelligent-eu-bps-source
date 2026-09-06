@@ -42,10 +42,10 @@ function readinessLabel(status: string): string {
 export function ParticipantsPage({
   config,
   oidc,
-}: {
+}: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
-}) {
+}>) {
   const [communityId, setCommunityId] = useState<string | null>(null);
   const [rows, setRows] = useState<Participant[]>([]);
   const [selected, setSelected] = useState<Participant | null>(null);

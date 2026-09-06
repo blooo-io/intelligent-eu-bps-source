@@ -16,12 +16,12 @@ export function ConsumerPaymentElement({
   clientSecret,
   onAttached,
   loadStripe,
-}: {
+}: Readonly<{
   config: WebConfig;
   clientSecret: string;
   onAttached: (paymentMethodId: string) => Promise<void>;
   loadStripe?: LoadStripeSetupFn;
-}) {
+}>) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<SetupElementHandle | null>(null);
   const [ready, setReady] = useState(false);

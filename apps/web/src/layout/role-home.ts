@@ -13,6 +13,16 @@ export function isSellerRole(role?: ParticipantRole | null): boolean {
   return role === "producer" || role === "prosumer";
 }
 
+function termsAcceptedCtaLabel(marketRole?: ParticipantRole | null): string {
+  if (marketRole === "prosumer") {
+    return "Finish payouts and card";
+  }
+  if (isSellerRole(marketRole)) {
+    return "Open Stripe Connect";
+  }
+  return "Finish payment setup";
+}
+
 export function marketRoleLabel(role?: ParticipantRole | null): string | null {
   switch (role) {
     case "consumer":
@@ -116,12 +126,7 @@ export function homeNextAction(
         : { label: "Pay open invoices", to: "/invoices", primary: true };
     case "TermsAccepted":
       return {
-        label:
-          marketRole === "prosumer"
-            ? "Finish payouts and card"
-            : isSellerRole(marketRole)
-              ? "Open Stripe Connect"
-              : "Finish payment setup",
+        label: termsAcceptedCtaLabel(marketRole),
         to: "/onboarding?step=payment",
         primary: true,
       };

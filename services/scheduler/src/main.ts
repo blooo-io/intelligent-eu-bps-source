@@ -9,4 +9,4 @@ async function bootstrap(): Promise<void> {
   console.log(JSON.stringify({ msg: "scheduler listening", port }));
 }
 
-void bootstrap();
+await bootstrap();

@@ -13,7 +13,7 @@ jobs:
   secrets-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: gitleaks (MIT), CLI in container, no licence key needed
@@ -24,7 +24,7 @@ jobs:
   contracts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -57,7 +57,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v4
@@ -87,7 +87,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -130,7 +130,7 @@ jobs:
   charts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Lint module Helm charts
         run: |
           docker run --rm --entrypoint sh -v "$PWD:/work" -w /work alpine/helm:3.18.4 -c '

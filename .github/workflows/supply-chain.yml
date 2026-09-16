@@ -27,7 +27,7 @@ jobs:
         with:
           # Need the previous develop tip so IMAGE_DIFF_BASE is reachable.
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       - name: Scan dependencies for vulnerabilities and excluded licences

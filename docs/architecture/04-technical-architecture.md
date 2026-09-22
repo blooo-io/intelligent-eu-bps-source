@@ -11,21 +11,21 @@ baseline: 03-application-architecture.md v1.0 (validated 2026-10-07); 02 logical
 # Billing & Payment Service: technical architecture
 
 > **View 4 of 5** (functional → logical → application → **technical** → physical, see [README](README.md)).
-> This view chooses the technologies that implement the application components AC-01 … AC-15. It is built **together with Rouslan, one topic at a time**: options, then recommendation, then decision.
+> This view chooses the technologies that implement the application components AC-01 … AC-15. It is built **one topic at a time**: options, then recommendation, then decision.
 > Status: **in progress**. §3 records the decisions as they are taken.
 
 ## 1. Technical principles
 
 | # | Principle | Source |
 |---|---|---|
-| TP-1 | **Reuse before build.** Rely as much as possible on existing open-source frameworks and products, used as accelerators, so that custom code is kept to the business logic that is specific to INTELLIGENT. | Rouslan, 2026-10-07 |
-| TP-2 | **Permissive licences only: MIT or Apache-2.0** for every component we embed, link or ship, consistent with the Apache-2.0 publication of the service (NFR-012) and with no GPL code linked. AGPL, SSPL, BSL and similar licences are excluded. A copyleft tool that only runs as a separate, unmodified service is flagged and needs an explicit decision. | Rouslan, 2026-10-07; NFR-012 |
+| TP-1 | **Reuse before build.** Rely as much as possible on existing open-source frameworks and products, used as accelerators, so that custom code is kept to the business logic that is specific to INTELLIGENT. | 2026-10-07 |
+| TP-2 | **Permissive licences only: MIT or Apache-2.0** for every component we embed, link or ship, consistent with the Apache-2.0 publication of the service (NFR-012) and with no GPL code linked. AGPL, SSPL, BSL and similar licences are excluded. A copyleft tool that only runs as a separate, unmodified service is flagged and needs an explicit decision. | 2026-10-07; NFR-012 |
 | TP-3 | **Kubernetes-native.** Every module is a container. Prefer components with an official Helm chart or operator. | AD-2 |
 | TP-4 | **EU hosting and data minimisation** in every product choice: no personal data sent to services outside the EU/adequacy area. | NFR-002 |
 | TP-5 | **Stripe test mode is the only real external integration in V1.** Everything else runs as a mock or a local instance behind the same adapter. | A32 |
 | TP-6 | **Licence check by local `git clone`** of each candidate. The result is recorded in §4 with date and commit date. | brain rule 9 |
-| TP-7 | **Single master per data item.** Data mastered by an external system, Stripe in particular, is never copied as a source of truth. Only identifiers and links are stored, plus a rebuildable read cache where lists or reports need it. | Rouslan, 2026-10-07 |
-| TP-8 | **API-first, contract-first.** Every interface is described by a versioned contract **before** it is implemented: OpenAPI 3.1 for the public and internal REST APIs, AsyncAPI 3 for the events. The contracts live in the repository, are reviewed like code, and are the single source for mocks, clients, validation and documentation. The web app and the project UI consume only the public API. | Rouslan, 2026-10-07 |
+| TP-7 | **Single master per data item.** Data mastered by an external system, Stripe in particular, is never copied as a source of truth. Only identifiers and links are stored, plus a rebuildable read cache where lists or reports need it. | 2026-10-07 |
+| TP-8 | **API-first, contract-first.** Every interface is described by a versioned contract **before** it is implemented: OpenAPI 3.1 for the public and internal REST APIs, AsyncAPI 3 for the events. The contracts live in the repository, are reviewed like code, and are the single source for mocks, clients, validation and documentation. The web app and the project UI consume only the public API. | 2026-10-07 |
 
 ## 2. Reuse map: what can replace custom code
 
@@ -186,7 +186,7 @@ For each application component, the existing open-source building blocks (all MI
 Method: a shallow, sparse clone of each repository, then reading the top-level licence files only. Licences of nested sub-directories were not exhaustively checked; that full scan is to be done for the components actually retained.
 
 ## 5. Open topics
-All decisions TD-1 … TD-13 are taken. The view was **validated by Rouslan on 2026-10-07** (v1.0).
+All decisions TD-1 … TD-13 are taken. The view was **validated on 2026-10-07** (v1.0).
 
 Licence scanning in CI uses Trivy (Apache-2.0), the same scanner as the dependency and image vulnerability scan. Forbidden licences are GPL, LGPL, AGPL, SSPL, BUSL and Elastic. OpenBao (MPL-2.0) stays outside this repository.
 

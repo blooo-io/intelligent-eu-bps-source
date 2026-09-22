@@ -18,11 +18,11 @@ baseline: 04-technical-architecture.md v1.0 (validated 2026-10-07); 03
 
 | # | Decision | Source |
 |---|---|---|
-| PD-1 | **Hosting: Scaleway** (French provider, not subject to the US CLOUD Act). **Everything runs in the Amsterdam region (nl-ams)**: the managed Kubernetes cluster (**Kapsule**, since capacity is no longer available in Paris), block storage and Object Storage. The Netherlands is in the EU, so NFR-002 is met. **No multi-zone requirement for V1**: these are non-production environments. | Rouslan, 2026-10-08; NFR-002 |
-| PD-2 | **Environments for V1:** `local` (developer laptop, k3d), **`int`** (automatic deployment on every merge) and **`demo`** (stable version for partners and pilots). Both cloud environments run in **virtual mode with Stripe test**. There is no production environment before the first live community. | Rouslan, 2026-10-07; A32 |
-| PD-3 | **One managed cluster for V1**, with one set of namespaces per environment, NetworkPolicies and resource quotas. Production will get its own cluster later. | Rouslan, 2026-10-07 |
-| PD-4 | **Backups:** CloudNativePG continuous backup (WAL archiving + daily base backup) to **Scaleway Object Storage in nl-ams** (same region, separate bucket per environment), with **point-in-time recovery**. Retention is 7 days in `int` and 30 days in `demo`. For non-production, the risk that a regional incident affects both the cluster and its backups is accepted. Production will add a second region. | Rouslan, 2026-10-08 |
-| PD-5 | **Domain:** all public hosts live under **`intelligent-eu-bp.blooo.dev`** (§4). | Rouslan, 2026-10-08 |
+| PD-1 | **Hosting: Scaleway** (French provider, not subject to the US CLOUD Act). **Everything runs in the Amsterdam region (nl-ams)**: the managed Kubernetes cluster (**Kapsule**, since capacity is no longer available in Paris), block storage and Object Storage. The Netherlands is in the EU, so NFR-002 is met. **No multi-zone requirement for V1**: these are non-production environments. | 2026-10-08; NFR-002 |
+| PD-2 | **Environments for V1:** `local` (developer laptop, k3d), **`int`** (automatic deployment on every merge) and **`demo`** (stable version for partners and pilots). Both cloud environments run in **virtual mode with Stripe test**. There is no production environment before the first live community. | 2026-10-07; A32 |
+| PD-3 | **One managed cluster for V1**, with one set of namespaces per environment, NetworkPolicies and resource quotas. Production will get its own cluster later. | 2026-10-07 |
+| PD-4 | **Backups:** CloudNativePG continuous backup (WAL archiving + daily base backup) to **Scaleway Object Storage in nl-ams** (same region, separate bucket per environment), with **point-in-time recovery**. Retention is 7 days in `int` and 30 days in `demo`. For non-production, the risk that a regional incident affects both the cluster and its backups is accepted. Production will add a second region. | 2026-10-08 |
+| PD-5 | **Domain:** all public hosts live under **`intelligent-eu-bp.blooo.dev`** (§4). | 2026-10-08 |
 
 ## 2. Provider selection criteria (PD-1 closed: Scaleway)
 

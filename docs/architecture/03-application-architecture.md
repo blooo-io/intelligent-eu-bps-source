@@ -19,13 +19,13 @@ baseline: 02-logical-architecture.md v1.0 (validated 2026-10-07); 01-functional
 
 | # | Decision | Source |
 |---|---|---|
-| AD-1 | **Modular architecture, one deployable module per logical block.** Each module is built, tested and deployed independently. It owns its data and exposes its capabilities only through APIs and events. | Rouslan, 2026-10-07 |
-| AD-2 | **Target hosting: a Kubernetes cluster.** Each module runs as its own workload. Cluster design belongs to the technical and physical views. | Rouslan, 2026-10-07 |
-| AD-3 | **External API: REST, versioned (`/v1`), described by an OpenAPI contract.** Authentication uses OIDC bearer tokens from the project IdP. | Rouslan, 2026-10-07; REQ-052 |
-| AD-4 | **Events between modules: asynchronous, at-least-once, through a transactional outbox per module.** Consumers are idempotent. The transport is chosen in the technical view. | Rouslan, 2026-10-07; logical LP-3/LP-4 |
-| AD-5 | **Reference screens in V1: participant portal and community-manager console**, built only on the public API. | Rouslan, 2026-10-07; REQ-052 |
+| AD-1 | **Modular architecture, one deployable module per logical block.** Each module is built, tested and deployed independently. It owns its data and exposes its capabilities only through APIs and events. | 2026-10-07 |
+| AD-2 | **Target hosting: a Kubernetes cluster.** Each module runs as its own workload. Cluster design belongs to the technical and physical views. | 2026-10-07 |
+| AD-3 | **External API: REST, versioned (`/v1`), described by an OpenAPI contract.** Authentication uses OIDC bearer tokens from the project IdP. | 2026-10-07; REQ-052 |
+| AD-4 | **Events between modules: asynchronous, at-least-once, through a transactional outbox per module.** Consumers are idempotent. The transport is chosen in the technical view. | 2026-10-07; logical LP-3/LP-4 |
+| AD-5 | **Reference screens in V1: participant portal and community-manager console**, built only on the public API. | 2026-10-07; REQ-052 |
 | AD-6 | **V1 integrates only Stripe in test mode.** Every other external system is reached through an adapter whose V1 implementation is a mock (or a local instance). | A32 |
-| AD-7 | **API-first, contract-first** (added 2026-10-07): public and internal APIs are specified in OpenAPI and events in AsyncAPI **before** implementation. The web app and the project UI consume only the public API; contracts are the source for mocks and generated clients (see technical view TP-8 / TD-13). | Rouslan, 2026-10-07 |
+| AD-7 | **API-first, contract-first** (added 2026-10-07): public and internal APIs are specified in OpenAPI and events in AsyncAPI **before** implementation. The web app and the project UI consume only the public API; contracts are the source for mocks and generated clients (see technical view TP-8 / TD-13). | 2026-10-07 |
 
 ## 2. Application components
 
@@ -441,5 +441,5 @@ Every adapter implements one logical port behind a stable interface. Switching f
 - [ ] Mock scenarios S1–S13
 
 ## 12. Changes in v0.2 (2026-10-07)
-- Following Rouslan's preference for more separately deployed modules, v0.1's grouped modules (Billing = LB-04/05/11, Control & reporting = LB-07/14, Platform = LB-08/09/10/13) are split. There is now **one module per logical block**: AC-05 Settlement, AC-06 Invoicing, AC-08 Reconciliation, AC-09 Reporting, AC-10 Publication, AC-11 Notification, AC-12 Compliance, AC-13 Reference data, AC-14 Scheduler. The mock suite becomes AC-15.
+- To favour more separately deployed modules, v0.1's grouped modules (Billing = LB-04/05/11, Control & reporting = LB-07/14, Platform = LB-08/09/10/13) are split. There is now **one module per logical block**: AC-05 Settlement, AC-06 Invoicing, AC-08 Reconciliation, AC-09 Reporting, AC-10 Publication, AC-11 Notification, AC-12 Compliance, AC-13 Reference data, AC-14 Scheduler. The mock suite becomes AC-15.
 - New events SettlementCompleted, DiscrepancyDetected, AuditableActionPerformed and JobFailed, needed now that these blocks are separate deployables.

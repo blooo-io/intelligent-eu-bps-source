@@ -1,5 +1,8 @@
 # Deployment and configuration (INT-93)
 
+> **Audience:** this note describes the **upstream reference deployment** (example cloud region, DNS zone, Argo CD, OpenBao paths).  
+> **If you are deploying your own instance**, start with the public guide instead: [`apps/site/guide/deploy.md`](../../apps/site/guide/deploy.md) (VitePress / GitHub Pages). Treat hostnames below as examples.
+
 Source views: [`docs/architecture/05-physical-architecture.md`](../architecture/05-physical-architecture.md), packaging under [`deploy/`](../../deploy/).
 
 ## Environments

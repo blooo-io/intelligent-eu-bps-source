@@ -1,0 +1,20 @@
+{
+  "name": "@intelligent/site",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Public documentation site (VitePress) for EU open-source adopters — INT-299",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "test": "node --test site.test.mjs"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

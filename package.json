@@ -12,7 +12,9 @@
     "test": "node scripts/run-tests.mjs",
     "contracts:lint": "spectral lint --fail-severity=error \"contracts/openapi/**/*.yaml\" && redocly lint && for f in contracts/asyncapi/*.v1.yaml; do asyncapi validate \"$f\" || exit 1; done",
     "contracts:mock": "prism mock contracts/openapi/public.v1.yaml",
-    "contracts:ewds": "node scripts/validate-ewds-schemas.mjs"
+    "contracts:ewds": "node scripts/validate-ewds-schemas.mjs",
+    "docs:dev": "pnpm --filter @intelligent/site dev",
+    "docs:build": "pnpm --filter @intelligent/site build"
   },
   "devDependencies": {
     "@asyncapi/cli": "^6.2.1",

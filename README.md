@@ -1,8 +1,10 @@
 # INTELLIGENT — Billing & Payment Service
 
 [![CI](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![Docs](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/docs.yml/badge.svg)](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/docs.yml)
 [![e2e-dev](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/e2e-dev.yml/badge.svg)](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/e2e-dev.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Docs site](https://img.shields.io/badge/docs-GitHub%20Pages-1a4d3e)](https://blooo-io.github.io/intelligent-eu-billing-and-payment/)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](docs/architecture/04-technical-architecture.md)
 [![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)](docs/architecture/04-technical-architecture.md)
@@ -25,11 +27,13 @@
 [![Horizon Europe](https://img.shields.io/badge/Horizon%20Europe-GA%20101160678-003399)](https://cordis.europa.eu/project/id/101160678)
 [![Deliverable](https://img.shields.io/badge/D5.5-T5.6-0B5FFF)](docs/release/RELEASE-NOTES.md)
 
-Billing and payment service of the Horizon Europe project **INTELLIGENT** ([GA 101160678](https://cordis.europa.eu/project/id/101160678)). It covers **Task T5.6** and **Deliverable D5.5**, led by **[Blooo](https://blooo.io)**.
+Billing and payment service of the Horizon Europe project **INTELLIGENT** ([GA 101160678](https://cordis.europa.eu/project/id/101160678)). It covers **Task T5.6** and **Deliverable D5.5**. The software is published under **Apache-2.0** so any organisation can run it on **their own** infrastructure.
 
-The service turns energy trades settled on the INTELLIGENT local market into **peer-to-peer invoices and payments between community members**, then publishes results to the project data space (EWDS).
+**Start here for adopters:** [Public documentation (GitHub Pages)](https://blooo-io.github.io/intelligent-eu-billing-and-payment/) — introduction, deploy-your-own, configuration, adapters, contribute. Source for that site: [`apps/site`](apps/site) (VitePress).
 
-> **Status:** V1 — target D5.5 at M24 (**30/11/2026**). Every community runs in **virtual mode**. The only real external integration is **Stripe in test mode**. GSY DEX, EWDS and ECB rates are mocked behind adapters ([assumption A32](docs/requirements/requirements.md)).
+The service turns energy trades settled on a local market into **peer-to-peer invoices and payments between community members**, then publishes results to a project data space (EWDS).
+
+> **Status:** V1 — target D5.5 at M24 (**30/11/2026**). Every community runs in **virtual mode**. The only required real external integration is **Stripe in test mode** (or your PSP adapter). GSY DEX, EWDS and ECB rates ship with **mock adapters** ([assumption A32](docs/requirements/requirements.md)).
 
 ## Billing model — “the producer is the bank”
 
@@ -78,15 +82,18 @@ flowchart LR
 | [`docs/requirements/`](docs/requirements/) | Personas, user stories, **REQ/NFR**, **UAT** item notes + narrative [`requirements.md`](docs/requirements/requirements.md) |
 | [`docs/architecture/`](docs/architecture/) | Architecture views 01→05; [`ewds-topics/`](docs/architecture/ewds-topics/) draft EWDS schemas |
 | [`docs/testing/`](docs/testing/) | Test plan, UAT package, validation summary, e2e notes |
-| [`docs/release/`](docs/release/) | D5.5 operator notes: [deploy](docs/release/deployment.md), [API](docs/release/integration-api.md), [release notes](docs/release/RELEASE-NOTES.md), [SonarQube](docs/release/sonarqube.md) |
+| [`docs/release/`](docs/release/) | Release notes + **reference** deploy notes (example hosts) |
+| [`docs/maintainers/`](docs/maintainers/) | Upstream-only process pointers |
 | [`contracts/`](contracts/) | **Contract-first** OpenAPI 3.1 (REST) and AsyncAPI 3 (events) |
 | [`services/`](services/) | NestJS modules — one database per module |
 | [`apps/web/`](apps/web/) | AC-01 reference UI (participant portal + manager console) |
+| [`apps/site/`](apps/site/) | **Public docs site** (VitePress → GitHub Pages) |
+| [`apps/docs-portal/`](apps/docs-portal/) | Redocly public OpenAPI portal |
 | [`packages/`](packages/) | Shared NestJS module template, generated clients |
 | [`mocks/`](mocks/) | AC-15 mock suite and scenarios S1–S13 |
-| [`deploy/`](deploy/) | Helm charts, helmfile, Argo CD apps (`dev` / `demo`) |
-| [`AGENTS.md`](AGENTS.md) | Rules for contributors and coding agents |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Branching, DoD, Jira `INT` workflow |
+| [`deploy/`](deploy/) | Example Helm charts / GitOps manifests (adapt to your registry & DNS) |
+| [`AGENTS.md`](AGENTS.md) | Detailed engineering rules (includes upstream notes) |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Open contribution first; upstream process optional |
 
 ### Module map (AC → directory)
 
@@ -124,26 +131,26 @@ Sonar badges above mirror the Community Build project `blooo-io_intelligent-eu-b
 
 ## Working on this repository
 
-1. Read [`AGENTS.md`](AGENTS.md) then [`CONTRIBUTING.md`](CONTRIBUTING.md).
-2. Open or create a Jira issue in project **`INT`** (Blooo). Branch from `develop` as `<type>/INT-xxx-short-description`.
-3. Change **contracts** first when the API or events change; implement; keep tests and UAT notes in sync.
-4. Open a PR (template), request `blooo-io/github-admin`, squash-merge when CI is green.
+**Adopters / operators:** follow the [public docs](https://blooo-io.github.io/intelligent-eu-billing-and-payment/) ([source](apps/site)) — especially [Deploy on Kubernetes](apps/site/guide/deploy.md).
 
-**Local quick start (high level):** Node ≥ 22, pnpm 9 — see [deployment / local notes](docs/release/deployment.md) and TD-12 (k3d + Tilt). Run `pnpm test` from the repo root for the full Vitest matrix; `pnpm run contracts:lint` for OpenAPI/AsyncAPI lint.
+**Contributors:** read [`CONTRIBUTING.md`](CONTRIBUTING.md) (open GitHub workflow first). Deep engineering rules: [`AGENTS.md`](AGENTS.md).
 
-**Deploy:** GitOps only to `k8s-intelligent-eu-dev` (`dev`) via Argo CD tracking `develop` ([INT-157](https://blooo-io.atlassian.net/browse/INT-157)). Do not mutate the cluster ad hoc. Operator kubeconfig stays outside Git (`KUBECONFIG`).
+**Local quick start:** Node ≥ 22, pnpm 9 → `pnpm install` → `pnpm run contracts:lint` → `pnpm test`. Optional local cluster: TD-12 (k3d + Tilt) via `scripts/local-stack.mjs`. Docs site: `pnpm --filter @intelligent/site dev`.
+
+Upstream reference cluster notes (example DNS / GitOps) live under [`docs/release/deployment.md`](docs/release/deployment.md) and [`docs/maintainers/`](docs/maintainers/) — not required for your own deployment.
 
 ## Documentation index
 
 | Need | Start here |
 |---|---|
+| **Public operator docs** | [GitHub Pages](https://blooo-io.github.io/intelligent-eu-billing-and-payment/) · [`apps/site`](apps/site) |
 | What / for whom | [Functional architecture](docs/architecture/01-functional-architecture.md) |
-| REQ / UAT / assumptions | [requirements.md](docs/requirements/requirements.md) · [items/](docs/requirements/items/) · [traceability](docs/requirements/traceability-dashboard.md) |
-| APIs & events | [`contracts/`](contracts/) · [integration-api.md](docs/release/integration-api.md) |
+| REQ / UAT / assumptions | [requirements.md](docs/requirements/requirements.md) · [items/](docs/requirements/items/) |
+| APIs & events | [`contracts/`](contracts/) · [API page](apps/site/reference/api.md) |
 | How it is built | [Technical architecture](docs/architecture/04-technical-architecture.md) |
-| How it is deployed | [Physical architecture](docs/architecture/05-physical-architecture.md) · [deployment.md](docs/release/deployment.md) |
+| Deploy your own | [apps/site/guide/deploy.md](apps/site/guide/deploy.md) |
+| Reference (example) deploy | [docs/release/deployment.md](docs/release/deployment.md) |
 | Validation evidence | [v1-validation-summary.md](docs/testing/v1-validation-summary.md) |
-| Release package | [docs/release/](docs/release/) |
 
 ## Licence
 

@@ -1,42 +1,57 @@
 # Contributing
 
-## Work items: Jira `INT`
-- Every change starts from an issue in the Blooo Jira project **INTELLIGENT (`INT`)**. The hierarchy is Workstream → Task → Sub-task.
-- Assign every issue to Steven Lin. Do not assign Maylis Ametowoglo.
-- A task names the module(s) concerned and the spec ids it covers (`REQ-xxx`, `UAT-xxx`). The requirement text stays in `docs/` and is never copied into Jira.
+Thank you for contributing to the **INTELLIGENT Billing & Payment Service** (Apache-2.0).
 
-## Branches and commits
+**Deploying or integrating the product?** Start with the public documentation site (`apps/site`, GitHub Pages) — [Guide](apps/site/guide/introduction.md) — not with the upstream delivery process below.
 
-- **Default branch:** `develop`. Each built version whose tests pass is deployed to the Scaleway cluster `k8s-intelligent-eu-dev`, environment `dev`, using your own kubeconfig for that cluster through `KUBECONFIG`. Release tags `vX.Y.Z` are deployed to `demo`. Never commit a kubeconfig.
-- **Branches:** `<type>/INT-123-short-description`, branched from `develop` and short-lived. Create the Jira issue first when the change does not already have one. The type matches the Conventional Commit of the change:
+## Open contribution (any GitHub user)
 
-  | Branch prefix | Use | Commit type |
-  |---|---|---|
-  | `feature/` | New behaviour | `feat` |
-  | `fix/` | Bug fix | `fix` |
-  | `docs/` | Documentation only | `docs` |
-  | `test/` | Tests only | `test` |
-  | `refactor/` | Behaviour-preserving restructure | `refactor` |
-  | `ci/` | Pipeline, tooling or build | `ci` |
-  | `chore/` | Maintenance that fits none of the above | `chore` |
+1. Fork the repository and create a topic branch from `develop`.
+2. Prefer [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `ci:`, `chore:`).
+3. **Contract-first:** change `contracts/openapi` or `contracts/asyncapi` before implementation when APIs or events change; keep lint green.
+4. Add or update automated tests. Every module with executable source must stay at or above **80%** statements, branches, functions and lines (`config/coverage-thresholds.json`).
+5. Do not commit secrets, kubeconfigs or personal data samples.
+6. New dependencies must be **MIT or Apache-2.0** only (technical principle TP-2).
+7. Open a pull request against `develop`. Describe the change and link related issues. Squash-merge is preferred.
 
-- **Commits** follow Conventional Commits and carry the Jira key, e.g. `feat(invoicing): INT-123 issue invoice per consumer-producer pair`. Credit stays with Blooo and the INTELLIGENT project. Do not add a co-author trailer for a coding assistant. The hook in `.githooks/commit-msg` removes it, and CI rejects it on new commits.
-- **Pull requests:**
-  - title `INT-123 <summary>`;
-  - use the PR template;
-  - request the `blooo-io/github-admin` team as reviewer;
-  - squash-merge into `develop`. Coding agents squash-merge their own mergeable PRs when CI is green and they are not blocked (see `.cursor/rules/18-pull-request-merge.mdc`, INT-162).
+Local commands: `pnpm install`, `pnpm run contracts:lint`, `pnpm test`. Docs site: `pnpm --filter @intelligent/site dev`.
 
-## Definition of Done
-- [ ] Contract (OpenAPI / AsyncAPI) created or updated first, lint green, no unannounced breaking change
+More detail: public pages under [`apps/site/contribute/`](apps/site/contribute/index.md).
+
+## Definition of Done (shared)
+
+- [ ] Contract (OpenAPI / AsyncAPI) created or updated first when the interface changes; lint green; no unannounced breaking change
 - [ ] Code implements the contract (request/response validation on)
-- [ ] GitHub Actions runs every test script. Each module with executable source is at or above 80% statements, branches, functions and lines (`config/coverage-thresholds.json`)
-- [ ] Unit tests + contract tests + the UAT scenario(s) of the task pass (mocks + Stripe test)
-- [ ] `REQ-xxx` / `UAT-xxx` referenced in tests and PR; UAT status updated in `docs/requirements/items/uat/`
-- [ ] Docs updated if behaviour or architecture changed (spec gap → proposed change described in the PR)
-- [ ] No personal data in logs or events; no secret in the diff (gitleaks green)
-- [ ] New dependencies are MIT / Apache-2.0
-- [ ] Built version deployed and smoke-tested on `k8s-intelligent-eu-dev` (`dev`)
+- [ ] GitHub Actions CI green; coverage floors met
+- [ ] Docs updated when behaviour or deployment steps change (`apps/site` and/or `docs/`)
+- [ ] No personal data in logs or events; no secret in the diff
+- [ ] New dependencies MIT / Apache-2.0
 
-## GitHub ↔ Jira
-The **GitHub for Jira** app links branches, commits, PRs and builds to the `INT-xxx` issue. A merged PR moves the issue forward through a Jira automation rule.
+---
+
+## Upstream maintainer process (optional)
+
+The following applies to the **originating delivery team** that tracks work in Jira project `INT` and operates a reference cluster. **External contributors and adopters are not required to follow it.**
+
+### Work items
+
+- Changes start from an issue in Jira **INTELLIGENT (`INT`)** (Workstream → Task → Sub-task).
+- Tasks name modules and spec ids (`REQ-xxx`, `UAT-xxx`); requirement text stays in `docs/`.
+
+### Branches and review
+
+- Default branch: `develop`.
+- Branch names: `<type>/INT-123-short-description` (or the Cloud Agent `cursor/…` convention when applicable).
+- Commits include the Jira key, e.g. `feat(invoicing): INT-123 issue invoice per consumer-producer pair`.
+- Do not add a coding-assistant co-author trailer (stripped by `.githooks/commit-msg`, rejected in CI).
+- Pull requests: title includes `INT-123`; use the PR template; request `blooo-io/github-admin` when available; squash-merge into `develop`.
+
+### Reference deployment
+
+- Built versions may be deployed to the upstream sample cluster via GitOps (Argo CD). See `docs/release/deployment.md` and `docs/maintainers/`. Treat hostnames and cloud accounts as **examples**.
+- Never commit a kubeconfig. Pass operator credentials only through local `KUBECONFIG`.
+
+### Traceability extras
+
+- Reference `REQ-xxx` / `UAT-xxx` in tests and PRs; update UAT status files under `docs/requirements/items/uat/` when a UAT passes.
+- GitHub for Jira may link branches and PRs to `INT-xxx` issues.

@@ -12,6 +12,7 @@ dist/
 server-dist/
 build/
 coverage/
+apps/site/.vitepress/cache/
 .nx/
 *.tsbuildinfo
 .pnpm-store/

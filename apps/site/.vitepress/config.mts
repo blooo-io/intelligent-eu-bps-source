@@ -1,12 +1,12 @@
 import { defineConfig } from "vitepress";
 
 /**
- * Public docs site for open-source adopters (INT-299).
- * Deployed to GitHub Pages; base path matches the repository name.
+ * Docs site for open-source adopters (INT-299).
+ * Private GitHub Pages uses a unique host at site root → base "/".
+ * When the repo is public, set DOCS_BASE=/intelligent-eu-billing-and-payment/
+ * so assets resolve under https://<org>.github.io/<repo>/.
  */
-const base =
-  process.env.DOCS_BASE?.replace(/\/?$/, "/") ||
-  "/intelligent-eu-billing-and-payment/";
+const base = (process.env.DOCS_BASE || "/").replace(/\/?$/, "/") || "/";
 
 export default defineConfig({
   title: "INTELLIGENT Billing & Payment",

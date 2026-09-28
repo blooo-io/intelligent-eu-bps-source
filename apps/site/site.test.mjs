@@ -7,10 +7,12 @@ import { fileURLToPath } from "node:url";
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 describe("apps/site public docs (INT-299)", () => {
-  it("ships VitePress config with GitHub Pages base path", () => {
+  it("ships VitePress config with overridable DOCS_BASE (root default)", () => {
     const config = readFileSync(path.join(root, ".vitepress/config.mts"), "utf8");
-    assert.match(config, /intelligent-eu-billing-and-payment/);
+    assert.match(config, /DOCS_BASE/);
     assert.match(config, /defineConfig/);
+    // Private Pages unique host is served at /; project-pages path is opt-in via env.
+    assert.match(config, /process\.env\.DOCS_BASE/);
   });
 
   it("includes adopter-facing guide pages", () => {

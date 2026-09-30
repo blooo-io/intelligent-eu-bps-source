@@ -1,14 +1,15 @@
-import { defineConfig } from "vitepress";
+import { withMermaid } from "vitepress-plugin-mermaid";
 
 /**
- * Docs site for open-source adopters (INT-299).
+ * Docs site for open-source adopters (INT-299 / INT-300 / INT-301).
  * Private GitHub Pages uses a unique host at site root → base "/".
  * When the repo is public, set DOCS_BASE=/intelligent-eu-billing-and-payment/
  * so assets resolve under https://<org>.github.io/<repo>/.
+ * OpenAPI Redoc is generated into public/api/ before vitepress build.
  */
 const base = (process.env.DOCS_BASE || "/").replace(/\/?$/, "/") || "/";
 
-export default defineConfig({
+export default withMermaid({
   title: "INTELLIGENT Billing & Payment",
   description:
     "Open-source peer-to-peer energy billing and payment service (Horizon Europe INTELLIGENT, T5.6 / D5.5). Deploy it on your own infrastructure.",
@@ -16,7 +17,11 @@ export default defineConfig({
   base,
   cleanUrls: true,
   lastUpdated: true,
-  ignoreDeadLinks: [/^https?:\/\/localhost/],
+  ignoreDeadLinks: [
+    /^https?:\/\/localhost/,
+    // Live Redocly portal (upstream sample); may be offline in CI link checks.
+    /^https:\/\/docs\.intelligent-eu-bp\.blooo\.dev/,
+  ],
   head: [
     ["meta", { name: "theme-color", content: "#1a4d3e" }],
     [
@@ -28,6 +33,10 @@ export default defineConfig({
       },
     ],
   ],
+  // Client-side Mermaid (MIT) via vitepress-plugin-mermaid — INT-300.
+  mermaid: {
+    securityLevel: "loose",
+  },
   themeConfig: {
     logo: "/logo.svg",
     siteTitle: "Billing & Payment",
@@ -35,7 +44,14 @@ export default defineConfig({
       { text: "Guide", link: "/guide/introduction" },
       { text: "Deploy", link: "/guide/deploy" },
       { text: "Reference", link: "/reference/architecture" },
-      { text: "API portal", link: "/reference/api" },
+      {
+        text: "API",
+        items: [
+          { text: "API & events", link: "/reference/api" },
+          { text: "OpenAPI explorer (Redoc)", link: "/api/" },
+          { text: "public.v1.yaml", link: "/openapi/public.v1.yaml" },
+        ],
+      },
       {
         text: "GitHub",
         link: "https://github.com/blooo-io/intelligent-eu-billing-and-payment",
@@ -58,6 +74,7 @@ export default defineConfig({
             { text: "Configuration", link: "/guide/configuration" },
             { text: "Adapters & integrations", link: "/guide/adapters" },
             { text: "Security & secrets", link: "/guide/security" },
+            { text: "Docs hosting & URL", link: "/guide/docs-hosting" },
           ],
         },
       ],
@@ -94,7 +111,7 @@ export default defineConfig({
     ],
     footer: {
       message:
-        'Horizon Europe INTELLIGENT (GA 101160678) · Task T5.6 · Deliverable D5.5',
+        "Horizon Europe INTELLIGENT (GA 101160678) · Task T5.6 · Deliverable D5.5",
       copyright: "Apache License 2.0",
     },
     search: { provider: "local" },

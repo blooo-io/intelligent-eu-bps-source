@@ -38,5 +38,7 @@ Build with `pnpm --filter @intelligent/site build` and publish `apps/site/.vitep
 | Path | Content |
 |---|---|
 | `/` | Guides (VitePress) |
-| `/api/` | Interactive OpenAPI (Redoc, same contract as `apps/docs-portal`) |
+| `/api/` | Interactive OpenAPI ([vitepress-openapi](https://vitepress-openapi.vercel.app/), from `public.v1.yaml`) |
+| `/api/operations/<operationId>` | One page per operation |
 | `/openapi/public.v1.yaml` | Raw public contract |
+

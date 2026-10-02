@@ -1,13 +1,21 @@
 import { withMermaid } from "vitepress-plugin-mermaid";
+import { useSidebar } from "vitepress-openapi";
+// Prepared by scripts/build-openapi.mjs before vitepress (INT-302).
+import spec from "../public/openapi/public.v1.json" with { type: "json" };
 
 /**
- * Docs site for open-source adopters (INT-299 / INT-300 / INT-301).
+ * Docs site for open-source adopters (INT-299 … INT-302).
  * Private GitHub Pages uses a unique host at site root → base "/".
  * When the repo is public, set DOCS_BASE=/intelligent-eu-billing-and-payment/
  * so assets resolve under https://<org>.github.io/<repo>/.
- * OpenAPI Redoc is generated into public/api/ before vitepress build.
+ * OpenAPI UI: vitepress-openapi (Vue pages under /api/).
  */
 const base = (process.env.DOCS_BASE || "/").replace(/\/?$/, "/") || "/";
+
+const openapiSidebar = useSidebar({
+  spec,
+  linkPrefix: "/api/operations/",
+});
 
 export default withMermaid({
   title: "INTELLIGENT Billing & Payment",
@@ -19,7 +27,7 @@ export default withMermaid({
   lastUpdated: true,
   ignoreDeadLinks: [
     /^https?:\/\/localhost/,
-    // Live Redocly portal (upstream sample); may be offline in CI link checks.
+    // Upstream sample Redoc portal (optional); may be offline in link checks.
     /^https:\/\/docs\.intelligent-eu-bp\.blooo\.dev/,
   ],
   head: [
@@ -47,8 +55,8 @@ export default withMermaid({
       {
         text: "API",
         items: [
-          { text: "API & events", link: "/reference/api" },
-          { text: "OpenAPI explorer (Redoc)", link: "/api/" },
+          { text: "API overview", link: "/api/" },
+          { text: "API & events (notes)", link: "/reference/api" },
           { text: "public.v1.yaml", link: "/openapi/public.v1.yaml" },
         ],
       },
@@ -88,6 +96,22 @@ export default withMermaid({
             { text: "Source documentation", link: "/reference/source-docs" },
           ],
         },
+      ],
+      "/api/": [
+        {
+          text: "API",
+          items: [
+            { text: "Overview", link: "/api/" },
+            { text: "Narrative notes", link: "/reference/api" },
+            { text: "Raw OpenAPI YAML", link: "/openapi/public.v1.yaml" },
+          ],
+        },
+        ...openapiSidebar
+          .generateSidebarGroups({ linkPrefix: "/api/operations/" })
+          .map((group) => ({
+            ...group,
+            collapsed: true,
+          })),
       ],
       "/contribute/": [
         {

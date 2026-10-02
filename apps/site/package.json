@@ -6,16 +6,18 @@
   "description": "Public documentation site (VitePress) for EU open-source adopters — INT-299",
   "type": "module",
   "scripts": {
-    "api:build": "node ./scripts/build-api.mjs",
-    "dev": "node ./scripts/build-api.mjs && vitepress dev",
-    "build": "node ./scripts/build-api.mjs && vitepress build",
+    "openapi:prepare": "node ./scripts/build-openapi.mjs",
+    "dev": "node ./scripts/build-openapi.mjs && vitepress dev",
+    "build": "node ./scripts/build-openapi.mjs && vitepress build",
     "preview": "vitepress preview",
-    "test": "node --test site.test.mjs"
+    "test": "node ./scripts/build-openapi.mjs && node --test site.test.mjs"
   },
   "devDependencies": {
     "mermaid": "11.12.2",
     "vitepress": "^1.6.3",
-    "vitepress-plugin-mermaid": "2.0.17"
+    "vitepress-openapi": "0.2.5",
+    "vitepress-plugin-mermaid": "2.0.17",
+    "yaml": "2.8.1"
   },
   "engines": {
     "node": ">=22"

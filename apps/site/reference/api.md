@@ -1,17 +1,15 @@
 # API & events
 
-Interactive OpenAPI (Redoc) is **built into this site** from [`contracts/openapi/public.v1.yaml`](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/contracts/openapi/public.v1.yaml) — same contract and Redocly tooling as `apps/docs-portal` (INT-244 / INT-301).
+The interactive reference lives under **[/api/](/api/)** — VitePress pages driven by [vitepress-openapi](https://vitepress-openapi.vercel.app/) from [`contracts/openapi/public.v1.yaml`](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/contracts/openapi/public.v1.yaml) (INT-302).
 
-**Open the full explorer:** [**/api/**](/api/) · raw YAML: [/openapi/public.v1.yaml](/openapi/public.v1.yaml)
+| Resource | Path |
+|---|---|
+| Overview + full spec | [/api/](/api/) |
+| Per-operation pages | [/api/operations/…](/api/) (sidebar) |
+| Raw YAML | [/openapi/public.v1.yaml](/openapi/public.v1.yaml) |
 
-<iframe
-  src="/api/"
-  title="INTELLIGENT Billing API (Redoc)"
-  style="width:100%;height:75vh;border:1px solid var(--vp-c-divider);border-radius:8px;background:var(--vp-c-bg)"
-></iframe>
-
-::: tip Own deployment
-Adopters can still ship `apps/docs-portal` as a standalone portal, or rely only on this embedded `/api/` route. The Blooo sample at [docs.intelligent-eu-bp.blooo.dev/api.html](https://docs.intelligent-eu-bp.blooo.dev/api.html) is optional reference hosting — not required.
+::: tip Standalone portal
+`apps/docs-portal` (Redocly) remains available if you want a separate API-only deploy. The docs site no longer embeds Redoc; vitepress-openapi is the in-site explorer.
 :::
 
 ## Public REST API
@@ -30,6 +28,6 @@ AsyncAPI 3 documents under `contracts/asyncapi/` describe domain events. Deliver
 
 ## Further reading
 
-- [Docs hosting & URL](/guide/docs-hosting) — custom domain vs private Pages host
+- [Docs hosting & URL](/guide/docs-hosting)
 - [Integration notes](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/docs/release/integration-api.md)
 - Technical decision TD-13 (contract-first tooling) in the technical architecture

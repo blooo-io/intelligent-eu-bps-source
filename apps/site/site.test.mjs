@@ -15,13 +15,14 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(config, /vitepress-openapi/);
   });
 
-  it("registers vitepress-openapi theme", () => {
+  it("registers vitepress-openapi theme with custom server option", () => {
     const theme = readFileSync(
       path.join(root, ".vitepress/theme/index.ts"),
       "utf8",
     );
     assert.match(theme, /useOpenapi/);
     assert.match(theme, /vitepress-openapi\/client/);
+    assert.match(theme, /allowCustomServer/);
   });
 
   it("architecture page keeps a mermaid fence for client render", () => {
@@ -38,7 +39,7 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.ok(existsSync(path.join(root, "api/operations/[operationId].paths.js")));
   });
 
-  it("prepares OpenAPI JSON from the contract", () => {
+  it("prepares OpenAPI JSON with absolute sample API server", () => {
     assert.ok(existsSync(path.join(root, "scripts/build-openapi.mjs")));
     assert.ok(
       existsSync(path.join(root, "public/openapi/public.v1.json")),
@@ -49,6 +50,18 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     );
     assert.equal(json.openapi?.startsWith("3."), true);
     assert.ok(json.paths);
+    const urls = (json.servers || []).map((s) => s.url);
+    assert.ok(
+      urls.includes("https://api.dev.intelligent-eu-bp.blooo.dev/v1"),
+      `expected sample gateway in servers, got ${JSON.stringify(urls)}`,
+    );
+    // Downloadable YAML stays contract-faithful (relative /v1 only).
+    const yaml = readFileSync(
+      path.join(root, "public/openapi/public.v1.yaml"),
+      "utf8",
+    );
+    assert.match(yaml, /url:\s*\/v1/);
+    assert.doesNotMatch(yaml, /api\.dev\.intelligent-eu-bp/);
   });
 
   it("includes adopter-facing guide pages", () => {

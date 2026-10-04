@@ -8,7 +8,15 @@ import spec from "../../public/openapi/public.v1.json" with { type: "json" };
 export default {
   extends: DefaultTheme,
   async enhanceApp({ app }) {
-    useOpenapi({ spec });
+    useOpenapi({
+      spec,
+      config: {
+        // INT-303 — let operators paste their own gateway URL in the playground.
+        server: {
+          allowCustomServer: true,
+        },
+      },
+    });
     theme.enhanceApp({ app });
   },
 } satisfies Theme;

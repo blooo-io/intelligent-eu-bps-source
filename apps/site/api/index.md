@@ -13,4 +13,6 @@ Interactive reference for the public Billing & Payment API (`/v1`), generated fr
 
 Use the sidebar to open each operation, or browse the full spec below.
 
+Playground servers (Try it out / Samples) include the upstream sample gateway `https://api.dev.intelligent-eu-bp.blooo.dev/v1` plus relative `/v1` and `http://localhost/v1`. You can also enter a custom URL. Calls need a valid OIDC bearer token.
+
 <OASpec />

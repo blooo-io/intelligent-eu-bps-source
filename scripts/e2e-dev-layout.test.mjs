@@ -9,6 +9,8 @@ test("e2e-dev workflow targets deployed app.dev after supply-chain", async () =>
     "utf8",
   );
   assert.match(text, /name:\s*e2e-dev/);
+  // INT-304 — Playwright 1.55 does not support ubuntu-26.04 (ubuntu-latest).
+  assert.match(text, /runs-on:\s*ubuntu-24\.04/);
   assert.match(text, /workflow_run:/);
   assert.match(text, /workflows:\s*\[supply-chain\]/);
   assert.match(text, /environment:\s*dev/);

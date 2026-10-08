@@ -46,6 +46,12 @@ The following applies to the **originating delivery team** that tracks work in J
 - Do not add a coding-assistant co-author trailer (stripped by `.githooks/commit-msg`, rejected in CI).
 - Pull requests: title includes `INT-123`; use the PR template; request `blooo-io/github-admin` when available; squash-merge into `develop`.
 
+### Releases (git tags)
+
+- Public releases are **annotated SemVer tags** `vMAJOR.MINOR.PATCH` matching root `package.json` `version` (see `docs/release/VERSIONING.md`, INT-305).
+- After bumping the version on `develop`, cut the tag with `node scripts/cut-release.mjs --push`. The `release` workflow publishes a GitHub Release and GHCR images tagged `:vX.Y.Z`.
+- Never move an existing tag; ship a new version instead.
+
 ### Reference deployment
 
 - Built versions may be deployed to the upstream sample cluster via GitOps (Argo CD). See `docs/release/deployment.md` and `docs/maintainers/`. Treat hostnames and cloud accounts as **examples**.

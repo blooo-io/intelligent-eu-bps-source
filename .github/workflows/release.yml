@@ -1,0 +1,143 @@
+# INT-305 — GitHub Release + versioned GHCR images from SemVer tags.
+#
+# Triggers:
+#   - push of annotated tags matching v*.*.* (cut via scripts/cut-release.mjs)
+#   - workflow_dispatch to backfill a GitHub Release for an existing tag
+#
+# Images: full rebuild (not selective); tags :<sha> and :vX.Y.Z for demo pins.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing SemVer tag to publish as a GitHub Release (e.g. v1.0.0)"
+        required: true
+        type: string
+      publish_images:
+        description: "Also build and push GHCR images tagged with this version"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  github-release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Resolve tag name
+        id: tag
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          case "$TAG" in
+            v*.*.*) ;;
+            *)
+              echo "::error::Tag must match vMAJOR.MINOR.PATCH (got: $TAG)"
+              exit 1
+              ;;
+          esac
+          VERSION="${TAG#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$PKG" != "$VERSION" ]; then
+            echo "::error::package.json version ($PKG) does not match tag $TAG"
+            exit 1
+          fi
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.name }}
+          PRERELEASE: ${{ steps.tag.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "GitHub Release $TAG already exists — leaving notes unchanged."
+            exit 0
+          fi
+          NOTES="$(mktemp)"
+          {
+            echo "## ${TAG}"
+            echo
+            echo "Source tag for the INTELLIGENT Billing & Payment Service."
+            echo
+            echo "- Versioning policy: \`docs/release/VERSIONING.md\`"
+            echo "- Narrative notes: \`docs/release/RELEASE-NOTES.md\`"
+            echo "- Deploy (reference): \`docs/release/deployment.md\`"
+            echo
+            echo "Container images (after the images job): \`ghcr.io/${{ github.repository }}-<module>:${TAG}\`."
+          } > "$NOTES"
+          ARGS=(release create "$TAG" --title "$TAG" --notes-file "$NOTES" --generate-notes)
+          if [ "$PRERELEASE" = "true" ]; then
+            ARGS+=(--prerelease)
+          fi
+          gh "${ARGS[@]}"
+
+  images:
+    needs: github-release
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish_images)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Resolve image floating tag
+        id: tag
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Scan dependencies
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work \
+            ghcr.io/aquasecurity/trivy:0.75.0 \
+            fs --config /work/trivy.yaml --exit-code 1 /work
+
+      - name: Build, scan and push release images
+        env:
+          IMAGE_PUSH: "true"
+          IMAGE_FLOATING_TAG: ${{ steps.tag.outputs.name }}
+          IMAGE_CHANGED_ONLY: "false"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/module-images.mjs --build

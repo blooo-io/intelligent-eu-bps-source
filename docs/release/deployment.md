@@ -11,16 +11,17 @@ Source views: [`docs/architecture/05-physical-architecture.md`](../architecture/
 |---|---|---|---|
 | `local` | developer laptop | `local-apps` / `local-data` (k3d + Tilt) | Virtual + Stripe test |
 | `dev` (`int`) | `develop` via Argo CD | `int-apps` / `int-data` | Virtual + Stripe test |
-| `demo` | release tag, manual sync | `demo-apps` / `demo-data` | Virtual + Stripe test |
+| `demo` | release tag (`vX.Y.Z`, INT-305), manual sync | `demo-apps` / `demo-data` | Virtual + Stripe test |
 
 Hosting: Scaleway Kapsule, region **nl-ams**. Public hosts under `*.intelligent-eu-bp.blooo.dev`.
 
 ## GitOps
 
 1. CI on `develop` builds, tests and pushes images to GHCR (`:<sha>` and floating `:develop`).
-2. Quality analysis: workflow `sonarqube` (INT-291) — see [`sonarqube.md`](./sonarqube.md) (`SONAR_TOKEN` required to enforce the gate).
-3. Argo CD Applications under `deploy/argocd/` sync Helm releases from Git.
-4. Agents must not mutate the cluster ad hoc (INT-157). Investigation: `kubectl get|describe|logs` only.
+2. SemVer tags (`vX.Y.Z`) trigger the `release` workflow: GitHub Release + GHCR images tagged `:vX.Y.Z` ([`VERSIONING.md`](./VERSIONING.md), INT-305).
+3. Quality analysis: workflow `sonarqube` (INT-291) — see [`sonarqube.md`](./sonarqube.md) (`SONAR_TOKEN` required to enforce the gate).
+4. Argo CD Applications under `deploy/argocd/` sync Helm releases from Git.
+5. Agents must not mutate the cluster ad hoc (INT-157). Investigation: `kubectl get|describe|logs` only.
 
 Bootstrap and operator scripts: `deploy/README.md`, `deploy/argocd/README.md`, `node scripts/argocd-bootstrap.mjs --print`.
 

@@ -22,7 +22,7 @@ See [`RELEASE-NOTES.md`](RELEASE-NOTES.md). In-scope UAT: **62 Pass / 0 Blocked 
 ## Change control after freeze
 
 1. Do not move `v1.0.0`.
-2. Fixes land on `develop` under a new `INT-xxx`, then a new tag (`v1.0.1` / `v1.1.0`) if partners need a refreshed snapshot.
+2. Fixes land on `develop` under a new `INT-xxx`, then a new tag (`v1.0.1` / `v1.1.0`) via [`VERSIONING.md`](VERSIONING.md) / `cut-release.mjs` (INT-305) if partners need a refreshed snapshot.
 3. `dev` continues on floating `:develop` images (INT-178).
 
 ## Remaining partner-report gate (Maylis)

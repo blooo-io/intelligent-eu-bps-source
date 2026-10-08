@@ -7,7 +7,7 @@ Detailed markdown in the Git repository remains the **specification source of tr
 | Requirements, personas, UAT | `docs/requirements/` |
 | Architecture views 01–05 | `docs/architecture/` |
 | Testing & validation evidence | `docs/testing/` |
-| Release / freeze notes | `docs/release/` |
+| Release / freeze notes | `docs/release/` (see `VERSIONING.md` for SemVer tags) |
 | OpenAPI / AsyncAPI | `contracts/` |
 | Deploy charts | `deploy/` |
 | Contributor & agent rules | `AGENTS.md`, `CONTRIBUTING.md` |

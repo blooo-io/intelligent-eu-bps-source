@@ -10,6 +10,7 @@ That material is useful as a **worked example**. It is **not** mandatory for ado
 | Internal quality Sonar instance | `docs/release/sonarqube.md` | Optional; use SonarCloud or your own server |
 | Delivery process / issue keys | `CONTRIBUTING.md` (maintainer section), `AGENTS.md` | Use your own process; GitHub PRs are enough to contribute |
 | Partner freeze / package checklist | `docs/release/FREEZE.md`, `PACKAGE-CONSISTENCY.md` | Ignore unless you consume that release train |
+| SemVer tags / GitHub Releases | `docs/release/VERSIONING.md`, `scripts/cut-release.mjs` | Prefer cloning a `vX.Y.Z` tag; optional for forks |
 
 If you are publishing a fork for your member state, energy community or vendor product:
 

@@ -4,6 +4,8 @@
 **Branch tip:** `develop` at the merge that lands this note  
 **Package version:** `1.0.0` (root `package.json`)
 
+> **Ongoing release train:** SemVer tags, `scripts/cut-release.mjs`, and the `release` GitHub Actions workflow are documented in [`VERSIONING.md`](VERSIONING.md) (INT-305). This page records the historical V1 freeze tag only.
+
 ## What the tag means
 
 Immutable pointer to the D5.5 Billing & Payment Service V1 source tree used for partner review and for `demo` image promotion (see [`deployment.md`](deployment.md)). Floating `:develop` tags on GHCR remain the `dev` path (INT-178); `demo` consumes a release tag.
@@ -20,15 +22,9 @@ Immutable pointer to the D5.5 Billing & Payment Service V1 source tree used for 
 | Operator release docs | `docs/release/` |
 | Validation evidence | `docs/testing/` (INT-73…INT-81) |
 
-## How the tag was (or is) created
+## How the tag was created
 
-```bash
-git fetch origin develop
-git checkout develop && git pull origin develop
-# confirm CI green on the tip commit
-git tag -a v1.0.0 -m "D5.5 V1 source release (INT-92)"
-git push origin v1.0.0
-```
+`v1.0.0` was cut as an annotated tag on 2026-10-18 (INT-92). Later versions use [`VERSIONING.md`](VERSIONING.md) / `node scripts/cut-release.mjs --push`.
 
 Do not retag. A fix after freeze is a new `v1.0.x` / `v1.1.0` under a new Jira issue.
 

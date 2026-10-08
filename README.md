@@ -82,7 +82,7 @@ flowchart LR
 | [`docs/requirements/`](docs/requirements/) | Personas, user stories, **REQ/NFR**, **UAT** item notes + narrative [`requirements.md`](docs/requirements/requirements.md) |
 | [`docs/architecture/`](docs/architecture/) | Architecture views 01→05; [`ewds-topics/`](docs/architecture/ewds-topics/) draft EWDS schemas |
 | [`docs/testing/`](docs/testing/) | Test plan, UAT package, validation summary, e2e notes |
-| [`docs/release/`](docs/release/) | Release notes + **reference** deploy notes (example hosts) |
+| [`docs/release/`](docs/release/) | SemVer / GitHub Releases ([VERSIONING.md](docs/release/VERSIONING.md)), release notes, **reference** deploy notes |
 | [`docs/maintainers/`](docs/maintainers/) | Upstream-only process pointers |
 | [`contracts/`](contracts/) | **Contract-first** OpenAPI 3.1 (REST) and AsyncAPI 3 (events) |
 | [`services/`](services/) | NestJS modules — one database per module |

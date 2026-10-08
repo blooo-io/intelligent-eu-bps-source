@@ -40,6 +40,18 @@ test("INT-92 source release note matches package version 1.0.0", async () => {
   assert.equal(pkg.version, "1.0.0");
 });
 
+test("INT-305 versioning note is linked from the release index", async () => {
+  const index = await readFile("docs/release/README.md", "utf8");
+  const versioning = await readFile("docs/release/VERSIONING.md", "utf8");
+  const deploy = await readFile("docs/release/deployment.md", "utf8");
+
+  assert.match(index, /INT-305/);
+  assert.match(index, /VERSIONING\.md/);
+  assert.match(versioning, /cut-release\.mjs/);
+  assert.match(versioning, /vMAJOR\.MINOR\.PATCH/);
+  assert.match(deploy, /VERSIONING\.md|INT-305/);
+});
+
 test("INT-96 / INT-97 consistency and freeze notes are linked", async () => {
   const index = await readFile("docs/release/README.md", "utf8");
   const consistency = await readFile("docs/release/PACKAGE-CONSISTENCY.md", "utf8");

@@ -16,6 +16,7 @@ The architecture is produced **iteratively**, one view at a time. Each view star
 
 **Inputs common to all views:**
 - `docs/requirements/` (requirements v5, assumptions A1–A32);
-- `ewds-topics/` (draft EWDS schemas).
+- `ewds-topics/` (draft EWDS schemas);
+- [ewds-client-gateway.md](ewds-client-gateway.md) — Blooo CG deploy plan (INT-306; live path for NFR-017).
 
 **Legacy documents:** `ARCHITECTURE - outdated to update.md` and `api-contracts - outdated to update.md` are superseded by this series and kept only for history. `identity-federation-model.pptx` was rejected by the pilots in 09/2026 and is also superseded.

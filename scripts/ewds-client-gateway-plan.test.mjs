@@ -8,7 +8,11 @@ test("INT-306 Client Gateway plan covers briefing constraints and GitOps", async
 
   assert.match(text, /INT-306/);
   assert.match(text, /NFR-017/);
-  assert.match(text, /does \*\*not\*\* store payloads|does not store payloads/i);
+  assert.match(
+    text,
+    /docs\.energyweb\.org\/energy-solutions\/digital-spine-by-energy-web\/component-guides\/ddhub-client-gateway/,
+  );
+  assert.match(text, /ddhub-client-gateway-api|1\.3\.0-ewc/);
   assert.match(text, /x-api-key/);
   assert.match(text, /short polling/i);
   assert.match(text, /GitOps|INT-157/);

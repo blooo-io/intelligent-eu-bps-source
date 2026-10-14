@@ -1,0 +1,13 @@
+# INT-308 — DDHub Client Gateway database on CNPG (Apache-2.0). No passwords in Git.
+# Role password comes from OpenBao path platform/ddhub (property db_password).
+clusterName: ddhub
+instances: 1
+storage:
+  size: 10Gi
+imageName: ghcr.io/cloudnative-pg/postgresql:16.6
+database:
+  name: ddhub
+  owner: ddhub
+openbaoPath: platform/ddhub
+openbaoProperty: db_password
+storeName: openbao

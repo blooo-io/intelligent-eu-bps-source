@@ -1,6 +1,6 @@
 # EWDS / DDHub Client Gateway — Blooo instance (INT-306)
 
-Status: **plan** (2026-10-23). Sources: Energy Web official docs + D3.1 briefing + NFR-017.
+Status: **Phase 1 packaging in Git** (INT-308, 2026-10-23). Sources: Energy Web official docs + D3.1 briefing + NFR-017.
 
 > **V1 today:** P-DS / P-MKT stay on **mocks** (assumption A32). UAT-068 Pass is on the mock path. This note tracks the **live** Blooo Client Gateway and adapter cut-over. Mock remains the default until EWAG status is Configured + Verified.
 
@@ -64,20 +64,28 @@ Draft topic schemas: [`ewds-topics/`](ewds-topics/README.md).
 
 Send the unblock mail (Jira INT-307). Confirm CSR process, egress list, schema dialect (JSON Schema 2020-12 vs draft-07 / JSD7).
 
-### Phase 1 — Infra (GitOps only, INT-157)
+### Phase 1 — Infra (GitOps only, INT-157) — **packaged (INT-308)**
 
-1. Namespace for CG (e.g. `int-ewds` / `ddhub`) on the EU cluster.
-2. Dedicated PostgreSQL (CNPG) for CG storage — not a Billing module database.
-3. OpenBao (`secret_engine: vault`) + External Secrets for vault token / DB / DID / mTLS material.
-4. NetworkPolicy / egress allow-list (at least `ddhub-ewc.energyweb.org`; confirm RPC / identity cache with EWAG).
-5. Wrap chart `ddhub-client-gateway-api` `1.3.0-ewc` under `deploy/` + Argo Application. **No ad-hoc `helm install`.**
+| Piece | Path |
+|---|---|
+| Namespace | `ddhub` (Argo `CreateNamespace`) |
+| CNPG | `deploy/charts/cnpg-ddhub` → Argo `platform-cnpg-ddhub` |
+| Secret + NetworkPolicy | `deploy/charts/ddhub-gateway-secret` → `platform-ddhub-gateway-secret` |
+| Gateway values | `deploy/platform/ddhub-client-gateway/values.yaml` |
+| OCI chart Argo app | `deploy/argocd/platform/ddhub-client-gateway.yaml` (`1.3.0-ewc`) |
+| Operator notes | [`docs/release/ddhub-client-gateway.md`](../release/ddhub-client-gateway.md) |
 
-Example values to pin when packaging (from EW deploy guide; adjust for Scaleway / OpenBao):
+Pinned Phase 1 values (auth later — INT-309):
 
-- `clientgateway.config.mtls_enabled: true`
+- `clientgateway.config.mtls_enabled: false` until CSR / enrolment
+- `USER_AUTH_ENABLED: "false"` until API keys are minted
+- `clientgateway.ui.enabled: false`, `ingress.enabled: false`
 - `clientgateway.config.dsb_base_url: https://ddhub-ewc.energyweb.org`
-- `clientgateway.config.websocket: NONE` (until WS is chosen)
-- Scheduler fetch / cleanup crons enabled; align cleanup with REQ-053
+- `clientgateway.config.websocket: NONE`
+- `secret_engine_endpoint` → OpenBao `platform-openbao.openbao.svc.cluster.local:8200`
+- Scheduler fetch / cleanup crons enabled; align cleanup with REQ-053 when EWAG confirms
+
+**TP-2:** upstream GPL-3.0 accepted as separate unmodified service (TD-1), same rule as OpenBao / SonarQube.
 
 ### Phase 2 — Enrolment
 
@@ -120,12 +128,10 @@ Example values to pin when packaging (from EW deploy guide; adjust for Scaleway 
 | REQ-029 | Alerts on silence / disconnect / cert expiry |
 | A12 / A26 / A32 | Schema dependency / retention / V1 mock |
 
-## Related packaging (not yet in Git)
+## Related packaging (in Git — INT-308)
 
-When Phase 1 starts, prefer:
-
-- `deploy/charts/ddhub-client-gateway/` (wrapper around OCI chart `1.3.0-ewc`)
-- `deploy/argocd/dev/ddhub-client-gateway.yaml`
-- `deploy/envs/dev/values-ddhub-client-gateway.yaml`
+- `deploy/charts/cnpg-ddhub/`, `deploy/charts/ddhub-gateway-secret/`
+- `deploy/platform/ddhub-client-gateway/values.yaml`
+- `deploy/argocd/platform/cnpg-ddhub.yaml`, `ddhub-gateway-secret.yaml`, `ddhub-client-gateway.yaml`
 
 Do not commit secret values. Operator kubeconfig stays outside the repository.

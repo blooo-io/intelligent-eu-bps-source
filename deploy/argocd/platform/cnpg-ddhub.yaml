@@ -1,0 +1,60 @@
+# INT-308 — CNPG Cluster for DDHub Client Gateway (wave 2: needs ESO + OpenBao store).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-cnpg-ddhub
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+    targetRevision: develop
+    path: deploy/charts/cnpg-ddhub
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ddhub
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  # INT-226 — CNPG operator defaults many LiveSpec fields; ignore so selfHeal
+  # stays effective without perpetual OutOfSync on Cluster CRs.
+  ignoreDifferences:
+    - group: postgresql.cnpg.io
+      kind: Cluster
+      jqPathExpressions:
+        - .status
+        - .metadata.annotations
+        - .metadata.managedFields
+        - .spec.affinity
+        - .spec.bootstrap
+        - .spec.enablePDB
+        - .spec.failoverDelay
+        - .spec.logLevel
+        - .spec.maxSyncReplicas
+        - .spec.minSyncReplicas
+        - .spec.monitoring
+        - .spec.postgresGID
+        - .spec.postgresUID
+        - .spec.primaryUpdateMethod
+        - .spec.primaryUpdateStrategy
+        - .spec.probes
+        - .spec.replicationSlots
+        - .spec.resources
+        - .spec.smartShutdownTimeout
+        - .spec.startDelay
+        - .spec.stopDelay
+        - .spec.switchoverDelay
+        - .spec.storage.resizeInUseVolumes
+        - .spec.managed.roles[].connectionLimit
+        - .spec.managed.roles[].inherit
+        - .spec.postgresql.parameters
+        - .spec.postgresql.syncReplicaElectionConstraint

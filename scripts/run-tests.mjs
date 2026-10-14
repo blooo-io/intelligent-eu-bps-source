@@ -71,6 +71,8 @@ await run(process.execPath, ["--test", path.join(root, "scripts/platform-observa
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-cnpg-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-keycloak-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-sonarqube-layout.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/platform-ddhub-layout.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/ewds-client-gateway-plan.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/sonarqube-bootstrap.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-keycloak-realms-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/keycloak-ensure-uat-users.test.mjs")]);

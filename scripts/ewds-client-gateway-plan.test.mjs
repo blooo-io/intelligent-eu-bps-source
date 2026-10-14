@@ -19,5 +19,7 @@ test("INT-306 Client Gateway plan covers briefing constraints and GitOps", async
   assert.match(text, /REQ-053/);
   assert.match(text, /ddhub-ewc\.energyweb\.org/);
   assert.match(text, /A32/);
+  assert.match(text, /INT-308/);
+  assert.match(text, /cnpg-ddhub|platform-ddhub/);
   assert.match(index, /ewds-client-gateway\.md/);
 });

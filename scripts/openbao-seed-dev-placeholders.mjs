@@ -47,6 +47,8 @@ export const DEV_PLACEHOLDER_PATHS = [
   "platform/apisix",
   // INT-292 — SonarQube monitoringPasscode (property `monitoring_passcode`; V1 placeholder only).
   "platform/sonarqube",
+  // INT-308 — DDHub Client Gateway DB password + Vault token (V1 placeholders only).
+  "platform/ddhub",
 ];
 
 /** Extra kv pairs per path (default is seeded=true only). Never real Stripe/live secrets. */
@@ -63,6 +65,13 @@ export const DEV_PLACEHOLDER_FIELDS = {
     "monitoring_passcode=dev-only-replace-me",
     // INT-293 — replaced by sonarqube-bootstrap.mjs with a generated password on --apply.
     "admin_password=dev-only-replace-me",
+    "seeded=true",
+  ],
+  "platform/ddhub": [
+    // INT-308 — CNPG role + DB_NAME URI; replace before expecting Healthy CG pods.
+    "db_password=dev-only-replace-me",
+    // OpenBao token for CG secret_engine vault (DID keys under prefix ddhub/).
+    "vault_token=dev-only-replace-me",
     "seeded=true",
   ],
 };

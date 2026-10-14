@@ -1,0 +1,37 @@
+# INT-308 — DDHub Client Gateway (wave 3: after CNPG + gateway secret).
+# Official OCI chart; separate unmodified service (TP-2 exception).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-ddhub-client-gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  sources:
+    - repoURL: ewfcontainerregistry.azurecr.io/helm
+      chart: ddhub-client-gateway-api
+      targetRevision: 1.3.0-ewc
+      helm:
+        valueFiles:
+          - $values/deploy/platform/ddhub-client-gateway/values.yaml
+    - repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+      targetRevision: develop
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ddhub
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .metadata.annotations
+        - .status

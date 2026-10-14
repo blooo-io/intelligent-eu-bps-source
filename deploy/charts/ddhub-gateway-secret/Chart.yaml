@@ -1,0 +1,7 @@
+# INT-308 — ExternalSecret + egress NetworkPolicy for DDHub Client Gateway.
+apiVersion: v2
+name: ddhub-gateway-secret
+description: Gateway secret (DB_NAME + VAULT_TOKEN) and egress NetworkPolicy for DDHub CG
+type: application
+version: 0.1.0
+appVersion: "1"

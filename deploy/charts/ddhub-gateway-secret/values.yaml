@@ -1,0 +1,12 @@
+# INT-308 — no secret values in Git. OpenBao path platform/ddhub.
+storeName: openbao
+# Chart nameOverride/fullnameOverride is ddhub-client-gateway → secret suffix -secret.
+secretName: ddhub-client-gateway-secret
+openbaoPath: platform/ddhub
+dbHost: ddhub-rw.ddhub.svc.cluster.local
+dbPort: "5432"
+dbName: ddhub
+dbUser: ddhub
+# Pod labels from upstream chart selector (app.kubernetes.io/name = nameOverride).
+gatewayPodLabels:
+  app.kubernetes.io/name: ddhub-client-gateway

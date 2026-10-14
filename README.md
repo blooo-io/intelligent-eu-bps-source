@@ -154,4 +154,4 @@ Upstream reference cluster notes (example DNS / GitOps) live under [`docs/releas
 
 ## Licence
 
-Apache License 2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE). Runtime and shipped dependencies are **MIT or Apache-2.0** only (**TP-2**); documented exceptions for separate unmodified services (OpenBao, SonarQube Community) are in the [technical architecture](docs/architecture/04-technical-architecture.md).
+Apache License 2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE). Runtime and shipped dependencies are **MIT or Apache-2.0** only (**TP-2**); documented exceptions for separate unmodified services (OpenBao, SonarQube Community, DDHub Client Gateway) are in the [technical architecture](docs/architecture/04-technical-architecture.md).

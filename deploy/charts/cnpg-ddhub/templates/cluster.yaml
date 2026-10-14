@@ -1,0 +1,66 @@
+{{- /*
+  INT-308 — DDHub CG DB. Role password from OpenBao (same path as gateway DB_NAME).
+*/ -}}
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .Values.database.owner }}-db
+  labels:
+    app.kubernetes.io/name: cnpg-ddhub
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: {{ .Values.storeName }}
+    kind: ClusterSecretStore
+  target:
+    name: {{ .Values.database.owner }}
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      engineVersion: v2
+      data:
+        username: {{ .Values.database.owner | quote }}
+        password: "{{ `{{ .password }}` }}"
+  data:
+    - secretKey: password
+      remoteRef:
+        key: {{ .Values.openbaoPath }}
+        property: {{ .Values.openbaoProperty }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.clusterName }}
+  labels:
+    app.kubernetes.io/name: cnpg-ddhub
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: ewds-database
+spec:
+  instances: {{ .Values.instances }}
+  imageName: {{ .Values.imageName | quote }}
+  storage:
+    size: {{ .Values.storage.size | quote }}
+  enableSuperuserAccess: false
+  managed:
+    roles:
+      - name: {{ .Values.database.owner }}
+        ensure: present
+        login: true
+        comment: "DDHub Client Gateway database owner (INT-308)"
+        passwordSecret:
+          name: {{ .Values.database.owner }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ .Values.database.name }}
+  labels:
+    app.kubernetes.io/name: cnpg-ddhub
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: ewds-database
+spec:
+  name: {{ .Values.database.name }}
+  owner: {{ .Values.database.owner }}
+  ensure: present
+  cluster:
+    name: {{ .Values.clusterName }}

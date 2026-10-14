@@ -169,6 +169,20 @@ KUBECONFIG=… node scripts/sonarqube-quality-gate.mjs --apply
 
 Do not `helm install` SonarQube by hand outside Argo (INT-157).
 
+## EWDS — DDHub Client Gateway (INT-308 / NFR-017 / TP-2 exception)
+
+Official Energy Web OCI Helm chart (not vendored). Values only in Git; no secret values. Same packaging rule as OpenBao / SonarQube: **separate unmodified service** (upstream GPL-3.0).
+
+| Piece | Upstream / chart (pinned) | Namespace | Argo Application | Sync wave |
+|---|---|---|---|---|
+| CG database (CNPG) | local `deploy/charts/cnpg-ddhub` | `ddhub` | `platform-cnpg-ddhub` | 2 |
+| Gateway secret + NetworkPolicy | local `deploy/charts/ddhub-gateway-secret` | `ddhub` | `platform-ddhub-gateway-secret` | 2 |
+| Client Gateway | OCI `ddhub-client-gateway-api` **1.3.0-ewc** | `ddhub` | `platform-ddhub-client-gateway` | 3 |
+
+Values: `deploy/platform/ddhub-client-gateway/values.yaml`. OpenBao path `platform/ddhub` holds `db_password` and `vault_token` (placeholders from `openbao-seed-dev-placeholders.mjs`). Phase 1 keeps mTLS / API auth / UI / public Ingress off — see [docs/release/ddhub-client-gateway.md](../../docs/release/ddhub-client-gateway.md).
+
+Do not `helm install` the CG chart by hand outside Argo (INT-157).
+
 ## Observability (TD-10 / INT-134)
 
 100 % Apache-2.0 stack. **Grafana is not packaged** (AGPL — TD-10). Namespace: `observability` (physical § namespaces).

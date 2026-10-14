@@ -59,7 +59,7 @@ For each application component, the existing open-source building blocks (all MI
 
 | # | Topic | Decision | Date |
 |---|---|---|---|
-| TD-1 | Reuse strategy and licences | TP-1 / TP-2 adopted. Explicit TP-2 exceptions for separate unmodified services: OpenBao (MPL-2.0, TD-9) and SonarQube Community Build (INT-292) | 2026-10-07; INT-292 2026-10-22 |
+| TD-1 | Reuse strategy and licences | TP-1 / TP-2 adopted. Explicit TP-2 exceptions for separate unmodified services: OpenBao (MPL-2.0, TD-9), SonarQube Community Build (INT-292), and DDHub Client Gateway (GPL-3.0, INT-308 / NFR-017) | 2026-10-07; INT-292 2026-10-22; INT-308 2026-10-23 |
 | TD-2 | Invoicing engine | **Stripe Invoicing on each producer's connected account.** Stripe handles numbering per producer, the hosted PDF, the e-mail and the payment link. Self-billing mention, trade summary and ECB rate go in Stripe custom fields, footer and metadata. Custom code is limited to mapping a pair settlement to a Stripe invoice | 2026-10-07 |
 | TD-3 | Workflow and scheduling | **Temporal** (MIT; TypeScript SDK and Helm charts MIT) for all time-based jobs, billing runs, early settlements and multi-step sagas (DSAR propagation, retries). It implements AC-14 | 2026-10-07 |
 | TD-4 | Back-end language and framework | **TypeScript + NestJS** (MIT) for the 13 modules, with stripe-node (MIT), Temporal TS SDK (MIT), OpenAPI contracts written first (TD-13), with express-openapi-validator (MIT) validating requests and responses against them and OpenTelemetry JS (Apache-2.0). A shared module template covers health, configuration, outbox, idempotent consumers and telemetry | 2026-10-07 |
@@ -182,6 +182,7 @@ For each application component, the existing open-source building blocks (all MI
 | **Lago** | **AGPL-3.0** | 2026-10-07 | **Excluded** |
 | **Grafana** | **AGPL-3.0** | 2026-10-07 | **Flagged** (separate unmodified service only; decision needed) |
 | **SonarQube Community Build** | SonarSource Community Build terms (not MIT/Apache-2.0) | 2026-10-22 | **Accepted exception** (INT-292): separate unmodified service via official Helm chart; never linked into Nest modules — same packaging pattern as OpenBao (TD-9) |
+| **DDHub Client Gateway** (Energy Web) | GPL-3.0 (upstream LICENSE / GitHub; chart `1.3.0-ewc`) | 2026-10-23 | **Accepted exception** (INT-308 / NFR-017): separate unmodified service via official OCI Helm chart; never linked into Nest modules — same packaging pattern as OpenBao (TD-9). Billing talks to it over HTTP only. |
 
 Method: a shallow, sparse clone of each repository, then reading the top-level licence files only. Licences of nested sub-directories were not exhaustively checked; that full scan is to be done for the components actually retained.
 

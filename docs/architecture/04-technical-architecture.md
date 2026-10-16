@@ -182,7 +182,7 @@ For each application component, the existing open-source building blocks (all MI
 | **Lago** | **AGPL-3.0** | 2026-10-07 | **Excluded** |
 | **Grafana** | **AGPL-3.0** | 2026-10-07 | **Flagged** (separate unmodified service only; decision needed) |
 | **SonarQube Community Build** | SonarSource Community Build terms (not MIT/Apache-2.0) | 2026-10-22 | **Accepted exception** (INT-292): separate unmodified service via official Helm chart; never linked into Nest modules — same packaging pattern as OpenBao (TD-9) |
-| **DDHub Client Gateway** (Energy Web) | GPL-3.0 (upstream LICENSE / GitHub; chart `1.3.0-ewc`) | 2026-10-23 | **Accepted exception** (INT-308 / NFR-017): separate unmodified service via official OCI Helm chart; never linked into Nest modules — same packaging pattern as OpenBao (TD-9). Billing talks to it over HTTP only. |
+| **DDHub Client Gateway** (Energy Web) | GPL-3.0 (upstream LICENSE / GitHub; images `intelligent-canary`) | 2026-10-23 | **Accepted exception** (INT-308 / NFR-017): separate unmodified service (public images); Blooo Helm manifests only (upstream chart `1.3.0-ewc` typeorm init verb is incompatible with typeorm 0.3). Never linked into Nest modules — same packaging pattern as OpenBao (TD-9). Billing talks to it over HTTP only. |
 
 Method: a shallow, sparse clone of each repository, then reading the top-level licence files only. Licences of nested sub-directories were not exhaustively checked; that full scan is to be done for the components actually retained.
 

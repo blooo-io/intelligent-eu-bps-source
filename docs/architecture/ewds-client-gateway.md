@@ -72,7 +72,7 @@ Send the unblock mail (Jira INT-307). Confirm CSR process, egress list, schema d
 | CNPG | `deploy/charts/cnpg-ddhub` → Argo `platform-cnpg-ddhub` |
 | Secret + NetworkPolicy | `deploy/charts/ddhub-gateway-secret` → `platform-ddhub-gateway-secret` |
 | Gateway values | `deploy/platform/ddhub-client-gateway/values.yaml` |
-| OCI chart Argo app | `deploy/argocd/platform/ddhub-client-gateway.yaml` (`1.3.0-ewc`) |
+| Gateway chart / Argo | `deploy/charts/ddhub-client-gateway` → `platform-ddhub-client-gateway` (Blooo manifests; EW images) |
 | Operator notes | [`docs/release/ddhub-client-gateway.md`](../release/ddhub-client-gateway.md) |
 
 Pinned Phase 1 values (auth later — INT-309):
@@ -130,7 +130,7 @@ Pinned Phase 1 values (auth later — INT-309):
 
 ## Related packaging (in Git — INT-308)
 
-- `deploy/charts/cnpg-ddhub/`, `deploy/charts/ddhub-gateway-secret/`
+- `deploy/charts/cnpg-ddhub/`, `deploy/charts/ddhub-gateway-secret/`, `deploy/charts/ddhub-client-gateway/`
 - `deploy/platform/ddhub-client-gateway/values.yaml`
 - `deploy/argocd/platform/cnpg-ddhub.yaml`, `ddhub-gateway-secret.yaml`, `ddhub-client-gateway.yaml`
 

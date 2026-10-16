@@ -1,11 +1,11 @@
-# INT-308 — CNPG Cluster for DDHub Client Gateway (wave 2: needs ESO + OpenBao store).
+# INT-308 — CNPG Cluster for DDHub Client Gateway (wave 1: ESO Password generator, no OpenBao).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: platform-cnpg-ddhub
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   project: default
   source:

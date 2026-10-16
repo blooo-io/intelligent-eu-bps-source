@@ -1,0 +1,73 @@
+# Defaults; Argo overlays deploy/platform/ddhub-client-gateway/values.yaml
+name: ddhub-client-gateway
+namespace: ddhub
+replicaCount: 1
+
+image:
+  repository: ewfcontainerregistry.azurecr.io/ddhub-client-gateway-backend
+  tag: intelligent-canary
+  pullPolicy: IfNotPresent
+
+scheduler:
+  enabled: true
+  image:
+    repository: ewfcontainerregistry.azurecr.io/ddhub-client-gateway-scheduler
+    tag: intelligent-canary
+    pullPolicy: IfNotPresent
+
+secretName: ddhub-client-gateway-secret
+configMapName: ddhub-client-gateway-configmap
+
+service:
+  port: 80
+  targetPort: 3333
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+probes:
+  livenessInitialDelay: 30
+  livenessPeriodSeconds: 10
+  readinessInitialDelay: 60
+  readinessPeriodSeconds: 10
+
+# Non-secret env (ConfigMap). Secrets stay in secretName.
+config:
+  PORT: "3333"
+  WEBSOCKET: NONE
+  WEBSOCKET_URL: ""
+  WEBSOCKET_PROTOCOL: ""
+  WEBSOCKET_RECONNECT: "false"
+  WEBSOCKET_RECONNECT_TIMEOUT: "10000"
+  WEBSOCKET_RECONNECT_MAX_RETRIES: "10"
+  WEBSOCKET_POOLING_TIMEOUT: "834000"
+  EVENTS_EMIT_MODE: BULK
+  DSB_BASE_URL: https://ddhub-ewc.energyweb.org
+  CHAIN_ID: "246"
+  RPC_URL: https://rpc.energyweb.org/
+  CACHE_SERVER_URL: https://identitycache.energyweb.org/v1
+  EVENT_SERVER_URL: https://identitycache.energyweb.org/
+  PARENT_NAMESPACE: dsmb.apps.ddhub.energyweb.auth.ewc
+  NEXT_PUBLIC_PARENT_NAMESPACE: dsmb.apps.ddhub.energyweb.auth.ewc
+  SECRETS_ENGINE: vault
+  VAULT_ENDPOINT: http://platform-openbao.openbao.svc.cluster.local:8200
+  SECRET_PREFIX: ddhub/
+  NODE_ENV: production
+  OPENTELEMETRY_ENABLED: "false"
+  OTEL_TRACING_URL: ""
+  OPEN_TELEMETRY_EXPORTER: ""
+  OTEL_IGNORED_ROUTES: ""
+  OTEL_SERVICE_NAME: ""
+  OTEL_ENVIRONMENT: ""
+  MTLS_ENABLED: "false"
+  DID_REGISTRY_ADDRESS: "0xc15d5a57a8eb0e1dcbe5d88b8f9a82017e5cc4af"
+  USER_AUTH_ENABLED: "false"
+  FETCH_MESSAGES_CRON_ENABLED: "true"
+  CLEANUP_MESSAGES_CRON_ENABLED: "true"
+  FETCH_MESSAGES_CRON_SCHEDULE: "* * * * *"
+  CLEANUP_MESSAGES_CRON_SCHEDULE: "*/15 * * * *"

@@ -1,12 +1,14 @@
-# INT-308 — no secret values in Git. OpenBao path platform/ddhub.
+# INT-308 — no secret values in Git.
+# DB password from in-cluster CNPG secret; vault_token from OpenBao.
 storeName: openbao
-# Chart nameOverride/fullnameOverride is ddhub-client-gateway → secret suffix -secret.
 secretName: ddhub-client-gateway-secret
 openbaoPath: platform/ddhub
+cnpgSecretName: ddhub
 dbHost: ddhub-rw.ddhub.svc.cluster.local
 dbPort: "5432"
 dbName: ddhub
 dbUser: ddhub
-# Pod labels from upstream chart selector (app.kubernetes.io/name = nameOverride).
 gatewayPodLabels:
   app.kubernetes.io/name: ddhub-client-gateway
+esoReaderServiceAccount: ddhub-eso-reader
+k8sStoreName: ddhub-k8s

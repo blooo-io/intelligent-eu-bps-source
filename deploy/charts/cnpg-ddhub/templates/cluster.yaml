@@ -1,6 +1,20 @@
 {{- /*
-  INT-308 — DDHub CG DB. Role password from OpenBao (same path as gateway DB_NAME).
+  INT-308 — DDHub CG DB. Role password via ESO Password generator (create once).
+  Avoids OpenBao race that left managed role pending-reconciliation.
 */ -}}
+apiVersion: generators.external-secrets.io/v1alpha1
+kind: Password
+metadata:
+  name: {{ .Values.clusterName }}-db-password
+  labels:
+    app.kubernetes.io/name: cnpg-ddhub
+spec:
+  length: 32
+  # ESO Password CRD expects integer counts, not booleans (INT-163).
+  digits: 5
+  symbols: 0
+  allowRepeat: true
+---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -8,10 +22,7 @@ metadata:
   labels:
     app.kubernetes.io/name: cnpg-ddhub
 spec:
-  refreshInterval: 1h
-  secretStoreRef:
-    name: {{ .Values.storeName }}
-    kind: ClusterSecretStore
+  refreshInterval: "0"
   target:
     name: {{ .Values.database.owner }}
     creationPolicy: Owner
@@ -21,11 +32,12 @@ spec:
       data:
         username: {{ .Values.database.owner | quote }}
         password: "{{ `{{ .password }}` }}"
-  data:
-    - secretKey: password
-      remoteRef:
-        key: {{ .Values.openbaoPath }}
-        property: {{ .Values.openbaoProperty }}
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: Password
+          name: {{ .Values.clusterName }}-db-password
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster

@@ -1,0 +1,10 @@
+# INT-308 — Blooo packaging for Energy Web DDHub Client Gateway (unmodified images).
+# Upstream Helm chart 1.3.0-ewc hardcodes typeorm "migrations:run"; image typeorm
+# 0.3.x needs "migration:run -d ormconfig.js". This chart is our own manifests
+# (not a copy of the GPL chart templates) running the same public images.
+apiVersion: v2
+name: ddhub-client-gateway
+description: DDHub Client Gateway API + scheduler for INTELLIGENT (INT-308 / NFR-017)
+type: application
+version: 0.1.0
+appVersion: "intelligent-canary"

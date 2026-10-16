@@ -171,15 +171,15 @@ Do not `helm install` SonarQube by hand outside Argo (INT-157).
 
 ## EWDS — DDHub Client Gateway (INT-308 / NFR-017 / TP-2 exception)
 
-Official Energy Web OCI Helm chart (not vendored). Values only in Git; no secret values. Same packaging rule as OpenBao / SonarQube: **separate unmodified service** (upstream GPL-3.0).
+Unmodified Energy Web **images**; Blooo Helm chart (upstream OCI chart hardcodes a broken typeorm CLI verb). Values only in Git; no secret values. Same packaging rule as OpenBao / SonarQube: **separate unmodified service** (upstream GPL-3.0).
 
 | Piece | Upstream / chart (pinned) | Namespace | Argo Application | Sync wave |
 |---|---|---|---|---|
-| CG database (CNPG) | local `deploy/charts/cnpg-ddhub` | `ddhub` | `platform-cnpg-ddhub` | 2 |
+| CG database (CNPG) | local `deploy/charts/cnpg-ddhub` | `ddhub` | `platform-cnpg-ddhub` | 1 |
 | Gateway secret + NetworkPolicy | local `deploy/charts/ddhub-gateway-secret` | `ddhub` | `platform-ddhub-gateway-secret` | 2 |
-| Client Gateway | OCI `ddhub-client-gateway-api` **1.3.0-ewc** | `ddhub` | `platform-ddhub-client-gateway` | 3 |
+| Client Gateway | local `deploy/charts/ddhub-client-gateway` (images `intelligent-canary`) | `ddhub` | `platform-ddhub-client-gateway` | 3 |
 
-Values: `deploy/platform/ddhub-client-gateway/values.yaml`. OpenBao path `platform/ddhub` holds `db_password` and `vault_token` (placeholders from `openbao-seed-dev-placeholders.mjs`). Phase 1 keeps mTLS / API auth / UI / public Ingress off — see [docs/release/ddhub-client-gateway.md](../../docs/release/ddhub-client-gateway.md).
+Values: `deploy/platform/ddhub-client-gateway/values.yaml`. OpenBao path `platform/ddhub` holds `vault_token`; DB password is an ESO generator into Secret `ddhub`. CG also needs KV v1 mounted at `ddhub/` (`KUBECONFIG=… node scripts/openbao-seed-ddhub-cg.mjs --apply`). Phase 1 keeps mTLS / API auth / UI / public Ingress off — see [docs/release/ddhub-client-gateway.md](../../docs/release/ddhub-client-gateway.md).
 
 Do not `helm install` the CG chart by hand outside Argo (INT-157).
 

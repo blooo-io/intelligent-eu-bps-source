@@ -47,6 +47,18 @@ test("platform README references the seed script", async () => {
   assert.match(text, /openbao-seed-dev-placeholders\.mjs/);
 });
 
+test("CLI argv Set uses has not includes for --print/--apply/--check", async () => {
+  const source = await readFile(
+    path.join(root, "scripts/openbao-seed-dev-placeholders.mjs"),
+    "utf8",
+  );
+  assert.match(source, /const args = new Set\(process\.argv\.slice\(2\)\)/);
+  assert.match(source, /args\.has\("--check"\)/);
+  assert.match(source, /args\.has\("--print"\)/);
+  assert.match(source, /args\.has\("--apply"\)/);
+  assert.equal(source.includes('args.includes("--print")'), false);
+});
+
 test("INT-295 placeholder seed detects real Stripe credentials to protect", () => {
   assert.deepEqual(STRIPE_PROTECTED_PATHS.sort(), [
     "dev/invoicing",

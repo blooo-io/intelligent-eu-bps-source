@@ -68,9 +68,7 @@ export const DEV_PLACEHOLDER_FIELDS = {
     "seeded=true",
   ],
   "platform/ddhub": [
-    // INT-308 — CNPG role + DB_NAME URI; replace before expecting Healthy CG pods.
-    "db_password=dev-only-replace-me",
-    // OpenBao token for CG secret_engine vault (DID keys under prefix ddhub/).
+    // INT-308 — CG Vault token only (DB password comes from CNPG/ESO generator).
     "vault_token=dev-only-replace-me",
     "seeded=true",
   ],
@@ -236,7 +234,7 @@ if (isDirectRun) {
   const args = new Set(process.argv.slice(2));
   if (args.has("--check")) {
     console.log(JSON.stringify(await checkSeedLayout()));
-  } else if (args.includes("--print")) {
+  } else if (args.has("--print")) {
     process.stdout.write(printSeedSteps());
   } else if (args.has("--apply")) {
     console.log(JSON.stringify({ applied: true, ...applySeedPlaceholders() }));

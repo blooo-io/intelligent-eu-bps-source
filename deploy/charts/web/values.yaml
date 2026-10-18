@@ -12,4 +12,3 @@ egressModules: []
 ingressFrom: []
 keycloakEgress: false
 stripeEgress: false
-namespaceIngress: false

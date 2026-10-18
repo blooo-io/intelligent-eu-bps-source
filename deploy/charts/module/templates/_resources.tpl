@@ -136,13 +136,7 @@ spec:
         - port: {{ $.Values.port }}
           protocol: TCP
     {{- end }}
-    {{- if .Values.namespaceIngress }}
-    - from:
-        - podSelector: {}
-      ports:
-        - port: {{ .Values.port }}
-          protocol: TCP
-    {{- end }}
+  # INT-287 — peers only via ingressFrom (no namespace-wide ingress).
   egress:
     - to:
         - namespaceSelector:

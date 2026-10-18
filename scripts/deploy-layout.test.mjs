@@ -94,6 +94,13 @@ test("module NetworkPolicy allows Keycloak HTTP port 80 (INT-218)", async () => 
   assert.match(template, /keycloakEgress[\s\S]*port: 80/);
 });
 
+test("module NetworkPolicy has no open namespace ingress (INT-287)", async () => {
+  const template = await readFile("deploy/charts/module/templates/_resources.tpl", "utf8");
+  assert.equal(/namespaceIngress/.test(template), false);
+  const settlement = await readFile("deploy/charts/settlement/values.yaml", "utf8");
+  assert.match(settlement, /ingressFrom:[\s\S]*scheduler-worker/);
+});
+
 test("workloads are non-root with a read-only filesystem and no committed secret", async () => {
   const template = await readFile("deploy/charts/module/templates/_resources.tpl", "utf8");
   assert.match(template, /runAsNonRoot: true/);

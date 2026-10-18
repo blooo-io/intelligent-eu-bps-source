@@ -1,0 +1,103 @@
+{{- /*
+  INT-288 — Keycloak dataplane: ingress from APISIX + int-apps; egress to DNS + CNPG.
+*/ -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keycloakx-dataplane
+  namespace: {{ .Values.keycloakNamespace | quote }}
+  labels:
+    app.kubernetes.io/name: platform-network-policies
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: keycloak
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: keycloakx
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.ingressNamespace }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.appsNamespace }}
+      ports:
+        {{- range .Values.keycloak.httpPorts }}
+        - port: {{ . }}
+          protocol: TCP
+        {{- end }}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Same-namespace CNPG (keycloak-*).
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: keycloak
+      ports:
+        - port: {{ .Values.keycloak.postgresPort }}
+          protocol: TCP
+    # Outbound HTTPS (theme assets / IdP federation if configured).
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: keycloak-cnpg
+  namespace: {{ .Values.keycloakNamespace | quote }}
+  labels:
+    app.kubernetes.io/name: platform-network-policies
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: keycloak-db
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: keycloak
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloakx
+      ports:
+        - port: {{ .Values.keycloak.postgresPort }}
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: keycloak
+      ports:
+        - port: {{ .Values.keycloak.postgresPort }}
+          protocol: TCP

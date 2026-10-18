@@ -12,6 +12,5 @@ egressModules: []
 ingressFrom: []
 keycloakEgress: false
 stripeEgress: false
-namespaceIngress: false
 # INT-249 — static docs need no OpenBao path (avoids Argo Degraded ExternalSecret).
 externalSecret: false

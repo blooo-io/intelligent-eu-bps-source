@@ -15,8 +15,28 @@
     max_age: {{ .Values.cors.maxAge }}
 {{- end -}}
 
+{{- /*
+  INT-289 — baseline security response headers (SEC-03).
+  Pass dict with "csp" key for Content-Security-Policy (route-specific).
+*/ -}}
+{{- define "apisix-gateway.securityHeadersPlugin" -}}
+- name: response-rewrite
+  enable: true
+  config:
+    headers:
+      set:
+        Strict-Transport-Security: {{ .Values.securityHeaders.hsts | quote }}
+        X-Content-Type-Options: {{ .Values.securityHeaders.contentTypeOptions | quote }}
+        X-Frame-Options: {{ .Values.securityHeaders.frameOptions | quote }}
+        Referrer-Policy: {{ .Values.securityHeaders.referrerPolicy | quote }}
+        Content-Security-Policy: {{ .csp | quote }}
+      remove:
+        - Server
+{{- end -}}
+
 {{- define "apisix-gateway.oidcPlugin" -}}
 {{ include "apisix-gateway.corsPlugin" . }}
+{{ include "apisix-gateway.securityHeadersPlugin" (dict "Values" .Values "csp" .Values.securityHeaders.csp.api) }}
 - name: openid-connect
   enable: true
   # INT-169 — client_secret comes from ExternalSecret (OpenBao); APISIX requires the field.

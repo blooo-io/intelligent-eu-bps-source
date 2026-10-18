@@ -22,6 +22,18 @@ cors:
   allowCredential: true
   maxAge: 3600
 
+# INT-289 — edge security headers (HSTS / CSP / frame / nosniff); strip Server.
+securityHeaders:
+  hsts: "max-age=31536000; includeSubDomains"
+  contentTypeOptions: nosniff
+  frameOptions: DENY
+  referrerPolicy: strict-origin-when-cross-origin
+  csp:
+    api: "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+    app: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.dev.intelligent-eu-bp.blooo.dev https://auth.intelligent-eu-bp.blooo.dev https://js.stripe.com; frame-src https://js.stripe.com https://hooks.stripe.com"
+    docs: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'"
+    auth: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'"
+
 # Keycloak realm used by openid-connect (INT-169 realm import on Keycloak boot).
 oidc:
   realm: int

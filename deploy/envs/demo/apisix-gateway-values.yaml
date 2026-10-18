@@ -8,6 +8,10 @@ hosts:
 # INT-187 — SPA origin for CORS (comma-separated).
 cors:
   allowOrigins: "https://app.demo.intelligent-eu-bp.blooo.dev,http://localhost:5173"
+# INT-289 — SPA connect-src for demo API host.
+securityHeaders:
+  csp:
+    app: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.demo.intelligent-eu-bp.blooo.dev https://auth.intelligent-eu-bp.blooo.dev https://js.stripe.com; frame-src https://js.stripe.com https://hooks.stripe.com"
 oidc:
   realm: demo
   discoveryHost: auth.intelligent-eu-bp.blooo.dev

@@ -25,6 +25,7 @@ spec:
         - serviceName: {{ .Values.webhook.backend }}
           servicePort: 8080
       plugins:
+{{ include "apisix-gateway.securityHeadersPlugin" (dict "Values" .Values "csp" .Values.securityHeaders.csp.api) | nindent 8 }}
         - name: limit-req
           enable: true
           config:
@@ -206,6 +207,7 @@ spec:
         - serviceName: keycloak
           servicePort: {{ .Values.backends.keycloak.port }}
       plugins:
+{{ include "apisix-gateway.securityHeadersPlugin" (dict "Values" .Values "csp" .Values.securityHeaders.csp.auth) | nindent 8 }}
         # INT-171 — KC_PROXY_HEADERS=forwarded honors RFC7239 Forwarded (not only X-Forwarded-*).
         - name: proxy-rewrite
           enable: true
@@ -237,6 +239,8 @@ spec:
       backends:
         - serviceName: web
           servicePort: 8080
+      plugins:
+{{ include "apisix-gateway.securityHeadersPlugin" (dict "Values" .Values "csp" .Values.securityHeaders.csp.app) | nindent 8 }}
 ---
 apiVersion: apisix.apache.org/v2
 kind: ApisixRoute
@@ -258,6 +262,8 @@ spec:
       backends:
         - serviceName: docs-portal
           servicePort: 8080
+      plugins:
+{{ include "apisix-gateway.securityHeadersPlugin" (dict "Values" .Values "csp" .Values.securityHeaders.csp.docs) | nindent 8 }}
 ---
 {{- if .Values.hosts.sonar }}
 # INT-292 — SonarQube Community Build (scanner token + UI login; not Keycloak OIDC).
@@ -281,4 +287,6 @@ spec:
       backends:
         - serviceName: sonarqube
           servicePort: {{ .Values.backends.sonarqube.port }}
+      plugins:
+{{ include "apisix-gateway.securityHeadersPlugin" (dict "Values" .Values "csp" .Values.securityHeaders.csp.docs) | nindent 8 }}
 {{- end }}

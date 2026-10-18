@@ -7,15 +7,16 @@ image:
   repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-invoicing
   tag: "0.0.0"
 port: 8080
+# INT-287 — peer allow-list only (no namespace-wide ingress).
 egressModules: 
   - settlement
   - participants
   - payments
-ingressFrom: 
+ingressFrom:
   - payments
+  - scheduler-worker
 keycloakEgress: false
 stripeEgress: true
-namespaceIngress: true
 # INT-189 — Stripe test invoices on producer Connect accounts (AD-6).
 # INT-223 — JetStream SettlementCompleted → createFromSettlement.
 # INT-228 — resolve Connect ids from AC-07 (no synthetic acct_test_*).

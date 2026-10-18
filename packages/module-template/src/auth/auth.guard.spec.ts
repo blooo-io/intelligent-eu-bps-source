@@ -46,6 +46,21 @@ describe("ModuleAuthGuard (REQ-010)", () => {
     ).not.toThrow();
   });
 
+  // INT-290 — operator must not inherit service community bypass.
+  it("rejects an operator outside their community", () => {
+    expect(() =>
+      assertCommunityScope(
+        {
+          sub: "op-1",
+          roles: ["operator"],
+          communityId: "c1",
+          tokenUse: "user",
+        },
+        "other",
+      ),
+    ).toThrow(ForbiddenException);
+  });
+
   it("allows a member in their own community", () => {
     const guard = new ModuleAuthGuard({
       roles: ["member"],

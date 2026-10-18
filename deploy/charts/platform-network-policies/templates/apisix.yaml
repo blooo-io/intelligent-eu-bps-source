@@ -1,0 +1,141 @@
+{{- /*
+  INT-288 — APISIX gateway + embedded etcd.
+  Public HTTP(S) from LB; admin from cluster CIDRs; egress to backends + Keycloak + etcd.
+*/ -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apisix-gateway
+  namespace: {{ .Values.ingressNamespace | quote }}
+  labels:
+    app.kubernetes.io/name: platform-network-policies
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: apisix
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: apisix
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Data plane (LoadBalancer → node → pod).
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - port: {{ .Values.apisix.httpPort }}
+          protocol: TCP
+        - port: {{ .Values.apisix.httpsPort }}
+          protocol: TCP
+    # Admin API — Ingress Controller + in-cluster tooling (pod/service CIDRs).
+    - from:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+        - ipBlock:
+            cidr: 100.64.0.0/10
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.ingressNamespace }}
+      ports:
+        - port: {{ .Values.apisix.adminPort }}
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.appsNamespace }}
+      ports:
+        - port: 8080
+          protocol: TCP
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.keycloakNamespace }}
+      ports:
+        - port: 80
+          protocol: TCP
+        - port: 8080
+          protocol: TCP
+        - port: 8443
+          protocol: TCP
+        - port: 9000
+          protocol: TCP
+    # SonarQube UI route (INT-292).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: sonarqube
+      ports:
+        - port: 9000
+          protocol: TCP
+    # Embedded etcd (same namespace).
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: etcd
+      ports:
+        - port: {{ .Values.apisix.etcdPort }}
+          protocol: TCP
+    # OIDC discovery / JWKS already via Keycloak; allow HTTPS egress for external IdP edges.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apisix-etcd
+  namespace: {{ .Values.ingressNamespace | quote }}
+  labels:
+    app.kubernetes.io/name: platform-network-policies
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: apisix-etcd
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: etcd
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: apisix
+      ports:
+        - port: {{ .Values.apisix.etcdPort }}
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: etcd
+      ports:
+        - port: {{ .Values.apisix.etcdPort }}
+          protocol: TCP

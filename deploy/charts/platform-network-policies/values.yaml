@@ -1,0 +1,25 @@
+# INT-288 — selectors match live Scaleway labels (platform-* Helm releases).
+appsNamespace: int-apps
+keycloakNamespace: keycloak
+openbaoNamespace: openbao
+ingressNamespace: ingress
+externalSecretsNamespace: external-secrets
+ddhubNamespace: ddhub
+
+keycloak:
+  # HTTP/OIDC from APISIX + Admin IdP from modules (participants keycloakEgress).
+  httpPorts:
+    - 80
+    - 8080
+    - 8443
+    - 9000
+  postgresPort: 5432
+
+openbao:
+  apiPort: 8200
+
+apisix:
+  httpPort: 9080
+  httpsPort: 9443
+  adminPort: 9180
+  etcdPort: 2379

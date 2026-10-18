@@ -7,16 +7,16 @@ image:
   repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-settlement
   tag: "0.0.0"
 port: 8080
+# INT-287 — peer allow-list only (no namespace-wide ingress).
 egressModules: 
   - trade-intake
   - participants
   - reference-data
-ingressFrom: 
+ingressFrom:
   - invoicing
-  - scheduler
+  - scheduler-worker
 keycloakEgress: false
 stripeEgress: false
-namespaceIngress: true
 # INT-232 — HttpTradeSource → AC-04 GetUnbilledTrades + mark-billed.
 # INT-272 — GetCommunitySettings (AC-03) + GetVatRate/GetRate (AC-13).
 # INT-273 — JetStream ParticipantOffboarded → StartRun(type=final).

@@ -1,0 +1,7 @@
+# INT-288 — NetworkPolicies for Keycloak, OpenBao, APISIX dataplane (SEC-02).
+apiVersion: v2
+name: platform-network-policies
+description: Default-deny + allow-list NetworkPolicies for platform namespaces
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

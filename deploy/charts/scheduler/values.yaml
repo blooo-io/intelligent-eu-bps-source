@@ -8,6 +8,7 @@ image:
   repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-scheduler
   tag: "0.0.0"
 port: 8080
+# INT-287 — peer allow-list only (no namespace-wide ingress).
 egressModules:
   - settlement
   - trade-intake
@@ -20,7 +21,6 @@ egressModules:
 ingressFrom: []
 keycloakEgress: false
 stripeEgress: false
-namespaceIngress: true
 # INT-216 — Temporal frontend + worker (TD-3).
 workerReplicaCount: 1
 temporalTaskQueue: intelligent-billing

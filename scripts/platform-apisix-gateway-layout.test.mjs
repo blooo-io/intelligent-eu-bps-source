@@ -59,6 +59,9 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(helpers, /name:\s*cors/);
   assert.match(helpers, /allow_origins/);
   assert.match(helpers, /apisix-gateway\.corsPlugin/);
+  // INT-289 — security response headers on OIDC routes.
+  assert.match(helpers, /apisix-gateway\.securityHeadersPlugin/);
+  assert.match(helpers, /Strict-Transport-Security/);
 
   const oidcEs = await readFile(
     "deploy/charts/apisix-gateway/templates/oidc-secret.yaml",

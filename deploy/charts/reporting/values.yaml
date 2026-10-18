@@ -8,11 +8,12 @@ image:
   repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-reporting
   tag: "0.0.0"
 port: 8080
+# INT-287 — peer allow-list only (no namespace-wide ingress).
 egressModules: []
-ingressFrom: []
+ingressFrom:
+  - scheduler-worker
 keycloakEgress: false
 stripeEgress: false
-namespaceIngress: true
 # INT-271 — JetStream projections (same DebeziumStream as AC-06/AC-11).
 env:
   NATS_URL: nats://nats.nats.svc.cluster.local:4222

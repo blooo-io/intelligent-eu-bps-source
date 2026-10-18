@@ -7,14 +7,14 @@ image:
   repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-trade-intake
   tag: "0.0.0"
 port: 8080
+# INT-287 — peer allow-list only (no namespace-wide ingress).
 egressModules: 
   - participants
-ingressFrom: 
-  - scheduler
+ingressFrom:
+  - scheduler-worker
   - settlement
 keycloakEgress: false
 stripeEgress: false
-namespaceIngress: true
 # INT-232 — ingest S1 window on boot so settlement HttpTradeSource is non-empty.
 # INT-237 — HttpPartyResolver → AC-03 ResolveParty (leave unset for FixturePartyResolver).
 env:

@@ -12,10 +12,14 @@ port: 8080
 egressModules: []
 ingressFrom:
   - scheduler-worker
-keycloakEgress: false
+keycloakEgress: true
 stripeEgress: false
 # INT-271 — JetStream projections (same DebeziumStream as AC-06/AC-11).
 env:
+  KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
+  KEYCLOAK_REALM: int
+  KEYCLOAK_SERVICE_CLIENT_ID: module-service
+  KEYCLOAK_SERVICE_CLIENT_SECRET: dev-module-service-replace-me
   NATS_URL: nats://nats.nats.svc.cluster.local:4222
   NATS_SUBJECT_PREFIX: intelligent.dev
   NATS_STREAM: DebeziumStream

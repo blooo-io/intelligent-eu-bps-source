@@ -1,0 +1,98 @@
+{{- /*
+  INT-313 — SonarQube Community: UI/API from APISIX; JDBC to CNPG.
+  Pod labels from the official chart use app=sonarqube (not app.kubernetes.io/name).
+*/ -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sonarqube-dataplane
+  namespace: {{ .Values.sonarqubeNamespace | quote }}
+  labels:
+    app.kubernetes.io/name: platform-network-policies
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: sonarqube
+spec:
+  podSelector:
+    matchLabels:
+      app: sonarqube
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.ingressNamespace }}
+      ports:
+        - port: {{ .Values.sonarqube.httpPort }}
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: sonarqube
+      ports:
+        - port: {{ .Values.sonarqube.postgresPort }}
+          protocol: TCP
+    # Plugin / CE outbound HTTPS (marketplace stays off in V1 values).
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sonarqube-cnpg
+  namespace: {{ .Values.sonarqubeNamespace | quote }}
+  labels:
+    app.kubernetes.io/name: platform-network-policies
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: sonarqube-db
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: sonarqube
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: sonarqube
+      ports:
+        - port: {{ .Values.sonarqube.postgresPort }}
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: sonarqube
+      ports:
+        - port: {{ .Values.sonarqube.postgresPort }}
+          protocol: TCP

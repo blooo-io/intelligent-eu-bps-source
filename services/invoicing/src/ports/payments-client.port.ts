@@ -1,3 +1,4 @@
+import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
 export const PAYMENTS_CLIENT = Symbol("PAYMENTS_CLIENT");
 
 /** Narrow client of AC-07 GetPaymentAccount (INT-228 / TP-7 / INT-231). */
@@ -29,6 +30,7 @@ export class HttpPaymentsClient implements PaymentsClientPort {
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly auth: ServiceAuthSource = null,
   ) {}
 
   async getPaymentAccount(
@@ -38,9 +40,8 @@ export class HttpPaymentsClient implements PaymentsClientPort {
     const res = await this.fetchImpl(url, {
       method: "GET",
       headers: {
-        Accept: "application/json",
-        "x-intelligent-roles": "service",
-        "x-intelligent-sub": "ac-06-invoicing",
+        ...(await resolveServiceAuthHeaders("ac-06-invoicing", this.auth)),
+
       },
     });
     if (res.status === 404) {

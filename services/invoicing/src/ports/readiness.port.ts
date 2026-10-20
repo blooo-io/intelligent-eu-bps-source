@@ -1,3 +1,4 @@
+import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
 /** Narrow client of AC-03 CheckReadiness (BR-09). */
 export interface ReadinessPort {
   check(participantId: string): Promise<{ ready: boolean; reason?: string }>;
@@ -32,6 +33,7 @@ export class HttpReadiness implements ReadinessPort {
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly auth: ServiceAuthSource = null,
   ) {}
 
   async check(
@@ -41,9 +43,8 @@ export class HttpReadiness implements ReadinessPort {
     const res = await this.fetchImpl(url, {
       method: "GET",
       headers: {
-        Accept: "application/json",
-        "x-intelligent-roles": "service",
-        "x-intelligent-sub": "ac-06-invoicing",
+        ...(await resolveServiceAuthHeaders("ac-06-invoicing", this.auth)),
+
       },
     });
     if (res.status === 404) {

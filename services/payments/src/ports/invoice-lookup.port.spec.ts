@@ -37,8 +37,8 @@ describe("InvoiceLookupPort (INT-193)", () => {
     });
     const http = new HttpInvoiceLookup(
       "http://invoicing:8080/",
-      "svc-token",
       fetchImpl as unknown as typeof fetch,
+      "svc-token",
     );
     await expect(http.getInvoice("inv-2")).resolves.toMatchObject({
       invoiceId: "inv-2",
@@ -59,8 +59,8 @@ describe("InvoiceLookupPort (INT-193)", () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 404 });
     const http = new HttpInvoiceLookup(
       "http://invoicing:8080",
-      "tok",
       fetchImpl as unknown as typeof fetch,
+      "tok",
     );
     await expect(http.getInvoice("x")).rejects.toThrow(/failed with 404/);
   });

@@ -40,6 +40,11 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(intRealm, /"clientId": "participants-admin"/);
   assert.match(intRealm, /"serviceAccountClientId": "participants-admin"/);
   assert.match(intRealm, /"manage-users"/);
+  // INT-287 — inter-module service JWT client + service realm role.
+  assert.match(intRealm, /"clientId": "module-service"/);
+  assert.match(intRealm, /"serviceAccountClientId": "module-service"/);
+  assert.match(intRealm, /dev-module-service-replace-me/);
+  assert.match(intRealm, /"name": "service"/);
 
   const demoRealm = await readFile(
     "deploy/charts/keycloak-realms/realms/demo-realm.json",
@@ -48,4 +53,6 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(demoRealm, /"realm": "demo"/);
   assert.match(demoRealm, /"clientId": "apisix-gateway"/);
   assert.match(demoRealm, /"claim.name": "community_id"/);
+  assert.match(demoRealm, /"clientId": "module-service"/);
+  assert.match(demoRealm, /"serviceAccountClientId": "module-service"/);
 });

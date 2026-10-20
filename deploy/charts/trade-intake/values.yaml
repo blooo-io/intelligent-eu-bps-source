@@ -13,10 +13,14 @@ egressModules:
 ingressFrom:
   - scheduler-worker
   - settlement
-keycloakEgress: false
+keycloakEgress: true
 stripeEgress: false
 # INT-232 — ingest S1 window on boot so settlement HttpTradeSource is non-empty.
 # INT-237 — HttpPartyResolver → AC-03 ResolveParty (leave unset for FixturePartyResolver).
 env:
+  KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
+  KEYCLOAK_REALM: int
+  KEYCLOAK_SERVICE_CLIENT_ID: module-service
+  KEYCLOAK_SERVICE_CLIENT_SECRET: dev-module-service-replace-me
   INTAKE_BOOTSTRAP_S1: "true"
   PARTICIPANTS_INTERNAL_URL: http://participants:8080

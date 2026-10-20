@@ -80,10 +80,9 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
       // INT-193 — AC-06 GetInvoice when INVOICING_INTERNAL_URL is set.
       useFactory: (memory: InMemoryInvoiceLookup) => {
         const base = process.env.INVOICING_INTERNAL_URL;
-        const token =
-          process.env.SERVICE_AUTH_TOKEN ?? process.env.INTERNAL_SERVICE_TOKEN ?? "service";
+        // INT-287 — Keycloak client-credentials when configured; else header dual-mode.
         if (base) {
-          return new HttpInvoiceLookup(base, token);
+          return new HttpInvoiceLookup(base);
         }
         return memory;
       },
@@ -94,10 +93,8 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
       // INT-193 — sync Ready update when PARTICIPANTS_INTERNAL_URL is set.
       useFactory: () => {
         const base = process.env.PARTICIPANTS_INTERNAL_URL;
-        const token =
-          process.env.SERVICE_AUTH_TOKEN ?? process.env.INTERNAL_SERVICE_TOKEN ?? "service";
         if (base) {
-          return new HttpParticipantsNotifier(base, token);
+          return new HttpParticipantsNotifier(base);
         }
         return new NoopParticipantsNotifier();
       },

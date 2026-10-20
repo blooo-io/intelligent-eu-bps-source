@@ -1,3 +1,4 @@
+import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
 /**
  * INT-236 — resolve Keycloak IdP `sub` → AC-03 participantId (same shape as AC-07).
  */
@@ -24,6 +25,7 @@ export class HttpParticipantsResolver implements ParticipantsResolverPort {
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly auth: ServiceAuthSource = null,
   ) {}
 
   async resolveByIdpSub(
@@ -33,9 +35,8 @@ export class HttpParticipantsResolver implements ParticipantsResolverPort {
     const res = await this.fetchImpl(url, {
       method: "GET",
       headers: {
-        Accept: "application/json",
-        "x-intelligent-roles": "service",
-        "x-intelligent-sub": "ac-06-invoicing",
+        ...(await resolveServiceAuthHeaders("ac-06-invoicing", this.auth)),
+
       },
     });
     if (res.status === 404) {

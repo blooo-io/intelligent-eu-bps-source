@@ -51,6 +51,30 @@ export const DEV_PLACEHOLDER_PATHS = [
   "platform/ddhub",
 ];
 
+/**
+ * INT-287 — Nest modules that mint/validate service JWTs.
+ * Matches Keycloak `module-service` client secret in int/demo realm JSON.
+ */
+export const MODULE_SERVICE_JWT_PATHS = [
+  "dev/participants",
+  "dev/trade-intake",
+  "dev/settlement",
+  "dev/invoicing",
+  "dev/payments",
+  "dev/reconciliation",
+  "dev/reporting",
+  "dev/publication",
+  "dev/notification",
+  "dev/compliance",
+  "dev/reference-data",
+  "dev/scheduler",
+];
+
+const MODULE_SERVICE_JWT_FIELDS = [
+  "KEYCLOAK_SERVICE_CLIENT_SECRET=dev-module-service-replace-me",
+  "seeded=true",
+];
+
 /** Extra kv pairs per path (default is seeded=true only). Never real Stripe/live secrets. */
 export const DEV_PLACEHOLDER_FIELDS = {
   "platform/keycloak": ["password=dev-only-replace-me", "seeded=true"],
@@ -72,6 +96,9 @@ export const DEV_PLACEHOLDER_FIELDS = {
     "vault_token=dev-only-replace-me",
     "seeded=true",
   ],
+  ...Object.fromEntries(
+    MODULE_SERVICE_JWT_PATHS.map((p) => [p, MODULE_SERVICE_JWT_FIELDS]),
+  ),
 };
 
 /**

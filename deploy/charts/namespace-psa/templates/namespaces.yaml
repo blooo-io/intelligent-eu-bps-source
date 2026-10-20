@@ -1,0 +1,17 @@
+{{- /*
+  INT-312 — label existing namespaces for Pod Security Admission.
+  Argo ServerSideApply merges labels; namespaces are not pruned away.
+*/ -}}
+{{- range .Values.namespaces }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .name | quote }}
+  labels:
+    pod-security.kubernetes.io/enforce: {{ .enforce | quote }}
+    pod-security.kubernetes.io/audit: {{ .audit | quote }}
+    pod-security.kubernetes.io/warn: {{ .warn | quote }}
+  annotations:
+    helm.sh/resource-policy: keep
+---
+{{- end }}

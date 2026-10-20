@@ -11,13 +11,17 @@ port: 8080
 egressModules:
   - participants
 ingressFrom: []
-keycloakEgress: false
+keycloakEgress: true
 stripeEgress: false
 # INT-217 / INT-221 — Debezium Server 2.7 create-stream always names the
 # stream DebeziumStream (subjects *.*.*); JetStream forbids a second stream
 # with overlapping subjects, so AC-11 consumes that stream.
 # INT-274 — AC-03 notification contact + operator alert mailbox.
 env:
+  KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
+  KEYCLOAK_REALM: int
+  KEYCLOAK_SERVICE_CLIENT_ID: module-service
+  KEYCLOAK_SERVICE_CLIENT_SECRET: dev-module-service-replace-me
   NATS_URL: nats://nats.nats.svc.cluster.local:4222
   NATS_SUBJECT_PREFIX: intelligent.dev
   NATS_STREAM: DebeziumStream

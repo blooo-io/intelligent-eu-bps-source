@@ -1,5 +1,5 @@
 /**
- * INT-286 / INT-287 / INT-288 / INT-289 — security hardening packaging.
+ * INT-286 / INT-287 / INT-288 / INT-289 / INT-312 / INT-313 — security hardening packaging.
  */
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -28,6 +28,39 @@ test("INT-287 — module NetworkPolicy has no open namespaceIngress", async () =
   assert.match(settlement, /scheduler-worker/);
 });
 
+test("INT-287 — Nest modules configure Keycloak service JWT client (dual-mode)", async () => {
+  for (const name of [
+    "participants",
+    "settlement",
+    "invoicing",
+    "payments",
+    "scheduler",
+    "trade-intake",
+    "notification",
+    "reference-data",
+  ]) {
+    const values = await readFile(`deploy/charts/${name}/values.yaml`, "utf8");
+    assert.match(values, /keycloakEgress:\s*true/, name);
+    assert.match(values, /KEYCLOAK_SERVICE_CLIENT_ID:\s*module-service/, name);
+    assert.match(
+      values,
+      /KEYCLOAK_SERVICE_CLIENT_SECRET:\s*dev-module-service-replace-me/,
+      name,
+    );
+    assert.match(
+      values,
+      /KEYCLOAK_BASE_URL:\s*http:\/\/platform-keycloak-keycloakx-http\.keycloak\.svc\.cluster\.local/,
+      name,
+    );
+  }
+
+  const worker = await readFile(
+    "deploy/charts/scheduler/templates/worker.yaml",
+    "utf8",
+  );
+  assert.match(worker, /keycloakEgress[\s\S]*port: 80/);
+});
+
 test("INT-288 — platform NetworkPolicies chart + Argo app", async () => {
   const chart = await readFile(
     "deploy/charts/platform-network-policies/Chart.yaml",
@@ -49,6 +82,55 @@ test("INT-288 — platform NetworkPolicies chart + Argo app", async () => {
   );
   assert.match(app, /name: platform-network-policies/);
   assert.match(app, /targetRevision: develop/);
+});
+
+test("INT-313 — Temporal, SonarQube, observability NetworkPolicies", async () => {
+  for (const file of ["temporal.yaml", "sonarqube.yaml", "observability.yaml"]) {
+    const text = await readFile(
+      `deploy/charts/platform-network-policies/templates/${file}`,
+      "utf8",
+    );
+    assert.match(text, /kind: NetworkPolicy/);
+    assert.match(text, /INT-313/);
+  }
+  const values = await readFile(
+    "deploy/charts/platform-network-policies/values.yaml",
+    "utf8",
+  );
+  assert.match(values, /temporalNamespace:\s*temporal/);
+  assert.match(values, /sonarqubeNamespace:\s*sonarqube/);
+  assert.match(values, /observabilityNamespace:\s*observability/);
+  const sonar = await readFile(
+    "deploy/charts/platform-network-policies/templates/sonarqube.yaml",
+    "utf8",
+  );
+  // Official Sonar chart uses legacy app=sonarqube labels.
+  assert.match(sonar, /app:\s*sonarqube/);
+});
+
+test("INT-312 — namespace PSA labels chart + Argo app", async () => {
+  const chart = await readFile("deploy/charts/namespace-psa/Chart.yaml", "utf8");
+  assert.match(chart, /^name: namespace-psa$/m);
+  const values = await readFile(
+    "deploy/charts/namespace-psa/values.yaml",
+    "utf8",
+  );
+  assert.match(values, /name:\s*int-apps/);
+  assert.match(values, /enforce:\s*baseline/);
+  assert.match(values, /audit:\s*restricted/);
+  const tpl = await readFile(
+    "deploy/charts/namespace-psa/templates/namespaces.yaml",
+    "utf8",
+  );
+  assert.match(tpl, /pod-security\.kubernetes\.io\/enforce/);
+  assert.match(tpl, /helm\.sh\/resource-policy:\s*keep/);
+  const app = await readFile(
+    "deploy/argocd/platform/namespace-psa.yaml",
+    "utf8",
+  );
+  assert.match(app, /name: platform-namespace-psa/);
+  assert.match(app, /path: deploy\/charts\/namespace-psa/);
+  assert.match(app, /ServerSideApply=true/);
 });
 
 test("INT-289 — APISIX security headers helper on public routes", async () => {

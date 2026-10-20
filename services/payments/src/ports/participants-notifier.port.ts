@@ -1,3 +1,4 @@
+import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
 /**
  * INT-193 — notify AC-03 of payment-account readiness (sync until NATS).
  */
@@ -23,8 +24,8 @@ export class NoopParticipantsNotifier implements ParticipantsNotifierPort {
 export class HttpParticipantsNotifier implements ParticipantsNotifierPort {
   constructor(
     private readonly baseUrl: string,
-    private readonly serviceToken: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly auth: ServiceAuthSource = null,
   ) {}
 
   async applyPaymentAccountStatus(input: {
@@ -36,11 +37,9 @@ export class HttpParticipantsNotifier implements ParticipantsNotifierPort {
     const res = await this.fetchImpl(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${this.serviceToken}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "x-intelligent-roles": "service",
-        "x-intelligent-sub": "ac-07-payments",
+                "Content-Type": "application/json",
+        ...(await resolveServiceAuthHeaders("ac-07-payments", this.auth)),
+
       },
       body: JSON.stringify({
         ready: input.ready,

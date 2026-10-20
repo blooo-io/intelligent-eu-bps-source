@@ -1,0 +1,98 @@
+{{- /*
+  INT-313 — Temporal dataplane: workers in int-apps → frontend; peers + CNPG.
+*/ -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: temporal-dataplane
+  namespace: {{ .Values.temporalNamespace | quote }}
+  labels:
+    app.kubernetes.io/name: platform-network-policies
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: temporal
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: temporal
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Frontend gRPC + optional Web UI from billing workers / in-cluster ops.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.appsNamespace }}
+      ports:
+        - port: {{ .Values.temporal.frontendPort }}
+          protocol: TCP
+        - port: {{ .Values.temporal.webPort }}
+          protocol: TCP
+    # Intra-cluster membership / ring (frontend, history, matching, worker).
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: temporal
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: temporal
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: temporal
+      ports:
+        - port: {{ .Values.temporal.postgresPort }}
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: temporal-cnpg
+  namespace: {{ .Values.temporalNamespace | quote }}
+  labels:
+    app.kubernetes.io/name: platform-network-policies
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: temporal-db
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: temporal
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: temporal
+      ports:
+        - port: {{ .Values.temporal.postgresPort }}
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: temporal
+      ports:
+        - port: {{ .Values.temporal.postgresPort }}
+          protocol: TCP

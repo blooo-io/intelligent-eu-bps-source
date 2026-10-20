@@ -19,12 +19,16 @@ egressModules:
   - publication
   - invoicing
 ingressFrom: []
-keycloakEgress: false
+keycloakEgress: true
 stripeEgress: false
 # INT-216 — Temporal frontend + worker (TD-3).
 workerReplicaCount: 1
 temporalTaskQueue: intelligent-billing
 env:
+  KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
+  KEYCLOAK_REALM: int
+  KEYCLOAK_SERVICE_CLIENT_ID: module-service
+  KEYCLOAK_SERVICE_CLIENT_SECRET: dev-module-service-replace-me
   DISPATCH_PROVIDER: temporal
   TEMPORAL_ADDRESS: platform-temporal-frontend.temporal.svc.cluster.local:7233
   TEMPORAL_NAMESPACE: int

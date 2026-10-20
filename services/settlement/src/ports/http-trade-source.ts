@@ -1,3 +1,4 @@
+import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
 import type { UnbilledTrade } from "../domain/types.js";
 import type { TradeSourcePort } from "./trade-source.port.js";
 
@@ -19,6 +20,7 @@ export class HttpTradeSource implements TradeSourcePort {
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly auth: ServiceAuthSource = null,
   ) {}
 
   async getUnbilled(
@@ -33,9 +35,8 @@ export class HttpTradeSource implements TradeSourcePort {
     const res = await this.fetchImpl(url.toString(), {
       method: "GET",
       headers: {
-        Accept: "application/json",
-        "x-intelligent-roles": "service",
-        "x-intelligent-sub": "ac-05-settlement",
+        ...(await resolveServiceAuthHeaders("ac-05-settlement", this.auth)),
+
       },
     });
     if (!res.ok) {
@@ -72,10 +73,10 @@ export class HttpTradeSource implements TradeSourcePort {
     const res = await this.fetchImpl(url, {
       method: "POST",
       headers: {
-        Accept: "application/json",
+        ...(await resolveServiceAuthHeaders("ac-05-settlement", this.auth)),
+
         "Content-Type": "application/json",
-        "x-intelligent-roles": "service",
-        "x-intelligent-sub": "ac-05-settlement",
+
       },
       body: JSON.stringify({ tradeIds }),
     });
@@ -91,9 +92,7 @@ export class HttpTradeSource implements TradeSourcePort {
     const res = await this.fetchImpl(url, {
       method: "POST",
       headers: {
-        Accept: "application/json",
-        "x-intelligent-roles": "service,operator",
-        "x-intelligent-sub": "ac-05-settlement",
+        ...(await resolveServiceAuthHeaders("ac-05-settlement", this.auth)),
       },
     });
     if (!res.ok) {

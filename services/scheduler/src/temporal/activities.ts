@@ -1,3 +1,4 @@
+import { resolveServiceAuthHeaders } from "@intelligent/module-template";
 import { resolveOwnerHost } from "./owner-hosts.js";
 
 export type InvokeOwnerInput = {
@@ -9,6 +10,7 @@ export type InvokeOwnerInput = {
 
 /**
  * INT-216 — activity that POSTs the job body to the owning module internal API.
+ * INT-287 — service JWT / principal headers (was x-principal-* which ModuleAuthGuard ignored).
  */
 export async function invokeOwnerModule(input: InvokeOwnerInput): Promise<{
   status: number;
@@ -23,8 +25,7 @@ export async function invokeOwnerModule(input: InvokeOwnerInput): Promise<{
     method: input.method,
     headers: {
       "content-type": "application/json",
-      "x-principal-type": "service",
-      "x-principal-id": "ac-14-scheduler",
+      ...(await resolveServiceAuthHeaders("ac-14-scheduler")),
     },
     body: input.method === "POST" ? JSON.stringify(input.body) : undefined,
   });

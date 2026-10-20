@@ -15,13 +15,17 @@ egressModules:
 ingressFrom:
   - payments
   - scheduler-worker
-keycloakEgress: false
+keycloakEgress: true
 stripeEgress: true
 # INT-189 — Stripe test invoices on producer Connect accounts (AD-6).
 # INT-223 — JetStream SettlementCompleted → createFromSettlement.
 # INT-228 — resolve Connect ids from AC-07 (no synthetic acct_test_*).
 # INT-231 — HttpReadiness (BR-09) + charges_enabled retry via AC-07.
 env:
+  KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
+  KEYCLOAK_REALM: int
+  KEYCLOAK_SERVICE_CLIENT_ID: module-service
+  KEYCLOAK_SERVICE_CLIENT_SECRET: dev-module-service-replace-me
   STRIPE_INVOICE_PROVIDER: stripe
   PSP_PROVIDER: stripe
   NATS_URL: nats://nats.nats.svc.cluster.local:4222

@@ -24,10 +24,22 @@
   },
   "roles": {
     "realm": [
-      { "name": "member", "description": "Billing community member" },
-      { "name": "manager", "description": "Billing community manager" },
-      { "name": "operator", "description": "Billing platform operator" },
-      { "name": "service", "description": "Internal service principal" }
+      {
+        "name": "member",
+        "description": "Billing community member"
+      },
+      {
+        "name": "manager",
+        "description": "Billing community manager"
+      },
+      {
+        "name": "operator",
+        "description": "Billing platform operator"
+      },
+      {
+        "name": "service",
+        "description": "Internal service principal"
+      }
     ]
   },
   "clients": [
@@ -45,8 +57,19 @@
       "attributes": {
         "access.token.lifespan": "300"
       },
-      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email"],
-      "optionalClientScopes": ["address", "phone", "offline_access", "microprofile-jwt"]
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
     },
     {
       "clientId": "web",
@@ -81,6 +104,44 @@
             "userinfo.token.claim": "true"
           }
         }
+      ]
+    },
+    {
+      "clientId": "module-service",
+      "name": "Inter-module service JWT (INT-287)",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "secret": "dev-module-service-replace-me",
+      "protocol": "openid-connect",
+      "attributes": {
+        "access.token.lifespan": "300"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-module-service",
+      "enabled": true,
+      "serviceAccountClientId": "module-service",
+      "realmRoles": [
+        "service"
       ]
     }
   ]

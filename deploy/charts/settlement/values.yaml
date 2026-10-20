@@ -15,13 +15,17 @@ egressModules:
 ingressFrom:
   - invoicing
   - scheduler-worker
-keycloakEgress: false
+keycloakEgress: true
 stripeEgress: false
 # INT-232 — HttpTradeSource → AC-04 GetUnbilledTrades + mark-billed.
 # INT-272 — GetCommunitySettings (AC-03) + GetVatRate/GetRate (AC-13).
 # INT-273 — JetStream ParticipantOffboarded → StartRun(type=final).
 # Leave unset locally/CI to keep FixtureTradeSource + fixture billing context.
 env:
+  KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
+  KEYCLOAK_REALM: int
+  KEYCLOAK_SERVICE_CLIENT_ID: module-service
+  KEYCLOAK_SERVICE_CLIENT_SECRET: dev-module-service-replace-me
   TRADE_INTAKE_INTERNAL_URL: http://trade-intake:8080
   PARTICIPANTS_INTERNAL_URL: http://participants:8080
   REFERENCE_DATA_INTERNAL_URL: http://reference-data:8080

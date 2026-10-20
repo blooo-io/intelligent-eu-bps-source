@@ -30,13 +30,14 @@ Values: `deploy/platform/apisix/values.yaml`. Admin API keys from OpenBao path `
 
 INT-289: routes set HSTS / CSP / X-Frame-Options / nosniff via `response-rewrite` and strip the `Server` banner (`deploy/charts/apisix-gateway` helpers).
 
-## Platform NetworkPolicies (INT-288 / SEC-02)
+## Platform NetworkPolicies (INT-288 / INT-313 / SEC-02)
 
 | Piece | Chart | Namespaces | Argo Application | Sync wave |
 |---|---|---|---|---|
-| Keycloak + OpenBao + APISIX/etcd NP | local `deploy/charts/platform-network-policies` | `keycloak`, `openbao`, `ingress` | `platform-network-policies` | 4 |
+| Keycloak + OpenBao + APISIX/etcd + Temporal/Sonar/obs NP | local `deploy/charts/platform-network-policies` | multi-ns | `platform-network-policies` | 4 |
+| Namespace PSA labels (INT-312) | local `deploy/charts/namespace-psa` | cluster namespaces | `platform-namespace-psa` | 0 |
 
-Module peer allow-lists (INT-287): `ingressFrom` only — no namespace-wide `podSelector: {}`. Temporal worker peers use `scheduler-worker`.
+Module peer allow-lists (INT-287): `ingressFrom` only — no namespace-wide `podSelector: {}`. Temporal worker peers use `scheduler-worker`. Nest modules use Keycloak `module-service` client-credentials JWT in dual-mode (`SERVICE_JWT_REQUIRED` off until soft rollout).
 
 Env hosts: `deploy/envs/<env>/apisix-gateway-values.yaml`. Webhook `POST /webhooks/payment-provider` is rate-limited and unauthenticated; `/v1/*` uses `openid-connect` (Keycloak realm per env; `client_secret` via ExternalSecret `apisix-oidc`, INT-169) then a `serverless-pre-function` that maps JWT claims to Nest principal headers `x-intelligent-sub` / `x-intelligent-roles` / `x-intelligent-community` (INT-179). Depends on platform APISIX (INT-161) and Keycloak (INT-160). TLS (INT-168 / INT-173 / INT-174): `Certificate` + `ApisixTls` per host; issuer `letsencrypt-prod` (`useProduction: true`). Staging ClusterIssuer remains for debug. After an issuer flip, bump `tls.reloadGeneration` so ApisixTls is replaced and APISIX etcd reloads `tls.crt` (Secret-only updates can leave a stale SSL object).
 

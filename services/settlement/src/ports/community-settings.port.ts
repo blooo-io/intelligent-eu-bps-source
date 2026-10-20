@@ -1,3 +1,4 @@
+import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
 import type { CommunityBillingContext } from "../domain/types.js";
 
 /** Narrow client of AC-03 GetCommunitySettings (BR-05 / REQ-056). */
@@ -22,6 +23,7 @@ export class HttpCommunitySettings implements CommunitySettingsPort {
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly auth: ServiceAuthSource = null,
   ) {}
 
   async get(
@@ -31,9 +33,8 @@ export class HttpCommunitySettings implements CommunitySettingsPort {
     const res = await this.fetchImpl(url, {
       method: "GET",
       headers: {
-        Accept: "application/json",
-        "x-intelligent-roles": "service",
-        "x-intelligent-sub": "ac-05-settlement",
+        ...(await resolveServiceAuthHeaders("ac-05-settlement", this.auth)),
+
       },
     });
     if (!res.ok) {

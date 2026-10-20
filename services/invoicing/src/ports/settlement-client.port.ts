@@ -1,4 +1,4 @@
-import { asString } from "@intelligent/module-template";
+import {asString, resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
 import type { PairSettlementInput } from "../domain/types.js";
 
 export const SETTLEMENT_CLIENT = Symbol("SETTLEMENT_CLIENT");
@@ -25,6 +25,7 @@ export class HttpSettlementClient implements SettlementClientPort {
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly auth: ServiceAuthSource = null,
   ) {}
 
   async getPairSettlement(settlementId: string): Promise<PairSettlementInput> {
@@ -32,9 +33,8 @@ export class HttpSettlementClient implements SettlementClientPort {
     const res = await this.fetchImpl(url, {
       method: "GET",
       headers: {
-        Accept: "application/json",
-        "x-intelligent-roles": "service",
-        "x-intelligent-sub": "ac-06-invoicing",
+        ...(await resolveServiceAuthHeaders("ac-06-invoicing", this.auth)),
+
       },
     });
     if (!res.ok) {

@@ -1,3 +1,4 @@
+import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
 /**
  * Resolve payment-notice recipient e-mail (INT-274 / REQ-017).
  * Prefer AC-03 profile; local registerRecipient remains for unit tests.
@@ -29,6 +30,7 @@ export class HttpRecipient implements RecipientPort {
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly auth: ServiceAuthSource = null,
   ) {}
 
   async resolveEmail(participantId: string): Promise<string | null> {
@@ -36,9 +38,8 @@ export class HttpRecipient implements RecipientPort {
     const res = await this.fetchImpl(url, {
       method: "GET",
       headers: {
-        Accept: "application/json",
-        "x-intelligent-roles": "service",
-        "x-intelligent-sub": "ac-11-notification",
+        ...(await resolveServiceAuthHeaders("ac-11-notification", this.auth)),
+
       },
     });
     if (res.status === 404) {

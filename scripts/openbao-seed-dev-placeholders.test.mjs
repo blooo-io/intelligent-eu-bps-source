@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   DEV_PLACEHOLDER_PATHS,
+  DEV_PLACEHOLDER_FIELDS,
+  MODULE_SERVICE_JWT_PATHS,
   STRIPE_PROTECTED_PATHS,
   checkSeedLayout,
   hasRealStripeCredentials,
@@ -57,6 +59,18 @@ test("CLI argv Set uses has not includes for --print/--apply/--check", async () 
   assert.match(source, /args\.has\("--print"\)/);
   assert.match(source, /args\.has\("--apply"\)/);
   assert.equal(source.includes('args.includes("--print")'), false);
+});
+
+test("INT-287 placeholder seed includes module-service client secret on Nest paths", () => {
+  assert.ok(MODULE_SERVICE_JWT_PATHS.includes("dev/scheduler"));
+  assert.ok(MODULE_SERVICE_JWT_PATHS.includes("dev/settlement"));
+  for (const p of MODULE_SERVICE_JWT_PATHS) {
+    const fields = DEV_PLACEHOLDER_FIELDS[p] ?? [];
+    assert.ok(
+      fields.some((f) => f.startsWith("KEYCLOAK_SERVICE_CLIENT_SECRET=")),
+      p,
+    );
+  }
 });
 
 test("INT-295 placeholder seed detects real Stripe credentials to protect", () => {

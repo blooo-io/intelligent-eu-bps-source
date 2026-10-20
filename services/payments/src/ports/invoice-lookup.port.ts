@@ -1,3 +1,4 @@
+import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
 /**
  * INT-193 — AC-07 looks up invoice amount + producer Connect id from AC-06.
  */
@@ -39,18 +40,16 @@ export class InMemoryInvoiceLookup implements InvoiceLookupPort {
 export class HttpInvoiceLookup implements InvoiceLookupPort {
   constructor(
     private readonly baseUrl: string,
-    private readonly serviceToken: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly auth: ServiceAuthSource = null,
   ) {}
 
   async getInvoice(invoiceId: string): Promise<InvoiceLookupResult> {
     const url = `${this.baseUrl.replace(/\/$/, "")}/internal/v1/invoices/${invoiceId}`;
     const res = await this.fetchImpl(url, {
       headers: {
-        Authorization: `Bearer ${this.serviceToken}`,
-        Accept: "application/json",
-        "x-intelligent-roles": "service",
-        "x-intelligent-sub": "ac-07-payments",
+                ...(await resolveServiceAuthHeaders("ac-07-payments", this.auth)),
+
       },
     });
     if (!res.ok) {

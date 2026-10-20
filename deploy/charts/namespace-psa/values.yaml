@@ -1,0 +1,43 @@
+# INT-312 — PSA labels (GitOps). Enforce baseline cluster-wide for V1;
+# warn/audit restricted on workloads that already match module securityContext.
+namespaces:
+  - name: int-apps
+    enforce: baseline
+    audit: restricted
+    warn: restricted
+  - name: int-data
+    enforce: baseline
+    audit: restricted
+    warn: restricted
+  - name: keycloak
+    enforce: baseline
+    audit: baseline
+    warn: baseline
+  - name: openbao
+    enforce: baseline
+    audit: baseline
+    warn: baseline
+  - name: ingress
+    enforce: baseline
+    audit: baseline
+    warn: baseline
+  - name: temporal
+    enforce: baseline
+    audit: baseline
+    warn: baseline
+  - name: sonarqube
+    enforce: baseline
+    audit: baseline
+    warn: baseline
+  - name: observability
+    enforce: baseline
+    audit: baseline
+    warn: baseline
+  - name: nats
+    enforce: baseline
+    audit: baseline
+    warn: baseline
+  - name: ddhub
+    enforce: baseline
+    audit: baseline
+    warn: baseline

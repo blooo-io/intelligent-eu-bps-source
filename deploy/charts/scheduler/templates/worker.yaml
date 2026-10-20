@@ -117,3 +117,17 @@ spec:
         - port: {{ $.Values.port }}
           protocol: TCP
     {{- end }}
+    {{- if .Values.keycloakEgress }}
+    # INT-287 — client-credentials + JWKS for inter-module service JWT.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: keycloak
+      ports:
+        - port: 80
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+        - port: 8080
+          protocol: TCP
+    {{- end }}

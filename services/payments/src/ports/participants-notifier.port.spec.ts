@@ -18,8 +18,8 @@ describe("ParticipantsNotifierPort (INT-193)", () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: true });
     const http = new HttpParticipantsNotifier(
       "http://participants:8080/",
-      "svc-token",
       fetchImpl as unknown as typeof fetch,
+      "svc-token",
     );
     await http.applyPaymentAccountStatus({
       participantId: "p1",
@@ -42,8 +42,8 @@ describe("ParticipantsNotifierPort (INT-193)", () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 500 });
     const http = new HttpParticipantsNotifier(
       "http://participants:8080",
-      "tok",
       fetchImpl as unknown as typeof fetch,
+      "tok",
     );
     await expect(
       http.applyPaymentAccountStatus({ participantId: "p1", ready: false }),
@@ -54,8 +54,8 @@ describe("ParticipantsNotifierPort (INT-193)", () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 404 });
     const http = new HttpParticipantsNotifier(
       "http://participants:8080",
-      "tok",
       fetchImpl as unknown as typeof fetch,
+      "tok",
     );
     await expect(
       http.applyPaymentAccountStatus({ participantId: "fixture-p", ready: true }),

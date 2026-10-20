@@ -12,5 +12,12 @@ egressModules: []
 ingressFrom:
   - scheduler-worker
   - settlement
-keycloakEgress: false
+keycloakEgress: true
 stripeEgress: false
+
+# INT-287 — Keycloak client-credentials for inter-module JWT (dual-mode).
+env:
+  KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
+  KEYCLOAK_REALM: int
+  KEYCLOAK_SERVICE_CLIENT_ID: module-service
+  KEYCLOAK_SERVICE_CLIENT_SECRET: dev-module-service-replace-me

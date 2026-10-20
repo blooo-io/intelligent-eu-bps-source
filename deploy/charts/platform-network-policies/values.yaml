@@ -1,10 +1,13 @@
-# INT-288 — selectors match live Scaleway labels (platform-* Helm releases).
+# INT-288 / INT-313 — selectors match live Scaleway labels (platform-* Helm releases).
 appsNamespace: int-apps
 keycloakNamespace: keycloak
 openbaoNamespace: openbao
 ingressNamespace: ingress
 externalSecretsNamespace: external-secrets
 ddhubNamespace: ddhub
+temporalNamespace: temporal
+sonarqubeNamespace: sonarqube
+observabilityNamespace: observability
 
 keycloak:
   # HTTP/OIDC from APISIX + Admin IdP from modules (participants keycloakEgress).
@@ -23,3 +26,20 @@ apisix:
   httpsPort: 9443
   adminPort: 9180
   etcdPort: 2379
+
+temporal:
+  frontendPort: 7233
+  webPort: 8080
+  postgresPort: 5432
+
+sonarqube:
+  httpPort: 9000
+  postgresPort: 5432
+
+observability:
+  otlpPorts:
+    - 4317
+    - 4318
+  metricsPort: 8889
+  victoriaLogsPort: 9428
+  jaegerUiPort: 16686

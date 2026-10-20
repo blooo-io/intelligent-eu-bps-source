@@ -1,3 +1,4 @@
+import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
 import type { PartyResolverPort, ResolvedParty } from "./party-resolver.port.js";
 
 /**
@@ -8,6 +9,7 @@ export class HttpPartyResolver implements PartyResolverPort {
   constructor(
     private readonly baseUrl: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly auth: ServiceAuthSource = null,
   ) {}
 
   async resolve(marketActorId: string): Promise<ResolvedParty | null> {
@@ -15,10 +17,10 @@ export class HttpPartyResolver implements PartyResolverPort {
     const res = await this.fetchImpl(url, {
       method: "POST",
       headers: {
-        Accept: "application/json",
+        ...(await resolveServiceAuthHeaders("ac-04-trade-intake", this.auth)),
+
         "Content-Type": "application/json",
-        "x-intelligent-roles": "service",
-        "x-intelligent-sub": "ac-04-trade-intake",
+
       },
       body: JSON.stringify({ marketId: marketActorId }),
     });

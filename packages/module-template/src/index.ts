@@ -38,6 +38,26 @@ export {
   type AuthGuardOptions,
 } from "./auth/auth.guard.js";
 export type { AuthClaims, AuthenticatedRequest } from "./auth/auth.types.js";
+export {
+  principalMiddleware,
+  servicePrincipalMiddleware,
+} from "./auth/principal.middleware.js";
+export {
+  ServiceTokenClient,
+  buildServiceRequestHeaders,
+  type ServiceTokenClientOptions,
+} from "./auth/service-token.client.js";
+export {
+  resolveServiceAuthHeaders,
+  type ServiceAuthSource,
+} from "./auth/service-auth-headers.js";
+export {
+  verifyServiceAccessToken,
+  serviceJwtRequired,
+  resolveServiceJwtOptions,
+  resetServiceJwtJwksCache,
+  type ServiceJwtVerifierOptions,
+} from "./auth/service-jwt.js";
 
 export { HealthController, type HealthResponse } from "./health/health.controller.js";
 

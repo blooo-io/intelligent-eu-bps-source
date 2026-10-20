@@ -27,7 +27,10 @@ describe("invokeOwnerModule (INT-216)", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          "x-principal-type": "service",
+          // INT-287 — ModuleAuthGuard reads x-intelligent-* (not x-principal-*).
+          "x-intelligent-roles": "service",
+          "x-intelligent-sub": "ac-14-scheduler",
+          "x-intelligent-token-use": "service",
         }),
         body: JSON.stringify({ communityId: "c1", type: "periodic" }),
       }),

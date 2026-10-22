@@ -535,6 +535,186 @@ export async function ensureRealmSmtp(baseUrl, token, smtp = DEV_MAILPIT_SMTP) {
   return { host: smtp.host, port: smtp.port, from: smtp.from };
 }
 
+/**
+ * INT-314 — Cilium pod CIDR 100.64.0.0/10 is not "private" for Keycloak
+ * sslRequired=external, so in-cluster HTTP client-credentials get HTTPS required.
+ * V1 / virtual dev uses sslRequired=none (matches realm JSON import).
+ */
+export async function ensureRealmSslRequired(
+  baseUrl,
+  token,
+  realmName,
+  sslRequired = "none",
+) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...proxyHeaders(baseUrl),
+  };
+  const realmUrl = `${baseUrl.replace(/\/$/, "")}/admin/realms/${realmName}`;
+  const get = await fetch(realmUrl, { headers });
+  if (!get.ok) {
+    throw new Error(`get realm ${realmName}: ${get.status}`);
+  }
+  const realm = await get.json();
+  if (realm.sslRequired === sslRequired) {
+    return { realm: realmName, sslRequired, updated: false };
+  }
+  const put = await fetch(realmUrl, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ ...realm, sslRequired }),
+  });
+  if (!put.ok) {
+    throw new Error(`put realm ${realmName} sslRequired: ${put.status}`);
+  }
+  return { realm: realmName, sslRequired, updated: true };
+}
+
+/** INT-287 / INT-314 — inter-module service JWT client (client-credentials + realm role service). */
+export const MODULE_SERVICE_CLIENT = {
+  clientId: "module-service",
+  secret: "dev-module-service-replace-me",
+};
+
+async function resolveModuleServiceClientId(realmBase, headers, clientId, secret) {
+  const search = await fetch(
+    `${realmBase}/clients?clientId=${encodeURIComponent(clientId)}`,
+    { headers },
+  );
+  if (!search.ok) {
+    throw new Error(`list client ${clientId}: ${search.status}`);
+  }
+  const found = await search.json();
+  if (found[0]?.id) {
+    const put = await fetch(`${realmBase}/clients/${found[0].id}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        ...found[0],
+        secret,
+        serviceAccountsEnabled: true,
+        publicClient: false,
+        standardFlowEnabled: false,
+        directAccessGrantsEnabled: false,
+      }),
+    });
+    if (!put.ok) {
+      throw new Error(`update client ${clientId}: ${put.status}`);
+    }
+    return found[0].id;
+  }
+  const create = await fetch(`${realmBase}/clients`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      clientId,
+      name: "Inter-module service JWT (INT-287)",
+      enabled: true,
+      publicClient: false,
+      bearerOnly: false,
+      standardFlowEnabled: false,
+      directAccessGrantsEnabled: false,
+      serviceAccountsEnabled: true,
+      secret,
+      protocol: "openid-connect",
+    }),
+  });
+  if (create.status !== 201) {
+    throw new Error(`create client ${clientId}: ${create.status}`);
+  }
+  const again = await fetch(
+    `${realmBase}/clients?clientId=${encodeURIComponent(clientId)}`,
+    { headers },
+  );
+  return (await again.json())[0]?.id;
+}
+
+async function ensureServiceRealmRole(realmBase, headers) {
+  const rolesRes = await fetch(`${realmBase}/roles`, { headers });
+  if (!rolesRes.ok) {
+    throw new Error(`list realm roles: ${rolesRes.status}`);
+  }
+  const existing = (await rolesRes.json()).find((r) => r.name === "service");
+  if (existing) {
+    return existing;
+  }
+  const createRole = await fetch(`${realmBase}/roles`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      name: "service",
+      description: "Internal service principal",
+    }),
+  });
+  if (createRole.status !== 201) {
+    throw new Error(`create role service: ${createRole.status}`);
+  }
+  const again = await fetch(`${realmBase}/roles/service`, { headers });
+  return again.json();
+}
+
+async function ensureServiceRoleMapped(realmBase, headers, userId, serviceRole) {
+  const mapped = await fetch(
+    `${realmBase}/users/${userId}/role-mappings/realm`,
+    { headers },
+  );
+  const current = mapped.ok ? await mapped.json() : [];
+  if (current.some((r) => r.name === "service")) {
+    return;
+  }
+  const map = await fetch(`${realmBase}/users/${userId}/role-mappings/realm`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify([serviceRole]),
+  });
+  if (!map.ok && map.status !== 409) {
+    throw new Error(`map service role: ${map.status}`);
+  }
+}
+
+export async function ensureModuleServiceClient(
+  baseUrl,
+  token,
+  realmName = "int",
+) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...proxyHeaders(baseUrl),
+  };
+  const realmBase = `${baseUrl.replace(/\/$/, "")}/admin/realms/${realmName}`;
+  const { clientId, secret } = MODULE_SERVICE_CLIENT;
+  const internalId = await resolveModuleServiceClientId(
+    realmBase,
+    headers,
+    clientId,
+    secret,
+  );
+  if (!internalId) {
+    throw new Error(`client ${clientId} missing after create`);
+  }
+
+  const saRes = await fetch(
+    `${realmBase}/clients/${internalId}/service-account-user`,
+    { headers },
+  );
+  if (!saRes.ok) {
+    throw new Error(`service-account-user: ${saRes.status}`);
+  }
+  const saUser = await saRes.json();
+  const serviceRole = await ensureServiceRealmRole(realmBase, headers);
+  await ensureServiceRoleMapped(realmBase, headers, saUser.id, serviceRole);
+
+  return {
+    realm: realmName,
+    clientId,
+    internalId,
+    serviceAccountUserId: saUser.id,
+  };
+}
 export async function ensureUatUsers(options = {}) {
   const baseUrl = options.baseUrl ?? process.env.KEYCLOAK_URL;
   const password =
@@ -543,13 +723,35 @@ export async function ensureUatUsers(options = {}) {
     throw new Error("KEYCLOAK_URL and KEYCLOAK_ADMIN_PASSWORD are required");
   }
   const token = await adminToken(baseUrl, password);
+  const sslInt = await ensureRealmSslRequired(baseUrl, token, "int", "none");
+  let sslDemo = null;
+  try {
+    sslDemo = await ensureRealmSslRequired(baseUrl, token, "demo", "none");
+  } catch {
+    // demo realm may be absent on some environments
+  }
   const smtp = await ensureRealmSmtp(baseUrl, token);
   const adminClient = await ensureParticipantsAdminClient(baseUrl, token);
+  const moduleService = await ensureModuleServiceClient(baseUrl, token, "int");
+  let moduleServiceDemo = null;
+  try {
+    moduleServiceDemo = await ensureModuleServiceClient(baseUrl, token, "demo");
+  } catch {
+    // optional
+  }
   const results = [];
   for (const fixture of [...UAT_USERS, ...S1_USERS]) {
     results.push(await ensureUser(baseUrl, token, fixture));
   }
-  return { users: results, adminClient, smtp };
+  return {
+    users: results,
+    adminClient,
+    smtp,
+    sslInt,
+    sslDemo,
+    moduleService,
+    moduleServiceDemo,
+  };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -26,6 +26,8 @@ env:
   KEYCLOAK_REALM: int
   KEYCLOAK_SERVICE_CLIENT_ID: module-service
   KEYCLOAK_SERVICE_CLIENT_SECRET: dev-module-service-replace-me
+  # INT-314 — require Bearer JWT on /internal/* (forgeable headers alone rejected).
+  SERVICE_JWT_REQUIRED: "true"
   TRADE_INTAKE_INTERNAL_URL: http://trade-intake:8080
   PARTICIPANTS_INTERNAL_URL: http://participants:8080
   REFERENCE_DATA_INTERNAL_URL: http://reference-data:8080

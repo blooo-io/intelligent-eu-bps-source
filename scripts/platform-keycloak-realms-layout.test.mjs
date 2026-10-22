@@ -45,6 +45,8 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(intRealm, /"serviceAccountClientId": "module-service"/);
   assert.match(intRealm, /dev-module-service-replace-me/);
   assert.match(intRealm, /"name": "service"/);
+  // INT-314 — in-cluster HTTP token mint (Cilium 100.64/10 vs sslRequired=external).
+  assert.match(intRealm, /"sslRequired": "none"/);
 
   const demoRealm = await readFile(
     "deploy/charts/keycloak-realms/realms/demo-realm.json",

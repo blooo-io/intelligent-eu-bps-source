@@ -1,0 +1,5 @@
+# INT-315 — target Nest module namespace; Audit first is safer for third-party sidecars.
+# Modules already match restricted securityContext (deploy/charts/module).
+appsNamespace: int-apps
+# Enforce after PSA baseline; modules are non-root / drop ALL / no privilege escalation.
+validationFailureAction: Enforce

@@ -27,6 +27,8 @@ env:
   KEYCLOAK_ADMIN_CLIENT_SECRET: dev-participants-admin-replace-me
   KEYCLOAK_SERVICE_CLIENT_ID: module-service
   KEYCLOAK_SERVICE_CLIENT_SECRET: dev-module-service-replace-me
+  # INT-314 — require Bearer JWT on /internal/* (forgeable headers alone rejected).
+  SERVICE_JWT_REQUIRED: "true"
   NATS_URL: nats://nats.nats.svc.cluster.local:4222
   NATS_SUBJECT_PREFIX: intelligent.dev
   NATS_STREAM: DebeziumStream

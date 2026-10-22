@@ -7,7 +7,7 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
-  "sslRequired": "external",
+  "sslRequired": "none",
   "smtpServer": {
     "host": "mailpit.int-apps.svc.cluster.local",
     "port": "1025",

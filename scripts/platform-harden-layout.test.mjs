@@ -28,7 +28,7 @@ test("INT-287 — module NetworkPolicy has no open namespaceIngress", async () =
   assert.match(settlement, /scheduler-worker/);
 });
 
-test("INT-287 — Nest modules configure Keycloak service JWT client (dual-mode)", async () => {
+test("INT-287 / INT-314 — Nest modules configure Keycloak service JWT (required)", async () => {
   for (const name of [
     "participants",
     "settlement",
@@ -52,6 +52,7 @@ test("INT-287 — Nest modules configure Keycloak service JWT client (dual-mode)
       /KEYCLOAK_BASE_URL:\s*http:\/\/platform-keycloak-keycloakx-http\.keycloak\.svc\.cluster\.local/,
       name,
     );
+    assert.match(values, /SERVICE_JWT_REQUIRED:\s*"true"/, name);
   }
 
   const worker = await readFile(
@@ -106,6 +107,25 @@ test("INT-313 — Temporal, SonarQube, observability NetworkPolicies", async () 
   );
   // Official Sonar chart uses legacy app=sonarqube labels.
   assert.match(sonar, /app:\s*sonarqube/);
+});
+
+test("INT-315 — Kyverno engine + int-apps baseline policies", async () => {
+  const engine = await readFile("deploy/argocd/platform/kyverno.yaml", "utf8");
+  assert.match(engine, /name: platform-kyverno/);
+  assert.match(engine, /chart: kyverno/);
+  assert.match(engine, /targetRevision: 3\.9\.2/);
+  const policiesApp = await readFile(
+    "deploy/argocd/platform/kyverno-policies.yaml",
+    "utf8",
+  );
+  assert.match(policiesApp, /path: deploy\/charts\/kyverno-policies/);
+  const tpl = await readFile(
+    "deploy/charts/kyverno-policies/templates/require-nonroot.yaml",
+    "utf8",
+  );
+  assert.match(tpl, /kind: ClusterPolicy/);
+  assert.match(tpl, /runAsNonRoot: true/);
+  assert.match(tpl, /drop:[\s\S]*ALL/);
 });
 
 test("INT-312 — namespace PSA labels chart + Argo app", async () => {

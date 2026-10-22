@@ -1,0 +1,19 @@
+# Kyverno — official chart 3.9.2 (Apache-2.0). INT-315 / INT-312 follow-up.
+# Baseline admission policies: deploy/charts/kyverno-policies.
+
+fullnameOverride: platform-kyverno
+
+admissionController:
+  replicas: 1
+
+backgroundController:
+  enabled: true
+  replicas: 1
+
+cleanupController:
+  enabled: true
+  replicas: 1
+
+reportsController:
+  enabled: true
+  replicas: 1

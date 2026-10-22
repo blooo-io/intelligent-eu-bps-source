@@ -64,6 +64,19 @@ test("ensure script uses partialImport for fixed Keycloak user ids (INT-239)", a
   assert.match(src, /id !== fixture\.id/);
 });
 
+test("ensure script packs module-service client + sslRequired none (INT-314)", async () => {
+  const source = await readFile(
+    new URL("./keycloak-ensure-uat-users.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /MODULE_SERVICE_CLIENT/);
+  assert.match(source, /ensureModuleServiceClient/);
+  assert.match(source, /ensureRealmSslRequired/);
+  assert.match(source, /dev-module-service-replace-me/);
+  assert.match(source, /sslRequired/);
+  assert.match(source, /MODULE_SERVICE_CLIENT/);
+});
+
 test("ensure script packs participants-admin client secret (INT-218)", async () => {
   const realm = JSON.parse(
     await readFile("deploy/charts/keycloak-realms/realms/int-realm.json", "utf8"),

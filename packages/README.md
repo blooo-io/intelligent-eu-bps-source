@@ -7,3 +7,5 @@ Shared code for the services and the web app:
 - `testing/`: test helpers, Stripe test fixtures, and UAT scenario utilities.
 
 <!-- INT-321: touch packages/ to force full GHCR republish after intelligent-eu-bps-source rename (selective supply-chain skipped images). -->
+
+<!-- INT-321: retry seed after Trivy DB mirror flake on full republish. -->

@@ -333,7 +333,8 @@ function run(command, args, options = {}) {
 
 /**
  * INT-319 — GHCR sometimes returns bare `denied` while creating nested packages
- * in a long push loop. Retry a few times before failing the job.
+ * in a long push loop. INT-321 — Trivy image scans also flake when the vuln DB
+ * mirror returns transient 404s. Retry a few times before failing the job.
  */
 function runWithRetries(command, args, options = {}, attempts = 4) {
   let lastError;
@@ -455,23 +456,29 @@ async function buildScanOneImage(root, dockerfile, repository, sha, push) {
   if (floatingTag) {
     run("docker", ["tag", tag, floatingTag], { cwd: root });
   }
-  run("docker", [
-    "run",
-    "--rm",
-    "-v",
-    "/var/run/docker.sock:/var/run/docker.sock",
-    "-v",
-    `${root}:/work`,
-    "-w",
-    "/work",
-    "ghcr.io/aquasecurity/trivy:0.75.0",
-    "image",
-    "--config",
-    "/work/trivy-image.yaml",
-    "--exit-code",
-    "1",
-    tag,
-  ], { cwd: root });
+  // INT-321 — retry transient Trivy DB mirror failures (exit 1 from FATAL).
+  // Real vulnerability findings also exit 1 and will fail every attempt.
+  runWithRetries(
+    "docker",
+    [
+      "run",
+      "--rm",
+      "-v",
+      "/var/run/docker.sock:/var/run/docker.sock",
+      "-v",
+      `${root}:/work`,
+      "-w",
+      "/work",
+      "ghcr.io/aquasecurity/trivy:0.75.0",
+      "image",
+      "--config",
+      "/work/trivy-image.yaml",
+      "--exit-code",
+      "1",
+      tag,
+    ],
+    { cwd: root },
+  );
   if (push) {
     // INT-319 — retry GHCR `denied` while creating nested packages.
     runWithRetries("docker", ["push", tag], { cwd: root });

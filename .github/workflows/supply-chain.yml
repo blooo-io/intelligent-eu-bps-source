@@ -8,6 +8,8 @@
 # INT-183: only rebuild images whose module trees (or shared inputs) changed
 # between github.event.before and github.sha. Docs/deploy/contracts-only pushes
 # skip the image build; lockfile / packages / config still rebuild all.
+# INT-318: when before is 000…0, module-images.mjs falls back to HEAD^ so a
+# scripts-only tip does not rebuild and push every module image.
 name: supply-chain
 
 on:

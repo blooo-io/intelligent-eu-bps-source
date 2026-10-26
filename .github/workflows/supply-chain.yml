@@ -10,11 +10,20 @@
 # skip the image build; lockfile / packages / config still rebuild all.
 # INT-318: when before is 000…0, module-images.mjs falls back to HEAD^ so a
 # scripts-only tip does not rebuild and push every module image.
+# INT-321: workflow_dispatch + force_all_images republishes every module to the
+# current GHCR path (needed after a chart image.repository rename).
 name: supply-chain
 
 on:
   push:
     branches: [develop]
+  workflow_dispatch:
+    inputs:
+      force_all_images:
+        description: "Rebuild and push every module image (ignore path diff)"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -22,7 +31,8 @@ permissions:
 
 jobs:
   supply-chain:
-    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    # head_commit is null on workflow_dispatch — treat missing message as allow.
+    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -41,7 +51,9 @@ jobs:
         env:
           IMAGE_PUSH: "true"
           IMAGE_FLOATING_TAG: develop
-          IMAGE_CHANGED_ONLY: "true"
+          # Push events stay selective (INT-183). Manual dispatch with
+          # force_all_images=true clears IMAGE_CHANGED_ONLY for a full republish.
+          IMAGE_CHANGED_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.force_all_images && 'false' || 'true' }}
           IMAGE_DIFF_BASE: ${{ github.event.before }}
           IMAGE_DIFF_HEAD: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

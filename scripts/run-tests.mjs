@@ -86,6 +86,7 @@ await run(process.execPath, ["--test", path.join(root, "scripts/argocd-repo-cred
 await run(process.execPath, ["--test", path.join(root, "scripts/openbao-dev-bootstrap.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/openbao-seed-dev-placeholders.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/module-images.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/supply-chain-workflow.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/e2e-dev-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/lib/service-jwt.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/stripe-fresh-billing-run.test.mjs")]);

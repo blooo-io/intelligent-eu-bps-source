@@ -13,6 +13,7 @@ import {
   isSkipOnlyPath,
   listChangedPaths,
   resolveDockerfilesToBuild,
+  resolveImageDiffBase,
   selectDockerfilesForChangedPaths,
 } from "./module-images.mjs";
 
@@ -238,6 +239,33 @@ test("listChangedPaths returns null for zero/missing base", () => {
   assert.equal(missing, null);
 });
 
+test("resolveImageDiffBase keeps a real before and falls back on zero (INT-318)", () => {
+  assert.equal(
+    resolveImageDiffBase("/repo", "abc123", "def456", () => {
+      throw new Error("must not call git");
+    }),
+    "abc123",
+  );
+  assert.equal(
+    resolveImageDiffBase(
+      "/repo",
+      "0000000000000000000000000000000000000000",
+      "def456",
+      (_root, args) => {
+        assert.deepEqual(args, ["rev-parse", "--verify", "def456^"]);
+        return "parentsha\n";
+      },
+    ),
+    "parentsha",
+  );
+  assert.equal(
+    resolveImageDiffBase("/repo", "", "def456", () => {
+      throw new Error("no parent");
+    }),
+    "",
+  );
+});
+
 test("listChangedPaths parses git diff output", () => {
   const paths = listChangedPaths("/repo", "aaa", "bbb", (_root, args) => {
     if (args[0] === "cat-file") return "";
@@ -275,6 +303,24 @@ test("resolveDockerfilesToBuild honours IMAGE_CHANGED_ONLY", () => {
     ALL,
     { IMAGE_CHANGED_ONLY: "true", IMAGE_DIFF_BASE: "aaa", IMAGE_DIFF_HEAD: "bbb" },
     () => ["docs/readme.md"],
+  );
+  assert.deepEqual(skip.dockerfiles, []);
+  assert.match(skip.reason, /skip/);
+});
+
+test("resolveDockerfilesToBuild uses parent when before is zero (INT-318)", () => {
+  const zeros = "0000000000000000000000000000000000000000";
+  const skip = resolveDockerfilesToBuild(
+    "/repo",
+    ALL,
+    { IMAGE_CHANGED_ONLY: "true", IMAGE_DIFF_BASE: zeros, IMAGE_DIFF_HEAD: "tipsha" },
+    (_root, before, after) => {
+      assert.equal(before, "parentsha");
+      assert.equal(after, "tipsha");
+      // scripts-only tip (same class as INT-317) must not rebuild images
+      return [".github/workflows/e2e-dev.yml", "scripts/stripe-fresh-billing-run.mjs"];
+    },
+    () => "parentsha",
   );
   assert.deepEqual(skip.dockerfiles, []);
   assert.match(skip.reason, /skip/);

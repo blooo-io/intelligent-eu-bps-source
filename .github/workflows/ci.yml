@@ -25,6 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # INT-318 — need HEAD^ when github.event.before is all zeros.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -38,6 +41,17 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
+          # INT-318 — push events can set before=000…0 (mirror / rewritten tip).
+          # Fall back to the first parent so oasdiff still has a real base.
+          if [ -z "$BASE_SHA" ] || [[ "$BASE_SHA" =~ ^0+$ ]]; then
+            if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+              BASE_SHA="$(git rev-parse HEAD^)"
+              echo "BASE_SHA was empty/zero; using first parent $BASE_SHA"
+            else
+              echo "No usable base SHA; skipping oasdiff breaking check"
+              exit 0
+            fi
+          fi
           git fetch origin "$BASE_SHA" --depth=1
           if git cat-file -e "$BASE_SHA:contracts/openapi/public.v1.yaml" 2>/dev/null; then
             mkdir -p /tmp/base

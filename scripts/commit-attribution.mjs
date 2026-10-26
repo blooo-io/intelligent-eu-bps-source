@@ -40,8 +40,16 @@ function git(args) {
 }
 
 function commitsAfter(base) {
-  if (!base || /^0+$/.test(base)) return [];
-  const raw = git(["log", "--reverse", "--format=%H%x1e%B%x1e", `${base}..HEAD`]);
+  // INT-318 — same zero-before case as oasdiff / image selection: use HEAD^.
+  let rangeBase = base;
+  if (!rangeBase || /^0+$/.test(rangeBase)) {
+    try {
+      rangeBase = git(["rev-parse", "--verify", "HEAD^"]).trim();
+    } catch {
+      return [];
+    }
+  }
+  const raw = git(["log", "--reverse", "--format=%H%x1e%B%x1e", `${rangeBase}..HEAD`]);
   const parts = raw.split("\x1e");
   const commits = [];
   for (let index = 0; index + 1 < parts.length; index += 2) {

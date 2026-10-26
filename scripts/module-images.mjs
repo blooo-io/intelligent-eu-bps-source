@@ -246,6 +246,29 @@ export function dockerfileForModulePath(filePath) {
 }
 
 /**
+ * INT-318 — when `github.event.before` is empty or all zeros (force-push,
+ * mirror sync, rewritten tip), use the first parent of `after` so selective
+ * image builds still see a real diff instead of rebuilding every module.
+ *
+ * @param {string} root
+ * @param {string} before
+ * @param {string} after
+ * @param {(root: string, args: string[]) => string} [runGit]
+ * @returns {string}
+ */
+export function resolveImageDiffBase(root, before, after, runGit = defaultRunGit) {
+  const trimmed = (before ?? "").trim();
+  if (trimmed && !/^0+$/.test(trimmed)) return trimmed;
+  const head = (after ?? "").trim();
+  if (!head || /^0+$/.test(head)) return trimmed;
+  try {
+    return runGit(root, ["rev-parse", "--verify", `${head}^`]).trim();
+  } catch {
+    return trimmed;
+  }
+}
+
+/**
  * List paths changed between two commits. Returns null when the base is
  * missing / unreachable (caller should rebuild all).
  * @param {string} root
@@ -315,19 +338,23 @@ function run(command, args, options = {}) {
  * @param {string[]} allDockerfiles
  * @param {NodeJS.ProcessEnv} [env]
  * @param {(root: string, before: string, after: string) => string[] | null} [diffFn]
+ * @param {(root: string, before: string, after: string) => string} [resolveBaseFn]
  */
 export function resolveDockerfilesToBuild(
   root,
   allDockerfiles,
   env = process.env,
   diffFn = listChangedPaths,
+  resolveBaseFn = resolveImageDiffBase,
 ) {
   if (env.IMAGE_CHANGED_ONLY !== "true") {
     return { dockerfiles: allDockerfiles, reason: "full (IMAGE_CHANGED_ONLY unset)" };
   }
 
-  const before = env.IMAGE_DIFF_BASE?.trim() || env.GITHUB_EVENT_BEFORE?.trim() || "";
+  const rawBefore = env.IMAGE_DIFF_BASE?.trim() || env.GITHUB_EVENT_BEFORE?.trim() || "";
   const after = env.IMAGE_DIFF_HEAD?.trim() || env.GITHUB_SHA?.trim() || "";
+  // INT-318: zero `github.event.before` → first parent, not a full rebuild.
+  const before = resolveBaseFn(root, rawBefore, after);
   const changed = diffFn(root, before, after);
   if (changed === null) {
     return {

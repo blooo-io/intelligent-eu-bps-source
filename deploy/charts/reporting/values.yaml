@@ -5,7 +5,7 @@ dataNamespace: int-data
 # INT-112 — Dockerfile present; roll out on :develop after supply-chain.
 replicaCount: 1
 image:
-  repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-reporting
+  repository: ghcr.io/blooo-io/intelligent-eu-bps-source/services-reporting
   tag: "0.0.0"
 port: 8080
 # INT-287 — peer allow-list only (no namespace-wide ingress).

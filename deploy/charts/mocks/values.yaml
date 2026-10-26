@@ -4,7 +4,7 @@ environment: dev
 dataNamespace: int-data
 replicaCount: 0
 image:
-  repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/mocks
+  repository: ghcr.io/blooo-io/intelligent-eu-bps-source/mocks
   tag: "0.0.0"
 port: 8080
 # INT-287 — peer allow-list only (no namespace-wide ingress).

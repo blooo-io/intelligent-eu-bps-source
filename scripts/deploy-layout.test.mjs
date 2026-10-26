@@ -60,6 +60,8 @@ test("dev applications track develop and land in int-apps", async () => {
     assert.match(text, /targetRevision: develop/);
     assert.match(text, /namespace: int-apps/);
     assert.match(text, /automated:/);
+    // INT-319 — Applications must clone the renamed GitHub repo, not the old slug.
+    assert.match(text, /repoURL:\s*https:\/\/github\.com\/blooo-io\/intelligent-eu-bps-source\.git/);
   }
 });
 

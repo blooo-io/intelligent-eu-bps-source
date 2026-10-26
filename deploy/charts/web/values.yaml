@@ -5,7 +5,7 @@ dataNamespace: int-data
 # INT-137 — Dockerfile present; roll out on :develop after supply-chain.
 replicaCount: 1
 image:
-  repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/apps-web
+  repository: ghcr.io/blooo-io/intelligent-eu-bps-source/apps-web
   tag: "0.0.0"
 port: 8080
 egressModules: []

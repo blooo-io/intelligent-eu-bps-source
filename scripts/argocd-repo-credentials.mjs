@@ -18,8 +18,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { operatorEnv } from "./lib/operator-env.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const REPO_URL = "https://github.com/blooo-io/intelligent-eu-billing-and-payment.git";
-const SECRET_NAME = "repo-intelligent-eu-billing-and-payment";
+// INT-319 — live GitHub repo after rename (Applications + this Secret must match).
+const REPO_URL = "https://github.com/blooo-io/intelligent-eu-bps-source.git";
+const SECRET_NAME = "repo-intelligent-eu-bps-source";
+/** Pre-rename Secret; deleted on --apply so Argo does not keep cloning the old URL. */
+const LEGACY_SECRET_NAME = "repo-intelligent-eu-billing-and-payment";
 const SECRET_NAMESPACE = "argocd";
 
 export async function checkRepoCredentialLayout(repoRoot = root) {
@@ -44,7 +47,7 @@ export function printRepoCredentialSteps() {
 
 export ARGOCD_GITHUB_TOKEN=…   # from password manager / env secret / GHA env secret
 
-kubectl -n ${SECRET_NAMESPACE} delete secret ${SECRET_NAME} --ignore-not-found
+kubectl -n ${SECRET_NAMESPACE} delete secret ${SECRET_NAME} ${LEGACY_SECRET_NAME} --ignore-not-found
 kubectl -n ${SECRET_NAMESPACE} create secret generic ${SECRET_NAME} \\
   --from-literal=type=git \\
   --from-literal=url=${REPO_URL} \\
@@ -53,7 +56,8 @@ kubectl -n ${SECRET_NAMESPACE} create secret generic ${SECRET_NAME} \\
 kubectl -n ${SECRET_NAMESPACE} label secret ${SECRET_NAME} \\
   argocd.argoproj.io/secret-type=repository --overwrite
 
-# Hard-refresh apps so they pick up the credential:
+# Re-apply Application manifests (new repoURL) then hard-refresh:
+# kubectl apply -f deploy/argocd/dev/ -f deploy/argocd/platform/ -f deploy/argocd/demo/
 # kubectl -n argocd annotate application --all argocd.argoproj.io/refresh=hard --overwrite
 `;
 }
@@ -71,11 +75,14 @@ export function applyRepoCredential({
 
   const env = operatorEnv({ KUBECONFIG: kubeconfig });
   // Delete then create — avoids echoing secret on patch.
-  spawnSync(
-    "kubectl",
-    ["-n", SECRET_NAMESPACE, "delete", "secret", SECRET_NAME, "--ignore-not-found"],
-    { env, stdio: "inherit" },
-  );
+  // INT-319: also drop the pre-rename Secret so Argo stops using the old URL.
+  for (const name of [SECRET_NAME, LEGACY_SECRET_NAME]) {
+    spawnSync(
+      "kubectl",
+      ["-n", SECRET_NAMESPACE, "delete", "secret", name, "--ignore-not-found"],
+      { env, stdio: "inherit" },
+    );
+  }
   const create = spawnSync(
     "kubectl",
     [

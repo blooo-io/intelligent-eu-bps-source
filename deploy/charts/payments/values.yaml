@@ -4,7 +4,7 @@ environment: dev
 dataNamespace: int-data
 replicaCount: 1
 image:
-  repository: ghcr.io/blooo-io/intelligent-eu-billing-and-payment/services-payments
+  repository: ghcr.io/blooo-io/intelligent-eu-bps-source/services-payments
   tag: "0.0.0"
 port: 8080
 # INT-287 — peer allow-list only (no namespace-wide ingress).

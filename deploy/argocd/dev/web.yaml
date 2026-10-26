@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+    repoURL: https://github.com/blooo-io/intelligent-eu-bps-source.git
     targetRevision: develop
     path: deploy/charts/web
     helm:

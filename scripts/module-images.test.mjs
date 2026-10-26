@@ -221,12 +221,12 @@ test("dockerfileForModulePath and path classifiers", () => {
   assert.equal(dockerfileForModulePath("services/foo/bar.ts"), "services/foo/Dockerfile");
   assert.equal(dockerfileForModulePath("docs/readme.md"), null);
   assert.equal(isGlobalImageRebuildPath("pnpm-lock.yaml"), false);
-  assert.equal(isGlobalImageRebuildPath("scripts/module-images.mjs"), true);
+  assert.equal(isGlobalImageRebuildPath("scripts/module-images.mjs"), false);
   assert.equal(isGlobalImageRebuildPath(".trivyignore"), true);
   assert.equal(isGlobalImageRebuildPath("apps/web/src/x.ts"), false);
   assert.equal(isSkipOnlyPath("deploy/charts/web/values.yaml"), true);
   assert.equal(isSkipOnlyPath("scripts/run-tests.mjs"), true);
-  assert.equal(isSkipOnlyPath("scripts/module-images.mjs"), false);
+  assert.equal(isSkipOnlyPath("scripts/module-images.mjs"), true);
   assert.equal(isSkipOnlyPath("apps/web/src/x.ts"), false);
 });
 

@@ -87,6 +87,8 @@ await run(process.execPath, ["--test", path.join(root, "scripts/openbao-dev-boot
 await run(process.execPath, ["--test", path.join(root, "scripts/openbao-seed-dev-placeholders.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/module-images.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/e2e-dev-layout.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/lib/service-jwt.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/stripe-fresh-billing-run.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/sonar-layout.test.mjs")]);
 
 await run(process.execPath, ["--test", path.join(root, "scripts/pin-dev-image-tag.test.mjs")]);

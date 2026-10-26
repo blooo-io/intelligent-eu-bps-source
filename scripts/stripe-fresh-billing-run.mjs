@@ -7,6 +7,8 @@
  *
  * Prerequisites:
  * - kubectl port-forwards to payments, settlement, invoicing
+ * - INT-317 — KEYCLOAK_BASE_URL (+ optional realm/client) so `/internal` gets a
+ *   module-service Bearer when SERVICE_JWT_REQUIRED=true (INT-314)
  * - Stripe test secrets already on payments/invoicing pods (OpenBao)
  * - INT-230/236 S1 participants seeded in AC-03; INT-232 trade-intake bootstrapped
  * - INT-223 AC-06 JetStream consumer live
@@ -15,12 +17,14 @@
  *   PAYMENTS_URL=http://127.0.0.1:18087 \
  *   SETTLEMENT_URL=http://127.0.0.1:18085 \
  *   INVOICING_URL=http://127.0.0.1:18086 \
+ *   KEYCLOAK_BASE_URL=http://127.0.0.1:18081 \
  *   node scripts/stripe-fresh-billing-run.mjs
  *
  * Does **not** invent acct_test_* — every producer Connect id comes from Stripe.
  * Does **not** POST the operator invoice bridge — NATS is the primary path (INT-238).
  */
 import assert from "node:assert/strict";
+import { buildInternalServiceHeaders } from "./lib/service-jwt.mjs";
 
 const PAYMENTS_URL = (
   process.env.PAYMENTS_URL ?? "http://127.0.0.1:18087"
@@ -42,7 +46,8 @@ const PRODUCERS = [
 const POLL_MS = Number(process.env.NATS_INVOICE_POLL_MS ?? 2000);
 const POLL_ATTEMPTS = Number(process.env.NATS_INVOICE_POLL_ATTEMPTS ?? 30);
 
-const headers = {
+/** Set in main() after minting the service JWT (INT-317). */
+let headers = {
   "content-type": "application/json",
   "x-intelligent-roles": "service,operator",
   "x-intelligent-sub": "int-238-nats-smoke",
@@ -115,7 +120,20 @@ async function waitForInvoice(settlementId) {
   return null;
 }
 
-async function main() {
+/** INT-317 — mint module-service Bearer for /internal under SERVICE_JWT_REQUIRED. */
+async function initServiceHeaders() {
+  headers = await buildInternalServiceHeaders({
+    sub: "int-238-nats-smoke",
+    roles: "service,operator",
+  });
+  if (!headers.Authorization) {
+    console.warn(
+      "stripe-fresh-billing-run: KEYCLOAK_BASE_URL unset; /internal calls may 401 under SERVICE_JWT_REQUIRED",
+    );
+  }
+}
+
+async function provisionProducers() {
   const provisioned = [];
   for (const participantId of PRODUCERS) {
     const res = await fetch(
@@ -149,8 +167,10 @@ async function main() {
       kycStatus: body.kycStatus,
     });
   }
-  console.log(JSON.stringify({ step: "provision", provisioned }, null, 2));
+  return provisioned;
+}
 
+async function waitAllChargesEnabled() {
   for (const participantId of PRODUCERS) {
     const account = await waitForChargesEnabled(participantId);
     console.log(
@@ -162,6 +182,45 @@ async function main() {
       }),
     );
   }
+}
+
+/** Zero-amount pairs may stay 404 (BR-05 carry-forward); non-zero must appear. */
+async function classifyMissingInvoice(settlementId) {
+  const pairRes = await fetch(
+    `${SETTLEMENT_URL}/internal/v1/settlements/${settlementId}`,
+    { headers },
+  );
+  const pair = pairRes.ok ? await pairRes.json() : null;
+  const energy = Number(pair?.energyAmount ?? pair?.netAmount ?? Number.NaN);
+  if (Number.isFinite(energy) && energy === 0) {
+    return { settlementId, reason: "zero_amount_carry_forward" };
+  }
+  throw new Error(
+    `NATS path did not produce invoice for settlement ${settlementId}`,
+  );
+}
+
+async function collectNatsInvoices(settlementIds) {
+  const invoices = [];
+  const pending = [];
+  for (const settlementId of settlementIds) {
+    const invoice = await waitForInvoice(settlementId);
+    if (invoice) {
+      invoices.push(invoice);
+    } else {
+      pending.push(await classifyMissingInvoice(settlementId));
+    }
+  }
+  return { invoices, pending };
+}
+
+async function main() {
+  await initServiceHeaders();
+
+  const provisioned = await provisionProducers();
+  console.log(JSON.stringify({ step: "provision", provisioned }, null, 2));
+
+  await waitAllChargesEnabled();
 
   const reset = await fetch(
     `${SETTLEMENT_URL}/internal/v1/fixture-billed:reset`,
@@ -207,29 +266,7 @@ async function main() {
     ),
   );
 
-  const invoices = [];
-  const pending = [];
-  for (const settlementId of run.settlementIds) {
-    const invoice = await waitForInvoice(settlementId);
-    if (invoice) {
-      invoices.push(invoice);
-    } else {
-      // May be zero-amount carry-forward (BR-05) — confirm via AC-05.
-      const pairRes = await fetch(
-        `${SETTLEMENT_URL}/internal/v1/settlements/${settlementId}`,
-        { headers },
-      );
-      const pair = pairRes.ok ? await pairRes.json() : null;
-      const energy = Number(pair?.energyAmount ?? pair?.netAmount ?? Number.NaN);
-      if (Number.isFinite(energy) && energy === 0) {
-        pending.push({ settlementId, reason: "zero_amount_carry_forward" });
-      } else {
-        throw new Error(
-          `NATS path did not produce invoice for settlement ${settlementId}`,
-        );
-      }
-    }
-  }
+  const { invoices, pending } = await collectNatsInvoices(run.settlementIds);
 
   assert.ok(
     invoices.length > 0,

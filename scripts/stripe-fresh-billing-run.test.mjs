@@ -30,4 +30,11 @@ describe("stripe-fresh-billing-run.mjs (INT-228 / INT-238)", () => {
     assert.match(src, /charges_enabled never became true/);
     assert.match(src, /payment-accounts\/\$\{participantId\}/);
   });
+
+  it("mints service JWT for /internal when Keycloak is configured (INT-317)", () => {
+    assert.match(src, /buildInternalServiceHeaders/);
+    assert.match(src, /initServiceHeaders/);
+    assert.match(src, /KEYCLOAK_BASE_URL/);
+    assert.match(src, /SERVICE_JWT_REQUIRED/);
+  });
 });

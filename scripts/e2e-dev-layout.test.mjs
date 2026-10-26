@@ -32,6 +32,14 @@ test("e2e-dev workflow targets deployed app.dev after supply-chain", async () =>
   assert.match(text, /STRIPE_SECRET_KEY/);
   assert.match(text, /secret payments/);
   assert.match(text, /stripe-fresh-billing-run\.mjs/);
+  // INT-317 — Keycloak module-service JWT for /internal seed under SERVICE_JWT_REQUIRED.
+  assert.match(text, /port-forward svc\/platform-keycloak-keycloakx-http 18081:80/);
+  assert.match(text, /KEYCLOAK_BASE_URL=http:\/\/127\.0\.0\.1:18081/);
+  assert.match(
+    text,
+    /KEYCLOAK_TOKEN_HOST=platform-keycloak-keycloakx-http\.keycloak\.svc\.cluster\.local/,
+  );
+  assert.match(text, /KEYCLOAK_SERVICE_CLIENT_ID=module-service/);
   assert.equal(text.includes("webServer"), false);
   assert.equal(text.includes("localhost:4173"), false);
 });

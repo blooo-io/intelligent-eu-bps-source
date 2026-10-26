@@ -155,7 +155,7 @@ jobs:
           echo "STRIPE_SECRET_KEY=${key}" >> "${GITHUB_ENV}"
 
       - name: Seed fresh Open invoices for money-path (INT-251 / INT-238)
-        # Port-forward AC-05/06/07 and run the NATS billing seed so Pay has an Open invoice.
+        # Port-forward AC-05/06/07 + Keycloak; mint module-service JWT for /internal (INT-317 / INT-314).
         run: |
           set -euo pipefail
           kubectl -n int-apps port-forward deploy/payments 18087:8080 >/tmp/pf-payments.log 2>&1 &
@@ -164,8 +164,10 @@ jobs:
           echo $! > /tmp/pf-settlement.pid
           kubectl -n int-apps port-forward deploy/invoicing 18086:8080 >/tmp/pf-invoicing.log 2>&1 &
           echo $! > /tmp/pf-invoicing.pid
+          kubectl -n keycloak port-forward svc/platform-keycloak-keycloakx-http 18081:80 >/tmp/pf-keycloak.log 2>&1 &
+          echo $! > /tmp/pf-keycloak.pid
           cleanup() {
-            for f in /tmp/pf-payments.pid /tmp/pf-settlement.pid /tmp/pf-invoicing.pid; do
+            for f in /tmp/pf-payments.pid /tmp/pf-settlement.pid /tmp/pf-invoicing.pid /tmp/pf-keycloak.pid; do
               if [ -f "$f" ]; then kill "$(cat "$f")" 2>/dev/null || true; fi
             done
           }
@@ -173,7 +175,8 @@ jobs:
           for i in $(seq 1 30); do
             if curl -sf "http://127.0.0.1:18087/health" >/dev/null \
               && curl -sf "http://127.0.0.1:18085/health" >/dev/null \
-              && curl -sf "http://127.0.0.1:18086/health" >/dev/null; then
+              && curl -sf "http://127.0.0.1:18086/health" >/dev/null \
+              && curl -sf "http://127.0.0.1:18081/realms/int" >/dev/null; then
               break
             fi
             sleep 1
@@ -181,6 +184,11 @@ jobs:
           PAYMENTS_URL=http://127.0.0.1:18087 \
           SETTLEMENT_URL=http://127.0.0.1:18085 \
           INVOICING_URL=http://127.0.0.1:18086 \
+          KEYCLOAK_BASE_URL=http://127.0.0.1:18081 \
+          KEYCLOAK_TOKEN_HOST=platform-keycloak-keycloakx-http.keycloak.svc.cluster.local \
+          KEYCLOAK_REALM=int \
+          KEYCLOAK_SERVICE_CLIENT_ID=module-service \
+          KEYCLOAK_SERVICE_CLIENT_SECRET=dev-module-service-replace-me \
             node scripts/stripe-fresh-billing-run.mjs
 
       - name: Run AC-01 E2E against deployed stack (screens + buttons, INT-211 / INT-251)

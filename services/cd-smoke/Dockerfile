@@ -3,6 +3,7 @@
 # Product modules copy this layout: multi-stage build, non-root USER, /health on 8080.
 # Runtime is distroless so the image does not ship a Debian userland (Trivy OS noise).
 # See deploy/docker/README.md.
+# INT-319 — bump to prove GHCR push of services-cd-smoke on develop after rename.
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app

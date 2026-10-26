@@ -16,7 +16,8 @@ const IMAGE_ROOTS = ["services", "apps", "packages", "mocks"];
 const GLOBAL_REBUILD_PREFIXES = [
   "packages/",
   "config/",
-  "scripts/module-images.mjs",
+  // INT-319 — `scripts/module-images.mjs` is not COPY'd into images; changing
+  // selection/push logic must not force a 15-image rebuild (that hit GHCR denied).
   "pnpm-workspace.yaml",
   "package.json",
   "trivy.yaml",
@@ -27,7 +28,7 @@ const GLOBAL_REBUILD_PREFIXES = [
 
 /**
  * Paths that never affect module image layers on their own.
- * INT-185: `scripts/**` except `scripts/module-images.mjs` (handled as global).
+ * INT-185 / INT-319: all of `scripts/**` is skip-only (build script not in layers).
  */
 const SKIP_ONLY_PREFIXES = [
   "deploy/",
@@ -227,8 +228,6 @@ export function isGlobalImageRebuildPath(filePath) {
 
 export function isSkipOnlyPath(filePath) {
   const normalized = filePath.split(path.sep).join("/");
-  // scripts/module-images.mjs is global, not skip.
-  if (normalized === "scripts/module-images.mjs") return false;
   return SKIP_ONLY_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 }
 /**
@@ -330,6 +329,29 @@ function exists(filePath) {
 
 function run(command, args, options = {}) {
   execFileSync(command, args, { stdio: "inherit", cwd: options.cwd, ...options });
+}
+
+/**
+ * INT-319 — GHCR sometimes returns bare `denied` while creating nested packages
+ * in a long push loop. Retry a few times before failing the job.
+ */
+function runWithRetries(command, args, options = {}, attempts = 4) {
+  let lastError;
+  for (let tryIndex = 1; tryIndex <= attempts; tryIndex += 1) {
+    try {
+      run(command, args, options);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (tryIndex === attempts) break;
+      const delaySec = tryIndex * 15;
+      console.warn(
+        `Command failed (${command} ${args.join(" ")}); retry ${tryIndex}/${attempts - 1} in ${delaySec}s`,
+      );
+      execFileSync("sleep", [String(delaySec)], { stdio: "ignore" });
+    }
+  }
+  throw lastError;
 }
 
 /**
@@ -451,9 +473,10 @@ async function buildScanOneImage(root, dockerfile, repository, sha, push) {
     tag,
   ], { cwd: root });
   if (push) {
-    run("docker", ["push", tag], { cwd: root });
+    // INT-319 — retry GHCR `denied` while creating nested packages.
+    runWithRetries("docker", ["push", tag], { cwd: root });
     if (floatingTag) {
-      run("docker", ["push", floatingTag], { cwd: root });
+      runWithRetries("docker", ["push", floatingTag], { cwd: root });
     }
   }
   if (!push) {
@@ -491,8 +514,11 @@ async function buildImages(root) {
     console.log(`  - ${imageSuffix(dockerfile)} (${dockerfile})`);
   }
 
+  // IMAGE_GHCR_REPOSITORY overrides when charts and Actions disagree (repo rename).
   const repository = (
-    process.env.GITHUB_REPOSITORY || "blooo-io/intelligent-eu-billing-and-payment"
+    process.env.IMAGE_GHCR_REPOSITORY ||
+    process.env.GITHUB_REPOSITORY ||
+    "blooo-io/intelligent-eu-bps-source"
   ).toLowerCase();
   const sha = process.env.GITHUB_SHA || "local";
   const push = process.env.IMAGE_PUSH === "true";

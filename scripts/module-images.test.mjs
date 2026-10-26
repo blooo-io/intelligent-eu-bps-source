@@ -66,6 +66,16 @@ test("image Trivy config scans vulnerabilities only", async () => {
   assert.equal(text.includes("- license"), false);
 });
 
+// INT-321: Trivy DB mirror 404s must not fail a full republish on first flake.
+test("module image Trivy scan uses runWithRetries", async () => {
+  const text = await readFile(new URL("./module-images.mjs", import.meta.url), "utf8");
+  assert.match(text, /INT-321/);
+  assert.match(
+    text,
+    /runWithRetries\(\s*"docker",\s*\[[^\]]*trivy:0\.75\.0[^\]]*\]/s,
+  );
+});
+
 // INT-156: the factory CD smoke Dockerfile must be discoverable and non-root.
 test("cd-smoke Dockerfile is discovered and runs as non-root", async () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

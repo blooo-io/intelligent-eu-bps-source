@@ -12,8 +12,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 test("argocd repo credential layout is documented (INT-155)", async () => {
   const summary = await checkRepoCredentialLayout(root);
-  assert.equal(summary.secretName, "repo-intelligent-eu-billing-and-payment");
-  assert.match(summary.repoUrl, /intelligent-eu-billing-and-payment\.git$/);
+  assert.equal(summary.secretName, "repo-intelligent-eu-bps-source");
+  assert.match(summary.repoUrl, /intelligent-eu-bps-source\.git$/);
   assert.equal(summary.namespace, "argocd");
 });
 
@@ -21,7 +21,8 @@ test("printed steps never embed a token value", () => {
   const text = printRepoCredentialSteps();
   assert.match(text, /ARGOCD_GITHUB_TOKEN/);
   assert.match(text, /argocd\.argoproj\.io\/secret-type=repository/);
-  assert.match(text, /repo-intelligent-eu-billing-and-payment/);
+  assert.match(text, /repo-intelligent-eu-bps-source/);
+  assert.match(text, /repo-intelligent-eu-billing-and-payment/); // legacy delete on --apply
   assert.equal(text.includes("ghp_"), false);
   assert.equal(text.includes("github_pat_"), false);
   assert.equal(/password=[A-Za-z0-9_]{20,}/.test(text), false);

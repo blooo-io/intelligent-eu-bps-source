@@ -22,7 +22,7 @@ Never commit a kubeconfig. For CI bootstrap, store in the GitHub Actions **envir
 | Secret | Required | Role |
 |---|---|---|
 | `KUBECONFIG_INTELLIGENT_EU_DEV` | yes | cluster access for bootstrap only |
-| `ARGOCD_GITHUB_TOKEN` | yes for private repo | read-only PAT (`contents:read`) → Argo repository Secret `repo-intelligent-eu-billing-and-payment` |
+| `ARGOCD_GITHUB_TOKEN` | yes for private repo | read-only PAT (`contents:read`) → Argo repository Secret `repo-intelligent-eu-bps-source` (INT-319; replaces pre-rename `repo-intelligent-eu-billing-and-payment`) |
 
 Routine CD after Argo is up is Argo pulling Git — do not keep using the kubeconfig secret for every deploy.
 

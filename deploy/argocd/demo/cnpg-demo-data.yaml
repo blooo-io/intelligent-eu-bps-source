@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+    repoURL: https://github.com/blooo-io/intelligent-eu-bps-source.git
     targetRevision: REPLACE_WITH_RELEASE_TAG
     path: deploy/charts/cnpg-int-data
     helm:

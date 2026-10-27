@@ -86,8 +86,10 @@ test("ensure script sets Volt loginTheme on int/demo (INT-332)", async () => {
   );
   assert.match(source, /ensureRealmLoginTheme/);
   assert.match(source, /LOGIN_THEME/);
+  assert.match(source, /LOGIN_DISPLAY_NAME/);
   assert.match(source, /loginTheme/);
   assert.match(source, /intelligent/);
+  assert.match(source, /INTELLIGENT Billing & Payment Login/);
 });
 
 test("ensure script packs participants-admin client secret (INT-218 / INT-325)", async () => {

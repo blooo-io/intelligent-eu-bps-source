@@ -17,7 +17,7 @@
   "dependencies": {
     "@intelligent/module-template": "workspace:*",
     "@nestjs/common": "^11.1.6",
-    "@nestjs/core": "^11.1.6",
+    "@nestjs/core": "^12.2.0",
     "@nestjs/platform-express": "^11.1.6",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",

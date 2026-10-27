@@ -10,6 +10,7 @@ import {
   STRIPE_PROTECTED_PATHS,
   checkSeedLayout,
   hasRealStripeCredentials,
+  mergePlaceholderFields,
   printSeedSteps,
 } from "./openbao-seed-dev-placeholders.mjs";
 
@@ -97,4 +98,39 @@ test("INT-295 placeholder seed detects real Stripe credentials to protect", () =
     false,
   );
   assert.equal(hasRealStripeCredentials({ seeded: "true" }), false);
+});
+
+test("INT-329 merges Keycloak secrets without wiping Stripe keys", () => {
+  const merged = mergePlaceholderFields(
+    {
+      seeded: "true",
+      stripe_secret_key: "sk_test_keep_me",
+      stripe_webhook_secret: "whsec_keep_me",
+    },
+    [
+      "KEYCLOAK_SERVICE_CLIENT_SECRET=dev-module-service-replace-me",
+      "seeded=true",
+    ],
+  );
+  assert.equal(merged.stripe_secret_key, "sk_test_keep_me");
+  assert.equal(merged.stripe_webhook_secret, "whsec_keep_me");
+  assert.equal(
+    merged.KEYCLOAK_SERVICE_CLIENT_SECRET,
+    "dev-module-service-replace-me",
+  );
+  assert.equal(merged.seeded, "true");
+});
+
+test("INT-329 apply path does not skip Stripe-protected KV paths", async () => {
+  const source = await readFile(
+    path.join(root, "scripts/openbao-seed-dev-placeholders.mjs"),
+    "utf8",
+  );
+  assert.match(source, /mergePlaceholderFields/);
+  assert.match(source, /stripePreserved/);
+  assert.equal(
+    /skipped\.push\(kvPath\)/.test(source),
+    false,
+    "must not skip Stripe-protected paths entirely",
+  );
 });

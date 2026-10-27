@@ -26,8 +26,9 @@ test("footprint cleanup script documents orphan CNPG and demo apps (INT-331)", a
     "utf8",
   );
   // Prefer jsonpath over dumping every pod object into the Node spawn buffer.
-  assert.match(source, /jsonpath=/);
-  assert.equal(source.includes('["get", "pods", "-A", "-o", "json"]'), false);
+  assert.match(source, /assertNoDefaultIntDataConsumers[\s\S]*jsonpath=/);
+  assert.equal(/kubectl\(\[\s*"get",\s*"pods",\s*"-A",\s*"-o",\s*"json"\s*\]\)/.test(source), false);
+  assert.equal(source.includes("kubectl get pods -A -o json |"), false);
 });
 
 test("platform and Argo READMEs document INT-331 footprint steps", async () => {

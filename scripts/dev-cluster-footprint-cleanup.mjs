@@ -30,15 +30,11 @@ export function printOperatorSteps() {
 kubectl config current-context
 
 # 1) Orphan CNPG Cluster left in default/ after the move to namespace int-data.
-#    Safe only when no Secret/Pod still points at int-data*.default.svc.
+#    Safe only when no Pod env still points at int-data*.default.svc.
 kubectl get cluster.postgresql.cnpg.io ${ORPHAN_CLUSTER_NAME} -n ${ORPHAN_CLUSTER_NS} || true
-kubectl get pods -A -o json | jq -r '
-  .items[] | . as $p |
-  (.spec.containers // [])[] | .env // [] | .[] |
-  select((.value // "") | test("int-data[^/]*\\.default\\.svc")) |
-  "\($p.metadata.namespace)/\($p.metadata.name) \(.name)=\(.value)"
-'
-# If the jq filter prints nothing, delete the orphan:
+kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{"|"}{range .spec.containers[*]}{range .env[*]}{.name}={" "}{.value}{";"}{end}{end}{"\n"}{end}' \
+  | grep -E 'int-data[^/|;]*\.default\.svc' || true
+# If the grep prints nothing, delete the orphan:
 kubectl delete cluster.postgresql.cnpg.io ${ORPHAN_CLUSTER_NAME} -n ${ORPHAN_CLUSTER_NS} --wait=true
 
 # 2) Drop unused demo Argo Applications (not applied by INT-155 bootstrap print).
@@ -113,22 +109,21 @@ export function inspectFootprintLeftovers() {
 
 /**
  * Refuse to delete default/int-data if any live env still targets *.default.svc.
+ * Uses jsonpath (not full pod JSON) so large clusters stay under spawn buffers.
  */
 function assertNoDefaultIntDataConsumers() {
-  const pods = kubectl(["get", "pods", "-A", "-o", "json"]);
-  const doc = JSON.parse(pods.stdout || "{}");
+  const pods = kubectl([
+    "get",
+    "pods",
+    "-A",
+    "-o",
+    'jsonpath={range .items[*]}{.metadata.namespace}/{.metadata.name}{"|"}{range .spec.containers[*]}{range .env[*]}{.name}={" "}{.value}{";"}{end}{end}{"\\n"}{end}',
+  ]);
   const hits = [];
-  for (const pod of doc.items || []) {
-    for (const c of pod.spec?.containers || []) {
-      for (const e of c.env || []) {
-        const value = e.value || "";
-        if (/int-data[^/\s]*\.default\.svc/.test(value)) {
-          hits.push(
-            `${pod.metadata.namespace}/${pod.metadata.name} ${e.name}=${value}`,
-          );
-        }
-      }
-    }
+  for (const line of (pods.stdout || "").split("\n")) {
+    if (!line.includes(".default.svc")) continue;
+    if (!/int-data[^/\s|;]*\.default\.svc/.test(line)) continue;
+    hits.push(line.slice(0, 300));
   }
   if (hits.length > 0) {
     throw new Error(

@@ -2,10 +2,11 @@
 
 **Produit :** Intelligent Billing & Payment  
 **Environnement :** https://app.dev.intelligent-eu-bp.blooo.dev  
-**IdP :** Keycloak realm `int`  
+**IdP :** Keycloak realm `int` (thème Volt INT-332)  
 **Mot de passe (tous) :** `Intelligent-UAT-2026!`  
 **Communauté démo :** **Horizon Energy**  
-**Tickets :** INT-282 … INT-285  
+**Tickets :** INT-282 … INT-285 · refresh captures INT-333  
+
 
 > Ouvrir en aperçu Markdown (GitHub / IDE) pour voir les captures.  
 > Version imprimable : [`cahier-de-tests-demo-intelligent-billing-and-payment.pdf`](./cahier-de-tests-demo-intelligent-billing-and-payment.pdf).
@@ -55,11 +56,13 @@ UAT (e2e uniquement, autre communauté) : `hugo.petit` / `sofia.garcia` — **ne
 
 | # | Action | Attendu | Pass |
 |---|---|---|---|
-| 1.1 | Ouvrir l’URL | **Intelligent Billing & Payment** | [ ] |
-| 1.2 | Continue with community IdP | Keycloak | [ ] |
+| 1.1 | Ouvrir l’URL | **Intelligent Billing & Payment** (écran AC-01) | [ ] |
+| 1.2 | Continue with community IdP | Keycloak Volt : titre **INTELLIGENT Billing & Payment Login** au-dessus du form centré, CTA lime | [ ] |
 | 1.3 | Login + mdp | **Sign out** visible | [ ] |
 
 ![Login marque](assets/demo-workbook/00-login-brand.png)
+
+> IdP (après Continue) : fond ink, titre lime centré au-dessus de la carte blanche — **pas** l’ancien thème PatternFly bleu / marque à droite.
 
 ---
 
@@ -374,6 +377,7 @@ camille.rousseau@example.invalid,actor-camille-demo,meter-camille-demo,consumer
 | Argent | Léa paie des factures Open après run Marie |
 | Invite | CSV → ligne Invited + mail Mailpit + `community_id` IdP |
 | Setup chrome | Pas de sider avant Ready ; sider après |
+| IdP Volt | Titre **INTELLIGENT Billing & Payment Login** au-dessus du form centré (CTA lime) |
 | Captures | Pas de spinner présenté comme écran final |
 | Members | Noms humains dont Hugo Moreau |
 
@@ -385,5 +389,6 @@ camille.rousseau@example.invalid,actor-camille-demo,meter-camille-demo,consumer
 |---|---|
 | [`README.md`](./README.md) | Index |
 | [`assets/demo-workbook/`](./assets/demo-workbook/) | PNG |
-| `scripts/capture-demo-workbook.mjs` | Recapture (`wait` anti-spinner) |
+| `scripts/capture-demo-workbook.mjs` | Recapture (`wait` anti-spinner) — INT-333 |
+| `scripts/export-cahier-pdf.mjs` | Régénération PDF A4 — INT-333 |
 | [`manual-s1-portal-journey.md`](./manual-s1-portal-journey.md) | Parcours argent (texte) |

@@ -52,7 +52,6 @@
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "secret": "dev-only-replace-me",
       "protocol": "openid-connect",
       "attributes": {
         "access.token.lifespan": "300"
@@ -115,7 +114,6 @@
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
-      "secret": "dev-module-service-replace-me",
       "protocol": "openid-connect",
       "attributes": {
         "access.token.lifespan": "300"

@@ -52,7 +52,6 @@
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "secret": "dev-only-replace-me",
       "protocol": "openid-connect",
       "attributes": {
         "access.token.lifespan": "300"
@@ -80,7 +79,6 @@
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
-      "secret": "dev-participants-admin-replace-me",
       "protocol": "openid-connect",
       "defaultClientScopes": [
         "web-origins",
@@ -142,7 +140,6 @@
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
-      "secret": "dev-module-service-replace-me",
       "protocol": "openid-connect",
       "attributes": {
         "access.token.lifespan": "300"
@@ -200,13 +197,6 @@
       },
       "realmRoles": [
         "member"
-      ],
-      "credentials": [
-        {
-          "type": "password",
-          "temporary": false,
-          "value": "Intelligent-UAT-2026!"
-        }
       ]
     },
     {
@@ -224,13 +214,6 @@
       },
       "realmRoles": [
         "manager"
-      ],
-      "credentials": [
-        {
-          "type": "password",
-          "temporary": false,
-          "value": "Intelligent-UAT-2026!"
-        }
       ]
     },
     {
@@ -248,13 +231,6 @@
       },
       "realmRoles": [
         "operator"
-      ],
-      "credentials": [
-        {
-          "type": "password",
-          "temporary": false,
-          "value": "Intelligent-UAT-2026!"
-        }
       ]
     },
     {
@@ -263,7 +239,7 @@
       "enabled": true,
       "email": "lea.martin@example.invalid",
       "emailVerified": true,
-      "firstName": "L\u00e9a",
+      "firstName": "Léa",
       "lastName": "Martin",
       "attributes": {
         "community_id": [
@@ -272,13 +248,6 @@
       },
       "realmRoles": [
         "member"
-      ],
-      "credentials": [
-        {
-          "type": "password",
-          "temporary": false,
-          "value": "Intelligent-UAT-2026!"
-        }
       ]
     },
     {
@@ -296,13 +265,6 @@
       },
       "realmRoles": [
         "member"
-      ],
-      "credentials": [
-        {
-          "type": "password",
-          "temporary": false,
-          "value": "Intelligent-UAT-2026!"
-        }
       ]
     },
     {
@@ -320,13 +282,6 @@
       },
       "realmRoles": [
         "member"
-      ],
-      "credentials": [
-        {
-          "type": "password",
-          "temporary": false,
-          "value": "Intelligent-UAT-2026!"
-        }
       ]
     },
     {
@@ -344,13 +299,6 @@
       },
       "realmRoles": [
         "manager"
-      ],
-      "credentials": [
-        {
-          "type": "password",
-          "temporary": false,
-          "value": "Intelligent-UAT-2026!"
-        }
       ]
     },
     {
@@ -368,13 +316,6 @@
       },
       "realmRoles": [
         "member"
-      ],
-      "credentials": [
-        {
-          "type": "password",
-          "temporary": false,
-          "value": "Intelligent-UAT-2026!"
-        }
       ]
     }
   ]

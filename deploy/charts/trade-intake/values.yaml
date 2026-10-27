@@ -21,7 +21,6 @@ env:
   KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
   KEYCLOAK_REALM: int
   KEYCLOAK_SERVICE_CLIENT_ID: module-service
-  KEYCLOAK_SERVICE_CLIENT_SECRET: dev-module-service-replace-me
   # INT-314 — require Bearer JWT on /internal/* (forgeable headers alone rejected).
   SERVICE_JWT_REQUIRED: "true"
   INTAKE_BOOTSTRAP_S1: "true"

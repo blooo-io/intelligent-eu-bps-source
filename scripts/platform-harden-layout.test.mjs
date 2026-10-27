@@ -28,7 +28,7 @@ test("INT-287 — module NetworkPolicy has no open namespaceIngress", async () =
   assert.match(settlement, /scheduler-worker/);
 });
 
-test("INT-287 / INT-314 — Nest modules configure Keycloak service JWT (required)", async () => {
+test("INT-287 / INT-314 / INT-325 — Nest modules configure Keycloak service JWT (required)", async () => {
   for (const name of [
     "participants",
     "settlement",
@@ -42,9 +42,10 @@ test("INT-287 / INT-314 — Nest modules configure Keycloak service JWT (require
     const values = await readFile(`deploy/charts/${name}/values.yaml`, "utf8");
     assert.match(values, /keycloakEgress:\s*true/, name);
     assert.match(values, /KEYCLOAK_SERVICE_CLIENT_ID:\s*module-service/, name);
-    assert.match(
-      values,
-      /KEYCLOAK_SERVICE_CLIENT_SECRET:\s*dev-module-service-replace-me/,
+    // INT-325 — client secret comes from OpenBao ExternalSecret envFrom only.
+    assert.equal(
+      /KEYCLOAK_SERVICE_CLIENT_SECRET\s*:/.test(values),
+      false,
       name,
     );
     assert.match(
@@ -54,6 +55,16 @@ test("INT-287 / INT-314 — Nest modules configure Keycloak service JWT (require
     );
     assert.match(values, /SERVICE_JWT_REQUIRED:\s*"true"/, name);
   }
+
+  const participants = await readFile(
+    "deploy/charts/participants/values.yaml",
+    "utf8",
+  );
+  assert.equal(
+    /KEYCLOAK_ADMIN_CLIENT_SECRET\s*:/.test(participants),
+    false,
+    "participants admin secret must not be in Helm values",
+  );
 
   const worker = await readFile(
     "deploy/charts/scheduler/templates/worker.yaml",

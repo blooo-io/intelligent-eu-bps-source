@@ -19,7 +19,10 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(intRealm, /"realm": "int"/);
   assert.match(intRealm, /"clientId": "apisix-gateway"/);
   assert.match(intRealm, /"clientId": "web"/);
-  assert.match(intRealm, /dev-only-replace-me/);
+  // INT-325 — no client secrets / UAT passwords in Git realm JSON.
+  assert.equal(/"secret"\s*:/.test(intRealm), false);
+  assert.equal(/Intelligent-UAT-2026!/.test(intRealm), false);
+  assert.equal(/"credentials"\s*:/.test(intRealm), false);
   // INT-179 — community_id claim + billing roles for portal principal headers.
   assert.match(intRealm, /"claim.name": "community_id"/);
   assert.match(intRealm, /"name": "member"/);
@@ -28,7 +31,6 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(intRealm, /"username": "hugo\.petit"/);
   assert.match(intRealm, /"username": "sofia\.garcia"/);
   assert.match(intRealm, /"username": "paul\.nguyen"/);
-  assert.match(intRealm, /Intelligent-UAT-2026!/);
   // INT-236 / INT-241 / INT-282 — S1 IdP users (community c0ffee00…).
   assert.match(intRealm, /"username": "lea\.martin"/);
   assert.match(intRealm, /"username": "thomas\.bernard"/);
@@ -43,7 +45,6 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   // INT-287 — inter-module service JWT client + service realm role.
   assert.match(intRealm, /"clientId": "module-service"/);
   assert.match(intRealm, /"serviceAccountClientId": "module-service"/);
-  assert.match(intRealm, /dev-module-service-replace-me/);
   assert.match(intRealm, /"name": "service"/);
   // INT-314 — in-cluster HTTP token mint (Cilium 100.64/10 vs sslRequired=external).
   assert.match(intRealm, /"sslRequired": "none"/);

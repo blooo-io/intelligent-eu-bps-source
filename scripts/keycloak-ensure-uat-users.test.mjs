@@ -29,10 +29,11 @@ test("int-realm.json packs UAT IdP users hugo/sofia/paul (INT-194 / INT-282)", a
     assert.equal(row.lastName, fixture.lastName);
     assert.deepEqual(row.realmRoles, [fixture.role]);
     assert.deepEqual(row.attributes?.community_id, [UAT_COMMUNITY_ID]);
-    assert.equal(row.credentials?.[0]?.type, "password");
-    assert.equal(row.credentials?.[0]?.temporary, false);
-    assert.equal(row.credentials?.[0]?.value, UAT_PASSWORD);
+    // INT-325 — passwords applied by ensure script, not realm JSON.
+    assert.equal(row.credentials, undefined);
   }
+  assert.equal(typeof UAT_PASSWORD, "string");
+  assert.ok(UAT_PASSWORD.length >= 8);
 });
 
 test("int-realm.json packs S1 IdP users lea/thomas/claire/marie/hugo (INT-236 / INT-285)", async () => {
@@ -50,7 +51,7 @@ test("int-realm.json packs S1 IdP users lea/thomas/claire/marie/hugo (INT-236 / 
     assert.equal(row.lastName, fixture.lastName);
     assert.deepEqual(row.realmRoles, [fixture.role]);
     assert.deepEqual(row.attributes?.community_id, [S1_COMMUNITY_ID]);
-    assert.equal(row.credentials?.[0]?.value, UAT_PASSWORD);
+    assert.equal(row.credentials, undefined);
   }
 });
 
@@ -71,13 +72,14 @@ test("ensure script packs module-service client + sslRequired none (INT-314)", a
   );
   assert.match(source, /MODULE_SERVICE_CLIENT/);
   assert.match(source, /ensureModuleServiceClient/);
+  assert.match(source, /ensureApisixGatewayClient/);
   assert.match(source, /ensureRealmSslRequired/);
   assert.match(source, /dev-module-service-replace-me/);
   assert.match(source, /sslRequired/);
-  assert.match(source, /MODULE_SERVICE_CLIENT/);
+  assert.match(source, /KEYCLOAK_MODULE_SERVICE_CLIENT_SECRET/);
 });
 
-test("ensure script packs participants-admin client secret (INT-218)", async () => {
+test("ensure script packs participants-admin client secret (INT-218 / INT-325)", async () => {
   const realm = JSON.parse(
     await readFile("deploy/charts/keycloak-realms/realms/int-realm.json", "utf8"),
   );
@@ -85,8 +87,10 @@ test("ensure script packs participants-admin client secret (INT-218)", async () 
     (c) => c.clientId === PARTICIPANTS_ADMIN_CLIENT.clientId,
   );
   assert.ok(client);
-  assert.equal(client.secret, PARTICIPANTS_ADMIN_CLIENT.secret);
+  // INT-325 — secret lives in ensure script / OpenBao, not realm JSON.
+  assert.equal(client.secret, undefined);
   assert.equal(client.serviceAccountsEnabled, true);
+  assert.ok(PARTICIPANTS_ADMIN_CLIENT.secret);
   assert.equal(PARTICIPANTS_ADMIN_CLIENT.realmManagementRoles.includes("manage-users"), true);
   assert.equal(
     PARTICIPANTS_ADMIN_CLIENT.realmManagementRoles.includes("view-realm"),

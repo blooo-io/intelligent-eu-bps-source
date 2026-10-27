@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * INT-194 / INT-236 — ensure Keycloak UAT + S1 IdP users exist with known passwords.
+ * INT-194 / INT-236 / INT-325 — ensure Keycloak UAT + S1 IdP users and client
+ * secrets exist (bootstrap path; secrets never committed in realm JSON).
  *
- * Realm ConfigMap sync alone does not re-import users on an already-initialised
- * realm (see deploy/platform/README.md). After GitOps packs the users into
- * int-realm.json, operators (and agents blocked on auth) run this script against
- * the live admin API so passwords/roles match the fixtures.
+ * Realm ConfigMap sync alone does not re-import users/secrets on an
+ * already-initialised realm (see deploy/platform/README.md). After GitOps packs
+ * user shells into int-realm.json, operators run this script against the live
+ * admin API so passwords/roles/client secrets match OpenBao.
  *
  * Usage (port-forward Keycloak HTTP first):
  *   kubectl -n keycloak port-forward svc/platform-keycloak-keycloakx-http 18082:80
@@ -13,8 +14,17 @@
  *   KEYCLOAK_ADMIN_PASSWORD="$(kubectl -n keycloak get secret keycloak-admin -o jsonpath='{.data.password}' | base64 -d)" \
  *   node scripts/keycloak-ensure-uat-users.mjs
  *
- * Passwords are V1 `dev`/`int` UAT placeholders (same class as client secret
- * `dev-only-replace-me`) — never for production.
+ * Optional overrides (default to V1 OpenBao placeholders):
+ *   KEYCLOAK_MODULE_SERVICE_CLIENT_SECRET
+ *   KEYCLOAK_PARTICIPANTS_ADMIN_CLIENT_SECRET
+ *   KEYCLOAK_APISIX_GATEWAY_CLIENT_SECRET
+ *   KEYCLOAK_UAT_PASSWORD
+ *
+ * Rotation (INT-325): write new values to OpenBao (platform/apisix
+ * oidc_client_secret, each module KEYCLOAK_SERVICE_CLIENT_SECRET,
+ * and participants KEYCLOAK_ADMIN_CLIENT_SECRET), re-run this script with the
+ * same values exported, then bounce modules / APISIX so ExternalSecrets refresh.
+ * Never for production IdP passwords.
  */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -119,13 +129,17 @@ export const S1_USERS = [
   },
 ];
 
-// Shared Keycloak UAT fixture (INT-194) — not a production secret.
-export const UAT_PASSWORD = ["Intelligent", "UAT", "2026!"].join("-");
+// Shared Keycloak UAT fixture (INT-194) — V1 placeholder only; never in realm JSON.
+export const UAT_PASSWORD_DEFAULT = ["Intelligent", "UAT", "2026!"].join("-");
+export const UAT_PASSWORD =
+  process.env.KEYCLOAK_UAT_PASSWORD || UAT_PASSWORD_DEFAULT;
 
-/** INT-218 — AC-03 Admin IdP client (must exist after realm import skipped). */
+/** INT-218 — AC-03 Admin IdP client (secret from OpenBao / env, not realm JSON). */
 export const PARTICIPANTS_ADMIN_CLIENT = {
   clientId: "participants-admin",
-  secret: "dev-participants-admin-replace-me",
+  secret:
+    process.env.KEYCLOAK_PARTICIPANTS_ADMIN_CLIENT_SECRET ||
+    "dev-participants-admin-replace-me",
   realmManagementRoles: [
     "manage-users",
     "view-users",
@@ -135,6 +149,13 @@ export const PARTICIPANTS_ADMIN_CLIENT = {
     // view-realm; query-roles is not present on this realm-management client).
     "view-realm",
   ],
+};
+
+/** INT-169 / INT-325 — APISIX gateway confidential client (matches OpenBao oidc_client_secret). */
+export const APISIX_GATEWAY_CLIENT = {
+  clientId: "apisix-gateway",
+  secret:
+    process.env.KEYCLOAK_APISIX_GATEWAY_CLIENT_SECRET || "dev-only-replace-me",
 };
 
 export async function loadRealmUatUsers(realmPath = REALM_PATH) {
@@ -572,10 +593,12 @@ export async function ensureRealmSslRequired(
   return { realm: realmName, sslRequired, updated: true };
 }
 
-/** INT-287 / INT-314 — inter-module service JWT client (client-credentials + realm role service). */
+/** INT-287 / INT-314 / INT-325 — inter-module service JWT client (OpenBao → modules). */
 export const MODULE_SERVICE_CLIENT = {
   clientId: "module-service",
-  secret: "dev-module-service-replace-me",
+  secret:
+    process.env.KEYCLOAK_MODULE_SERVICE_CLIENT_SECRET ||
+    "dev-module-service-replace-me",
 };
 
 async function resolveModuleServiceClientId(realmBase, headers, clientId, secret) {
@@ -715,6 +738,89 @@ export async function ensureModuleServiceClient(
     serviceAccountUserId: saUser.id,
   };
 }
+
+async function resolveApisixGatewayClientId(realmBase, headers, clientId, secret) {
+  const search = await fetch(
+    `${realmBase}/clients?clientId=${encodeURIComponent(clientId)}`,
+    { headers },
+  );
+  if (!search.ok) {
+    throw new Error(`list client ${clientId}: ${search.status}`);
+  }
+  const found = await search.json();
+  if (found[0]?.id) {
+    const put = await fetch(`${realmBase}/clients/${found[0].id}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        ...found[0],
+        secret,
+        publicClient: false,
+        serviceAccountsEnabled: false,
+        standardFlowEnabled: false,
+        directAccessGrantsEnabled: false,
+      }),
+    });
+    if (!put.ok) {
+      throw new Error(`update client ${clientId}: ${put.status}`);
+    }
+    return found[0].id;
+  }
+  const create = await fetch(`${realmBase}/clients`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      clientId,
+      name: "APISIX gateway (bearer JWT validation)",
+      enabled: true,
+      publicClient: false,
+      bearerOnly: false,
+      standardFlowEnabled: false,
+      directAccessGrantsEnabled: false,
+      serviceAccountsEnabled: false,
+      secret,
+      protocol: "openid-connect",
+      attributes: {
+        "access.token.lifespan": "300",
+      },
+    }),
+  });
+  if (create.status !== 201) {
+    throw new Error(`create client ${clientId}: ${create.status}`);
+  }
+  const again = await fetch(
+    `${realmBase}/clients?clientId=${encodeURIComponent(clientId)}`,
+    { headers },
+  );
+  return (await again.json())[0]?.id;
+}
+
+/** INT-325 — sync apisix-gateway client secret to OpenBao oidc_client_secret. */
+export async function ensureApisixGatewayClient(
+  baseUrl,
+  token,
+  realmName = "int",
+) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...proxyHeaders(baseUrl),
+  };
+  const realmBase = `${baseUrl.replace(/\/$/, "")}/admin/realms/${realmName}`;
+  const { clientId, secret } = APISIX_GATEWAY_CLIENT;
+  const internalId = await resolveApisixGatewayClientId(
+    realmBase,
+    headers,
+    clientId,
+    secret,
+  );
+  if (!internalId) {
+    throw new Error(`client ${clientId} missing after create`);
+  }
+  return { realm: realmName, clientId, internalId };
+}
+
 export async function ensureUatUsers(options = {}) {
   const baseUrl = options.baseUrl ?? process.env.KEYCLOAK_URL;
   const password =
@@ -733,9 +839,16 @@ export async function ensureUatUsers(options = {}) {
   const smtp = await ensureRealmSmtp(baseUrl, token);
   const adminClient = await ensureParticipantsAdminClient(baseUrl, token);
   const moduleService = await ensureModuleServiceClient(baseUrl, token, "int");
+  const apisixGateway = await ensureApisixGatewayClient(baseUrl, token, "int");
   let moduleServiceDemo = null;
+  let apisixGatewayDemo = null;
   try {
     moduleServiceDemo = await ensureModuleServiceClient(baseUrl, token, "demo");
+  } catch {
+    // optional
+  }
+  try {
+    apisixGatewayDemo = await ensureApisixGatewayClient(baseUrl, token, "demo");
   } catch {
     // optional
   }
@@ -751,6 +864,8 @@ export async function ensureUatUsers(options = {}) {
     sslDemo,
     moduleService,
     moduleServiceDemo,
+    apisixGateway,
+    apisixGatewayDemo,
   };
 }
 

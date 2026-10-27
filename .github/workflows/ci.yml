@@ -20,6 +20,12 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
             detect --source=/repo --redact --verbose
+      # INT-325 — Keycloak client secrets / UAT passwords must not live in GitOps packaging.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Forbid Keycloak secrets in realm JSON and module values
+        run: node --test scripts/forbid-keycloak-git-secrets.mjs
 
   contracts:
     runs-on: ubuntu-latest

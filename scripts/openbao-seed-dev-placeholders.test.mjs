@@ -61,7 +61,7 @@ test("CLI argv Set uses has not includes for --print/--apply/--check", async () 
   assert.equal(source.includes('args.includes("--print")'), false);
 });
 
-test("INT-287 placeholder seed includes module-service client secret on Nest paths", () => {
+test("INT-287 / INT-325 placeholder seed includes module-service client secret on Nest paths", () => {
   assert.ok(MODULE_SERVICE_JWT_PATHS.includes("dev/scheduler"));
   assert.ok(MODULE_SERVICE_JWT_PATHS.includes("dev/settlement"));
   for (const p of MODULE_SERVICE_JWT_PATHS) {
@@ -71,6 +71,11 @@ test("INT-287 placeholder seed includes module-service client secret on Nest pat
       p,
     );
   }
+  const participants = DEV_PLACEHOLDER_FIELDS["dev/participants"] ?? [];
+  assert.ok(
+    participants.some((f) => f.startsWith("KEYCLOAK_ADMIN_CLIENT_SECRET=")),
+    "participants admin client secret in OpenBao",
+  );
 });
 
 test("INT-295 placeholder seed detects real Stripe credentials to protect", () => {

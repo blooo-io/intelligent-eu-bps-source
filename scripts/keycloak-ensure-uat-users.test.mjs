@@ -79,6 +79,17 @@ test("ensure script packs module-service client + sslRequired none (INT-314)", a
   assert.match(source, /KEYCLOAK_MODULE_SERVICE_CLIENT_SECRET/);
 });
 
+test("ensure script sets Volt loginTheme on int/demo (INT-332)", async () => {
+  const source = await readFile(
+    new URL("./keycloak-ensure-uat-users.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /ensureRealmLoginTheme/);
+  assert.match(source, /LOGIN_THEME/);
+  assert.match(source, /loginTheme/);
+  assert.match(source, /intelligent/);
+});
+
 test("ensure script packs participants-admin client secret (INT-218 / INT-325)", async () => {
   const realm = JSON.parse(
     await readFile("deploy/charts/keycloak-realms/realms/int-realm.json", "utf8"),

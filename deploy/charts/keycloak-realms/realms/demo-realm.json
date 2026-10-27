@@ -2,6 +2,7 @@
   "realm": "demo",
   "enabled": true,
   "displayName": "INTELLIGENT demo",
+  "loginTheme": "intelligent",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,

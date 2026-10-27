@@ -2,6 +2,7 @@
   "realm": "int",
   "enabled": true,
   "displayName": "INTELLIGENT int",
+  "loginTheme": "intelligent",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,

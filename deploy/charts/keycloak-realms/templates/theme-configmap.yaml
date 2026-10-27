@@ -1,0 +1,13 @@
+{{- /* INT-332 — Volt Keycloak login theme (mounted into keycloakx). */ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-theme-intelligent
+  labels:
+    app.kubernetes.io/name: keycloak-theme-intelligent
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+data:
+  theme.properties: |
+{{ .Files.Get "themes/intelligent/login/theme.properties" | indent 4 }}
+  login.css: |
+{{ .Files.Get "themes/intelligent/login/resources/css/login.css" | indent 4 }}

@@ -17,6 +17,8 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
     "utf8",
   );
   assert.match(intRealm, /"realm": "int"/);
+  // INT-332 — Volt login theme (AC-01 / INT-250).
+  assert.match(intRealm, /"loginTheme": "intelligent"/);
   assert.match(intRealm, /"clientId": "apisix-gateway"/);
   assert.match(intRealm, /"clientId": "web"/);
   // INT-325 — no client secrets / UAT passwords in Git realm JSON.
@@ -54,8 +56,37 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
     "utf8",
   );
   assert.match(demoRealm, /"realm": "demo"/);
+  assert.match(demoRealm, /"loginTheme": "intelligent"/);
   assert.match(demoRealm, /"clientId": "apisix-gateway"/);
   assert.match(demoRealm, /"claim.name": "community_id"/);
   assert.match(demoRealm, /"clientId": "module-service"/);
   assert.match(demoRealm, /"serviceAccountClientId": "module-service"/);
+});
+
+test("Keycloak Volt login theme packaging (INT-332)", async () => {
+  const props = await readFile(
+    "deploy/charts/keycloak-realms/themes/intelligent/login/theme.properties",
+    "utf8",
+  );
+  assert.match(props, /parent=keycloak\.v2/);
+  assert.match(props, /styles=css\/login\.css/);
+
+  const css = await readFile(
+    "deploy/charts/keycloak-realms/themes/intelligent/login/resources/css/login.css",
+    "utf8",
+  );
+  assert.match(css, /#0[Aa]0[Ff]0[Dd]/);
+  assert.match(css, /#?[Cc]8[Ff]542/);
+  assert.match(css, /Plus Jakarta Sans/);
+
+  const themeCm = await readFile(
+    "deploy/charts/keycloak-realms/templates/theme-configmap.yaml",
+    "utf8",
+  );
+  assert.match(themeCm, /name: keycloak-theme-intelligent/);
+  assert.match(themeCm, /themes\/intelligent\/login\/theme\.properties/);
+  assert.match(
+    themeCm,
+    /themes\/intelligent\/login\/resources\/css\/login\.css/,
+  );
 });

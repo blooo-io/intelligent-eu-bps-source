@@ -1,0 +1,174 @@
+/**
+ * INT-332 — Keycloak login Volt surface (INT-250).
+ * Palette: ink #0A0F0D, accent #C8F542, chalk #F3F6F2, Plus Jakarta Sans.
+ * Served to the browser; font CSS is fetched client-side (SIL OFL).
+ */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+
+:root {
+  --ge-ink: #0a0f0d;
+  --ge-accent: #c8f542;
+  --ge-accent-hover: #d4f76a;
+  --ge-chalk: #f3f6f2;
+  --ge-chalk-deep: #d5ddd6;
+  --ge-muted: #5c6b64;
+  --ge-paper: #ffffff;
+  --ge-font: "Plus Jakarta Sans", "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+
+  /* PatternFly v5 tokens used by keycloak.v2 */
+  --pf-v5-global--FontFamily--text: var(--ge-font);
+  --pf-v5-global--FontFamily--heading: var(--ge-font);
+  --pf-v5-global--primary-color--100: var(--ge-accent);
+  --pf-v5-global--primary-color--200: var(--ge-accent-hover);
+  --pf-v5-global--link--Color: var(--ge-ink);
+  --pf-v5-global--link--Color--hover: var(--ge-ink);
+  --pf-v5-global--BackgroundColor--100: var(--ge-chalk);
+  --pf-v5-global--Color--100: var(--ge-ink);
+  --pf-v5-global--Color--200: var(--ge-muted);
+  --pf-v5-global--BorderColor--100: var(--ge-chalk-deep);
+  --pf-v5-global--BorderRadius--sm: 4px;
+  --pf-v5-global--BorderRadius--md: 6px;
+}
+
+html,
+body {
+  font-family: var(--ge-font);
+  background: var(--ge-ink);
+  color: var(--ge-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Full-bleed ink stage; chalk card for the form (mirrors AC-01 login split). */
+.pf-v5-c-login {
+  background: linear-gradient(160deg, #0a0f0d 0%, #161d1a 55%, #0a0f0d 100%);
+  min-height: 100vh;
+}
+
+.pf-v5-c-login__container {
+  max-width: 28rem;
+}
+
+.pf-v5-c-login__header {
+  margin-bottom: 1.25rem;
+}
+
+#kc-header-wrapper,
+.pf-v5-c-brand,
+.pf-v5-c-login__header .pf-v5-c-title {
+  color: var(--ge-accent) !important;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.pf-v5-c-login__main {
+  background: var(--ge-paper);
+  border: 1px solid var(--ge-chalk-deep);
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.pf-v5-c-login__main-header {
+  background: var(--ge-paper);
+  border-bottom: 1px solid var(--ge-chalk-deep);
+}
+
+.pf-v5-c-login__main-header .pf-v5-c-title,
+.pf-v5-c-login__main-header-desc,
+#kc-page-title {
+  color: var(--ge-ink) !important;
+  font-family: var(--ge-font);
+}
+
+.pf-v5-c-login__main-body {
+  background: var(--ge-paper);
+}
+
+.pf-v5-c-form__label-text,
+.pf-v5-c-form-control,
+label {
+  color: var(--ge-ink);
+  font-family: var(--ge-font);
+}
+
+.pf-v5-c-form-control {
+  border-radius: 4px;
+  border-color: var(--ge-chalk-deep);
+  background: var(--ge-chalk);
+}
+
+.pf-v5-c-form-control:focus {
+  border-color: var(--ge-ink);
+  outline: 2px solid color-mix(in srgb, var(--ge-accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
+/* Primary CTA — lime fill, ink text (Volt). */
+.pf-v5-c-button.pf-m-primary,
+input[type="submit"].pf-v5-c-button.pf-m-primary,
+#kc-login {
+  background-color: var(--ge-accent) !important;
+  background-image: none !important;
+  border-color: var(--ge-accent) !important;
+  color: var(--ge-ink) !important;
+  font-weight: 650;
+  border-radius: 4px;
+  box-shadow: none !important;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:focus,
+input[type="submit"].pf-v5-c-button.pf-m-primary:hover,
+#kc-login:hover {
+  background-color: var(--ge-accent-hover) !important;
+  border-color: var(--ge-accent-hover) !important;
+  color: var(--ge-ink) !important;
+}
+
+.pf-v5-c-button.pf-m-secondary,
+.pf-v5-c-button.pf-m-link {
+  color: var(--ge-ink) !important;
+  font-family: var(--ge-font);
+}
+
+.pf-v5-c-login__main-footer-band,
+.pf-v5-c-login__main-footer {
+  background: var(--ge-chalk);
+  border-top: 1px solid var(--ge-chalk-deep);
+}
+
+.pf-v5-c-login__main-footer a,
+#kc-registration-container a,
+#kc-form-options a {
+  color: var(--ge-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pf-v5-c-alert.pf-m-danger,
+.pf-v5-c-alert.pf-m-warning,
+.pf-v5-c-alert.pf-m-success,
+.pf-v5-c-alert.pf-m-info {
+  border-radius: 4px;
+  font-family: var(--ge-font);
+}
+
+#kc-info-wrapper {
+  color: var(--ge-muted);
+  font-family: var(--ge-font);
+}
+
+/* Older class hooks still present on some login templates */
+.login-pf body,
+.login-pf {
+  background: var(--ge-ink);
+}
+
+#kc-content-wrapper .card-pf,
+.card-pf {
+  background: var(--ge-paper);
+  border-radius: 6px;
+  border: 1px solid var(--ge-chalk-deep);
+  box-shadow: none;
+}

@@ -49,6 +49,19 @@ test("observability Argo apps land in observability with sync waves (INT-134)", 
   assert.match(perses, /sync-wave: "2"/);
   assert.match(perses, /chart: perses/);
   assert.match(perses, /targetRevision: 0\.23\.3/);
+
+  // INT-327 — security PrometheusRules after kube-prometheus CRDs.
+  const rulesApp = await readFile(
+    "deploy/argocd/platform/prometheus-rules.yaml",
+    "utf8",
+  );
+  assert.match(rulesApp, /kind: Application/);
+  assert.match(rulesApp, /name: platform-prometheus-rules/);
+  assert.match(rulesApp, /sync-wave: "1"/);
+  assert.match(rulesApp, /path: deploy\/charts\/prometheus-rules/);
+  assert.match(rulesApp, /namespace: observability/);
+  assert.match(rulesApp, /automated:/);
+  assert.match(rulesApp, /targetRevision: develop/);
 });
 
 test("observability values disable Grafana and contain no secret material", async () => {
@@ -69,6 +82,30 @@ test("observability values disable Grafana and contain no secret material", asyn
   const prom = await readFile("deploy/platform/kube-prometheus/values.yaml", "utf8");
   assert.match(prom, /grafana:\s*\n\s*enabled:\s*false/);
   assert.match(prom, /alertmanager:\s*\n\s*enabled:\s*true/);
+  // INT-327 — discover PrometheusRules outside the stack release.
+  assert.match(prom, /ruleSelectorNilUsesHelmValues:\s*false/);
+
+  const rulesChart = await readFile(
+    "deploy/charts/prometheus-rules/Chart.yaml",
+    "utf8",
+  );
+  assert.match(rulesChart, /^name: prometheus-rules$/m);
+
+  const rulesTpl = await readFile(
+    "deploy/charts/prometheus-rules/templates/security.yaml",
+    "utf8",
+  );
+  assert.match(rulesTpl, /kind: PrometheusRule/);
+  assert.match(rulesTpl, /IntelligentCertificateExpiringSoon/);
+  assert.match(rulesTpl, /IntelligentExternalSecretNotReady/);
+  assert.match(rulesTpl, /IntelligentKyvernoPolicyFailure/);
+  assert.match(rulesTpl, /IntelligentKubeJobFailed/);
+
+  const rulesValues = await readFile(
+    "deploy/charts/prometheus-rules/values.yaml",
+    "utf8",
+  );
+  assert.match(rulesValues, /release:\s*kube-prometheus/);
 
   const otel = await readFile("deploy/platform/otel-collector/values.yaml", "utf8");
   assert.match(otel, /^mode: deployment$/m);
@@ -89,4 +126,6 @@ test("platform README documents TD-10 stack without Grafana (INT-134)", async ()
   assert.match(text, /grafana\.enabled: false/);
   assert.match(text, /Grafana is not packaged/);
   assert.match(text, /Do not `helm install`/);
+  assert.match(text, /INT-327/);
+  assert.match(text, /prometheus-rules|PrometheusRule/);
 });

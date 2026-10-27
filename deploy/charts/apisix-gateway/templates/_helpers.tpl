@@ -125,4 +125,13 @@
             core.request.set_header(ctx, "x-intelligent-token-use", "service")
           end
         end
+# INT-327 / TD-8 — rate-limit /v1 after OIDC (kube probes hit ClusterIP /health, not APISIX).
+- name: limit-req
+  enable: true
+  config:
+    rate: {{ .Values.api.rate.rate }}
+    burst: {{ .Values.api.rate.burst }}
+    rejected_code: 429
+    key_type: var
+    key: remote_addr
 {{- end -}}

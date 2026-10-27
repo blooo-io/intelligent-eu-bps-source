@@ -81,6 +81,12 @@ backends:
     - name: docs-portal
       port: 8080
 
+# INT-327 / TD-8 — rate-limit authenticated /v1 catalogue (per client IP).
+api:
+  rate:
+    rate: 50
+    burst: 100
+
 webhook:
   # POST /webhooks/payment-provider — only unauthenticated public route (NFR-015).
   path: /webhooks/payment-provider

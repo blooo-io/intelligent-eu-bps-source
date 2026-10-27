@@ -44,7 +44,7 @@ Module peer allow-lists (INT-287): `ingressFrom` only — no namespace-wide `pod
 | Kyverno engine (INT-315) | `kyverno` **3.9.2** (Apache-2.0) | `kyverno` | `platform-kyverno` | 0 |
 | int-apps baseline ClusterPolicies | local `deploy/charts/kyverno-policies` | `kyverno` | `platform-kyverno-policies` | 1 |
 
-Env hosts: `deploy/envs/<env>/apisix-gateway-values.yaml`. Webhook `POST /webhooks/payment-provider` is rate-limited and unauthenticated; `/v1/*` uses `openid-connect` (Keycloak realm per env; `client_secret` via ExternalSecret `apisix-oidc`, INT-169) then a `serverless-pre-function` that maps JWT claims to Nest principal headers `x-intelligent-sub` / `x-intelligent-roles` / `x-intelligent-community` (INT-179). Depends on platform APISIX (INT-161) and Keycloak (INT-160). TLS (INT-168 / INT-173 / INT-174): `Certificate` + `ApisixTls` per host; issuer `letsencrypt-prod` (`useProduction: true`). Staging ClusterIssuer remains for debug. After an issuer flip, bump `tls.reloadGeneration` so ApisixTls is replaced and APISIX etcd reloads `tls.crt` (Secret-only updates can leave a stale SSL object).
+Env hosts: `deploy/envs/<env>/apisix-gateway-values.yaml`. Webhook `POST /webhooks/payment-provider` is rate-limited and unauthenticated; `/v1/*` uses `openid-connect` (Keycloak realm per env; `client_secret` via ExternalSecret `apisix-oidc`, INT-169) then a `serverless-pre-function` that maps JWT claims to Nest principal headers `x-intelligent-sub` / `x-intelligent-roles` / `x-intelligent-community` (INT-179), then `limit-req` from `api.rate` (INT-327 / TD-8). Depends on platform APISIX (INT-161) and Keycloak (INT-160). TLS (INT-168 / INT-173 / INT-174): `Certificate` + `ApisixTls` per host; issuer `letsencrypt-prod` (`useProduction: true`). Staging ClusterIssuer remains for debug. After an issuer flip, bump `tls.reloadGeneration` so ApisixTls is replaced and APISIX etcd reloads `tls.crt` (Secret-only updates can leave a stale SSL object).
 
 ## Databases (TD-6 / INT-158)
 
@@ -208,17 +208,19 @@ Do not `helm install` the CG chart by hand outside Argo (INT-157).
 | Prometheus + kube-prometheus | `kube-prometheus-stack` **92.10.0** | `platform-kube-prometheus` | 0 |
 | Jaeger (traces) | `jaeger` **4.16.1** | `platform-jaeger` | 1 |
 | VictoriaLogs (logs) | `victoria-logs-single` **0.13.10** | `platform-victoria-logs` | 1 |
+| Security PrometheusRules (INT-327) | local `deploy/charts/prometheus-rules` | `platform-prometheus-rules` | 1 |
 | OpenTelemetry Collector | `opentelemetry-collector` **0.176.0** | `platform-otel-collector` | 2 |
 | Perses (dashboards) | `perses` **0.23.3** | `platform-perses` | 2 |
 
 Values files:
 
-- `deploy/platform/kube-prometheus/values.yaml` — `grafana.enabled: false`
+- `deploy/platform/kube-prometheus/values.yaml` — `grafana.enabled: false`; `ruleSelectorNilUsesHelmValues: false` so INT-327 rules are discovered
 - `deploy/platform/jaeger/values.yaml` — in-memory storage for V1 / virtual `dev`
 - `deploy/platform/victoria-logs/values.yaml`
 - `deploy/platform/otel-collector/values.yaml` — OTLP in; traces→Jaeger, logs→VictoriaLogs, metrics scrape endpoint; attributes redaction (NFR-015)
 - `deploy/platform/perses/values.yaml` — ClusterIP; UI via port-forward until APISIX + Keycloak
 - `deploy/platform/apisix/values.yaml` — LoadBalancer; Admin keys via ExternalSecret; Ingress Class `apisix`
+- `deploy/charts/prometheus-rules/` — cert expiry, ExternalSecret NotReady, Kyverno enforce failures, JobFailed (physical §7 / INT-327)
 
 Register or refresh platform Applications from Git (INT-155 bootstrap already applies `deploy/argocd/platform/`):
 

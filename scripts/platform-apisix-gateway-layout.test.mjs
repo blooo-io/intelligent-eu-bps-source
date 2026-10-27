@@ -62,6 +62,11 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   // INT-289 — security response headers on OIDC routes.
   assert.match(helpers, /apisix-gateway\.securityHeadersPlugin/);
   assert.match(helpers, /Strict-Transport-Security/);
+  // INT-327 / TD-8 — rate-limit authenticated /v1 after OIDC (per client IP).
+  assert.match(helpers, /name:\s*limit-req/);
+  assert.match(helpers, /Values\.api\.rate\.rate/);
+  assert.match(helpers, /Values\.api\.rate\.burst/);
+  assert.match(helpers, /rejected_code:\s*429/);
 
   const oidcEs = await readFile(
     "deploy/charts/apisix-gateway/templates/oidc-secret.yaml",
@@ -94,6 +99,9 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(values, /cors:/);
   assert.match(values, /allowOrigins:/);
   assert.match(values, /app\.dev\.intelligent-eu-bp\.blooo\.dev/);
+  // INT-327 — /v1 catalogue rate defaults (webhook already has its own block).
+  assert.match(values, /api:\s*\n\s*rate:\s*\n\s*rate:\s*\d+/);
+  assert.match(values, /webhook:\s*\n[\s\S]*rate:\s*\n\s*rate:\s*\d+/);
 });
 
 test("gateway TLS templates gate Certificate and ApisixTls (INT-168)", async () => {
@@ -165,4 +173,6 @@ test("platform README documents gateway routes (INT-114 / INT-173 / INT-174)", a
   assert.match(text, /reloadGeneration/);
   assert.match(text, /INT-179/);
   assert.match(text, /x-intelligent-/);
+  assert.match(text, /INT-327/);
+  assert.match(text, /api\.rate|\/v1.*rate-limit|rate-limit.*\/v1/i);
 });

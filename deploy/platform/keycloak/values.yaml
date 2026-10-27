@@ -11,6 +11,7 @@ image:
 # INT-167 — codecentric/keycloakx defaults args to []; without `start` the
 # process prints help and CrashLoops.
 # INT-169 — import realms int/demo from ConfigMap keycloak-realm-import.
+# INT-332 — Volt login theme `intelligent` (parent keycloak.v2) from ConfigMap.
 args:
   - start
   - --import-realm
@@ -19,10 +20,21 @@ extraVolumes: |
   - name: realm-import
     configMap:
       name: keycloak-realm-import
+  - name: theme-intelligent
+    configMap:
+      name: keycloak-theme-intelligent
 
 extraVolumeMounts: |
   - name: realm-import
     mountPath: /opt/keycloak/data/import
+    readOnly: true
+  - name: theme-intelligent
+    mountPath: /opt/keycloak/themes/intelligent/login/theme.properties
+    subPath: theme.properties
+    readOnly: true
+  - name: theme-intelligent
+    mountPath: /opt/keycloak/themes/intelligent/login/resources/css/login.css
+    subPath: login.css
     readOnly: true
 
 # Start only after CNPG role Secret `keycloak` exists in this namespace.

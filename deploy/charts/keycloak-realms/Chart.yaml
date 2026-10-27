@@ -1,7 +1,8 @@
 # INT-169 — realm import ConfigMaps for Keycloak (int / demo).
+# INT-332 — also packs the Volt login theme ConfigMap (keycloak-theme-intelligent).
 apiVersion: v2
 name: keycloak-realms
-description: Keycloak realm JSON for virtual environments (INT-325 — no client secrets or UAT passwords in Git; applied via ensure script / OpenBao)
+description: Keycloak realm JSON + Volt login theme for virtual environments (INT-325 — no client secrets or UAT passwords in Git; applied via ensure script / OpenBao)
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "26.8.1"

@@ -35,6 +35,10 @@ test("Keycloak values use official image and secret refs only", async () => {
   assert.match(values, /-\s*start/);
   assert.match(values, /--import-realm/);
   assert.match(values, /keycloak-realm-import/);
+  // INT-332 — Volt login theme ConfigMap mounted under /opt/keycloak/themes.
+  assert.match(values, /keycloak-theme-intelligent/);
+  assert.match(values, /\/opt\/keycloak\/themes\/intelligent\/login\/theme\.properties/);
+  assert.match(values, /\/opt\/keycloak\/themes\/intelligent\/login\/resources\/css\/login\.css/);
 
   assert.match(values, /proxy:\s*\n\s*enabled:\s*true/);
   assert.match(values, /http:\s*\n\s*enabled:\s*true/);
@@ -76,4 +80,8 @@ test("platform README documents Keycloak packaging (INT-160)", async () => {
   assert.match(text, /keycloakx/);
   assert.match(text, /platform\/keycloak/);
   assert.match(text, /dev-only-replace-me/);
+  // INT-332 — Volt theme documented with mount + ensure path.
+  assert.match(text, /INT-332/);
+  assert.match(text, /keycloak-theme-intelligent/);
+  assert.match(text, /loginTheme/);
 });

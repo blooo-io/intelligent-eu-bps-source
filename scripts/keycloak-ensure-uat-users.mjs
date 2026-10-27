@@ -593,6 +593,44 @@ export async function ensureRealmSslRequired(
   return { realm: realmName, sslRequired, updated: true };
 }
 
+/**
+ * INT-332 — Volt login theme on existing realms (ConfigMap import does not
+ * re-apply loginTheme after first boot; see deploy/platform/README.md).
+ */
+export const LOGIN_THEME = "intelligent";
+
+export async function ensureRealmLoginTheme(
+  baseUrl,
+  token,
+  realmName,
+  loginTheme = LOGIN_THEME,
+) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...proxyHeaders(baseUrl),
+  };
+  const realmUrl = `${baseUrl.replace(/\/$/, "")}/admin/realms/${realmName}`;
+  const get = await fetch(realmUrl, { headers });
+  if (!get.ok) {
+    throw new Error(`get realm ${realmName}: ${get.status}`);
+  }
+  const realm = await get.json();
+  if (realm.loginTheme === loginTheme) {
+    return { realm: realmName, loginTheme, updated: false };
+  }
+  const put = await fetch(realmUrl, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ ...realm, loginTheme }),
+  });
+  if (!put.ok) {
+    throw new Error(`put realm ${realmName} loginTheme: ${put.status}`);
+  }
+  return { realm: realmName, loginTheme, updated: true };
+}
+
 /** INT-287 / INT-314 / INT-325 — inter-module service JWT client (OpenBao → modules). */
 export const MODULE_SERVICE_CLIENT = {
   clientId: "module-service",
@@ -836,6 +874,13 @@ export async function ensureUatUsers(options = {}) {
   } catch {
     // demo realm may be absent on some environments
   }
+  const themeInt = await ensureRealmLoginTheme(baseUrl, token, "int");
+  let themeDemo = null;
+  try {
+    themeDemo = await ensureRealmLoginTheme(baseUrl, token, "demo");
+  } catch {
+    // demo realm may be absent on some environments
+  }
   const smtp = await ensureRealmSmtp(baseUrl, token);
   const adminClient = await ensureParticipantsAdminClient(baseUrl, token);
   const moduleService = await ensureModuleServiceClient(baseUrl, token, "int");
@@ -862,6 +907,8 @@ export async function ensureUatUsers(options = {}) {
     smtp,
     sslInt,
     sslDemo,
+    themeInt,
+    themeDemo,
     moduleService,
     moduleServiceDemo,
     apisixGateway,

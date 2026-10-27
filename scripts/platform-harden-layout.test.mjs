@@ -109,7 +109,7 @@ test("INT-313 — Temporal, SonarQube, observability NetworkPolicies", async () 
   assert.match(sonar, /app:\s*sonarqube/);
 });
 
-test("INT-315 — Kyverno engine + int-apps baseline policies", async () => {
+test("INT-315 / INT-328 — Kyverno engine + int-apps/demo-apps baseline policies", async () => {
   const engine = await readFile("deploy/argocd/platform/kyverno.yaml", "utf8");
   assert.match(engine, /name: platform-kyverno/);
   assert.match(engine, /chart: kyverno/);
@@ -119,16 +119,23 @@ test("INT-315 — Kyverno engine + int-apps baseline policies", async () => {
     "utf8",
   );
   assert.match(policiesApp, /path: deploy\/charts\/kyverno-policies/);
+  const values = await readFile(
+    "deploy/charts/kyverno-policies/values.yaml",
+    "utf8",
+  );
+  assert.match(values, /appsNamespaces:[\s\S]*int-apps[\s\S]*demo-apps/);
   const tpl = await readFile(
     "deploy/charts/kyverno-policies/templates/require-nonroot.yaml",
     "utf8",
   );
   assert.match(tpl, /kind: ClusterPolicy/);
+  assert.match(tpl, /name: apps-require-nonroot/);
+  assert.match(tpl, /appsNamespaces/);
   assert.match(tpl, /runAsNonRoot: true/);
   assert.match(tpl, /drop:[\s\S]*ALL/);
 });
 
-test("INT-312 — namespace PSA labels chart + Argo app", async () => {
+test("INT-312 / INT-328 — namespace PSA labels chart + Argo app", async () => {
   const chart = await readFile("deploy/charts/namespace-psa/Chart.yaml", "utf8");
   assert.match(chart, /^name: namespace-psa$/m);
   const values = await readFile(
@@ -136,6 +143,8 @@ test("INT-312 — namespace PSA labels chart + Argo app", async () => {
     "utf8",
   );
   assert.match(values, /name:\s*int-apps/);
+  assert.match(values, /name:\s*demo-apps/);
+  assert.match(values, /name:\s*demo-data/);
   assert.match(values, /enforce:\s*baseline/);
   assert.match(values, /audit:\s*restricted/);
   const tpl = await readFile(
@@ -151,6 +160,25 @@ test("INT-312 — namespace PSA labels chart + Argo app", async () => {
   assert.match(app, /name: platform-namespace-psa/);
   assert.match(app, /path: deploy\/charts\/namespace-psa/);
   assert.match(app, /ServerSideApply=true/);
+});
+
+test("INT-328 — OTel attributes/redact covers common PII keys", async () => {
+  const otel = await readFile(
+    "deploy/platform/otel-collector/values.yaml",
+    "utf8",
+  );
+  assert.match(otel, /attributes\/redact/);
+  for (const key of [
+    "email",
+    "name",
+    "phone",
+    "iban",
+    "address",
+    "tax_id",
+    "vat_number",
+  ]) {
+    assert.match(otel, new RegExp(`key:\\s*${key}\\b`), key);
+  }
 });
 
 test("INT-289 — APISIX security headers helper on public routes", async () => {

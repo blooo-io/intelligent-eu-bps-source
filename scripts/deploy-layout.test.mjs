@@ -50,6 +50,17 @@ test("mailpit chart is non-root and has no committed secret (TD-12)", async () =
   assert.match(template, /runAsNonRoot: true/);
   assert.match(template, /readOnlyRootFilesystem: true/);
   assert.equal(/^\s*kind:\s*Secret\s*$/m.test(template), false);
+
+  // INT-328 — SMTP NetworkPolicy (Keycloak → 1025); UI not opened to the mesh.
+  const np = await readFile(
+    "deploy/charts/mailpit/templates/networkpolicy.yaml",
+    "utf8",
+  );
+  assert.match(np, /kind: NetworkPolicy/);
+  assert.match(np, /INT-328/);
+  assert.match(np, /keycloakNamespace/);
+  assert.match(np, /smtpPort/);
+  assert.equal(/uiPort/.test(np), false);
 });
 
 test("dev applications track develop and land in int-apps", async () => {

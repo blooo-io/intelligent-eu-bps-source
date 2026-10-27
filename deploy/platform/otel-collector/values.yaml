@@ -41,12 +41,40 @@ config:
       limit_percentage: 80
       spike_limit_percentage: 25
     batch: {}
-    # NFR-015 / REQ-030 — drop obvious personal-data patterns; keep identifiers only.
+    # NFR-015 / REQ-030 / INT-328 — drop personal-data attribute keys; keep ids only.
     attributes/redact:
       actions:
         - key: email
           action: delete
         - key: enduser.id
+          action: delete
+        - key: name
+          action: delete
+        - key: full_name
+          action: delete
+        - key: first_name
+          action: delete
+        - key: last_name
+          action: delete
+        - key: phone
+          action: delete
+        - key: phone_number
+          action: delete
+        - key: mobile
+          action: delete
+        - key: iban
+          action: delete
+        - key: bic
+          action: delete
+        - key: address
+          action: delete
+        - key: street
+          action: delete
+        - key: postal_code
+          action: delete
+        - key: tax_id
+          action: delete
+        - key: vat_number
           action: delete
   exporters:
     # In-cluster Jaeger All-in-One OTLP (release name from Argo Application).

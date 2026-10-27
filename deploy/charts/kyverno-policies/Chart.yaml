@@ -1,6 +1,6 @@
 apiVersion: v2
 name: kyverno-policies
-description: Baseline Kyverno ClusterPolicies for int-apps (INT-315)
+description: Baseline Kyverno ClusterPolicies for int-apps and demo-apps (INT-315 / INT-328)
 type: application
 version: 0.1.0
 appVersion: "1.0.0"

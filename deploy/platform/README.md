@@ -35,14 +35,15 @@ INT-289: routes set HSTS / CSP / X-Frame-Options / nosniff via `response-rewrite
 | Piece | Chart | Namespaces | Argo Application | Sync wave |
 |---|---|---|---|---|
 | Keycloak + OpenBao + APISIX/etcd + Temporal/Sonar/obs NP | local `deploy/charts/platform-network-policies` | multi-ns | `platform-network-policies` | 4 |
-| Namespace PSA labels (INT-312) | local `deploy/charts/namespace-psa` | cluster namespaces | `platform-namespace-psa` | 0 |
+| Mailpit SMTP NP (INT-328) | local `deploy/charts/mailpit` | `int-apps` | `dev-mailpit` | — |
+| Namespace PSA labels (INT-312 / INT-328) | local `deploy/charts/namespace-psa` | cluster namespaces incl. `demo-*` | `platform-namespace-psa` | 0 |
 
-Module peer allow-lists (INT-287): `ingressFrom` only — no namespace-wide `podSelector: {}`. Temporal worker peers use `scheduler-worker`. Nest modules require Keycloak `module-service` JWT on `/internal/*` (`SERVICE_JWT_REQUIRED=true`, INT-314). Realms use `sslRequired: none` so in-cluster HTTP client-credentials work with Cilium `100.64.0.0/10` (Keycloak treats that CIDR as external under `sslRequired=external`).
+Module peer allow-lists (INT-287): `ingressFrom` only — no namespace-wide `podSelector: {}`. Temporal worker peers use `scheduler-worker`. Nest modules require Keycloak `module-service` JWT on `/internal/*` (`SERVICE_JWT_REQUIRED=true`, INT-314). Realms use `sslRequired: none` so in-cluster HTTP client-credentials work with Cilium `100.64.0.0/10` (Keycloak treats that CIDR as external under `sslRequired=external`). Mailpit UI is ClusterIP-only; SMTP allowed from Keycloak (INT-328).
 
 | Piece | Chart | Namespaces | Argo Application | Sync wave |
 |---|---|---|---|---|
 | Kyverno engine (INT-315) | `kyverno` **3.9.2** (Apache-2.0) | `kyverno` | `platform-kyverno` | 0 |
-| int-apps baseline ClusterPolicies | local `deploy/charts/kyverno-policies` | `kyverno` | `platform-kyverno-policies` | 1 |
+| int-apps + demo-apps baseline ClusterPolicies (INT-328) | local `deploy/charts/kyverno-policies` | `kyverno` | `platform-kyverno-policies` | 1 |
 
 Env hosts: `deploy/envs/<env>/apisix-gateway-values.yaml`. Webhook `POST /webhooks/payment-provider` is rate-limited and unauthenticated; `/v1/*` uses `openid-connect` (Keycloak realm per env; `client_secret` via ExternalSecret `apisix-oidc`, INT-169) then a `serverless-pre-function` that maps JWT claims to Nest principal headers `x-intelligent-sub` / `x-intelligent-roles` / `x-intelligent-community` (INT-179), then `limit-req` from `api.rate` (INT-327 / TD-8). Depends on platform APISIX (INT-161) and Keycloak (INT-160). TLS (INT-168 / INT-173 / INT-174): `Certificate` + `ApisixTls` per host; issuer `letsencrypt-prod` (`useProduction: true`). Staging ClusterIssuer remains for debug. After an issuer flip, bump `tls.reloadGeneration` so ApisixTls is replaced and APISIX etcd reloads `tls.crt` (Secret-only updates can leave a stale SSL object).
 
@@ -217,7 +218,7 @@ Values files:
 - `deploy/platform/kube-prometheus/values.yaml` — `grafana.enabled: false`; `ruleSelectorNilUsesHelmValues: false` so INT-327 rules are discovered
 - `deploy/platform/jaeger/values.yaml` — in-memory storage for V1 / virtual `dev`
 - `deploy/platform/victoria-logs/values.yaml`
-- `deploy/platform/otel-collector/values.yaml` — OTLP in; traces→Jaeger, logs→VictoriaLogs, metrics scrape endpoint; attributes redaction (NFR-015)
+- `deploy/platform/otel-collector/values.yaml` — OTLP in; traces→Jaeger, logs→VictoriaLogs, metrics scrape endpoint; attributes redaction (NFR-015 / INT-328: email, name, phone, iban, address, tax ids, …)
 - `deploy/platform/perses/values.yaml` — ClusterIP; UI via port-forward until APISIX + Keycloak
 - `deploy/platform/apisix/values.yaml` — LoadBalancer; Admin keys via ExternalSecret; Ingress Class `apisix`
 - `deploy/charts/prometheus-rules/` — cert expiry, ExternalSecret NotReady, Kyverno enforce failures, JobFailed (physical §7 / INT-327)

@@ -50,14 +50,17 @@ kubectl top nodes
 `;
 }
 
-function kubectl(args, { check = true } = {}) {
+function kubectl(args, { check = true, maxBuffer = 20 * 1024 * 1024 } = {}) {
   const result = spawnSync("kubectl", args, {
     encoding: "utf8",
     env: operatorEnv(),
+    maxBuffer,
   });
   if (check && result.status !== 0) {
-    const err = (result.stderr || result.stdout || "").trim();
-    throw new Error(`kubectl ${args.join(" ")} failed: ${err}`);
+    const err = (result.stderr || result.stdout || result.error?.message || "").trim();
+    throw new Error(
+      `kubectl ${args.join(" ")} failed: ${err.slice(0, 500)}`,
+    );
   }
   return result;
 }

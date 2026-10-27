@@ -9,7 +9,7 @@ import {
   printOperatorSteps,
 } from "./dev-cluster-footprint-cleanup.mjs";
 
-test("footprint cleanup script documents orphan CNPG and demo apps (INT-331)", () => {
+test("footprint cleanup script documents orphan CNPG and demo apps (INT-331)", async () => {
   const summary = checkScriptLayout();
   assert.equal(summary.expectedContext, "admin@k8s-intelligent-eu-dev");
   assert.equal(summary.orphanCluster, "default/int-data");
@@ -20,6 +20,14 @@ test("footprint cleanup script documents orphan CNPG and demo apps (INT-331)", (
   assert.match(printed, /cluster\.postgresql\.cnpg\.io int-data -n default/);
   assert.match(printed, /grep '\^demo-'/);
   assert.equal(printed.includes("stringData:"), false);
+
+  const source = await readFile(
+    new URL("./dev-cluster-footprint-cleanup.mjs", import.meta.url),
+    "utf8",
+  );
+  // Prefer jsonpath over dumping every pod object into the Node spawn buffer.
+  assert.match(source, /jsonpath=/);
+  assert.equal(source.includes('["get", "pods", "-A", "-o", "json"]'), false);
 });
 
 test("platform and Argo READMEs document INT-331 footprint steps", async () => {

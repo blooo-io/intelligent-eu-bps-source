@@ -22,13 +22,14 @@ service:
   port: 80
   targetPort: 3333
 
+# INT-331 — defaults aligned with deploy/platform overlay for V1 / virtual dev.
 resources:
   requests:
     cpu: 100m
-    memory: 256Mi
+    memory: 192Mi
   limits:
-    cpu: "1"
-    memory: 1Gi
+    cpu: 500m
+    memory: 512Mi
 
 probes:
   livenessInitialDelay: 30
@@ -38,6 +39,7 @@ probes:
 
 # Non-secret env (ConfigMap). Secrets stay in secretName.
 config:
+  NODE_OPTIONS: "--max-old-space-size=384"
   PORT: "3333"
   WEBSOCKET: NONE
   WEBSOCKET_URL: ""

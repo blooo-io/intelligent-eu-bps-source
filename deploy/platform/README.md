@@ -154,7 +154,7 @@ Official SonarSource Helm chart (not vendored). Values only in Git; no secret va
 | Admin password ExternalSecret | local `deploy/charts/sonarqube-admin-secret` | `sonarqube` | `platform-sonarqube-admin-secret` | 2 |
 | SonarQube Community Build | `sonarqube` **2026.5.1002** (`community.enabled=true`) | `sonarqube` | `platform-sonarqube` | 2 |
 
-Values: `deploy/platform/sonarqube/values.yaml`. JDBC → CNPG `sonarqube-rw.sonarqube.svc.cluster.local` with role Secret `sonarqube`. OpenBao path `platform/sonarqube` holds `monitoring_passcode`, `admin_password`, and (after bootstrap) `analysis_token`. Public host `sonar.intelligent-eu-bp.blooo.dev` via APISIX.
+Values: `deploy/platform/sonarqube/values.yaml`. JDBC → CNPG `sonarqube-rw.sonarqube.svc.cluster.local` with role Secret `sonarqube`. OpenBao path `platform/sonarqube` holds `monitoring_passcode`, `admin_password`, and (after bootstrap) `analysis_token`. Public host `sonar.intelligent-eu-bp.blooo.dev` via APISIX. INT-331 caps `sonarProperties` heaps (Web/CE/Search) for V1 / virtual `dev` so the StatefulSet stays near 1.3Gi request / 2Gi limit.
 
 ### Operator steps after Argo sync (not in Git)
 
@@ -215,18 +215,30 @@ Do not `helm install` the CG chart by hand outside Argo (INT-157).
 
 Values files:
 
-- `deploy/platform/kube-prometheus/values.yaml` — `grafana.enabled: false`; `ruleSelectorNilUsesHelmValues: false` so INT-327 rules are discovered
+- `deploy/platform/kube-prometheus/values.yaml` — `grafana.enabled: false`; `ruleSelectorNilUsesHelmValues: false` so INT-327 rules are discovered; INT-331 sets `retention: 2d` / `retentionSize: 5GB` and a 1Gi memory limit for V1 / virtual `dev`
 - `deploy/platform/jaeger/values.yaml` — in-memory storage for V1 / virtual `dev`
 - `deploy/platform/victoria-logs/values.yaml`
-- `deploy/platform/otel-collector/values.yaml` — OTLP in; traces→Jaeger, logs→VictoriaLogs, metrics scrape endpoint; attributes redaction (NFR-015 / INT-328: email, name, phone, iban, address, tax ids, …)
+- `deploy/platform/otel-collector/values.yaml` — OTLP in; traces→Jaeger, logs→VictoriaLogs, metrics scrape endpoint; attributes redaction (NFR-015 / INT-328: email, name, phone, iban, address, tax ids, …); INT-331 384Mi limit
 - `deploy/platform/perses/values.yaml` — ClusterIP; UI via port-forward until APISIX + Keycloak
 - `deploy/platform/apisix/values.yaml` — LoadBalancer; Admin keys via ExternalSecret; Ingress Class `apisix`
+- `deploy/platform/keycloak/values.yaml` — INT-331 `JAVA_OPTS_KC_HEAP` + 768Mi limit for V1 / virtual `dev`
+- `deploy/platform/ddhub-client-gateway/values.yaml` — INT-331 `NODE_OPTIONS` + 512Mi limit
 - `deploy/charts/prometheus-rules/` — cert expiry, ExternalSecret NotReady, Kyverno enforce failures, JobFailed (physical §7 / INT-327)
 
 Register or refresh platform Applications from Git (INT-155 bootstrap already applies `deploy/argocd/platform/`):
 
 ```bash
 kubectl apply -f deploy/argocd/platform/
+```
+
+### V1 / virtual `dev` memory footprint (INT-331)
+
+After Argo has synced the value cuts above, reclaim leftovers that are **not** in Git (orphan CNPG in `default/`, unused `demo-*` Applications). Documented operator path only — INT-157:
+
+```bash
+node scripts/dev-cluster-footprint-cleanup.mjs --check
+node scripts/dev-cluster-footprint-cleanup.mjs --print
+KUBECONFIG=… node scripts/dev-cluster-footprint-cleanup.mjs --apply
 ```
 
 Do not `helm install` these charts by hand outside Argo.

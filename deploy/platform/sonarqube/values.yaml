@@ -11,15 +11,21 @@ community:
 
 replicaCount: 1
 
-# V1 / virtual dev — smaller than chart defaults (still enough for ES + web).
+# INT-331 — V1 / virtual dev heap caps. Chart defaults (Web 2G / CE 4G / Search 2G)
+# push RSS past 2Gi on a 6Gi node; keep quality-gate capable without that footprint.
+sonarProperties:
+  sonar.web.javaOpts: "-Xmx512m -Xms128m -XX:+HeapDumpOnOutOfMemoryError"
+  sonar.ce.javaOpts: "-Xmx256m -Xms64m -XX:+HeapDumpOnOutOfMemoryError"
+  sonar.search.javaOpts: "-Xmx512m -Xms256m -XX:+HeapDumpOnOutOfMemoryError"
+
 resources:
   requests:
-    cpu: 500m
-    memory: 2Gi
+    cpu: 250m
+    memory: 1280Mi
     ephemeral-storage: 2Gi
   limits:
     cpu: "2"
-    memory: 4Gi
+    memory: 2Gi
     ephemeral-storage: 8Gi
 
 persistence:

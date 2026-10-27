@@ -84,6 +84,7 @@ node scripts/argocd-bootstrap.mjs --print   # copy-paste operator steps
 - Argo syncs Applications — no kubeconfig needed in CI for day-to-day deploys.
 - Module `replicaCount` stays `0` until that module's image exists (`deploy/envs/dev/values.yaml`).
 - Platform secrets (INT-133): after `platform-external-secrets` / `platform-openbao` sync, follow `deploy/platform/README.md` for OpenBao init and the live `openbao-eso-token` Secret (never in Git). Module apps need the ESO CRDs before they can sync `ExternalSecret` resources.
+- Memory footprint (INT-331): platform Helm values trim SonarQube / Prometheus / Keycloak / OTel / DDHub for V1 / virtual `dev`. Bootstrap still pins the Argo application-controller limit at **2Gi** (INT-219). To drop orphan `default/int-data` and unused `demo-*` Applications (not applied by the steps above), run `node scripts/dev-cluster-footprint-cleanup.mjs --print` then `--apply` with the operator kubeconfig.
 
 ## Fallback until Argo is installed
 

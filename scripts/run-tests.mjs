@@ -82,6 +82,7 @@ await run(process.execPath, ["--test", path.join(root, "scripts/platform-tempora
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-apisix-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-apisix-gateway-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-harden-layout.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/dev-cluster-footprint-cleanup.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/argocd-bootstrap.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/argocd-repo-credentials.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/openbao-dev-bootstrap.test.mjs")]);

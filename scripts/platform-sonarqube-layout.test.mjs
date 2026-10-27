@@ -44,6 +44,13 @@ test("SonarQube values enable Community Build and secret refs only", async () =>
   assert.match(values, /jdbcSecretName:\s*sonarqube/);
   assert.match(values, /monitoringPasscodeSecretName:\s*sonarqube-monitoring/);
   assert.match(values, /fullnameOverride:\s*platform-sonarqube/);
+  // INT-331 — V1/dev heap caps (avoid chart defaults Web 2G / CE 4G / Search 2G).
+  assert.match(values, /sonarProperties:/);
+  assert.match(values, /sonar\.web\.javaOpts:.*-Xmx512m/);
+  assert.match(values, /sonar\.ce\.javaOpts:.*-Xmx256m/);
+  assert.match(values, /sonar\.search\.javaOpts:.*-Xmx512m/);
+  assert.match(values, /memory:\s*1280Mi/);
+  assert.match(values, /memory:\s*2Gi/);
   assert.equal(values.includes("stringData:"), false);
   assert.equal(/\bjdbcPassword:\s*['\"]?\w+/.test(values), false);
   assert.equal(/\bmonitoringPasscode:\s*['\"]?\w+/.test(values), false);

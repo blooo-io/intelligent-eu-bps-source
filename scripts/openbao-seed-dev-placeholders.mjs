@@ -220,44 +220,57 @@ function readKvMap(token, kvPath) {
   }
 }
 
+/**
+ * INT-329 — merge placeholder fields into an existing OpenBao map without
+ * clobbering real Stripe / bootstrap-generated values (INT-295).
+ */
+export function mergePlaceholderFields(existing = {}, fieldArgs = ["seeded=true"]) {
+  const patch = parseFieldArgs(fieldArgs);
+  const merged = { ...existing };
+  for (const [key, value] of Object.entries(patch)) {
+    const current = merged[key];
+    if (
+      current &&
+      current !== "dev-only-replace-me" &&
+      (key === "admin_password" ||
+        key === "analysis_token" ||
+        key.startsWith("stripe_"))
+    ) {
+      continue;
+    }
+    merged[key] = value;
+  }
+  return merged;
+}
+
 export function applySeedPlaceholders() {
   if (!process.env.KUBECONFIG) {
     throw new Error("KUBECONFIG is required for --apply");
   }
   const token = rootToken();
   const written = [];
-  const skipped = [];
+  const stripePreserved = [];
   for (const kvPath of DEV_PLACEHOLDER_PATHS) {
     const existing = readKvMap(token, kvPath);
-    // INT-295 — bare `kv put seeded=true` replaced Stripe test keys and crashed
-    // invoicing/payments on e2e rollout (`requires stripe_secret_key`).
+    const fields = DEV_PLACEHOLDER_FIELDS[kvPath] ?? ["seeded=true"];
+    // INT-295 / INT-329 — never skip Stripe-protected paths entirely: merge
+    // Keycloak JWT secrets while preserving real stripe_* credentials.
     if (
       STRIPE_PROTECTED_PATHS.includes(kvPath) &&
       hasRealStripeCredentials(existing)
     ) {
-      skipped.push(kvPath);
-      continue;
+      stripePreserved.push(kvPath);
     }
-    const fields = DEV_PLACEHOLDER_FIELDS[kvPath] ?? ["seeded=true"];
-    // Merge for platform paths so bootstrap-generated admin_password survives.
-    const patch = parseFieldArgs(fields);
-    const merged = { ...existing };
-    for (const [key, value] of Object.entries(patch)) {
-      const current = merged[key];
-      if (
-        current &&
-        current !== "dev-only-replace-me" &&
-        (key === "admin_password" || key === "analysis_token" || key.startsWith("stripe_"))
-      ) {
-        continue;
-      }
-      merged[key] = value;
-    }
+    const merged = mergePlaceholderFields(existing, fields);
     const putFields = Object.entries(merged).map(([k, v]) => `${k}=${v}`);
     bao(token, ["kv", "put", "-mount=secret", kvPath, ...putFields]);
     written.push(kvPath);
   }
-  return { written: written.length, skipped: skipped.length, mount: "secret" };
+  return {
+    written: written.length,
+    stripePreserved: stripePreserved.length,
+    mount: "secret",
+  };
 }
 
 const isDirectRun =

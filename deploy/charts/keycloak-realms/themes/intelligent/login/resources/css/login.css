@@ -52,25 +52,46 @@ body {
   box-sizing: border-box;
 }
 
-/* Override PatternFly side-by-side header/main grid. */
+/* Override PatternFly side-by-side header/main grid (especially xl ≥1200px). */
 .pf-v5-c-login__container {
   display: flex !important;
   flex-direction: column !important;
-  align-items: stretch;
-  justify-content: center;
+  align-items: stretch !important;
+  justify-content: center !important;
   gap: 1.25rem;
-  width: 100%;
-  max-width: 26rem;
-  margin: 0 auto;
+  width: 100% !important;
+  max-width: 26rem !important;
+  margin: 0 auto !important;
+  padding-inline: 0 !important;
   grid-template-columns: none !important;
   grid-template-areas: none !important;
+  grid-column-gap: 0 !important;
+}
+
+@media (min-width: 1200px) {
+  .pf-v5-c-login__container {
+    display: flex !important;
+    flex-direction: column !important;
+    max-width: 26rem !important;
+    grid-template-columns: none !important;
+    grid-template-areas: none !important;
+    padding-inline: 0 !important;
+  }
+
+  .pf-v5-c-login__header {
+    margin-block-start: 0 !important;
+  }
+
+  .pf-v5-c-login__main {
+    margin-block-end: 0 !important;
+  }
 }
 
 .pf-v5-c-login__header {
   grid-area: unset !important;
   width: 100%;
-  margin: 0;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
   text-align: center;
 }
 

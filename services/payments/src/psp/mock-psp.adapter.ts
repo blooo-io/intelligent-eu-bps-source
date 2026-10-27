@@ -189,11 +189,14 @@ export class MockPspAdapter implements PspPort {
     }
     try {
       const payload = JSON.parse(rawBody) as {
+        id?: string;
         type?: string;
         data?: Record<string, unknown>;
       };
       return {
         ok: true,
+        // INT-326 — mirror Stripe Event.id for webhook dedupe tests.
+        eventId: typeof payload.id === "string" ? payload.id : undefined,
         eventType: payload.type,
         payload: payload.data ?? {},
       };

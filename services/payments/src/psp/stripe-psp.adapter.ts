@@ -292,6 +292,7 @@ function normalizeStripeEvent(event: Stripe.Event): WebhookVerification {
     const account = event.data.object as Stripe.Account;
     return {
       ok: true,
+      eventId: event.id,
       eventType: event.type,
       payload: {
         participantId: account.metadata?.participantId,
@@ -306,6 +307,7 @@ function normalizeStripeEvent(event: Stripe.Event): WebhookVerification {
     const intent = event.data.object as Stripe.PaymentIntent;
     return {
       ok: true,
+      eventId: event.id,
       eventType: event.type,
       payload: {
         stripePaymentId: intent.id,
@@ -315,6 +317,7 @@ function normalizeStripeEvent(event: Stripe.Event): WebhookVerification {
   }
   return {
     ok: true,
+    eventId: event.id,
     eventType: event.type,
     payload: event.data.object as unknown as Record<string, unknown>,
   };

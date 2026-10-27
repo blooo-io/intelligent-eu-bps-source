@@ -80,6 +80,8 @@ export type PspPaymentResult = {
 
 export type WebhookVerification = {
   ok: boolean;
+  /** Stripe Event.id — INT-326 / 04 §7 idempotency key. */
+  eventId?: string;
   eventType?: string;
   payload?: Record<string, unknown>;
 };

@@ -133,7 +133,7 @@ describe("payments HTTP (INT-107)", () => {
   });
 
   it("webhook accepts signed provider events", async () => {
-    const body = JSON.stringify({ type: "ping", data: {} });
+    const body = JSON.stringify({ id: "evt_http_ping", type: "ping", data: {} });
     const bad = await fetch(`${base}/webhooks/payment-provider`, {
       method: "POST",
       headers: { "content-type": "application/json" },

@@ -3,11 +3,16 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { asString, OutboxService } from "@intelligent/module-template";
+import {
+  asString,
+  IdempotentConsumer,
+  OutboxService,
+} from "@intelligent/module-template";
 import {
   PaymentsStore,
   type AccountRecord,
@@ -49,6 +54,10 @@ type ProvisionRole = "consumer" | "producer" | "prosumer";
  */
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+  /** INT-326 — Stripe webhook duplicate deliveries (in-process counter). */
+  private webhookDuplicateCount = 0;
+
   constructor(
     @Inject(PaymentsStore) private readonly store: PaymentsStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
@@ -61,7 +70,13 @@ export class PaymentsService {
     @Inject(PARTICIPANTS_RESOLVER)
     private readonly idpResolver: ParticipantsResolverPort,
     @Inject(PSP_ERASE_PORT) private readonly pspErase: PspErasePort,
+    @Inject(IdempotentConsumer) private readonly consumer: IdempotentConsumer,
   ) {}
+
+  /** INT-326 — exposed for tests / future Prometheus scrape. */
+  getWebhookDuplicateCount(): number {
+    return this.webhookDuplicateCount;
+  }
 
   resetStore(): void {
     this.store.reset();
@@ -737,18 +752,37 @@ export class PaymentsService {
     if (!verified.ok) {
       throw new BadRequestException("Invalid webhook signature");
     }
-    if (verified.eventType === "account.updated") {
-      await this.handleAccountUpdatedWebhook(verified.payload);
+    // INT-326 / 04 §7 — dedupe on Stripe Event.id (prefix avoids NATS eventId clash).
+    const eventId = verified.eventId?.trim();
+    if (!eventId) {
+      throw new BadRequestException("Webhook missing event id");
+    }
+    const result = await this.consumer.handle(
+      `stripe:${eventId}`,
+      verified,
+      async (event) => {
+        if (event.eventType === "account.updated") {
+          await this.handleAccountUpdatedWebhook(event.payload);
+          return;
+        }
+        if (
+          event.eventType === "payment_intent.succeeded" ||
+          event.eventType === "payment_intent.payment_failed"
+        ) {
+          await this.handlePaymentIntentWebhook(
+            event.eventType,
+            event.payload,
+          );
+        }
+      },
+    );
+    if (result.status === "duplicate") {
+      this.webhookDuplicateCount += 1;
+      this.logger.warn(`Stripe webhook duplicate ignored eventId=${eventId}`);
       return;
     }
-    if (
-      verified.eventType === "payment_intent.succeeded" ||
-      verified.eventType === "payment_intent.payment_failed"
-    ) {
-      await this.handlePaymentIntentWebhook(
-        verified.eventType,
-        verified.payload,
-      );
+    if (result.status === "failed") {
+      throw result.error;
     }
   }
 

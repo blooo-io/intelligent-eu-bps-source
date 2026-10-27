@@ -403,6 +403,7 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
 
   it("maps payment_intent.succeeded webhook payload", () => {
     constructEvent.mockReturnValue({
+      id: "evt_pi_1",
       type: "payment_intent.succeeded",
       data: { object: { id: "pi_abc", status: "succeeded" } },
     });
@@ -410,6 +411,7 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
     const verified = adapter.verifyWebhook("{}", "sig");
     expect(verified).toEqual({
       ok: true,
+      eventId: "evt_pi_1",
       eventType: "payment_intent.succeeded",
       payload: { stripePaymentId: "pi_abc", status: "succeeded" },
     });
@@ -417,6 +419,7 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
 
   it("maps account.updated webhook to participantId", () => {
     constructEvent.mockReturnValue({
+      id: "evt_acct_1",
       type: "account.updated",
       data: {
         object: { id: "acct_1", metadata: { participantId: "part-9" } },
@@ -425,6 +428,7 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
     const adapter = new StripePspAdapter(creds);
     expect(adapter.verifyWebhook("{}", "sig")).toMatchObject({
       ok: true,
+      eventId: "evt_acct_1",
       eventType: "account.updated",
       payload: { participantId: "part-9", stripeAccountId: "acct_1" },
     });
@@ -533,12 +537,14 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
 
   it("falls through unknown event types with raw object payload", () => {
     constructEvent.mockReturnValue({
+      id: "evt_ping",
       type: "ping",
       data: { object: { hello: "world" } },
     });
     const adapter = new StripePspAdapter(creds);
     expect(adapter.verifyWebhook("{}", "sig")).toEqual({
       ok: true,
+      eventId: "evt_ping",
       eventType: "ping",
       payload: { hello: "world" },
     });
@@ -550,6 +556,7 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
         throw new Error("platform");
       })
       .mockReturnValueOnce({
+        id: "evt_acct_x",
         type: "account.updated",
         data: { object: { id: "acct_x", metadata: {} } },
       });

@@ -4,7 +4,9 @@
 import "reflect-metadata";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  IdempotentConsumer,
   InMemoryOutboxStore,
+  InMemoryProcessedEventsStore,
   OutboxService,
 } from "@intelligent/module-template";
 import { PaymentsStore } from "../domain/store.js";
@@ -45,6 +47,7 @@ describe("PaymentsService", () => {
       accountsStore,
       new NoopParticipantsResolver(),
       pspErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
     );
   });
 
@@ -319,6 +322,7 @@ describe("PaymentsService", () => {
       accountsStore,
       new NoopParticipantsResolver(),
       pspErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
     );
     await expect(
       svc.startOnboarding({
@@ -496,11 +500,52 @@ describe("PaymentsService", () => {
     const row = store.getAccount(PRODUCER)!;
     store.putAccount({ ...row, kycStatus: "pending" });
     const body = JSON.stringify({
+      id: "evt_test_account_updated_1",
       type: "account.updated",
       data: { participantId: PRODUCER },
     });
     await service.receiveWebhook(body, MockPspAdapter.sign(body));
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
+  });
+
+  it("is idempotent on Stripe event.id replay (INT-326 / 04 §7)", async () => {
+    await service.submitOnboardingRequirements({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      clientIp: "127.0.0.1",
+      submission: {
+        accountToken: "ct_hook_dup",
+        country: "FR",
+        businessType: "individual",
+        businessProfileUrl: "https://p.example",
+        businessProfileMcc: "5734",
+        representative: { firstName: "A", lastName: "B", email: "a@b.co" },
+        externalAccount: {
+          country: "FR",
+          currency: "eur",
+          accountNumber: "FR1420041010050500013M02606",
+        },
+        tosAccepted: true,
+      },
+    });
+    const row = store.getAccount(PRODUCER)!;
+    store.putAccount({ ...row, kycStatus: "pending" });
+    const body = JSON.stringify({
+      id: "evt_test_dup_account",
+      type: "account.updated",
+      data: { participantId: PRODUCER },
+    });
+    const sig = MockPspAdapter.sign(body);
+    await service.receiveWebhook(body, sig);
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
+    store.putAccount({
+      ...store.getAccount(PRODUCER)!,
+      kycStatus: "pending",
+    });
+    await service.receiveWebhook(body, sig);
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("pending");
+    expect(service.getWebhookDuplicateCount()).toBe(1);
   });
 
   it("returns consumer SetupIntent elements session and rejects pay without method (INT-193)", async () => {
@@ -545,6 +590,7 @@ describe("PaymentsService", () => {
     const row = store.getPayment(payment.paymentId)!;
     store.putPayment({ ...row, status: "pending" });
     const body = JSON.stringify({
+      id: "evt_test_pi_succeeded_1",
       type: "payment_intent.succeeded",
       data: { stripePaymentId: row.stripePaymentId },
     });
@@ -576,6 +622,7 @@ describe("PaymentsService", () => {
     const row = store.getPayment(payment.paymentId)!;
     store.putPayment({ ...row, status: "pending" });
     const body = JSON.stringify({
+      id: "evt_test_pi_failed_1",
       type: "payment_intent.payment_failed",
       data: { stripePaymentId: row.stripePaymentId, failureCategory: "declined" },
     });
@@ -648,6 +695,7 @@ describe("PaymentsService", () => {
       accountsStore,
       resolver,
       pspErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
     );
     await service.ensureParticipant({
       participantId: CONSUMER,
@@ -690,6 +738,7 @@ describe("PaymentsService", () => {
       accountsStore,
       resolver,
       pspErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
     );
     // Poison: account whose primary key is the IdP sub (prior failed resolve).
     await accountsStore.put({
@@ -788,6 +837,7 @@ describe("PaymentsService", () => {
       accountsStore,
       new NoopParticipantsResolver(),
       pspErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
     );
     await svc.submitOnboardingRequirements({
       participantId: PRODUCER,
@@ -847,6 +897,7 @@ describe("PaymentsService", () => {
       accountsStore,
       new NoopParticipantsResolver(),
       failingErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
     );
     await svc.provisionPaymentAccount({
       participantId: PRODUCER,

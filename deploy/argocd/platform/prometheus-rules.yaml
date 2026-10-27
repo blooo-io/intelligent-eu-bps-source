@@ -1,0 +1,24 @@
+# INT-327 — security PrometheusRules (after kube-prometheus CRDs).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-prometheus-rules
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/blooo-io/intelligent-eu-bps-source.git
+    targetRevision: develop
+    path: deploy/charts/prometheus-rules
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

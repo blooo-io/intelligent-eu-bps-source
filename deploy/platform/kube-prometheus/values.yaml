@@ -37,6 +37,8 @@ prometheus:
     # Modules scrape via ServiceMonitor labels once workloads exist.
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
+    # INT-327 — pick up PrometheusRules from deploy/charts/prometheus-rules.
+    ruleSelectorNilUsesHelmValues: false
 
 prometheusOperator:
   resources:

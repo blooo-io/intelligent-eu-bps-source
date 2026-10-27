@@ -1,0 +1,67 @@
+{{- /*
+  INT-327 / physical architecture §7 — security-oriented alerts.
+  Expressions use common kube-prometheus / cert-manager / Kyverno metric names.
+*/ -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: intelligent-security
+  labels:
+    app.kubernetes.io/name: prometheus-rules
+    {{- range $k, $v := .Values.labels }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+spec:
+  groups:
+    - name: intelligent.security
+      rules:
+        - alert: IntelligentCertificateExpiringSoon
+          expr: |
+            avg by (name, exported_namespace) (
+              (certmanager_certificate_expiration_timestamp_seconds - time()) / 86400
+            ) < 14
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "TLS certificate {{`{{ $labels.name }}`}} expires in < 14 days"
+            description: "INT-327 / physical §7 — renew before expiry (page at < 7d via Critical rule)."
+        - alert: IntelligentCertificateExpiringCritical
+          expr: |
+            avg by (name, exported_namespace) (
+              (certmanager_certificate_expiration_timestamp_seconds - time()) / 86400
+            ) < 7
+          for: 30m
+          labels:
+            severity: critical
+          annotations:
+            summary: "TLS certificate {{`{{ $labels.name }}`}} expires in < 7 days"
+        - alert: IntelligentExternalSecretNotReady
+          expr: |
+            max by (name, namespace) (
+              kube_externalsecret_status_condition{condition="Ready",status="false"}
+            ) == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ExternalSecret sync not Ready"
+            description: "INT-327 — OpenBao/ESO secret delivery broken for {{`{{ $labels.name }}`}}."
+        - alert: IntelligentKyvernoPolicyFailure
+          expr: |
+            increase(kyverno_policy_results_total{rule_execution_cause="enforce",result="fail"}[15m]) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Kyverno enforce policy failures"
+            description: "INT-327 / INT-315 — workload drifted from non-root baseline."
+        - alert: IntelligentKubeJobFailed
+          expr: |
+            kube_job_status_failed{namespace=~"int-apps|demo-apps|keycloak|argocd"} > 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Kubernetes Job failed in {{`{{ $labels.namespace }}`}}"
+            description: "INT-327 / physical §7 — investigate Job {{`{{ $labels.job_name }}`}}."

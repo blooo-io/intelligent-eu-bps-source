@@ -1,0 +1,6 @@
+apiVersion: v2
+name: prometheus-rules
+description: INT-327 security and ops PrometheusRules (physical architecture §7)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

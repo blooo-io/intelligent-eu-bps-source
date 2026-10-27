@@ -50,6 +50,10 @@ test("Dependabot updates npm and GitHub Actions", async () => {
   const text = await readFile(new URL("../.github/dependabot.yml", import.meta.url), "utf8");
   assert.match(text, /package-ecosystem:\s*"npm"/);
   assert.match(text, /package-ecosystem:\s*"github-actions"/);
+  // INT-323 — keep Nest / React pairs in one PR (solo major bumps break CI).
+  assert.match(text, /groups:\s*\n\s*nestjs:/);
+  assert.match(text, /patterns:\s*\n\s*-\s*"@nestjs\/\*"/);
+  assert.match(text, /groups:[\s\S]*react:[\s\S]*-\s*"react-dom"/);
 });
 
 test("Trivy forbids the excluded licence families", async () => {

@@ -19,7 +19,7 @@
     "@intelligent/module-template": "workspace:*",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
-    "@nestjs/platform-express": "^11.1.6",
+    "@nestjs/platform-express": "^12.2.0",
     "@temporalio/activity": "^1.24.0",
     "@temporalio/client": "^1.11.8",
     "@temporalio/worker": "^1.24.0",

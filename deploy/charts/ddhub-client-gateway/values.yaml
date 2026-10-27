@@ -26,20 +26,20 @@ service:
 resources:
   requests:
     cpu: 100m
-    memory: 192Mi
+    memory: 256Mi
   limits:
-    cpu: 500m
-    memory: 512Mi
+    cpu: "1"
+    memory: 768Mi
 
 probes:
-  livenessInitialDelay: 30
+  livenessInitialDelay: 120
   livenessPeriodSeconds: 10
-  readinessInitialDelay: 60
+  readinessInitialDelay: 90
   readinessPeriodSeconds: 10
 
 # Non-secret env (ConfigMap). Secrets stay in secretName.
 config:
-  NODE_OPTIONS: "--max-old-space-size=384"
+  NODE_OPTIONS: "--max-old-space-size=512"
   PORT: "3333"
   WEBSOCKET: NONE
   WEBSOCKET_URL: ""

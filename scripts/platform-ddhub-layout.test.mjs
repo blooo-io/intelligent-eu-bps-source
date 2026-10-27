@@ -43,10 +43,12 @@ test("DDHub values keep Phase 1 auth off and secret refs only", async () => {
   assert.match(values, /DSB_BASE_URL:\s*https:\/\/ddhub-ewc\.energyweb\.org/);
   assert.match(values, /platform-openbao\.openbao\.svc\.cluster\.local/);
   assert.match(values, /name:\s*ddhub-client-gateway/);
-  // INT-331 — Node heap + container limit for V1/dev.
-  assert.match(values, /NODE_OPTIONS:\s*"--max-old-space-size=384"/);
-  assert.match(values, /memory:\s*192Mi/);
-  assert.match(values, /memory:\s*512Mi/);
+  // INT-331 — Node heap + container limit for V1/dev; probes allow Nest bootstrap.
+  assert.match(values, /NODE_OPTIONS:\s*"--max-old-space-size=512"/);
+  assert.match(values, /memory:\s*256Mi/);
+  assert.match(values, /memory:\s*768Mi/);
+  assert.match(values, /livenessInitialDelay:\s*120/);
+  assert.match(values, /readinessInitialDelay:\s*90/);
   assert.equal(values.includes("stringData:"), false);
   assert.equal(/\bVAULT_TOKEN:\s*['\"]?\w+/.test(values), false);
   assert.equal(/\bDB_NAME:\s*['\"]?postgresql:/.test(values), false);

@@ -18,6 +18,14 @@ sonarProperties:
   sonar.ce.javaOpts: "-Xmx256m -Xms64m -XX:+HeapDumpOnOutOfMemoryError"
   sonar.search.javaOpts: "-Xmx512m -Xms256m -XX:+HeapDumpOnOutOfMemoryError"
 
+# INT-331 — namespace PSA is baseline (INT-312); chart initSysctl is privileged.
+# Scaleway nodes already set vm.max_map_count high enough for embedded ES.
+initSysctl:
+  enabled: false
+elasticsearch:
+  configureNode: false
+  bootstrapChecks: false
+
 resources:
   requests:
     cpu: 250m

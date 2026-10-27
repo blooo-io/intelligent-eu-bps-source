@@ -1,5 +1,5 @@
 ---
-description: Agents squash-merge their own mergeable pull requests when not blocked
+description: Agents squash-merge their own and ready Dependabot pull requests when not blocked
 alwaysApply: true
 ---
 
@@ -7,11 +7,20 @@ alwaysApply: true
 
 When a pull request **you opened** (or that belongs to the current agent run’s branch) is ready, **squash-merge it yourself**. Do not wait for a human to press Merge unless you are blocked.
 
+## Dependabot (INT-322)
+
+When a **Dependabot** pull request against the preferred base is ready, **squash-merge it yourself** as soon as it is available. Do not leave green Dependabot PRs open for a human.
+
+- Same readiness bar as below (required CI green, mergeable / clean).
+- Reviewer request (`blooo-io/github-admin`) still applies when the API allows it; missing request is not a merge block.
+- Merge oldest-ready first when several Dependabot PRs are open (lockfile conflicts are common). After each merge, rebase remaining open Dependabot PRs if GitHub reports conflicts, wait for CI, then continue.
+- Do **not** force-merge a Dependabot PR with failing or pending required checks. Fix the breakage on a follow-up `INT-xxx` or leave the PR open until Dependabot/CI goes green.
+
 ## Ready means all of
 
 1. Required CI checks on the head commit are green (SUCCESS).
 2. GitHub reports the PR as mergeable / clean (no conflicts with the base branch).
-3. The PR title and body still match the Jira key and the change.
+3. The PR title and body still match the Jira key and the change (Dependabot titles are acceptable as-is).
 4. You have requested `blooo-io/github-admin` as reviewer (INT-152). Missing review **request** is not a merge block; a failing required review status from branch protection is a block.
 
 ## Merge how
@@ -27,8 +36,8 @@ When a pull request **you opened** (or that belongs to the current agent run’s
 - Merge conflicts, or `mergeable` is false / `BLOCKED` / `DIRTY` (fix via rebase first; that is not a permanent stop).
 - Branch protection requires an approving review you cannot satisfy.
 - An explicit human hold (label or comment asking not to merge, or a draft kept on purpose after CI is green).
-- The PR is not yours / not part of this run’s work (do not merge unrelated open PRs such as Dependabot unless the ticket says so).
+- The PR is not yours / not part of this run’s work, **except Dependabot** (INT-322).
 
 ## Order
 
-When several of your PRs are ready and depend on each other, merge in dependency order (e.g. foundation fix before consumers), not newest-first.
+When several of your PRs are ready and depend on each other, merge in dependency order (e.g. foundation fix before consumers), not newest-first. For Dependabot, prefer oldest-ready first.

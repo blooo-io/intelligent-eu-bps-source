@@ -45,6 +45,7 @@ The following applies to the **originating delivery team** that tracks work in J
 - Commits include the Jira key, e.g. `feat(invoicing): INT-123 issue invoice per consumer-producer pair`.
 - Do not add a coding-assistant co-author trailer (stripped by `.githooks/commit-msg`, rejected in CI).
 - Pull requests: title includes `INT-123`; use the PR template; request `blooo-io/github-admin` when available; squash-merge into `develop`.
+- **Dependabot (INT-322):** squash-merge Dependabot PRs as soon as required CI is green and the PR is mergeable. Do not leave green dependency bumps open; do not force-merge red ones.
 
 ### Releases (git tags)
 

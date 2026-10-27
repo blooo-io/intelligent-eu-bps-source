@@ -7,6 +7,9 @@ image:
 service:
   smtpPort: 1025
   uiPort: 8025
+# INT-328 — SMTP allow-list; UI stays ClusterIP + port-forward only.
+networkPolicy:
+  keycloakNamespace: keycloak
 resources:
   requests:
     cpu: 25m

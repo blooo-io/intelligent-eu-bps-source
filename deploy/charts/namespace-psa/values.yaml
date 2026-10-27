@@ -9,6 +9,15 @@ namespaces:
     enforce: baseline
     audit: restricted
     warn: restricted
+  # INT-328 — demo env namespaces (same PSA posture as int-*).
+  - name: demo-apps
+    enforce: baseline
+    audit: restricted
+    warn: restricted
+  - name: demo-data
+    enforce: baseline
+    audit: restricted
+    warn: restricted
   - name: keycloak
     enforce: baseline
     audit: baseline

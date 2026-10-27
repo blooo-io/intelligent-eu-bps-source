@@ -1,14 +1,15 @@
 {{- /*
-  INT-315 — align with module chart securityContext (runAsNonRoot, drop ALL, no escalation).
+  INT-315 / INT-328 — align with module chart securityContext
+  (runAsNonRoot, drop ALL, no escalation) on int-apps and demo-apps.
 */ -}}
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
-  name: int-apps-require-nonroot
+  name: apps-require-nonroot
   labels:
     app.kubernetes.io/name: kyverno-policies
     app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
-    app.kubernetes.io/component: int-apps-baseline
+    app.kubernetes.io/component: apps-baseline
 spec:
   validationFailureAction: {{ .Values.validationFailureAction | quote }}
   background: true
@@ -20,9 +21,11 @@ spec:
               kinds:
                 - Pod
               namespaces:
-                - {{ .Values.appsNamespace | quote }}
+                {{- range .Values.appsNamespaces }}
+                - {{ . | quote }}
+                {{- end }}
       validate:
-        message: "int-apps pods must set runAsNonRoot (module chart securityContext)."
+        message: "apps pods must set runAsNonRoot (module chart securityContext)."
         pattern:
           spec:
             securityContext:
@@ -34,9 +37,11 @@ spec:
               kinds:
                 - Pod
               namespaces:
-                - {{ .Values.appsNamespace | quote }}
+                {{- range .Values.appsNamespaces }}
+                - {{ . | quote }}
+                {{- end }}
       validate:
-        message: "int-apps containers must drop ALL capabilities."
+        message: "apps containers must drop ALL capabilities."
         pattern:
           spec:
             containers:

@@ -1,6 +1,7 @@
 /**
  * INT-332 — Keycloak login Volt surface (INT-250).
  * Palette: ink #0A0F0D, accent #C8F542, chalk #F3F6F2, Plus Jakarta Sans.
+ * Layout: brand title above a centered form card (not PatternFly side header).
  * Served to the browser; font CSS is fetched client-side (SIL OFL).
  */
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
@@ -40,29 +41,78 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Full-bleed ink stage; chalk card for the form (mirrors AC-01 login split). */
+/* Full-bleed ink stage; stack brand + card and center on the viewport. */
 .pf-v5-c-login {
   background: linear-gradient(160deg, #0a0f0d 0%, #161d1a 55%, #0a0f0d 100%);
   min-height: 100vh;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  box-sizing: border-box;
 }
 
+/* Override PatternFly side-by-side header/main grid (especially xl ≥1200px). */
 .pf-v5-c-login__container {
-  max-width: 28rem;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: center !important;
+  gap: 1.25rem;
+  width: 100% !important;
+  max-width: 26rem !important;
+  margin: 0 auto !important;
+  padding-inline: 0 !important;
+  grid-template-columns: none !important;
+  grid-template-areas: none !important;
+  grid-column-gap: 0 !important;
+}
+
+@media (min-width: 1200px) {
+  .pf-v5-c-login__container {
+    display: flex !important;
+    flex-direction: column !important;
+    max-width: 26rem !important;
+    grid-template-columns: none !important;
+    grid-template-areas: none !important;
+    padding-inline: 0 !important;
+  }
+
+  .pf-v5-c-login__header {
+    margin-block-start: 0 !important;
+  }
+
+  .pf-v5-c-login__main {
+    margin-block-end: 0 !important;
+  }
 }
 
 .pf-v5-c-login__header {
-  margin-bottom: 1.25rem;
+  grid-area: unset !important;
+  width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center;
 }
 
 #kc-header-wrapper,
 .pf-v5-c-brand,
 .pf-v5-c-login__header .pf-v5-c-title {
+  display: block;
+  width: 100%;
   color: var(--ge-accent) !important;
+  font-family: var(--ge-font);
   font-weight: 700;
+  font-size: clamp(1.05rem, 2.4vw, 1.35rem);
+  line-height: 1.35;
   letter-spacing: -0.02em;
+  text-align: center;
+  white-space: normal;
 }
 
 .pf-v5-c-login__main {
+  grid-area: unset !important;
+  width: 100%;
   background: var(--ge-paper);
   border: 1px solid var(--ge-chalk-deep);
   border-radius: 6px;

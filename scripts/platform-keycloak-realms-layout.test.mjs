@@ -17,8 +17,12 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
     "utf8",
   );
   assert.match(intRealm, /"realm": "int"/);
-  // INT-332 — Volt login theme (AC-01 / INT-250).
+  // INT-332 — Volt login theme + brand title above the form (AC-01 / INT-250).
   assert.match(intRealm, /"loginTheme": "intelligent"/);
+  assert.match(
+    intRealm,
+    /"displayName": "INTELLIGENT Billing & Payment Login"/,
+  );
   assert.match(intRealm, /"clientId": "apisix-gateway"/);
   assert.match(intRealm, /"clientId": "web"/);
   // INT-325 — no client secrets / UAT passwords in Git realm JSON.
@@ -57,6 +61,10 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   );
   assert.match(demoRealm, /"realm": "demo"/);
   assert.match(demoRealm, /"loginTheme": "intelligent"/);
+  assert.match(
+    demoRealm,
+    /"displayName": "INTELLIGENT Billing & Payment Login"/,
+  );
   assert.match(demoRealm, /"clientId": "apisix-gateway"/);
   assert.match(demoRealm, /"claim.name": "community_id"/);
   assert.match(demoRealm, /"clientId": "module-service"/);
@@ -78,6 +86,9 @@ test("Keycloak Volt login theme packaging (INT-332)", async () => {
   assert.match(css, /#0[Aa]0[Ff]0[Dd]/);
   assert.match(css, /#?[Cc]8[Ff]542/);
   assert.match(css, /Plus Jakarta Sans/);
+  // Brand above form, centered — not PatternFly side header.
+  assert.match(css, /flex-direction:\s*column\s*!important/);
+  assert.match(css, /justify-content:\s*center/);
 
   const themeCm = await readFile(
     "deploy/charts/keycloak-realms/templates/theme-configmap.yaml",

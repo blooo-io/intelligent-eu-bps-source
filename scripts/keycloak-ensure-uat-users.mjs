@@ -594,16 +594,18 @@ export async function ensureRealmSslRequired(
 }
 
 /**
- * INT-332 — Volt login theme on existing realms (ConfigMap import does not
- * re-apply loginTheme after first boot; see deploy/platform/README.md).
+ * INT-332 — Volt login theme + brand title on existing realms (ConfigMap
+ * import does not re-apply after first boot; see deploy/platform/README.md).
  */
 export const LOGIN_THEME = "intelligent";
+export const LOGIN_DISPLAY_NAME = "INTELLIGENT Billing & Payment Login";
 
 export async function ensureRealmLoginTheme(
   baseUrl,
   token,
   realmName,
   loginTheme = LOGIN_THEME,
+  displayName = LOGIN_DISPLAY_NAME,
 ) {
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -617,18 +619,18 @@ export async function ensureRealmLoginTheme(
     throw new Error(`get realm ${realmName}: ${get.status}`);
   }
   const realm = await get.json();
-  if (realm.loginTheme === loginTheme) {
-    return { realm: realmName, loginTheme, updated: false };
+  if (realm.loginTheme === loginTheme && realm.displayName === displayName) {
+    return { realm: realmName, loginTheme, displayName, updated: false };
   }
   const put = await fetch(realmUrl, {
     method: "PUT",
     headers,
-    body: JSON.stringify({ ...realm, loginTheme }),
+    body: JSON.stringify({ ...realm, loginTheme, displayName }),
   });
   if (!put.ok) {
-    throw new Error(`put realm ${realmName} loginTheme: ${put.status}`);
+    throw new Error(`put realm ${realmName} loginTheme/displayName: ${put.status}`);
   }
-  return { realm: realmName, loginTheme, updated: true };
+  return { realm: realmName, loginTheme, displayName, updated: true };
 }
 
 /** INT-287 / INT-314 / INT-325 — inter-module service JWT client (OpenBao → modules). */

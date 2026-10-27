@@ -1,7 +1,7 @@
 {
   "realm": "int",
   "enabled": true,
-  "displayName": "INTELLIGENT int",
+  "displayName": "INTELLIGENT Billing & Payment Login",
   "loginTheme": "intelligent",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,

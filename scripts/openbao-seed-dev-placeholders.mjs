@@ -71,6 +71,7 @@ export const MODULE_SERVICE_JWT_PATHS = [
 ];
 
 const MODULE_SERVICE_JWT_FIELDS = [
+  // INT-325 — modules load this via ExternalSecret envFrom (not Helm values).
   "KEYCLOAK_SERVICE_CLIENT_SECRET=dev-module-service-replace-me",
   "seeded=true",
 ];
@@ -81,7 +82,7 @@ export const DEV_PLACEHOLDER_FIELDS = {
   "platform/apisix": [
     "admin=dev-only-replace-me",
     "viewer=dev-only-replace-me",
-    // INT-169 — satisfies APISIX openid-connect schema; match Keycloak client secret.
+    // INT-169 / INT-325 — APISIX openid-connect + Keycloak apisix-gateway client.
     "oidc_client_secret=dev-only-replace-me",
     "seeded=true",
   ],
@@ -99,6 +100,12 @@ export const DEV_PLACEHOLDER_FIELDS = {
   ...Object.fromEntries(
     MODULE_SERVICE_JWT_PATHS.map((p) => [p, MODULE_SERVICE_JWT_FIELDS]),
   ),
+  // INT-325 — participants Admin IdP client secret (OpenBao → ExternalSecret).
+  "dev/participants": [
+    "KEYCLOAK_SERVICE_CLIENT_SECRET=dev-module-service-replace-me",
+    "KEYCLOAK_ADMIN_CLIENT_SECRET=dev-participants-admin-replace-me",
+    "seeded=true",
+  ],
 };
 
 /**

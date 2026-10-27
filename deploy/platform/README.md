@@ -154,7 +154,7 @@ Official SonarSource Helm chart (not vendored). Values only in Git; no secret va
 | Admin password ExternalSecret | local `deploy/charts/sonarqube-admin-secret` | `sonarqube` | `platform-sonarqube-admin-secret` | 2 |
 | SonarQube Community Build | `sonarqube` **2026.5.1002** (`community.enabled=true`) | `sonarqube` | `platform-sonarqube` | 2 |
 
-Values: `deploy/platform/sonarqube/values.yaml`. JDBC → CNPG `sonarqube-rw.sonarqube.svc.cluster.local` with role Secret `sonarqube`. OpenBao path `platform/sonarqube` holds `monitoring_passcode`, `admin_password`, and (after bootstrap) `analysis_token`. Public host `sonar.intelligent-eu-bp.blooo.dev` via APISIX. INT-331 caps `sonarProperties` heaps (Web/CE/Search) for V1 / virtual `dev` so the StatefulSet stays near 1.3Gi request / 2Gi limit.
+Values: `deploy/platform/sonarqube/values.yaml`. JDBC → CNPG `sonarqube-rw.sonarqube.svc.cluster.local` with role Secret `sonarqube`. OpenBao path `platform/sonarqube` holds `monitoring_passcode`, `admin_password`, and (after bootstrap) `analysis_token`. Public host `sonar.intelligent-eu-bp.blooo.dev` via APISIX. INT-331 caps `sonarProperties` heaps (Web/CE/Search) for V1 / virtual `dev` so the StatefulSet stays near 1.3Gi request / 2Gi limit, and disables privileged `initSysctl` under PSA baseline (nodes already set `vm.max_map_count`).
 
 ### Operator steps after Argo sync (not in Git)
 

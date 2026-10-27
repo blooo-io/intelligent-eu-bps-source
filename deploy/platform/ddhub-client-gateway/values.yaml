@@ -26,23 +26,25 @@ service:
   targetPort: 3333
 
 # INT-331 — V1 / virtual dev: scheduler was ~440Mi with a 1Gi limit; cap Node heap.
+# Keep enough headroom for Nest bootstrap before probes (512Mi + 500m CPU caused
+# liveness kills while the API was still binding :3333).
 resources:
   requests:
     cpu: 100m
-    memory: 192Mi
+    memory: 256Mi
   limits:
-    cpu: 500m
-    memory: 512Mi
+    cpu: "1"
+    memory: 768Mi
 
 probes:
-  livenessInitialDelay: 30
+  livenessInitialDelay: 120
   livenessPeriodSeconds: 10
-  readinessInitialDelay: 60
+  readinessInitialDelay: 90
   readinessPeriodSeconds: 10
 
 config:
-  # INT-331 — keep V8 old-space under the 512Mi container limit.
-  NODE_OPTIONS: "--max-old-space-size=384"
+  # INT-331 — keep V8 old-space under the 768Mi container limit.
+  NODE_OPTIONS: "--max-old-space-size=512"
   PORT: "3333"
   WEBSOCKET: NONE
   WEBSOCKET_URL: ""

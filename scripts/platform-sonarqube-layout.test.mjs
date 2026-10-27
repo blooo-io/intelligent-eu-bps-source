@@ -51,6 +51,9 @@ test("SonarQube values enable Community Build and secret refs only", async () =>
   assert.match(values, /sonar\.search\.javaOpts:.*-Xmx512m/);
   assert.match(values, /memory:\s*1280Mi/);
   assert.match(values, /memory:\s*2Gi/);
+  // INT-331 — privileged initSysctl forbidden under PSA baseline (INT-312).
+  assert.match(values, /initSysctl:\s*\n\s*enabled:\s*false/);
+  assert.match(values, /bootstrapChecks:\s*false/);
   assert.equal(values.includes("stringData:"), false);
   assert.equal(/\bjdbcPassword:\s*['\"]?\w+/.test(values), false);
   assert.equal(/\bmonitoringPasscode:\s*['\"]?\w+/.test(values), false);

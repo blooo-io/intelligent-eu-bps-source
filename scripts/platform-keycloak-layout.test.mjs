@@ -40,6 +40,10 @@ test("Keycloak values use official image and secret refs only", async () => {
   assert.match(values, /http:\s*\n\s*enabled:\s*true/);
   // INT-165 — chart proxy.http.enabled already sets KC_HTTP_ENABLED; do not duplicate in extraEnv.
   assert.equal(/\bname:\s*KC_HTTP_ENABLED\b/.test(values), false);
+  // INT-331 — V1/dev heap relative to a 768Mi limit.
+  assert.match(values, /name:\s*JAVA_OPTS_KC_HEAP/);
+  assert.match(values, /memory:\s*384Mi/);
+  assert.match(values, /memory:\s*768Mi/);
   assert.equal(values.includes("stringData:"), false);
   assert.equal(/\bpassword:\s*['\"]?\w+/.test(values), false);
   assert.equal(/bitnami/i.test(values), false);

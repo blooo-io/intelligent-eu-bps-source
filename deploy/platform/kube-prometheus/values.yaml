@@ -26,14 +26,16 @@ alertmanager:
 prometheus:
   prometheusSpec:
     replicas: 1
-    retention: 7d
+    # INT-331 — V1 / virtual dev: shorter retention + size cap to cut RSS (~900Mi → ~500Mi).
+    retention: 2d
+    retentionSize: 5GB
     resources:
       requests:
         cpu: 100m
-        memory: 512Mi
+        memory: 384Mi
       limits:
         cpu: 500m
-        memory: 2Gi
+        memory: 1Gi
     # Modules scrape via ServiceMonitor labels once workloads exist.
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false

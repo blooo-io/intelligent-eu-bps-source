@@ -48,6 +48,9 @@ extraEnv: |
     value: "false"
   # Do not set KC_HTTP_ENABLED here — proxy.http.enabled already injects it
   # (duplicate breaks Argo ServerSideApply on the StatefulSet; INT-165).
+  # INT-331 — V1 / virtual dev: heap relative to the smaller container limit.
+  - name: JAVA_OPTS_KC_HEAP
+    value: "-XX:MaxRAMPercentage=65 -XX:InitialRAMPercentage=40 -XX:MaxMetaspaceSize=256m"
 
 http:
   relativePath: "/"
@@ -61,10 +64,10 @@ proxy:
 resources:
   requests:
     cpu: 100m
-    memory: 512Mi
+    memory: 384Mi
   limits:
     cpu: "1"
-    memory: 1Gi
+    memory: 768Mi
 
 # Realms `int` / `demo` are created by the operator after first boot (or a later
 # realm-import change). Hostname auth.intelligent-eu-bp.blooo.dev waits on APISIX (INT-114).

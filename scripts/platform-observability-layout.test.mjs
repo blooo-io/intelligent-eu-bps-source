@@ -84,6 +84,11 @@ test("observability values disable Grafana and contain no secret material", asyn
   assert.match(prom, /alertmanager:\s*\n\s*enabled:\s*true/);
   // INT-327 — discover PrometheusRules outside the stack release.
   assert.match(prom, /ruleSelectorNilUsesHelmValues:\s*false/);
+  // INT-331 — V1/dev retention + memory cap.
+  assert.match(prom, /retention:\s*2d/);
+  assert.match(prom, /retentionSize:\s*5GB/);
+  assert.match(prom, /memory:\s*384Mi/);
+  assert.match(prom, /memory:\s*1Gi/);
 
   const rulesChart = await readFile(
     "deploy/charts/prometheus-rules/Chart.yaml",
@@ -112,6 +117,9 @@ test("observability values disable Grafana and contain no secret material", asyn
   assert.match(otel, /attributes\/redact/);
   assert.match(otel, /platform-jaeger\.observability\.svc\.cluster\.local:4317/);
   assert.match(otel, /platform-victoria-logs-server\.observability\.svc\.cluster\.local:9428/);
+  // INT-331 — tighten collector memory limit for V1/dev.
+  assert.match(otel, /memory:\s*384Mi/);
+  assert.match(otel, /limit_percentage:\s*75/);
   assert.equal(/grafana/i.test(otel), false);
 });
 

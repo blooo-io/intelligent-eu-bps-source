@@ -11,13 +11,14 @@ replicaCount: 1
 image:
   repository: otel/opentelemetry-collector-contrib
 
+# INT-331 — V1 / virtual dev: observed ~320Mi; tighten limit so the collector cannot balloon.
 resources:
   requests:
     cpu: 50m
     memory: 128Mi
   limits:
     cpu: 500m
-    memory: 512Mi
+    memory: 384Mi
 
 ports:
   otlp:
@@ -38,8 +39,8 @@ config:
   processors:
     memory_limiter:
       check_interval: 5s
-      limit_percentage: 80
-      spike_limit_percentage: 25
+      limit_percentage: 75
+      spike_limit_percentage: 20
     batch: {}
     # NFR-015 / REQ-030 / INT-328 — drop personal-data attribute keys; keep ids only.
     attributes/redact:

@@ -146,6 +146,16 @@ test("INT-315 / INT-328 — Kyverno engine + int-apps/demo-apps baseline policie
   assert.match(tpl, /drop:[\s\S]*ALL/);
 });
 
+test("INT-330 — Kyverno controller memory limits above chart defaults", async () => {
+  const values = await readFile("deploy/platform/kyverno/values.yaml", "utf8");
+  assert.match(values, /backgroundController:[\s\S]*limits:[\s\S]*memory:\s*512Mi/);
+  assert.match(
+    values,
+    /admissionController:[\s\S]*container:[\s\S]*limits:[\s\S]*memory:\s*512Mi/,
+  );
+  assert.match(values, /INT-330/);
+});
+
 test("INT-312 / INT-328 — namespace PSA labels chart + Argo app", async () => {
   const chart = await readFile("deploy/charts/namespace-psa/Chart.yaml", "utf8");
   assert.match(chart, /^name: namespace-psa$/m);

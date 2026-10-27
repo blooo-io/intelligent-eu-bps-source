@@ -42,7 +42,7 @@ Module peer allow-lists (INT-287): `ingressFrom` only — no namespace-wide `pod
 
 | Piece | Chart | Namespaces | Argo Application | Sync wave |
 |---|---|---|---|---|
-| Kyverno engine (INT-315) | `kyverno` **3.9.2** (Apache-2.0) | `kyverno` | `platform-kyverno` | 0 |
+| Kyverno engine (INT-315 / INT-330 memory) | `kyverno` **3.9.2** (Apache-2.0) | `kyverno` | `platform-kyverno` | 0 |
 | int-apps + demo-apps baseline ClusterPolicies (INT-328) | local `deploy/charts/kyverno-policies` | `kyverno` | `platform-kyverno-policies` | 1 |
 
 Env hosts: `deploy/envs/<env>/apisix-gateway-values.yaml`. Webhook `POST /webhooks/payment-provider` is rate-limited and unauthenticated; `/v1/*` uses `openid-connect` (Keycloak realm per env; `client_secret` via ExternalSecret `apisix-oidc`, INT-169) then a `serverless-pre-function` that maps JWT claims to Nest principal headers `x-intelligent-sub` / `x-intelligent-roles` / `x-intelligent-community` (INT-179), then `limit-req` from `api.rate` (INT-327 / TD-8). Depends on platform APISIX (INT-161) and Keycloak (INT-160). TLS (INT-168 / INT-173 / INT-174): `Certificate` + `ApisixTls` per host; issuer `letsencrypt-prod` (`useProduction: true`). Staging ClusterIssuer remains for debug. After an issuer flip, bump `tls.reloadGeneration` so ApisixTls is replaced and APISIX etcd reloads `tls.crt` (Secret-only updates can leave a stale SSL object).

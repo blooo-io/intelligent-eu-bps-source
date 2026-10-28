@@ -12,8 +12,6 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const require = createRequire(path.join(root, "apps/web/package.json"));
-const { chromium } = require("@playwright/test");
 
 const mdPath = path.join(
   root,
@@ -43,8 +41,14 @@ function inline(s) {
   return out;
 }
 
+/**
+ * GFM table separator (`|---|---|`). Keep `-` at the start of the class so it is
+ * literal — `[\s:-|]` treats `:-|` as a range and drops `-` (INT-333).
+ */
+export const TABLE_SEP = /^\|[\-|:\s]+\|$/;
+
 /** Minimal MD → HTML for the cahier (headings, tables, images, lists, quotes). */
-function mdToHtml(md) {
+export function mdToHtml(md) {
   const lines = md.replaceAll("\r\n", "\n").split("\n");
   const html = [];
   let i = 0;
@@ -64,11 +68,11 @@ function mdToHtml(md) {
   while (i < lines.length) {
     const line = lines[i];
 
-    if (line.startsWith("|") && i + 1 < lines.length && /^\|[\s:-|]+\|$/.test(lines[i + 1])) {
+    if (line.startsWith("|") && i + 1 < lines.length && TABLE_SEP.test(lines[i + 1])) {
       closeLists();
       const rows = [];
       while (i < lines.length && lines[i].startsWith("|")) {
-        if (!/^\|[\s:-|]+\|$/.test(lines[i])) rows.push(lines[i]);
+        if (!TABLE_SEP.test(lines[i])) rows.push(lines[i]);
         i += 1;
       }
       html.push("<table>");
@@ -158,9 +162,10 @@ function mdToHtml(md) {
   return html.join("\n");
 }
 
-const md = await readFile(mdPath, "utf8");
-const body = mdToHtml(md);
-const html = `<!DOCTYPE html>
+export async function exportCahierPdf() {
+  const md = await readFile(mdPath, "utf8");
+  const body = mdToHtml(md);
+  const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
@@ -200,18 +205,29 @@ const html = `<!DOCTYPE html>
 <body>${body}</body>
 </html>`;
 
-const tmpHtml = path.join(testingDir, ".cahier-export.html");
-await writeFile(tmpHtml, html, "utf8");
+  const tmpHtml = path.join(testingDir, ".cahier-export.html");
+  await writeFile(tmpHtml, html, "utf8");
 
-const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage();
-await page.goto(`file://${tmpHtml}`, { waitUntil: "networkidle", timeout: 120_000 });
-await page.pdf({
-  path: pdfPath,
-  format: "A4",
-  printBackground: true,
-  margin: { top: "12mm", right: "10mm", bottom: "12mm", left: "10mm" },
-});
-await browser.close();
-await unlink(tmpHtml).catch(() => {});
-console.log(JSON.stringify({ ok: true, pdfPath }, null, 2));
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.goto(`file://${tmpHtml}`, {
+    waitUntil: "networkidle",
+    timeout: 120_000,
+  });
+  await page.pdf({
+    path: pdfPath,
+    format: "A4",
+    printBackground: true,
+    margin: { top: "12mm", right: "10mm", bottom: "12mm", left: "10mm" },
+  });
+  await browser.close();
+  await unlink(tmpHtml).catch(() => {});
+  return { ok: true, pdfPath };
+}
+
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  console.log(JSON.stringify(await exportCahierPdf(), null, 2));
+}

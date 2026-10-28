@@ -77,6 +77,7 @@ await run(process.execPath, ["--test", path.join(root, "scripts/ewds-client-gate
 await run(process.execPath, ["--test", path.join(root, "scripts/sonarqube-bootstrap.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-keycloak-realms-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/keycloak-ensure-uat-users.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/export-cahier-pdf.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/forbid-keycloak-git-secrets.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-temporal-layout.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/platform-apisix-layout.test.mjs")]);

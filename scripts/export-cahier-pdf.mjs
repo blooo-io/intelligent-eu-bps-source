@@ -208,6 +208,9 @@ export async function exportCahierPdf() {
   const tmpHtml = path.join(testingDir, ".cahier-export.html");
   await writeFile(tmpHtml, html, "utf8");
 
+  // Lazy-load Playwright so unit tests for mdToHtml do not need apps/web deps (CI).
+  const require = createRequire(path.join(root, "apps/web/package.json"));
+  const { chromium } = require("@playwright/test");
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   await page.goto(`file://${tmpHtml}`, {

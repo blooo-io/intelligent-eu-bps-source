@@ -37,3 +37,16 @@ test("cahier markdown tables convert without leaving raw separators", async () =
   assert.equal(html.includes("|---|---|"), false);
   assert.match(html, /INTELLIGENT Billing &amp; Payment Login|INTELLIGENT Billing/);
 });
+
+test("exporter lazy-loads Playwright inside exportCahierPdf (CI-safe)", async () => {
+  const src = await readFile(
+    new URL("./export-cahier-pdf.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(src, /require\("@playwright\/test"\)/);
+  assert.equal(
+    /^\s*const\s*\{\s*chromium\s*\}\s*=\s*require\(/m.test(src.split("export async function exportCahierPdf")[0]),
+    false,
+    "chromium must not be required at module top-level",
+  );
+});

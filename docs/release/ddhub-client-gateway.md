@@ -2,7 +2,7 @@
 
 Phase 1 GitOps packaging for the Blooo EWDS / DDHub Client Gateway (NFR-017). Live adapter cut-over stays later (INT-310 / INT-311). Mocks remain the V1 default (A32).
 
-EWAG unblock (Configured / Verified): see [`docs/architecture/ewag-unblock-mail-int-307.md`](../architecture/ewag-unblock-mail-int-307.md) (INT-307). Enrolment after EWAG answers: INT-309.
+EWAG unblock (Configured / Verified): short mail asking only for CSR signing, IP whitelist, EWT faucet, and user-role enrolment — [`docs/architecture/ewag-unblock-mail-int-307.md`](../architecture/ewag-unblock-mail-int-307.md) (INT-307). Enrolment after those land: INT-309.
 
 ## Licence (TP-2)
 

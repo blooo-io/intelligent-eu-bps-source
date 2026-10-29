@@ -2,9 +2,14 @@
 
 Status: **DRAFT ready to send** (2026-10-29). Owner: Blooo (T5.6 / D5.5 Billing & Payment). Parent: [INT-306](https://blooo-io.atlassian.net/browse/INT-306).
 
-> **Purpose:** move EWAG status from Onboarded → **Configured** → **Verified** so Blooo can complete enrolment (INT-309) and live Digital Spine adapters (INT-311). Phase 1 GitOps packaging is already in our EU cluster (INT-308); mocks remain the V1 default until Verified (A32).
+> **Purpose:** ask EWAG only for what the [Energy Web docs](https://docs.energyweb.org/energy-solutions/digital-spine-by-energy-web/component-guides/ddhub-client-gateway/deployment-guide/preparing-to-set-up-a-client-gateway) require from them — **CSR signing**, **outbound IP whitelist**, **EWT faucet (≥ 1 EWT)**, and **Message Broker user-role enrolment** — so we can move Onboarded → **Configured** → **Verified**. Phase 1 GitOps packaging is already in our EU cluster (INT-308); mocks remain the V1 default until Verified (A32).
 
 Related plan: [`ewds-client-gateway.md`](ewds-client-gateway.md). Topic schemas: [`ewds-topics/`](ewds-topics/README.md). Operator notes: [`../release/ddhub-client-gateway.md`](../release/ddhub-client-gateway.md).
+
+Official references:
+
+- [Preparing to set up](https://docs.energyweb.org/energy-solutions/digital-spine-by-energy-web/component-guides/ddhub-client-gateway/deployment-guide/preparing-to-set-up-a-client-gateway) — EWC account + ≥ 1 EWT, mTLS cert from EWF, enterprise user roles
+- [Configure mTLS](https://docs.energyweb.org/energy-solutions/digital-spine-by-energy-web/component-guides/ddhub-client-gateway/deployment-guide/post-deployment/configure-mtls) — participant sends **CSR**, EWF issues client cert, outbound IP whitelisted
 
 ---
 
@@ -12,7 +17,7 @@ Related plan: [`ewds-client-gateway.md`](ewds-client-gateway.md). Topic schemas:
 
 **To:** EWAG / Energy Web onboarding contact for project INTELLIGENT  
 **Cc:** Blooo project lead (T5.6)  
-**Subject:** INTELLIGENT / Blooo — Client Gateway unblock (Configured + Verified)
+**Subject:** INTELLIGENT / Blooo — Client Gateway: CSR + EWT faucet + whitelist
 
 ```text
 Hello EWAG team,
@@ -21,71 +26,34 @@ We are Blooo, delivering the Billing & Payment Service for Horizon Europe
 INTELLIGENT (T5.6 / D5.5).
 
 EWAG status for our organisation (May 2026 report): Onboarded = yes,
-Configured = no, Verified = no. We have packaged our own DDHub Client
-Gateway in our EU Kubernetes environment (Scaleway nl-ams, GitOps) and
-are ready for enrolment. We need your confirmation on the points below
-so we can proceed to Configured and Verified.
+Configured = no, Verified = no. Our DDHub Client Gateway is packaged in
+our EU Kubernetes environment (Scaleway nl-ams, GitOps) and is ready for
+enrolment against https://ddhub-ewc.energyweb.org.
 
-Context (our side)
-- One dedicated Client Gateway for Billing & Payment (NFR-017); not a
-  shared instance.
-- Integration mode: system/API only (no public UI). REST with x-api-key.
-- Message Broker target: https://ddhub-ewc.energyweb.org
-- Secrets / DID keys: OpenBao (Vault-compatible) in-cluster.
-- Draft topic schemas already proposed for billingInvoice and
-  billingPayment (JSON Schema 2020-12, also valid as draft-07):
-  see the INTELLIGENT repo docs/architecture/ewds-topics/.
+Per the Energy Web Client Gateway docs (preparing-to-set-up +
+configure-mtls), we need the following from you:
 
-Please confirm or correct:
+1) mTLS certificate
+   We will generate a CSR and send it to you. Please issue the
+   EWF-signed client certificate for Message Broker mTLS and confirm
+   turnaround / preferred delivery (file or portal).
 
-1) Transport
-   We propose REST short polling for NestJS workers
-   (Helm websocket: NONE). Do you require WebSocket
-   (SERVER/CLIENT, ddhub-protocol) instead?
+2) Outbound IP whitelist
+   Please whitelist our cluster egress IP(s) for the Message Broker.
+   We will send the exact IP list in a follow-up (or with the CSR).
 
-2) API authentication
-   Auth strategies are off by default in the CG. Please confirm the
-   supported way to enable API auth and to mint / rotate x-api-key
-   values for a system client (no OIDC federation with our IdP).
+3) EWT faucet
+   Please provide faucet access (or an equivalent transfer) so we can
+   fund our EWC wallet with at least 1 EWT and record the Gateway DID.
 
-3) mTLS / CSR
-   What is the current CSR → EWF-signed certificate process and
-   turnaround for Message Broker mTLS? Any template or portal link?
+4) Enterprise user roles
+   Please enrol / approve the Message Broker user roles for our Gateway
+   DID (Message Broker user, topiccreator; GSY subscriber roles when
+   available for INTELLIGENT).
 
-4) DID / wallet / VCs
-   Please confirm:
-   - minimum EWT on the EWC wallet for Gateway DID,
-   - which Verifiable Credentials we must hold (Message Broker user,
-     topiccreator, and any GSY subscriber roles),
-   - how roles are bound to our Gateway DID.
-
-5) Topics and schema dialect
-   a) Owner namespace / channel names for:
-      - billingInvoice / billingPayment (publisher: Blooo CG)
-      - GSY tradesQuery / clearingResultsQuery / marketsQuery channels
-        (subscriber: Blooo CG) — assumption A12 still open on our side.
-   b) Register schemas as JSON Schema 2020-12 or draft-07 (JSD7)?
-      Both validate on our drafts; we will register what you require.
-
-6) Retention / purge
-   REQ-053 / A26: Billing will persist inbound payloads and purge after
-   ingest, hard max 7 days. Please confirm CG scheduler
-   CLEANUP_MESSAGES_CRON_* defaults are compatible, or give required
-   cron values.
-
-7) Egress allow-list
-   Please provide the authoritative FQDN (or IP) list for:
-   - Message Broker (ddhub-ewc),
-   - EWC RPC / identity cache,
-   - any other hosts the CG must reach for enrolment and runtime.
-   We will tighten NetworkPolicies accordingly.
-
-8) Path to Configured / Verified
-   What checklist or evidence do you need from us after CSR + VCs +
-   topic registration to mark Configured and then Verified?
-
-We are available for a short call if that is faster. Happy to attach
-our draft schemas or a CSR once you confirm the process.
+We will handle the rest on our side (system/API mode, vault-held API
+keys, topic registration, retention). Happy to jump on a short call
+if that is faster.
 
 Thank you,
 Blooo — INTELLIGENT Billing & Payment (T5.6)
@@ -95,27 +63,38 @@ Blooo — INTELLIGENT Billing & Payment (T5.6)
 
 ## Answers tracker (fill as EWAG replies)
 
-| # | Topic | Blooo proposal | EWAG answer | Date | Blocks |
+| # | Topic | Blooo action | EWAG answer | Date | Blocks |
 |---|---|---|---|---|---|
-| 1 | Transport | REST short polling, `websocket: NONE` | | | INT-309 / INT-311 |
-| 2 | API auth / `x-api-key` mint | Enable API auth; keys in OpenBao only | | | INT-309 |
-| 3 | mTLS CSR process | Follow EW post-deploy mTLS guide | | | INT-309 |
-| 4 | DID / EWT / VCs | ≥1 EWT; MB user + topiccreator (+ GSY roles) | | | INT-309 |
-| 5a | Topic owner / channels | `integration.apps.intelligent.auth.ewc`; see ewds-topics | | | INT-309 / A12 |
-| 5b | Schema dialect | Either 2020-12 or draft-07 | | | INT-309 |
-| 6 | Retention / cleanup cron | Purge after ingest; max 7 days | | | INT-310 |
-| 7 | Egress FQDNs | Broker + RPC + identitycache | | | INT-308 harden / INT-309 |
-| 8 | Configured → Verified checklist | TBD by EWAG | | | INT-306 gate |
+| 1 | CSR → EWF mTLS cert | Generate CSR; send to EWAG | | | INT-309 |
+| 2 | Outbound IP whitelist | Provide egress IP(s) | | | INT-309 |
+| 3 | EWT faucet (≥ 1 EWT) | Create EWC wallet; receive faucet | | | INT-309 |
+| 4 | MB user roles / enrolment | Bind roles to Gateway DID | | | INT-309 |
+
+---
+
+## Blooo-side (do **not** ask EWAG)
+
+These are already decided or owned by us; keep them out of the mail:
+
+| Topic | Blooo default |
+|---|---|
+| Transport | REST short polling; Helm `websocket: NONE` |
+| Mode | System / API only (no public UI) |
+| API auth | Enable `x-api-key`; mint / rotate in OpenBao |
+| Topics / schemas | Register `billingInvoice` / `billingPayment` from [`ewds-topics/`](ewds-topics/); dialect per EW portal |
+| Retention | Purge after ingest; hard max 7 days (REQ-053 / A26) |
+| Egress NetworkPolicies | Tighten once whitelist FQDNs/IPs are known |
 
 ---
 
 ## Internal send checklist (Blooo)
 
 - [ ] Confirm EWAG recipient(s) with project coordinator / Energy Web contact sheet
-- [ ] Attach or link `ewds-topics/` schemas + examples (optional on first mail)
+- [ ] Prepare CSR (INT-309) — attach with this mail or send immediately after
+- [ ] Collect Scaleway `nl-ams` egress IP(s) for whitelist
 - [ ] Send mail; paste Message-ID / date into INT-307 comment
 - [ ] Update the answers table above as replies arrive
-- [ ] When Configured: comment INT-306 / INT-309 and start CSR + VC enrolment
+- [ ] When cert + faucet + roles land: comment INT-306 / INT-309 and complete enrolment
 - [ ] When Verified: unlock INT-311 live adapter flag work (mock stays default until then)
 
 ## Out of scope for this mail
@@ -123,3 +102,4 @@ Blooo — INTELLIGENT Billing & Payment (T5.6)
 - Ad-hoc `helm install` of CG outside GitOps (INT-157)
 - Cutting over P-DS / P-MKT off mocks before Verified (A32)
 - Publishing personal data or Stripe identifiers on EWDS topics
+- Generating the CSR in this PR (operator step under INT-309)

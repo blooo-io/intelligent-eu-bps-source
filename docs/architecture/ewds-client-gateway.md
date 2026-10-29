@@ -1,6 +1,6 @@
 # EWDS / DDHub Client Gateway — Blooo instance (INT-306)
 
-Status: **Phase 1 packaging in Git** (INT-308). **Phase 0 EWAG unblock mail draft ready** (INT-307, 2026-10-29). Sources: Energy Web official docs + D3.1 briefing + NFR-017.
+Status: **Phase 1 packaging in Git** (INT-308). Phase 0 EWAG unblock (INT-307) is operator-owned (mail stays outside Git). Sources: Energy Web official docs + D3.1 briefing + NFR-017.
 
 > **V1 today:** P-DS / P-MKT stay on **mocks** (assumption A32). UAT-068 Pass is on the mock path. This note tracks the **live** Blooo Client Gateway and adapter cut-over. Mock remains the default until EWAG status is Configured + Verified.
 
@@ -64,9 +64,7 @@ Blooo owns the rest without asking EWAG: REST short polling, API-only + `x-api-k
 
 ### Phase 0 — Unblock EWAG (INT-307)
 
-Ready-to-send mail + answers tracker: [`ewag-unblock-mail-int-307.md`](ewag-unblock-mail-int-307.md).
-
-Ask EWAG only for: CSR signing, outbound IP whitelist, EWT faucet (≥ 1 EWT), Message Broker user-role enrolment.
+Operator sends the unblock mail outside Git (copy not stored in the repo). Ask EWAG only for: CSR signing, outbound IP whitelist, EWT faucet (≥ 1 EWT), Message Broker user-role enrolment.
 
 ### Phase 1 — Infra (GitOps only, INT-157) — **packaged (INT-308)**
 

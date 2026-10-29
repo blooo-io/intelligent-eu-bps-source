@@ -2,6 +2,8 @@
 
 Phase 1 GitOps packaging for the Blooo EWDS / DDHub Client Gateway (NFR-017). Live adapter cut-over stays later (INT-310 / INT-311). Mocks remain the V1 default (A32).
 
+EWAG unblock (Configured / Verified): short mail asking only for CSR signing, IP whitelist, EWT faucet, and user-role enrolment — [`docs/architecture/ewag-unblock-mail-int-307.md`](../architecture/ewag-unblock-mail-int-307.md) (INT-307). Enrolment after those land: INT-309.
+
 ## Licence (TP-2)
 
 Upstream Client Gateway **images** ship under **GPL-3.0**. Accepted as a **separate unmodified service** exception (same packaging rule as OpenBao and SonarQube Community): we run the public images; Billing never links the GPL code. Our deploy chart is Blooo-authored manifests with init `migration:run -d ormconfig.js` (upstream Helm `1.3.0-ewc` typeorm verb is incompatible with typeorm 0.3).

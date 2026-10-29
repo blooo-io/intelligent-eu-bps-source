@@ -1,6 +1,6 @@
 # EWDS / DDHub Client Gateway — Blooo instance (INT-306)
 
-Status: **Phase 1 packaging in Git** (INT-308, 2026-10-23). Sources: Energy Web official docs + D3.1 briefing + NFR-017.
+Status: **Phase 1 packaging in Git** (INT-308). **Phase 0 EWAG unblock mail draft ready** (INT-307, 2026-10-29). Sources: Energy Web official docs + D3.1 briefing + NFR-017.
 
 > **V1 today:** P-DS / P-MKT stay on **mocks** (assumption A32). UAT-068 Pass is on the mock path. This note tracks the **live** Blooo Client Gateway and adapter cut-over. Mock remains the default until EWAG status is Configured + Verified.
 
@@ -49,20 +49,24 @@ Helm (EWC defaults, chart `1.3.0-ewc`):
 
 Open assumptions: **A12** (GSY topic schemas / roles), **A26** (≤ 7 day cache — REQ-053).
 
-## Open points for EWAG
+## What we need from EWAG (docs-aligned)
 
-1. **Transport:** REST polling vs WebSocket (`websocket: NONE | SERVER | CLIENT` in Helm). Blooo proposal: REST short polling (`NONE`) unless EWAG requires WS.
-2. **Enable API authentication** and API-key minting/rotation (docs show `x-api-key` usage, not creation flow).
-3. **Retention / purge** vs scheduler `CLEANUP_MESSAGES_CRON_*` and REQ-053 / A26.
-4. **Roles and topics** for INTELLIGENT (`billingInvoice` / `billingPayment`, GSY query topics).
+Per [preparing-to-set-up](https://docs.energyweb.org/energy-solutions/digital-spine-by-energy-web/component-guides/ddhub-client-gateway/deployment-guide/preparing-to-set-up-a-client-gateway) and [configure-mtls](https://docs.energyweb.org/energy-solutions/digital-spine-by-energy-web/component-guides/ddhub-client-gateway/deployment-guide/post-deployment/configure-mtls):
 
-Draft topic schemas: [`ewds-topics/`](ewds-topics/README.md).
+1. **CSR → EWF-signed mTLS certificate** (we generate the CSR; EWF issues the client cert).
+2. **Outbound IP whitelist** for our cluster egress toward the Message Broker.
+3. **EWT faucet** (or transfer) so we can fund the EWC wallet with ≥ 1 EWT and record the Gateway DID.
+4. **Enterprise user-role enrolment** (Message Broker user, `topiccreator`; GSY subscriber roles when A12 closes).
+
+Blooo owns the rest without asking EWAG: REST short polling, API-only + `x-api-key` in OpenBao, topic schema registration from [`ewds-topics/`](ewds-topics/), retention ≤ 7 days (REQ-053).
 
 ## Deployment phases
 
-### Phase 0 — Unblock EWAG
+### Phase 0 — Unblock EWAG (INT-307)
 
-Send the unblock mail (Jira INT-307). Confirm CSR process, egress list, schema dialect (JSON Schema 2020-12 vs draft-07 / JSD7).
+Ready-to-send mail + answers tracker: [`ewag-unblock-mail-int-307.md`](ewag-unblock-mail-int-307.md).
+
+Ask EWAG only for: CSR signing, outbound IP whitelist, EWT faucet (≥ 1 EWT), Message Broker user-role enrolment.
 
 ### Phase 1 — Infra (GitOps only, INT-157) — **packaged (INT-308)**
 

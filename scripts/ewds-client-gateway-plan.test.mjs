@@ -22,4 +22,6 @@ test("INT-306 Client Gateway plan covers briefing constraints and GitOps", async
   assert.match(text, /INT-308/);
   assert.match(text, /cnpg-ddhub|platform-ddhub/);
   assert.match(index, /ewds-client-gateway\.md/);
+  assert.match(index, /ewag-unblock-mail-int-307\.md/);
+  assert.match(text, /ewag-unblock-mail-int-307\.md/);
 });

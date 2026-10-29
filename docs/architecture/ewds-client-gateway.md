@@ -1,6 +1,6 @@
 # EWDS / DDHub Client Gateway — Blooo instance (INT-306)
 
-Status: **Phase 1 packaging in Git** (INT-308, 2026-10-23). Sources: Energy Web official docs + D3.1 briefing + NFR-017.
+Status: **Phase 1 packaging in Git** (INT-308). **Phase 0 EWAG unblock mail draft ready** (INT-307, 2026-10-29). Sources: Energy Web official docs + D3.1 briefing + NFR-017.
 
 > **V1 today:** P-DS / P-MKT stay on **mocks** (assumption A32). UAT-068 Pass is on the mock path. This note tracks the **live** Blooo Client Gateway and adapter cut-over. Mock remains the default until EWAG status is Configured + Verified.
 
@@ -60,9 +60,11 @@ Draft topic schemas: [`ewds-topics/`](ewds-topics/README.md).
 
 ## Deployment phases
 
-### Phase 0 — Unblock EWAG
+### Phase 0 — Unblock EWAG (INT-307)
 
-Send the unblock mail (Jira INT-307). Confirm CSR process, egress list, schema dialect (JSON Schema 2020-12 vs draft-07 / JSD7).
+Ready-to-send mail + answers tracker: [`ewag-unblock-mail-int-307.md`](ewag-unblock-mail-int-307.md).
+
+Confirm with EWAG: transport, API auth / `x-api-key`, CSR → mTLS, DID/VCs, topic owner + schema dialect (JSON Schema 2020-12 vs draft-07 / JSD7), retention, egress FQDNs, Configured → Verified checklist.
 
 ### Phase 1 — Infra (GitOps only, INT-157) — **packaged (INT-308)**
 

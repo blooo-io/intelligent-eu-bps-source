@@ -17,7 +17,8 @@ Official references:
 
 **To:** EWAG / Energy Web onboarding contact for project INTELLIGENT  
 **Cc:** Blooo project lead (T5.6)  
-**Subject:** INTELLIGENT / Blooo — Client Gateway: CSR + EWT faucet + whitelist
+**Subject:** INTELLIGENT / Blooo — Client Gateway: CSR + EWT faucet + whitelist  
+**Attachment:** `blooo-cg-mtls.csr` (generate with the operator command below — never attach the private key)
 
 ```text
 Hello EWAG team,
@@ -31,16 +32,22 @@ our EU Kubernetes environment (Scaleway nl-ams, GitOps) and is ready for
 enrolment against https://ddhub-ewc.energyweb.org.
 
 Per the Energy Web Client Gateway docs (preparing-to-set-up +
-configure-mtls), we need the following from you:
+configure-mtls), please:
 
-1) mTLS certificate
-   We will generate a CSR and send it to you. Please issue the
-   EWF-signed client certificate for Message Broker mTLS and confirm
-   turnaround / preferred delivery (file or portal).
+1) Sign our mTLS CSR
+   CSR attached: blooo-cg-mtls.csr
+   Subject: CN=Blooo Billing Client Gateway, O=Blooo,
+            OU=INTELLIGENT Billing, C=FR
+   Please return the EWF-signed client certificate for Message Broker
+   mTLS (file or portal) and confirm turnaround.
 
-2) Outbound IP whitelist
-   Please whitelist our cluster egress IP(s) for the Message Broker.
-   We will send the exact IP list in a follow-up (or with the CSR).
+2) Whitelist our outbound IPs
+   Cluster egress today uses each Kapsule node ExternalIP (no dedicated
+   NAT). Please whitelist:
+   - 51.15.34.84
+   - 51.15.34.86
+   - 51.15.126.180
+   We will notify you if a node rotate changes this set.
 
 3) EWT faucet
    Please provide faucet access (or an equivalent transfer) so we can
@@ -61,12 +68,47 @@ Blooo — INTELLIGENT Billing & Payment (T5.6)
 
 ---
 
+## Generate the CSR (operator laptop — do **not** commit the key)
+
+Run outside the repository (e.g. `~/secrets/intelligent-ewds/`). Keep `blooo-cg-mtls.key` in OpenBao / operator secret store only.
+
+```bash
+mkdir -p ~/secrets/intelligent-ewds && cd ~/secrets/intelligent-ewds
+
+openssl genrsa -out blooo-cg-mtls.key 4096
+
+openssl req -new -key blooo-cg-mtls.key -out blooo-cg-mtls.csr \
+  -subj "/C=FR/O=Blooo/OU=INTELLIGENT Billing/CN=Blooo Billing Client Gateway"
+
+# Optional sanity check (public CSR only — safe to share)
+openssl req -in blooo-cg-mtls.csr -noout -subject -pubkey
+```
+
+Attach **only** `blooo-cg-mtls.csr` to the mail. After EWF returns the signed cert, configure it on the CG via `POST /api/v2/certificate` (INT-309) — private key stays local / in OpenBao.
+
+### Egress IPs (measured 2026-10-29, `k8s-intelligent-eu-dev`)
+
+| Node | ExternalIP | Notes |
+|---|---|---|
+| `…ae3cea` | `51.15.34.84` | Current CG API + scheduler node |
+| `…77116e` | `51.15.34.86` | Pool peer |
+| `…3f466c` | `51.15.126.180` | Pool peer |
+
+Re-check before send:
+
+```bash
+kubectl get nodes -o jsonpath='{range .items[*]}{.status.addresses[?(@.type=="ExternalIP")].address}{"\n"}{end}'
+kubectl -n ddhub exec deploy/ddhub-client-gateway -c api -- wget -qO- https://api.ipify.org; echo
+```
+
+---
+
 ## Answers tracker (fill as EWAG replies)
 
 | # | Topic | Blooo action | EWAG answer | Date | Blocks |
 |---|---|---|---|---|---|
-| 1 | CSR → EWF mTLS cert | Generate CSR; send to EWAG | | | INT-309 |
-| 2 | Outbound IP whitelist | Provide egress IP(s) | | | INT-309 |
+| 1 | CSR → EWF mTLS cert | Generate CSR; attach to mail | | | INT-309 |
+| 2 | Outbound IP whitelist | Send the three node ExternalIPs above | | | INT-309 |
 | 3 | EWT faucet (≥ 1 EWT) | Create EWC wallet; receive faucet | | | INT-309 |
 | 4 | MB user roles / enrolment | Bind roles to Gateway DID | | | INT-309 |
 
@@ -90,9 +132,9 @@ These are already decided or owned by us; keep them out of the mail:
 ## Internal send checklist (Blooo)
 
 - [ ] Confirm EWAG recipient(s) with project coordinator / Energy Web contact sheet
-- [ ] Prepare CSR (INT-309) — attach with this mail or send immediately after
-- [ ] Collect Scaleway `nl-ams` egress IP(s) for whitelist
-- [ ] Send mail; paste Message-ID / date into INT-307 comment
+- [ ] Generate CSR with the openssl commands above; store key outside Git
+- [ ] Re-check node ExternalIPs; update the mail body if they changed
+- [ ] Attach `blooo-cg-mtls.csr` only; send mail; paste Message-ID / date into INT-307 comment
 - [ ] Update the answers table above as replies arrive
 - [ ] When cert + faucet + roles land: comment INT-306 / INT-309 and complete enrolment
 - [ ] When Verified: unlock INT-311 live adapter flag work (mock stays default until then)
@@ -102,4 +144,4 @@ These are already decided or owned by us; keep them out of the mail:
 - Ad-hoc `helm install` of CG outside GitOps (INT-157)
 - Cutting over P-DS / P-MKT off mocks before Verified (A32)
 - Publishing personal data or Stripe identifiers on EWDS topics
-- Generating the CSR in this PR (operator step under INT-309)
+- Committing `blooo-cg-mtls.key` (or any private key) to Git

@@ -181,11 +181,12 @@ jobs:
             fi
             sleep 1
           done
+          # INT-348 — KC_HOSTNAME makes iss public; Nest KEYCLOAK_ISSUER matches.
+          # Mint via port-forward without forcing cluster Host.
           PAYMENTS_URL=http://127.0.0.1:18087 \
           SETTLEMENT_URL=http://127.0.0.1:18085 \
           INVOICING_URL=http://127.0.0.1:18086 \
           KEYCLOAK_BASE_URL=http://127.0.0.1:18081 \
-          KEYCLOAK_TOKEN_HOST=platform-keycloak-keycloakx-http.keycloak.svc.cluster.local \
           KEYCLOAK_REALM=int \
           KEYCLOAK_SERVICE_CLIENT_ID=module-service \
           KEYCLOAK_SERVICE_CLIENT_SECRET=dev-module-service-replace-me \

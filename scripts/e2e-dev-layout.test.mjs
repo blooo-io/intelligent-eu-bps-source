@@ -35,9 +35,11 @@ test("e2e-dev workflow targets deployed app.dev after supply-chain", async () =>
   // INT-317 — Keycloak module-service JWT for /internal seed under SERVICE_JWT_REQUIRED.
   assert.match(text, /port-forward svc\/platform-keycloak-keycloakx-http 18081:80/);
   assert.match(text, /KEYCLOAK_BASE_URL=http:\/\/127\.0\.0\.1:18081/);
-  assert.match(
-    text,
-    /KEYCLOAK_TOKEN_HOST=platform-keycloak-keycloakx-http\.keycloak\.svc\.cluster\.local/,
+  // INT-348 — after KC_HOSTNAME, iss is always public; TOKEN_HOST no longer needed.
+  assert.equal(
+    /KEYCLOAK_TOKEN_HOST=/.test(text),
+    false,
+    "KEYCLOAK_TOKEN_HOST obsolete once iss is public",
   );
   assert.match(text, /KEYCLOAK_SERVICE_CLIENT_ID=module-service/);
   assert.equal(text.includes("webServer"), false);

@@ -97,6 +97,11 @@ test("synchronous module calls match the application view", async () => {
     participants,
     /KEYCLOAK_BASE_URL:\s*http:\/\/platform-keycloak-keycloakx-http\.keycloak\.svc\.cluster\.local/,
   );
+  // INT-348 — Nest verifies iss against public hostname after INT-345.
+  assert.match(
+    participants,
+    /KEYCLOAK_ISSUER:\s*https:\/\/auth\.intelligent-eu-bp\.blooo\.dev\/realms\/int/,
+  );
   assert.equal(/keycloak\.keycloak\.svc\.cluster\.local:8080/.test(participants), false);
   const payments = await readFile("deploy/charts/payments/values.yaml", "utf8");
   assert.match(payments, /stripeEgress: true/);

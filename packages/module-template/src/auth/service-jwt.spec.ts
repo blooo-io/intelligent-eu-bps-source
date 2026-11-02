@@ -2,6 +2,7 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from "jose";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   resetServiceJwtJwksCache,
+  resolveServiceJwtOptions,
   serviceJwtRequired,
   verifyServiceAccessToken,
 } from "./service-jwt.js";
@@ -15,6 +16,23 @@ describe("service JWT (INT-287)", () => {
   it("serviceJwtRequired reads env", () => {
     expect(serviceJwtRequired({})).toBe(false);
     expect(serviceJwtRequired({ SERVICE_JWT_REQUIRED: "true" })).toBe(true);
+  });
+
+  // INT-348 — public KC_HOSTNAME iss while JWKS stays on in-cluster BASE_URL.
+  it("resolveServiceJwtOptions prefers KEYCLOAK_ISSUER over BASE_URL", () => {
+    const opts = resolveServiceJwtOptions({
+      KEYCLOAK_BASE_URL:
+        "http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local",
+      KEYCLOAK_REALM: "int",
+      KEYCLOAK_ISSUER: "https://auth.intelligent-eu-bp.blooo.dev/realms/int",
+      KEYCLOAK_SERVICE_CLIENT_ID: "module-service",
+    });
+    expect(opts?.issuer).toBe(
+      "https://auth.intelligent-eu-bp.blooo.dev/realms/int",
+    );
+    expect(opts?.jwksUrl).toContain(
+      "platform-keycloak-keycloakx-http.keycloak.svc.cluster.local",
+    );
   });
 
   it("verifies a signed service token with realm role service", async () => {

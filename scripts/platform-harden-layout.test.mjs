@@ -53,6 +53,12 @@ test("INT-287 / INT-314 / INT-325 — Nest modules configure Keycloak service JW
       /KEYCLOAK_BASE_URL:\s*http:\/\/platform-keycloak-keycloakx-http\.keycloak\.svc\.cluster\.local/,
       name,
     );
+    // INT-348 — JWT iss follows public KC_HOSTNAME (INT-345); JWKS via BASE_URL.
+    assert.match(
+      values,
+      /KEYCLOAK_ISSUER:\s*https:\/\/auth\.intelligent-eu-bp\.blooo\.dev\/realms\/int/,
+      name,
+    );
     assert.match(values, /SERVICE_JWT_REQUIRED:\s*"true"/, name);
   }
 

@@ -56,6 +56,15 @@ extraEnv: |
       secretKeyRef:
         name: keycloak-admin
         key: password
+  # INT-345 — frontend / email action links must use the public APISIX host
+  # (auth.intelligent-eu-bp.blooo.dev), not the in-cluster Service DNS that
+  # AC-03 and other modules use for KEYCLOAK_BASE_URL admin calls.
+  - name: KC_HOSTNAME
+    value: "https://auth.intelligent-eu-bp.blooo.dev"
+  # Keep token/backchannel URLs request-derived so in-cluster HTTP clients
+  # continue to work against platform-keycloak-keycloakx-http.keycloak.svc.
+  - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
+    value: "true"
   - name: KC_HOSTNAME_STRICT
     value: "false"
   # Do not set KC_HTTP_ENABLED here — proxy.http.enabled already injects it
@@ -82,4 +91,4 @@ resources:
     memory: 768Mi
 
 # Realms `int` / `demo` are created by the operator after first boot (or a later
-# realm-import change). Hostname auth.intelligent-eu-bp.blooo.dev waits on APISIX (INT-114).
+# realm-import change). Public hostname is set via KC_HOSTNAME (INT-345 / INT-114).

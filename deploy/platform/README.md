@@ -38,7 +38,7 @@ INT-289: routes set HSTS / CSP / X-Frame-Options / nosniff via `response-rewrite
 | Mailpit SMTP NP (INT-328) | local `deploy/charts/mailpit` | `int-apps` | `dev-mailpit` | — |
 | Namespace PSA labels (INT-312 / INT-328) | local `deploy/charts/namespace-psa` | cluster namespaces incl. `demo-*` | `platform-namespace-psa` | 0 |
 
-Module peer allow-lists (INT-287): `ingressFrom` only — no namespace-wide `podSelector: {}`. Temporal worker peers use `scheduler-worker`. Nest modules require Keycloak `module-service` JWT on `/internal/*` (`SERVICE_JWT_REQUIRED=true`, INT-314). Realms use `sslRequired: none` so in-cluster HTTP client-credentials work with Cilium `100.64.0.0/10` (Keycloak treats that CIDR as external under `sslRequired=external`). Mailpit UI is ClusterIP-only; SMTP allowed from Keycloak (INT-328).
+Module peer allow-lists (INT-287): `ingressFrom` only — no namespace-wide `podSelector: {}`. Temporal worker peers use `scheduler-worker`. Nest modules require Keycloak `module-service` JWT on `/internal/*` (`SERVICE_JWT_REQUIRED=true`, INT-314). Realms use `sslRequired: none` so in-cluster HTTP client-credentials work with Cilium `100.64.0.0/10` (Keycloak treats that CIDR as external under `sslRequired=external`). Mailpit UI is ClusterIP-only; SMTP requires **both** Mailpit ingress from `keycloak` (INT-328) **and** Keycloak egress to `mailpit:1025` in `appsNamespace` (INT-344 — without egress, invites time out silently).
 
 | Piece | Chart | Namespaces | Argo Application | Sync wave |
 |---|---|---|---|---|

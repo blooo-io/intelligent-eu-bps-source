@@ -7,7 +7,8 @@
  *   KEYCLOAK_REALM                 (default int)
  *   KEYCLOAK_SERVICE_CLIENT_ID     (default module-service)
  *   KEYCLOAK_SERVICE_CLIENT_SECRET (default dev-module-service-replace-me)
- *   KEYCLOAK_TOKEN_HOST            (optional; Host for iss when minting via port-forward)
+ *   KEYCLOAK_TOKEN_HOST            (optional; legacy Host override — obsolete for iss
+ *                                  once KC_HOSTNAME / KEYCLOAK_ISSUER are public, INT-348)
  */
 
 import http from "node:http";
@@ -34,8 +35,8 @@ export function resolveServiceJwtEnv(env = process.env) {
   if (!baseUrl) {
     return null;
   }
-  // When minting via kubectl port-forward, Host must be the in-cluster Keycloak
-  // DNS so `iss` matches Nest KEYCLOAK_BASE_URL (INT-317).
+  // Legacy: force Host on port-forward mint. With KC_HOSTNAME (INT-345) iss is
+  // always the public URL; Nest matches via KEYCLOAK_ISSUER (INT-348).
   const tokenHost = (env.KEYCLOAK_TOKEN_HOST ?? "").trim() || null;
   return {
     baseUrl,

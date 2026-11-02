@@ -23,6 +23,8 @@ stripeEgress: false
 env:
   IDP_ADMIN_PROVIDER: keycloak
   KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
+  # INT-348 — JWT iss is public KC_HOSTNAME (INT-345); JWKS stays on KEYCLOAK_BASE_URL.
+  KEYCLOAK_ISSUER: https://auth.intelligent-eu-bp.blooo.dev/realms/int
   KEYCLOAK_REALM: int
   KEYCLOAK_ADMIN_CLIENT_ID: participants-admin
   KEYCLOAK_SERVICE_CLIENT_ID: module-service

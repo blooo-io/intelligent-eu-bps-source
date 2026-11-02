@@ -17,6 +17,8 @@ keycloak:
     - 8443
     - 9000
   postgresPort: 5432
+  # INT-344 — realm SMTP host mailpit.<appsNamespace>:1025 (TD-12 / INT-224).
+  mailpitSmtpPort: 1025
 
 openbao:
   apiPort: 8200

@@ -1,5 +1,6 @@
 {{- /*
-  INT-288 — Keycloak dataplane: ingress from APISIX + int-apps; egress to DNS + CNPG.
+  INT-288 / INT-344 — Keycloak dataplane: ingress from APISIX + int-apps;
+  egress to DNS + CNPG + Mailpit SMTP (realm invites, TD-12).
 */ -}}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -47,6 +48,17 @@ spec:
               cnpg.io/cluster: keycloak
       ports:
         - port: {{ .Values.keycloak.postgresPort }}
+          protocol: TCP
+    # INT-344 — realm SMTP → Mailpit (INT-328 opened Mailpit ingress only).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.appsNamespace }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mailpit
+      ports:
+        - port: {{ .Values.keycloak.mailpitSmtpPort }}
           protocol: TCP
     # Outbound HTTPS (theme assets / IdP federation if configured).
     - to:

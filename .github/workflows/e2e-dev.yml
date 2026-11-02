@@ -38,12 +38,12 @@ jobs:
       E2E_BASE_URL: https://app.dev.intelligent-eu-bp.blooo.dev
     steps:
       - name: Checkout develop (deployed revision)
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: develop
 
       - name: Install kubectl
-        uses: azure/setup-kubectl@v5
+        uses: azure/setup-kubectl@bda439f5f36b99b262ebdcd3613869bddb064c8e # v5
         with:
           version: v1.32.0
 
@@ -125,8 +125,8 @@ jobs:
           echo "Timed out waiting for ${E2E_BASE_URL}/" >&2
           exit 1
 
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: pnpm

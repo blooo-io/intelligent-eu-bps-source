@@ -40,6 +40,10 @@ oidc:
   discoveryHost: auth.intelligent-eu-bp.blooo.dev
   bearerOnly: true
   clientId: apisix-gateway
+  # NFR-013 / INT-357 — dot-path of the roles array claim mapped to
+  # x-intelligent-roles (e.g. `roles`, `groups`, `app.billing.roles`).
+  # Keep in sync with OIDC_ROLE_CLAIM on modules and the web app.
+  roleClaim: realm_access.roles
   # INT-174 — production Let's Encrypt on auth; verify TLS to Keycloak discovery.
   sslVerify: true
   # Secret keys merge into plugin config (must include client_secret — APISIX 3.14).

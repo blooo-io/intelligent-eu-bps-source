@@ -346,7 +346,7 @@ sequenceDiagram
 Payment rules (INT-355, REQ-014, TD-6):
 - The payment is a **direct charge** on the producer's Stripe Connect account: AC-07 pays the producer's own Stripe invoice there with `invoices.pay`. The platform never holds the funds; no `transfer_data` / destination charge is used.
 - The consumer saves one PaymentMethod on the platform (SetupIntent). At payment time AC-07 clones it to the producer account and attaches it to the consumer's Customer on that account. AC-07 owns the mapping consumer × Connect account → Customer (one Customer per pair, metadata `participantId` only).
-- A cloned SEPA Direct Debit PaymentMethod gets its own mandate on the producer account, re-using the acceptance the consumer gave on the platform SetupIntent. SEPA payments stay `pending` until the Connect webhook.
+- **SEPA Direct Debit (open decision):** Stripe does not share `sepa_debit` PaymentMethods with connected accounts, so a platform SEPA mandate cannot fund a direct charge. Until a per-producer mandate flow is specified, AC-07 refuses such a payment with `failureCategory: sepa_debit_not_shareable` and makes no charge.
 - Stripe accepts a single payment per invoice, and the invoice is never e-mailed with a payable link: no double payment. A repeated Pay on a settled invoice returns the existing payment.
 - The webhook endpoint accepts both the platform and the Connect endpoint signing secrets (`stripe_webhook_secret`, `stripe_connect_webhook_secret`) and deduplicates on the Stripe event id.
 

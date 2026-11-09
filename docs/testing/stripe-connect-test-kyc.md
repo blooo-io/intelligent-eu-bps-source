@@ -11,7 +11,7 @@ V1 uses **Stripe test mode only** (BR-12). Custom Connect accounts created with 
 | `individual.verification.document.front` | `file_identity_document_success` | Satisfies identity document requirement |
 | `individual.verification.additional_document.front` | `file_identity_document_success` | Satisfies additional document alternative |
 
-Without the document file tokens, keyed identity failures leave `charges_enabled=false` and destination charges / payouts are blocked (UAT-015).
+Without the document file tokens, keyed identity failures leave `charges_enabled=false` and direct charges on the producer account / payouts are blocked (UAT-015). Since INT-355, AC-07 pays the producer's Stripe invoice on the Connect account (direct charge); the 2026-10-18 evidence below predates that change and used a destination charge.
 
 ## Product path
 

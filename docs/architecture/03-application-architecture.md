@@ -265,7 +265,8 @@ Inbound integration endpoint, not part of the public API: `POST /webhooks/paymen
 | GetUnbilledTrades(community or pair, until) | AC-04 | AC-05 |
 | GetRate(currency, date), GetVatRate(communityId) | AC-13 | AC-05 |
 | GetPairSettlement(settlementId) | AC-05 | AC-06 |
-| GetInvoice(invoiceId) | AC-06 | AC-07 |
+| GetInvoice(invoiceId) (incl. Stripe invoice id and producer Connect account) | AC-06 | AC-07 |
+| EnsureConnectedCustomer(participantId, stripeAccountId) | AC-07 | AC-06 |
 | StartRun / RefreshIntake / MarkOverdue / Reconcile / PurgeCache / ApplyRetention / FetchRates … | owning module | AC-14 |
 
 ## 4. Event catalogue
@@ -331,13 +332,23 @@ sequenceDiagram
   participant STR as Stripe test
   participant BUS as Event channel
   participant INV as AC-06 Invoicing
+  Note over INV,STR: at issue (5.1) AC-06 calls EnsureConnectedCustomer on AC-07, then creates and finalizes the invoice on the producer account for that Customer (charge_automatically, auto_advance false, not e-mailed)
   WEB->>GW: POST /invoices/{id}/payments
   GW->>PAY: pay invoice
-  PAY->>STR: create payment to producer account
-  STR-->>PAY: webhook (succeeded / failed)
+  PAY->>INV: GetInvoice (Stripe invoice id, producer account)
+  PAY->>STR: clone the consumer's platform PaymentMethod to the producer account and attach it to the Customer
+  PAY->>STR: pay the Stripe invoice on the producer account (direct charge)
+  STR-->>PAY: Connect webhook (invoice.paid / invoice.payment_failed)
   PAY->>BUS: PaymentStatusChanged
   BUS-->>INV: update outstanding and status
 ```
+
+Payment rules (INT-355, REQ-014, TD-6):
+- The payment is a **direct charge** on the producer's Stripe Connect account: AC-07 pays the producer's own Stripe invoice there with `invoices.pay`. The platform never holds the funds; no `transfer_data` / destination charge is used.
+- The consumer saves one PaymentMethod on the platform (SetupIntent). At payment time AC-07 clones it to the producer account and attaches it to the consumer's Customer on that account. AC-07 owns the mapping consumer × Connect account → Customer (one Customer per pair, metadata `participantId` only).
+- A cloned SEPA Direct Debit PaymentMethod gets its own mandate on the producer account, re-using the acceptance the consumer gave on the platform SetupIntent. SEPA payments stay `pending` until the Connect webhook.
+- Stripe accepts a single payment per invoice, and the invoice is never e-mailed with a payable link: no double payment. A repeated Pay on a settled invoice returns the existing payment.
+- The webhook endpoint accepts both the platform and the Connect endpoint signing secrets (`stripe_webhook_secret`, `stripe_connect_webhook_secret`) and deduplicates on the Stripe event id.
 
 ## 6. Reference screens (AC-01, V1)
 
@@ -365,7 +376,7 @@ Every adapter implements one logical port behind a stable interface. Switching f
 |---|---|---|---|---|
 | Market adapter (AC-04) | P-MKT | queryTrades(window), queryClearingResults(marketId), queryMarkets(window) | **Mock** (AC-15) | EWDS request/reply on GSY channels + REST backfill |
 | Data-space adapter (AC-10) | P-DS | publish(topic, message), purgeCache(before) | **Mock** (AC-15, schema validation) | Blooo EWDS Client Gateway |
-| Payment adapter (AC-07) | P-PSP | createProducerAccount, onboardingLink, attachPaymentMethod, createPayment, refund, verifyWebhook | **Stripe test mode** | Stripe live (per community, after V1) |
+| Payment adapter (AC-07) | P-PSP | createProducerAccount, onboardingLink, attachPaymentMethod, createConnectedCustomer, createPayment (direct charge: pays the producer's Stripe invoice), refund, verifyWebhook | **Stripe test mode** | Stripe live (per community, after V1) |
 | IdP admin adapter (AC-03) + token validation (AC-02) | P-IDP | createUser, sendInvitation, deleteUser; validateToken | Keycloak, local instance | Project IdP (Blooo-operated) or pilot OIDC IdP |
 | FX adapter (AC-13) | P-FX | getRate(currency, date) | **Fixture** (AC-15) | ECB reference rates |
 | Mail adapter (AC-11) | P-MAIL | send(template, to, attachments) | Local mail catcher | Transactional mail service |

@@ -39,6 +39,16 @@ export function seedUatInvoices(): InvoiceRecord[] {
       status: "Paid",
       total: "22.00",
       tradeIds: ["0xuat218seed000000000000000000001"],
+      lines: [
+        {
+          tradeId: "0xuat218seed000000000000000000001",
+          deliveryStart: "2026-11-01T00:00:00Z",
+          deliveryEnd: "2026-11-01T01:00:00Z",
+          kWh: "100.000",
+          pricePerKWh: "0.20",
+          amount: "20.00",
+        },
+      ],
       stripeInvoiceId: "in_test_uat218_seed",
       legalNumber: "UAT218-000001",
       hostedInvoiceUrl: UAT_HOSTED_INVOICE_URL,

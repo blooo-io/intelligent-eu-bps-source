@@ -1,5 +1,6 @@
 import type { UnbilledTrade } from "./types.js";
 import { type Dec, ZERO, dec, mul, neg } from "./decimal.js";
+import type { CanonicalTrade } from "./trade-lines.js";
 
 export type PairBucket = {
   consumerId: string;
@@ -19,6 +20,8 @@ export type CanonicalPairBucket = {
   low: string;
   high: string;
   tradeIds: string[];
+  /** REQ-007 — the trades behind the net, signed low-buys-positive. */
+  trades: CanonicalTrade[];
   netKWh: Dec;
   netEur: Dec;
 };
@@ -40,13 +43,20 @@ export function netCanonicalPairs(trades: UnbilledTrade[]): CanonicalPairBucket[
     const key = `${low}|${high}`;
     let bucket = buckets.get(key);
     if (!bucket) {
-      bucket = { low, high, tradeIds: [], netKWh: ZERO, netEur: ZERO };
+      bucket = { low, high, tradeIds: [], trades: [], netKWh: ZERO, netEur: ZERO };
       buckets.set(key, bucket);
     }
     bucket.tradeIds.push(t.tradeId);
     // The buyer owes the seller: positive when `low` buys from `high`.
     const kWh = dec(t.kWh);
     const signedKWh = t.consumerId === low ? kWh : neg(kWh);
+    bucket.trades.push({
+      tradeId: t.tradeId,
+      ...(t.deliveryStart ? { deliveryStart: t.deliveryStart } : {}),
+      ...(t.deliveryEnd ? { deliveryEnd: t.deliveryEnd } : {}),
+      signedKWh,
+      pricePerKWhEur: dec(t.pricePerKWhEur),
+    });
     bucket.netKWh += signedKWh;
     bucket.netEur += mul(signedKWh, dec(t.pricePerKWhEur));
   }

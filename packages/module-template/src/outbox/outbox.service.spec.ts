@@ -3,6 +3,22 @@ import { OutboxService } from "./outbox.service.js";
 import { InMemoryOutboxStore } from "./outbox.types.js";
 
 describe("OutboxService (NFR-003 / UAT-035)", () => {
+  it("stage builds the row without writing (INT-356)", async () => {
+    const store = new InMemoryOutboxStore();
+    const outbox = new OutboxService(store);
+    const staged = outbox.stage({
+      aggregateType: "Invoice",
+      aggregateId: "inv-1",
+      type: "InvoiceIssued",
+      producer: "AC-06",
+      communityId: "com",
+      billingMode: "virtual",
+      data: { invoiceId: "inv-1" },
+    });
+    expect(staged.event.type).toBe("InvoiceIssued");
+    expect(staged.row.event).toBe(staged.event);
+    expect(await store.list()).toEqual([]);
+  });
   it("appends an immutable outbox row with the domain envelope", async () => {
     const store = new InMemoryOutboxStore();
     const outbox = new OutboxService(store);

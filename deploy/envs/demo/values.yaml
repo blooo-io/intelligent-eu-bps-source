@@ -5,4 +5,4 @@ replicaCount: 0
 mailpit:
   enabled: true
 image:
-  tag: "0.0.0"
+  tag: "v1.0.1"

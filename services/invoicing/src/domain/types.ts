@@ -7,12 +7,26 @@ export type InvoiceStatus =
   | "Void"
   | "Disputed";
 
+/** REQ-007 — one trade on the invoice, signed in the invoice direction. */
+export type InvoiceTradeLine = {
+  tradeId: string;
+  deliveryStart?: string;
+  deliveryEnd?: string;
+  kWh: string;
+  pricePerKWh: string;
+  amount: string;
+};
+
 export type PairSettlementInput = {
   settlementId: string;
   runId: string;
   consumerId: string;
   producerId: string;
   tradeIds: string[];
+  /** REQ-007 — absent on settlements created before INT-354. */
+  lines?: InvoiceTradeLine[];
+  /** BR-05 — carried balance entering the invoice, oriented consumer → producer. */
+  carriedForwardIn?: string;
   kWh: string;
   energyAmount: string;
   vat: string;
@@ -43,6 +57,8 @@ export type InvoiceRecord = {
   status: InvoiceStatus;
   total: string;
   tradeIds: string[];
+  /** REQ-007 — per-trade lines copied from the settlement. */
+  lines: InvoiceTradeLine[];
   /** Stripe invoice id — Stripe is master (TP-7 / BR-10). */
   stripeInvoiceId: string;
   /** Stripe-assigned legal number once finalized (BR-10). */

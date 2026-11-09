@@ -10,6 +10,8 @@ type TradeIntakeDto = {
   kWh?: string | number;
   price?: string | number;
   pricePerKWhEur?: string | number;
+  deliveryStart?: string;
+  deliveryEnd?: string;
 };
 
 /**
@@ -62,6 +64,8 @@ export class HttpTradeSource implements TradeSourcePort {
         communityId: String(t.communityId ?? communityId),
         kWh: Number(t.kWh ?? 0),
         pricePerKWhEur: Number(t.pricePerKWhEur ?? t.price ?? 0),
+        ...(typeof t.deliveryStart === "string" ? { deliveryStart: t.deliveryStart } : {}),
+        ...(typeof t.deliveryEnd === "string" ? { deliveryEnd: t.deliveryEnd } : {}),
       }));
   }
 

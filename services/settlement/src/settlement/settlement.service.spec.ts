@@ -506,6 +506,42 @@ describe("SettlementService", () => {
       ]);
     });
 
+    it("INT-354 / REQ-007: each trade is a line with period, kWh, price and amount", async () => {
+      queue.push([
+        {
+          ...trade("t1", A, B, 6),
+          deliveryStart: "2026-11-01T00:00:00Z",
+          deliveryEnd: "2026-11-01T00:15:00Z",
+        },
+        {
+          ...trade("t2", A, B, 4),
+          deliveryStart: "2026-11-01T00:15:00Z",
+          deliveryEnd: "2026-11-01T00:30:00Z",
+        },
+      ]);
+      const run = await service.startRun({ communityId: COM, type: "early" });
+      const [settlement] = await settlementsOf(run.runId);
+      expect(settlement).toMatchObject({ energyAmount: "10.00", vat: "0.00" });
+      expect(settlement!.lines).toEqual([
+        {
+          tradeId: "t1",
+          deliveryStart: "2026-11-01T00:00:00Z",
+          deliveryEnd: "2026-11-01T00:15:00Z",
+          kWh: "60.000",
+          pricePerKWh: "0.10",
+          amount: "6.00",
+        },
+        {
+          tradeId: "t2",
+          deliveryStart: "2026-11-01T00:15:00Z",
+          deliveryEnd: "2026-11-01T00:30:00Z",
+          kWh: "40.000",
+          pricePerKWh: "0.10",
+          amount: "4.00",
+        },
+      ]);
+    });
+
     it("INT-352: VAT is computed on the rounded energy line, total = sum of lines (BR-07, BR-08)", async () => {
       queue.push([trade("t1", A, B, 10.005)]);
       service.useFixtureScenario("S1", { threshold: 0.01, vatRate: 0.077 });

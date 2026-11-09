@@ -1,5 +1,5 @@
 import {asString, resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
-import type { PairSettlementInput } from "../domain/types.js";
+import type { InvoiceTradeLine, PairSettlementInput } from "../domain/types.js";
 
 export const SETTLEMENT_CLIENT = Symbol("SETTLEMENT_CLIENT");
 
@@ -51,6 +51,10 @@ export class HttpSettlementClient implements SettlementClientPort {
       tradeIds: Array.isArray(body.tradeIds)
         ? body.tradeIds.map(String)
         : [],
+      lines: parseTradeLines(body.lines),
+      ...(typeof body.carriedForwardIn === "string"
+        ? { carriedForwardIn: body.carriedForwardIn }
+        : {}),
       kWh: asString(body.kWh, "0"),
       energyAmount: asString(body.energyAmount, "0"),
       vat: asString(body.vat, "0"),
@@ -63,6 +67,29 @@ export class HttpSettlementClient implements SettlementClientPort {
         : {}),
     };
   }
+}
+
+function parseTradeLines(value: unknown): InvoiceTradeLine[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const line = item as Record<string, unknown>;
+    if (typeof line.tradeId !== "string") return [];
+    return [
+      {
+        tradeId: line.tradeId,
+        ...(typeof line.deliveryStart === "string"
+          ? { deliveryStart: line.deliveryStart }
+          : {}),
+        ...(typeof line.deliveryEnd === "string"
+          ? { deliveryEnd: line.deliveryEnd }
+          : {}),
+        kWh: asString(line.kWh, "0.000"),
+        pricePerKWh: asString(line.pricePerKWh, "0.00"),
+        amount: asString(line.amount, "0.00"),
+      },
+    ];
+  });
 }
 
 export function createSettlementClient(

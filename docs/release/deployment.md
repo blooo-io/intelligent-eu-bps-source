@@ -11,7 +11,7 @@ Source views: [`docs/architecture/05-physical-architecture.md`](../architecture/
 |---|---|---|---|
 | `local` | developer laptop | `local-apps` / `local-data` (k3d + Tilt) | Virtual + Stripe test |
 | `dev` (`int`) | `develop` via Argo CD | `int-apps` / `int-data` | Virtual + Stripe test |
-| `demo` | release tag (`vX.Y.Z`, INT-305), manual sync | `demo-apps` / `demo-data` | Virtual + Stripe test |
+| `demo` | release tag `v1.0.1` (INT-359; later tags follow INT-305), manual sync | `demo-apps` / `demo-data` | Virtual + Stripe test |
 
 Hosting: Scaleway Kapsule, region **nl-ams**. Public hosts under `*.intelligent-eu-bp.blooo.dev`.
 

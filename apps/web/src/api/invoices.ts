@@ -10,6 +10,16 @@ export type InvoiceAmounts = {
   total: string;
 };
 
+/** REQ-007 — one trade on the invoice. */
+export type InvoiceTradeLine = {
+  tradeId: string;
+  deliveryStart?: string;
+  deliveryEnd?: string;
+  kWh: string;
+  pricePerKWh: string;
+  amount: string;
+};
+
 export type Invoice = {
   invoiceId: string;
   legalNumber?: string;
@@ -20,6 +30,7 @@ export type Invoice = {
   status: string;
   dueDate?: string;
   tradeIds?: string[];
+  lines?: InvoiceTradeLine[];
   amounts: InvoiceAmounts;
   billingMode?: string;
 };

@@ -20,6 +20,24 @@ const invoice = {
   status: "Open",
   amounts: { energy: "10.00", vat: "2.00", total: "12.00" },
   tradeIds: ["trade-a", "trade-b"],
+  lines: [
+    {
+      tradeId: "trade-a",
+      deliveryStart: "2026-11-01T00:00:00Z",
+      deliveryEnd: "2026-11-01T00:15:00Z",
+      kWh: "10.000",
+      pricePerKWh: "0.20",
+      amount: "2.00",
+    },
+    {
+      tradeId: "trade-b",
+      deliveryStart: "2026-11-01T00:15:00Z",
+      deliveryEnd: "2026-11-01T00:30:00Z",
+      kWh: "40.000",
+      pricePerKWh: "0.20",
+      amount: "8.00",
+    },
+  ],
 };
 
 describe("InvoicesPage (INT-142 / UAT-007 / UAT-014)", () => {
@@ -97,7 +115,9 @@ describe("InvoicesPage (INT-142 / UAT-007 / UAT-014)", () => {
     fireEvent.click(screen.getByRole("button", { name: /^view$/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/trade-a, trade-b/)).toBeInTheDocument();
+      expect(screen.getByText("10.000")).toBeInTheDocument();
+      expect(screen.getByText("40.000")).toBeInTheDocument();
+      expect(screen.getByText("2026-11-01T00:00:00Z – 2026-11-01T00:15:00Z")).toBeInTheDocument();
     });
     expect(screen.getByText(/Energy 10\.00/)).toBeInTheDocument();
     expect(

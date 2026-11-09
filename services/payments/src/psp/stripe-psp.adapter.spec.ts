@@ -9,10 +9,12 @@ const {
   paymentMethodsRetrieve,
   paymentMethodsCreate,
   paymentMethodsAttach,
+  paymentMethodsList,
   paymentIntentsCreate,
   paymentIntentsUpdate,
   refundsCreate,
   customersCreate,
+  customersSearch,
   setupIntentsCreate,
   invoicesRetrieve,
   invoicesPay,
@@ -37,10 +39,12 @@ const {
     paymentMethodsRetrieve: vi.fn(),
     paymentMethodsCreate: vi.fn(),
     paymentMethodsAttach: vi.fn(),
+    paymentMethodsList: vi.fn(),
     paymentIntentsCreate: vi.fn(),
     paymentIntentsUpdate: vi.fn(),
     refundsCreate: vi.fn(),
     customersCreate: vi.fn(),
+    customersSearch: vi.fn(),
     setupIntentsCreate: vi.fn(),
     invoicesRetrieve: vi.fn(),
     invoicesPay: vi.fn(),
@@ -63,10 +67,11 @@ vi.mock("stripe", () => {
         retrieve: paymentMethodsRetrieve,
         create: paymentMethodsCreate,
         attach: paymentMethodsAttach,
+        list: paymentMethodsList,
       },
       paymentIntents: { create: paymentIntentsCreate, update: paymentIntentsUpdate },
       refunds: { create: refundsCreate },
-      customers: { create: customersCreate },
+      customers: { create: customersCreate, search: customersSearch },
       setupIntents: { create: setupIntentsCreate },
       invoices: { retrieve: invoicesRetrieve, pay: invoicesPay },
       webhooks: { constructEvent },
@@ -715,6 +720,91 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
         status: "failed",
         failureCategory: "payment_method_not_attached",
       });
+    });
+
+    it("INT-363 attaches the reusable pm_card_visa token before cloning it", async () => {
+      paymentMethodsRetrieve.mockResolvedValue({
+        id: "pm_retrieved_token",
+        type: "card",
+        customer: null,
+      });
+      customersSearch.mockResolvedValue({ data: [] });
+      customersCreate.mockResolvedValue({ id: "cus_tok" });
+      paymentMethodsAttach.mockResolvedValueOnce({ id: "pm_real", customer: "cus_tok" });
+      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
+      const adapter = new StripePspAdapter(creds);
+      await expect(
+        adapter.createPayment({ ...payInput, consumerPaymentMethodId: "pm_card_visa" }),
+      ).resolves.toEqual({ stripePaymentId: "in_1", status: "succeeded" });
+      expect(customersCreate).toHaveBeenCalledWith({
+        metadata: { paymentMethodToken: "pm_card_visa" },
+      });
+      expect(paymentMethodsAttach).toHaveBeenCalledWith("pm_card_visa", {
+        customer: "cus_tok",
+      });
+      expect(paymentMethodsCreate).toHaveBeenCalledWith(
+        { customer: "cus_tok", payment_method: "pm_real" },
+        connect,
+      );
+    });
+
+    it("INT-363 attaches onto the existing token Customer when it has no card yet", async () => {
+      paymentMethodsRetrieve.mockResolvedValue({
+        id: "pm_retrieved_token",
+        type: "card",
+        customer: null,
+      });
+      customersSearch.mockResolvedValue({ data: [{ id: "cus_tok" }] });
+      paymentMethodsList.mockResolvedValue({ data: [] });
+      paymentMethodsAttach.mockResolvedValueOnce({ id: "pm_real", customer: "cus_tok" });
+      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
+      const adapter = new StripePspAdapter(creds);
+      await expect(
+        adapter.createPayment({ ...payInput, consumerPaymentMethodId: "pm_card_visa" }),
+      ).resolves.toMatchObject({ status: "succeeded" });
+      expect(customersCreate).not.toHaveBeenCalled();
+      expect(paymentMethodsAttach).toHaveBeenCalledWith("pm_card_visa", {
+        customer: "cus_tok",
+      });
+    });
+
+    it("INT-363 still attaches the token when customer search is unavailable", async () => {
+      paymentMethodsRetrieve.mockResolvedValue({
+        id: "pm_retrieved_token",
+        type: "card",
+        customer: null,
+      });
+      customersSearch.mockRejectedValue(new Error("search unavailable"));
+      customersCreate.mockResolvedValue({ id: "cus_tok" });
+      paymentMethodsAttach.mockResolvedValueOnce({ id: "pm_real", customer: "cus_tok" });
+      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
+      const adapter = new StripePspAdapter(creds);
+      await expect(
+        adapter.createPayment({ ...payInput, consumerPaymentMethodId: "pm_card_visa" }),
+      ).resolves.toMatchObject({ status: "succeeded" });
+      expect(customersCreate).toHaveBeenCalled();
+    });
+
+    it("INT-363 reuses the platform Customer already holding the test card", async () => {
+      paymentMethodsRetrieve.mockResolvedValue({
+        id: "pm_retrieved_token",
+        type: "card",
+        customer: null,
+      });
+      customersSearch.mockResolvedValue({ data: [{ id: "cus_tok" }] });
+      paymentMethodsList.mockResolvedValue({
+        data: [{ id: "pm_real", customer: "cus_tok" }],
+      });
+      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
+      const adapter = new StripePspAdapter(creds);
+      await expect(
+        adapter.createPayment({ ...payInput, consumerPaymentMethodId: "pm_card_visa" }),
+      ).resolves.toMatchObject({ status: "succeeded" });
+      expect(customersCreate).not.toHaveBeenCalled();
+      expect(paymentMethodsCreate).toHaveBeenCalledWith(
+        { customer: "cus_tok", payment_method: "pm_real" },
+        connect,
+      );
     });
 
     it("maps an open invoice after pay (async SEPA / requires_action) to pending", async () => {

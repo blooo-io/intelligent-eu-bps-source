@@ -225,6 +225,15 @@ components:
           type: array
           items:
             type: string
+
+        lines:
+          type: array
+          description: >
+            REQ-007 — one entry per trade (delivery period, kWh, price per kWh,
+            amount). Empty when the invoice settles a carried balance only.
+            Grid fees are never included (A20).
+          items:
+            $ref: '../components/schemas.yaml#/components/schemas/InvoiceTradeLine'
         kWh:
           type: string
         energyAmount:

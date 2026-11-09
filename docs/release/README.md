@@ -5,7 +5,7 @@ Operator-facing notes for the V1 Billing & Payment Service release package. Arch
 | Note | Jira | Purpose |
 |---|---|---|
 | [VERSIONING.md](VERSIONING.md) | INT-305 | SemVer tags, `cut-release`, GitHub Releases, versioned images |
-| [SOURCE-RELEASE.md](SOURCE-RELEASE.md) | INT-92 | Historical V1 git tag `v1.0.0` and package version |
+| [SOURCE-RELEASE.md](SOURCE-RELEASE.md) | INT-92 / INT-359 | Freeze name `v1.0.0` (never pushed); published tag `v1.0.1` |
 | [deployment.md](deployment.md) | INT-93 | Deploy and configure on Scaleway / local |
 | [integration-api.md](integration-api.md) | INT-94 | Integrate via OpenAPI / AsyncAPI |
 | [RELEASE-NOTES.md](RELEASE-NOTES.md) | INT-95 | What ships, limitations, licence |

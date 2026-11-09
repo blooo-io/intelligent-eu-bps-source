@@ -789,6 +789,8 @@ export interface components {
             dueDate?: string;
             pairSettlementId?: components["schemas"]["Uuid"];
             tradeIds?: string[];
+            /** @description REQ-007 — one entry per trade (delivery period, kWh, price per kWh, amount). Empty when the invoice settles a carried balance only. Grid fees are never included (A20). */
+            lines?: components["schemas"]["InvoiceTradeLine"][];
             amounts: components["schemas"]["InvoiceAmounts"];
             billingMode?: components["schemas"]["BillingMode"];
         };
@@ -961,6 +963,24 @@ export interface components {
          * @enum {string}
          */
         InvoiceStatus: "Draft" | "Open" | "PartiallyPaid" | "Paid" | "Overdue" | "Void" | "Disputed";
+        /** @description REQ-007 — one trade covered by the invoice. kWh and amount are signed in the invoice direction (a purchase is positive). No grid-fee line (A20). */
+        InvoiceTradeLine: {
+            tradeId: string;
+            /**
+             * Format: date-time
+             * @description Start of the delivery period (BR-02).
+             */
+            deliveryStart?: string;
+            /**
+             * Format: date-time
+             * @description End of the delivery period (BR-02).
+             */
+            deliveryEnd?: string;
+            /** @description Signed energy, three decimals (BR-08). */
+            kWh: string;
+            pricePerKWh: components["schemas"]["Money"];
+            amount: components["schemas"]["Money"];
+        };
         /**
          * @description Payment lifecycle (02 §5).
          * @enum {string}

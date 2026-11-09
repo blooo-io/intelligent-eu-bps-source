@@ -1,8 +1,8 @@
 # V1 source-code release (INT-92)
 
-**Tag:** `v1.0.0`  
-**Branch tip:** `develop` at the merge that lands this note  
-**Package version:** `1.0.0` (root `package.json`)
+**Published tag:** `v1.0.1` (INT-359)  
+**Package version:** `1.0.1` (root `package.json`)  
+**Intended freeze name:** `v1.0.0` (INT-92, 2026-10-18) — recorded in this note, **never pushed**
 
 > **Ongoing release train:** SemVer tags, `scripts/cut-release.mjs`, and the `release` GitHub Actions workflow are documented in [`VERSIONING.md`](VERSIONING.md) (INT-305). This page records the historical V1 freeze tag only.
 
@@ -24,9 +24,11 @@ Immutable pointer to the D5.5 Billing & Payment Service V1 source tree used for 
 
 ## How the tag was created
 
-`v1.0.0` was cut as an annotated tag on 2026-10-18 (INT-92). Later versions use [`VERSIONING.md`](VERSIONING.md) / `node scripts/cut-release.mjs --push`.
+INT-92 (2026-10-18) recorded `v1.0.0` as the freeze tag and set the package version to `1.0.0`. That annotated tag was never pushed. The tree then moved (INT-305 release train, then the D5.5 review corrections INT-351…INT-362). Tags are immutable, so `v1.0.0` is not created on a later commit.
 
-Do not retag. A fix after freeze is a new `v1.0.x` / `v1.1.0` under a new Jira issue.
+`v1.0.1` is the first tag actually published. It is cut from `develop` after this note merges, with [`VERSIONING.md`](VERSIONING.md) / `node scripts/cut-release.mjs --push` (INT-359). `demo` Argo applications pin `targetRevision: v1.0.1`.
+
+Do not retag. A later fix is a new `v1.0.x` / `v1.1.0` under a new Jira issue.
 
 ## Consistency prerequisites (INT-96)
 

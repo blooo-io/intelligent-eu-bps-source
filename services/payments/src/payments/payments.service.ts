@@ -12,10 +12,13 @@ import {
   asString,
   IdempotentConsumer,
   OutboxService,
+  PassthroughTransaction,
+  type RecordingTransaction,
 } from "@intelligent/module-template";
 import {
   PaymentsStore,
   type AccountRecord,
+  type PaymentWrite,
 } from "../domain/store.js";
 import {
   CONNECTED_CUSTOMERS_STORE,
@@ -62,6 +65,12 @@ export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
   /** INT-326 — Stripe webhook duplicate deliveries (in-process counter). */
   private webhookDuplicateCount = 0;
+  private tx: { run<T>(fn: () => Promise<T> | T): Promise<T> } = new PassthroughTransaction();
+
+  /** INT-356 — payment attempts commit with the outbox when DATABASE_URL is set. */
+  useTransaction(tx: RecordingTransaction<PaymentWrite> | PassthroughTransaction): void {
+    this.tx = tx;
+  }
 
   constructor(
     @Inject(PaymentsStore) private readonly store: PaymentsStore,
@@ -646,7 +655,11 @@ export class PaymentsService {
     await this.emitAccountStatus(participantId);
   }
 
-  async payInvoice(input: {
+  async payInvoice(input: Parameters<PaymentsService["performPayInvoice"]>[0]) {
+    return this.tx.run(() => this.performPayInvoice(input));
+  }
+
+  private async performPayInvoice(input: {
     invoiceId: string;
     participantId: string;
     communityId: string;
@@ -846,6 +859,10 @@ export class PaymentsService {
   }
 
   async receiveWebhook(rawBody: string, signature: string | undefined): Promise<void> {
+    return this.tx.run(() => this.performReceiveWebhook(rawBody, signature));
+  }
+
+  private async performReceiveWebhook(rawBody: string, signature: string | undefined): Promise<void> {
     if (!signature) {
       throw new UnauthorizedException("Missing Stripe-Signature");
     }

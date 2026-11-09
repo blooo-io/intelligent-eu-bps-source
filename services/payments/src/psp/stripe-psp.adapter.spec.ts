@@ -100,8 +100,8 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
       expect.objectContaining({
         customer: "cus_1",
         usage: "off_session",
-        // INT-276 / REQ-014 — card or SEPA Direct Debit (Stripe SDK v23).
-        allowed_payment_method_types: ["card", "sepa_debit"],
+        // INT-361 / REQ-014 — cards only in V1 (Stripe SDK v23).
+        allowed_payment_method_types: ["card"],
         metadata: { participantId: "p-consumer" },
       }),
     );

@@ -5,8 +5,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { OutboxService } from "@intelligent/module-template";
-import { ParticipantsStore } from "../domain/store.js";
+import {
+  OutboxService,
+  PassthroughTransaction,
+  type RecordingTransaction,
+} from "@intelligent/module-template";
+import { ParticipantsStore, type ParticipantWrite } from "../domain/store.js";
 import { SEED_COMMUNITY_ID } from "../domain/seed.js";
 import type {
   BillingProfile,
@@ -65,6 +69,13 @@ export type MeResult = {
  */
 @Injectable()
 export class ParticipantsService {
+  private tx: { run<T>(fn: () => Promise<T> | T): Promise<T> } = new PassthroughTransaction();
+
+  /** INT-356 — registry mutations commit with the outbox when DATABASE_URL is set. */
+  useTransaction(tx: RecordingTransaction<ParticipantWrite> | PassthroughTransaction): void {
+    this.tx = tx;
+  }
+
   constructor(
     @Inject(ParticipantsStore) private readonly store: ParticipantsStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
@@ -92,6 +103,13 @@ export class ParticipantsService {
   }
 
   updateCommunitySettings(
+    communityId: string,
+    write: Omit<CommunitySettings, "communityId">,
+  ): Promise<CommunitySettings> {
+    return this.tx.run(() => this.performUpdateCommunitySettings(communityId, write));
+  }
+
+  private performUpdateCommunitySettings(
     communityId: string,
     write: Omit<CommunitySettings, "communityId">,
   ): CommunitySettings {
@@ -184,6 +202,22 @@ export class ParticipantsService {
   }
 
   async importParticipants(
+    communityId: string,
+    rows: ParticipantImportRow[],
+  ): Promise<
+    Array<{
+      participantId: string;
+      communityId: string;
+      role: ParticipantRole;
+      status: ParticipantRecord["status"];
+      marketActorId: string;
+      meterId: string;
+    }>
+  > {
+    return this.tx.run(() => this.performImportParticipants(communityId, rows));
+  }
+
+  private async performImportParticipants(
     communityId: string,
     rows: ParticipantImportRow[],
   ): Promise<
@@ -319,6 +353,17 @@ export class ParticipantsService {
     marketActorId: string;
     meterId: string;
   }> {
+    return this.tx.run(() => this.performOffboardParticipant(participantId));
+  }
+
+  private async performOffboardParticipant(participantId: string): Promise<{
+    participantId: string;
+    communityId: string;
+    role: ParticipantRole;
+    status: ParticipantRecord["status"];
+    marketActorId: string;
+    meterId: string;
+  }> {
     const row = this.requireParticipant(participantId);
     if (row.status === "Offboarded") {
       return {
@@ -376,6 +421,10 @@ export class ParticipantsService {
   }
 
   async updateProfile(sub: string, profile: BillingProfile): Promise<BillingProfile> {
+    return this.tx.run(() => this.performUpdateProfile(sub, profile));
+  }
+
+  private async performUpdateProfile(sub: string, profile: BillingProfile): Promise<BillingProfile> {
     const row = this.store.findByIdpSub(sub);
     if (!row || row.status === "Offboarded") {
       throw new NotFoundException("Caller is not a registered participant");
@@ -403,6 +452,17 @@ export class ParticipantsService {
   }
 
   async acceptTerms(
+    sub: string,
+    input: { termsVersion: string; selfBillingMandate: boolean },
+  ): Promise<{
+    termsVersion: string;
+    selfBillingMandate: boolean;
+    acceptedAt: string;
+  }> {
+    return this.tx.run(() => this.performAcceptTerms(sub, input));
+  }
+
+  private async performAcceptTerms(
     sub: string,
     input: { termsVersion: string; selfBillingMandate: boolean },
   ): Promise<{
@@ -452,6 +512,14 @@ export class ParticipantsService {
     ready: boolean;
     reason?: string;
   }): Promise<ReadinessResult> {
+    return this.tx.run(() => this.performApplyPaymentAccountStatus(input));
+  }
+
+  private async performApplyPaymentAccountStatus(input: {
+    participantId: string;
+    ready: boolean;
+    reason?: string;
+  }): Promise<ReadinessResult> {
     const row = this.requireParticipant(input.participantId);
     if (row.status === "Offboarded") {
       throw new BadRequestException("Offboarded participant");
@@ -479,6 +547,13 @@ export class ParticipantsService {
    * REQ-013 / INT-275 — anonymize registry personal data; emit ErasureCompleted (AC-03).
    */
   async applyErasureRequested(input: {
+    requestId: string;
+    participantId: string;
+  }): Promise<{ result: "completed" | "failed" }> {
+    return this.tx.run(() => this.performApplyErasureRequested(input));
+  }
+
+  private async performApplyErasureRequested(input: {
     requestId: string;
     participantId: string;
   }): Promise<{ result: "completed" | "failed" }> {

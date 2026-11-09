@@ -1,5 +1,5 @@
-import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
-import { ModuleTemplateModule } from "@intelligent/module-template";
+import { Inject, Injectable, MiddlewareConsumer, Module, NestModule, OnModuleInit } from "@nestjs/common";
+import { ModuleTemplateModule, OutboxService } from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
 import { SettlementStore } from "./domain/store.js";
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
@@ -20,6 +20,23 @@ import { TRADE_SOURCE, type TradeSourcePort } from "./ports/trade-source.port.js
 import { SettlementController } from "./settlement/settlement.controller.js";
 import { PublicSettlementController } from "./settlement/public.controller.js";
 import { SettlementService } from "./settlement/settlement.service.js";
+import { createSettlementTransaction } from "./persistence/settlement-journal.js";
+
+/** INT-356 — load the ledger at boot and commit runs with the outbox. */
+@Injectable()
+class SettlementPersistence implements OnModuleInit {
+  constructor(
+    @Inject(SettlementStore) private readonly store: SettlementStore,
+    @Inject(OutboxService) private readonly outbox: OutboxService,
+    @Inject(SettlementService) private readonly settlement: SettlementService,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    const { transaction, hydrate } = createSettlementTransaction(this.store, this.outbox);
+    await hydrate();
+    this.settlement.useTransaction(transaction);
+  }
+}
 
 function createTradeSource(
   env: NodeJS.ProcessEnv = process.env,
@@ -58,6 +75,7 @@ function createTradeSource(
     // INT-273 — NATS when NATS_URL set; in-memory otherwise (CI).
     { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
     ParticipantOffboardedListener,
+    SettlementPersistence,
   ],
 })
 export class AppModule implements NestModule {

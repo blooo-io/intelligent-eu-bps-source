@@ -5,8 +5,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { OutboxService } from "@intelligent/module-template";
-import { InvoiceStore } from "../domain/store.js";
+import {
+  OutboxService,
+  PassthroughTransaction,
+  type RecordingTransaction,
+} from "@intelligent/module-template";
+import { InvoiceStore, type InvoiceWrite } from "../domain/store.js";
 import type {
   InvoiceRecord,
   InvoiceStatus,
@@ -40,6 +44,12 @@ const PRODUCER = "AC-06";
 export class InvoicingService {
   /** Unit-test / mock fixture: producerId → Stripe Connect account id. */
   private readonly connectAccounts = new Map<string, string>();
+  private tx: { run<T>(fn: () => Promise<T> | T): Promise<T> } = new PassthroughTransaction();
+
+  /** INT-356 — Postgres transaction around invoice writes when DATABASE_URL is set. */
+  useTransaction(tx: RecordingTransaction<InvoiceWrite> | PassthroughTransaction): void {
+    this.tx = tx;
+  }
 
   constructor(
     @Inject(InvoiceStore) private readonly store: InvoiceStore,
@@ -270,6 +280,12 @@ export class InvoicingService {
   async createFromSettlement(
     settlement: PairSettlementInput,
   ): Promise<InvoiceRecord | null> {
+    return this.tx.run(() => this.performCreateFromSettlement(settlement));
+  }
+
+  private async performCreateFromSettlement(
+    settlement: PairSettlementInput,
+  ): Promise<InvoiceRecord | null> {
     const existing = this.store.findBySettlement(settlement.settlementId);
     if (existing) {
       return existing;
@@ -356,6 +372,10 @@ export class InvoicingService {
   }
 
   async markOverdue(asOf: string): Promise<{ accepted: true; marked: number }> {
+    return this.tx.run(() => this.performMarkOverdue(asOf));
+  }
+
+  private async performMarkOverdue(asOf: string): Promise<{ accepted: true; marked: number }> {
     if (!asOf) {
       throw new BadRequestException("asOf is required");
     }
@@ -379,6 +399,13 @@ export class InvoicingService {
    * Reason is mandatory; actor + reason go to statusAudit and AuditableActionPerformed.
    */
   async setInvoiceStatus(
+    invoiceId: string,
+    input: { status: InvoiceStatus; reason: string; actorId: string },
+  ): Promise<Record<string, unknown>> {
+    return this.tx.run(() => this.performSetInvoiceStatus(invoiceId, input));
+  }
+
+  private async performSetInvoiceStatus(
     invoiceId: string,
     input: { status: InvoiceStatus; reason: string; actorId: string },
   ): Promise<Record<string, unknown>> {
@@ -409,6 +436,14 @@ export class InvoicingService {
     status: InvoiceStatus;
     reason?: string;
   }): Promise<InvoiceRecord | undefined> {
+    return this.tx.run(() => this.performApplyStripeStatus(input));
+  }
+
+  private async performApplyStripeStatus(input: {
+    stripeInvoiceId: string;
+    status: InvoiceStatus;
+    reason?: string;
+  }): Promise<InvoiceRecord | undefined> {
     const row = this.store
       .list()
       .find((r) => r.stripeInvoiceId === input.stripeInvoiceId);
@@ -426,6 +461,14 @@ export class InvoicingService {
    * Idempotent when already Paid; ignores non-succeeded statuses.
    */
   async applyPaymentStatusChanged(input: {
+    invoiceId: string;
+    paymentId: string;
+    status: string;
+  }): Promise<InvoiceRecord | undefined> {
+    return this.tx.run(() => this.performApplyPaymentStatusChanged(input));
+  }
+
+  private async performApplyPaymentStatusChanged(input: {
     invoiceId: string;
     paymentId: string;
     status: string;
@@ -517,6 +560,13 @@ export class InvoicingService {
    * REQ-013 / INT-275 — retain invoice rows; emit ErasureCompleted (AC-06).
    */
   async applyErasureRequested(input: {
+    requestId: string;
+    participantId: string;
+  }): Promise<{ result: "completed" | "failed"; invoicesRetained: number }> {
+    return this.tx.run(() => this.performApplyErasureRequested(input));
+  }
+
+  private async performApplyErasureRequested(input: {
     requestId: string;
     participantId: string;
   }): Promise<{ result: "completed" | "failed"; invoicesRetained: number }> {

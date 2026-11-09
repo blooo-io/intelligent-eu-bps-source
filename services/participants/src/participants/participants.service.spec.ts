@@ -89,16 +89,16 @@ describe("ParticipantsService", () => {
     expect(me.readiness).toBe("Invited");
   });
 
-  it("resolves community settings and rejects live mode in V1 (REQ-043)", () => {
+  it("resolves community settings and rejects live mode in V1 (REQ-043)", async () => {
     const settings = service.getCommunitySettings(communityId);
     expect(settings.vatRate).toBe("0.00");
     expect(settings.threshold).toBe("5.00");
-    expect(() =>
+    await expect(
       service.updateCommunitySettings(communityId, {
         ...settings,
         billingMode: "live",
       }),
-    ).toThrow(/virtual/);
+    ).rejects.toThrow(/virtual/);
   });
 
   it("INT-274: getNotificationContact returns profile e-mail (REQ-017)", async () => {
@@ -334,9 +334,9 @@ describe("ParticipantsService", () => {
     });
   });
 
-  it("updates community settings when virtual (REQ-006)", () => {
+  it("updates community settings when virtual (REQ-006)", async () => {
     const current = service.getCommunitySettings(communityId);
-    const next = service.updateCommunitySettings(communityId, {
+    const next = await service.updateCommunitySettings(communityId, {
       ...current,
       threshold: "7.50",
       currency: "CHF",

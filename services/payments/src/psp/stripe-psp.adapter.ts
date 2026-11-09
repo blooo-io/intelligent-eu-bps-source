@@ -215,17 +215,19 @@ export class StripePspAdapter implements PspPort {
 
   /**
    * INT-363 — a card already on a platform Customer is shareable as-is.
-   * The reusable test token `pm_card_*` is not: attach it once to a platform
-   * Customer (reused by metadata) and return that PaymentMethod.
+   * The reusable test token `pm_card_*` is not: Stripe returns a new,
+   * Customer-less PaymentMethod when it is retrieved, so the token saved on
+   * the account is what identifies it. Attach it once to a platform Customer
+   * (reused by metadata) and return that PaymentMethod.
    */
   private async shareablePlatformCard(
     pm: Stripe.PaymentMethod,
+    token: string,
   ): Promise<{ id: string; customerId: string } | null> {
     const existing = stripeId(pm.customer);
     if (existing) return { id: pm.id, customerId: existing };
-    if (!/^pm_card_[A-Za-z0-9]+$/.test(pm.id)) return null;
+    if (!/^pm_card_[A-Za-z0-9]+$/.test(token)) return null;
 
-    const token = pm.id;
     let customerId: string | undefined;
     try {
       const found = await this.stripe.customers.search({
@@ -351,7 +353,10 @@ export class StripePspAdapter implements PspPort {
       // INT-363 — pm_card_visa (UAT seed) is a reusable token with no Customer.
       // Stripe clones a card onto a connected account only after it belongs to
       // a platform Customer.
-      const shareable = await this.shareablePlatformCard(platformPm);
+      const shareable = await this.shareablePlatformCard(
+        platformPm,
+        input.consumerPaymentMethodId,
+      );
       if (!shareable) {
         return {
           stripePaymentId: invoicePaymentIntentId(invoice),

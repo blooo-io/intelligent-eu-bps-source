@@ -1,8 +1,7 @@
 import { Alert, Card, Typography } from "antd";
-import type { FormInstance } from "antd";
 import type { WebConfig } from "../api/config";
 import type { MePaymentAccount, OnboardingSession } from "../api/payment";
-import type { LoadStripeFn } from "../api/stripe-account-token";
+import type { LoadConnectFn } from "../api/stripe-connect-onboarding";
 import type { LoadStripeSetupFn } from "../api/stripe-setup-element";
 import { PaymentSetupReadySection } from "./payment-setup-ready-section";
 import {
@@ -11,10 +10,7 @@ import {
   PaymentSetupLinkPanel,
   PaymentSetupStartButton,
 } from "./payment-setup-session-panels";
-import {
-  PaymentSetupKycForm,
-  type PaymentKycFormValues,
-} from "./payment-setup-kyc-form";
+import { ProducerAccountOnboarding } from "../components/producer-account-onboarding";
 
 const { Paragraph } = Typography;
 
@@ -31,13 +27,11 @@ export type PaymentSetupBodyProps = {
   account: MePaymentAccount | null;
   brandLabel: string | null;
   readyConsumerCard: boolean;
-  showRequirements: boolean;
-  form: FormInstance<PaymentKycFormValues>;
   onStart: () => void;
   onPaymentMethodAttached: (paymentMethodId: string) => Promise<void>;
-  onSubmitRequirements: (values: PaymentKycFormValues) => void;
+  refreshClientSecret: () => Promise<string>;
   loadStripeSetup?: LoadStripeSetupFn;
-  loadStripe?: LoadStripeFn;
+  loadConnect?: LoadConnectFn;
 };
 
 export function PaymentSetupBody({
@@ -53,12 +47,11 @@ export function PaymentSetupBody({
   account,
   brandLabel,
   readyConsumerCard,
-  showRequirements,
-  form,
   onStart,
   onPaymentMethodAttached,
-  onSubmitRequirements,
+  refreshClientSecret,
   loadStripeSetup,
+  loadConnect,
 }: Readonly<PaymentSetupBodyProps>) {
   return (
     <>
@@ -101,14 +94,18 @@ export function PaymentSetupBody({
           <PaymentSetupCompleteAlert session={session} />
         ) : null}
 
-        {showRequirements && (
-          <PaymentSetupKycForm
-            form={form}
-            loading={loading}
-            currentlyDue={session?.currentlyDue}
-            onSubmit={onSubmitRequirements}
+        {session?.mode === "embedded" &&
+        session.status !== "complete" &&
+        session.clientSecret ? (
+          // INT-362 — on exit, Start again re-reads the status from Stripe.
+          <ProducerAccountOnboarding
+            config={config}
+            clientSecret={session.clientSecret}
+            refreshClientSecret={refreshClientSecret}
+            onExit={onStart}
+            loadConnect={loadConnect}
           />
-        )}
+        ) : null}
       </Card>
     </>
   );

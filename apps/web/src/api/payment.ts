@@ -13,46 +13,15 @@ export type MePaymentAccount = {
 };
 
 export type OnboardingSession = {
-  mode: "requirements" | "link" | "elements";
+  /** INT-362 — producer `embedded` (Connect Account onboarding component). */
+  mode: "embedded" | "requirements" | "link" | "elements";
   status: "requirements_due" | "pending_verification" | "complete";
   stripeAccountId?: string;
   currentlyDue?: string[];
   eventuallyDue?: string[];
   url?: string;
-  /** SetupIntent client secret when mode is elements (INT-193). */
+  /** SetupIntent (elements) or Account Session (embedded) client secret. */
   clientSecret?: string;
-};
-
-export type OnboardingRequirementsSubmission = {
-  /** INT-191 — Stripe Account Token id from Stripe.js. */
-  accountToken?: string;
-  country?: string;
-  businessType?: "individual" | "company";
-  businessProfileUrl?: string;
-  businessProfileMcc?: string;
-  representative?: {
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    phone?: string;
-    dob?: { day: number; month: number; year: number };
-    address?: {
-      line1?: string;
-      city?: string;
-      postalCode?: string;
-      country?: string;
-    };
-  };
-  /** INT-195 — optional identity document File id (prefer Account Token). */
-  identityDocumentFront?: string;
-  identityDocumentAdditionalFront?: string;
-  externalAccount?: {
-    country?: string;
-    currency?: string;
-    accountNumber?: string;
-    routingNumber?: string;
-  };
-  tosAccepted?: boolean;
 };
 
 /** INT-255 — read brand/last4 or Connect dashboard link for Ready UI. */
@@ -77,7 +46,7 @@ export async function fetchMyPaymentAccount(
   return (await res.json()) as MePaymentAccount;
 }
 
-/** Start payment-account onboarding (producer requirements or consumer elements). */
+/** Start payment-account onboarding (producer embedded Connect or consumer elements). */
 export async function createPaymentOnboarding(
   apiBaseUrl: string,
   accessToken: string,
@@ -95,32 +64,6 @@ export async function createPaymentOnboarding(
   if (!res.ok) {
     throw new Error(
       `POST /v1/me/payment-account/onboarding failed with ${res.status}`,
-    );
-  }
-  return (await res.json()) as OnboardingSession;
-}
-
-/** Submit Connect KYC requirements (INT-190 / producer path). */
-export async function submitPaymentOnboardingRequirements(
-  apiBaseUrl: string,
-  accessToken: string,
-  body: OnboardingRequirementsSubmission,
-): Promise<OnboardingSession> {
-  const res = await fetch(
-    `${apiBaseUrl.replace(/\/$/, "")}/v1/me/payment-account/onboarding/requirements`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    },
-  );
-  if (!res.ok) {
-    throw new Error(
-      `POST /v1/me/payment-account/onboarding/requirements failed with ${res.status}`,
     );
   }
   return (await res.json()) as OnboardingSession;

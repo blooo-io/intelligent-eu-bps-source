@@ -2,27 +2,23 @@ import { useState } from "react";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
 import type { OnboardingSession } from "../api/payment";
-import type { LoadStripeFn } from "../api/stripe-account-token";
 import { isSellerRole } from "../layout/role-home";
 import {
   attachPaymentMethodOnboarding,
+  refreshOnboardingClientSecret,
   startPaymentOnboarding,
-  submitPaymentKycRequirements,
 } from "./payment-setup-actions";
-import type { PaymentKycFormValues } from "./payment-setup-kyc-form";
 import { usePaymentSetupMe } from "./use-payment-setup-me";
 
 export function usePaymentSetup({
   config,
   oidc,
   openUrl,
-  loadStripe,
   onComplete,
 }: {
   config: WebConfig;
   oidc: OidcFacade;
   openUrl: (url: string) => void;
-  loadStripe?: LoadStripeFn;
   onComplete?: () => void;
 }) {
   const [loading, setLoading] = useState(false);
@@ -67,29 +63,16 @@ export function usePaymentSetup({
     if (next) setSession(next);
   }
 
-  async function submitRequirements(values: PaymentKycFormValues) {
-    const result = await runAction(() =>
-      submitPaymentKycRequirements({
-        config,
-        oidc,
-        values,
-        marketRole,
-        loadStripe,
-        onComplete,
-      }),
-    );
-    if (!result) return;
-    setSession(result.session);
-    if (result.account) setAccount(result.account);
+  /** INT-362 — Connect.js asks for a new Account Session when one expires. */
+  function refreshClientSecret() {
+    return refreshOnboardingClientSecret({ config, oidc });
   }
 
   const asProsumer = marketRole === "prosumer";
   const asProducer =
     (isSellerRole(marketRole) && !asProsumer) ||
-    (session?.mode === "requirements" && !asProsumer);
+    (session?.mode === "embedded" && !asProsumer);
   const setupIncomplete = readiness !== "Ready";
-  const showRequirements =
-    session?.mode === "requirements" && session.status !== "complete";
 
   return {
     loading,
@@ -99,9 +82,8 @@ export function usePaymentSetup({
     asProsumer,
     asProducer,
     setupIncomplete,
-    showRequirements,
     startOnboarding,
     onPaymentMethodAttached,
-    submitRequirements,
+    refreshClientSecret,
   };
 }

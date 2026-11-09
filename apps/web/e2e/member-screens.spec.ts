@@ -82,7 +82,7 @@ test.describe("AC-01 member screens and buttons", () => {
       status?: string;
       clientSecret?: string;
     };
-    expect(["elements", "requirements", "link"]).toContain(body.mode);
+    expect(["elements", "embedded", "link"]).toContain(body.mode);
     expect(["requirements_due", "pending_verification", "complete"]).toContain(
       body.status,
     );
@@ -95,10 +95,12 @@ test.describe("AC-01 member screens and buttons", () => {
       ).toBeVisible({ timeout: 15_000 });
       return;
     }
-    if (body.mode === "requirements") {
-      await expect(
-        page.getByRole("button", { name: /submit kyc|submit requirements/i }),
-      ).toBeVisible({ timeout: 20_000 });
+    if (body.mode === "embedded") {
+      // INT-362 — Stripe embedded Account onboarding container (Connect.js iframe inside).
+      expect(body.clientSecret).toBeTruthy();
+      await expect(page.getByTestId("stripe-account-onboarding")).toBeAttached({
+        timeout: 20_000,
+      });
       return;
     }
     // elements / link — UI chrome when Stripe.js loads; API success already proven.

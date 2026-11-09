@@ -69,7 +69,7 @@ describe("invoicing HTTP (INT-106)", () => {
       energyAmount: "1.00",
       vat: "0.00",
       currency: "EUR",
-      rate: "1.00",
+      rate: "1.0000",
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
     });
 
@@ -129,7 +129,7 @@ describe("invoicing HTTP (INT-106)", () => {
       energyAmount: "2.00",
       vat: "0.00",
       currency: "EUR",
-      rate: "1.00",
+      rate: "1.0000",
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
       producerStripeAccountId: "acct_override_uat028",
     };
@@ -174,7 +174,7 @@ describe("invoicing HTTP (INT-106)", () => {
       energyAmount: "0.00",
       vat: "0.00",
       currency: "EUR",
-      rate: "1.00",
+      rate: "1.0000",
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
     };
     const res = await fetch(`${base}/internal/v1/invoices:from-settlement`, {
@@ -205,7 +205,7 @@ describe("invoicing HTTP (INT-106)", () => {
       energyAmount: "2.00",
       vat: "0.40",
       currency: "EUR",
-      rate: "1.00",
+      rate: "1.0000",
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
     });
 
@@ -243,7 +243,7 @@ describe("invoicing HTTP (INT-106)", () => {
       energyAmount: "1.00",
       vat: "0.00",
       currency: "EUR",
-      rate: "1.00",
+      rate: "1.0000",
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
     });
 

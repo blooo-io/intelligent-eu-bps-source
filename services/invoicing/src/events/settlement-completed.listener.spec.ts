@@ -168,7 +168,7 @@ describe("SettlementCompletedListener (INT-223)", () => {
       energyAmount: "5.00",
       vat: "0.00",
       currency: "EUR",
-      rate: "1",
+      rate: "1.0000",
       communityId: "comm-1",
     }));
     const settlements = { getPairSettlement } as never;
@@ -233,7 +233,7 @@ describe("SettlementCompletedListener (INT-223)", () => {
           energyAmount: "1.00",
           vat: "0",
           currency: "EUR",
-          rate: "1",
+          rate: "1.0000",
           communityId: "c",
         })),
       } as never,
@@ -270,7 +270,7 @@ describe("SettlementCompletedListener (INT-223)", () => {
           energyAmount: "1.00",
           vat: "0",
           currency: "EUR",
-          rate: "1",
+          rate: "1.0000",
           communityId: "c",
         })),
       } as never,

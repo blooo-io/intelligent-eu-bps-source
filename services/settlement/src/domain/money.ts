@@ -1,17 +1,16 @@
-/** BR-08 — exact decimals, round to the cent per line. */
+import { type Dec, abs, roundCentDec, toFixed } from "./decimal.js";
 
-export function roundCent(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+/** BR-08 — amounts are rounded once, to the cent, per invoice line. */
+export function formatMoney(value: Dec): string {
+  return toFixed(roundCentDec(value), 2);
 }
 
-export function formatMoney(value: number): string {
-  return roundCent(value).toFixed(2);
+/** BR-06 — the ECB rate is shown with at least 4 and at most 6 decimals. */
+export function formatRate(value: Dec): string {
+  return toFixed(value, 6).replace(/(\.\d{4}\d*?)0+$/, "$1");
 }
 
-export function formatRate(value: number): string {
-  return roundCent(value).toFixed(2);
-}
-
-export function formatKWh(value: number): string {
-  return roundCent(value).toFixed(2);
+/** Energy quantity shown to the watt-hour. */
+export function formatKWh(value: Dec): string {
+  return toFixed(abs(value), 3);
 }

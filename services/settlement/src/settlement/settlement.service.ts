@@ -8,12 +8,8 @@ import {
 import { randomUUID } from "node:crypto";
 import { createMockSuite, type FxPort } from "@intelligent/mocks";
 import { OutboxService } from "@intelligent/module-template";
-import {
-  formatKWh,
-  formatMoney,
-  formatRate,
-  roundCent,
-} from "../domain/money.js";
+import { type Dec, ZERO, compareAbs, dec, mul, roundCentDec, toNumber } from "../domain/decimal.js";
+import { formatKWh, formatMoney, formatRate } from "../domain/money.js";
 import { decidePairBalance } from "../domain/carry.js";
 import {
   type CanonicalPairBucket,
@@ -176,13 +172,13 @@ export class SettlementService {
         {
           low: pair.low,
           high: pair.high,
-          energy: roundCent(pair.netEur * fxRate),
+          energy: mul(pair.netEur, fxRate),
           carriedIn: this.store.getCarry(pair.low, pair.high),
         },
-        0,
+        ZERO,
         true,
       );
-      if (decision.consumerId !== participantId || decision.gross === 0) continue;
+      if (decision.consumerId !== participantId || decision.gross === ZERO) continue;
       rows.push({
         counterpartId: decision.producerId,
         amount: formatMoney(decision.gross),
@@ -257,13 +253,14 @@ export class SettlementService {
     const until = `${period}-28T23:59:59Z`;
     const unbilled = await this.trades.getUnbilled(input.communityId, until);
     const forceInvoice = input.type === "early" || input.type === "final";
+    const threshold = dec(this.context.threshold);
     const pairs = this.collectPairs(input.communityId, unbilled, {
       onlyPair: input.onlyPair,
       onlyParticipantId: input.onlyParticipantId,
       // BR-05 — a carried-only pair is settled when the run forces invoicing
       // or when the threshold no longer holds it back.
       includeCarriedOnly: (carry) =>
-        forceInvoice || Math.abs(carry) >= this.context.threshold,
+        forceInvoice || compareAbs(carry, threshold) >= 0,
     });
     const runId = randomUUID();
     const settlementIds: string[] = [];
@@ -276,15 +273,15 @@ export class SettlementService {
         {
           low: pair.low,
           high: pair.high,
-          energy: roundCent(pair.netEur * fxRate),
+          energy: mul(pair.netEur, fxRate),
           carriedIn: this.store.getCarry(pair.low, pair.high),
         },
-        this.context.threshold,
+        threshold,
         forceInvoice,
       );
 
       // BR-07 — VAT at community rate (default 0).
-      const vat = roundCent(decision.invoiced * this.context.vatRate);
+      const vat = roundCentDec(mul(decision.invoiced, dec(this.context.vatRate)));
       const settlementId = randomUUID();
       const record: PairSettlementRecord = {
         settlementId,
@@ -292,14 +289,14 @@ export class SettlementService {
         consumerId: decision.consumerId,
         producerId: decision.producerId,
         tradeIds: pair.tradeIds,
-        kWh: formatKWh(Math.abs(pair.netKWh)),
+        kWh: formatKWh(pair.netKWh),
         energyAmount: formatMoney(decision.invoiced),
         vat: formatMoney(vat),
         currency: this.context.currency,
         rate: formatRate(fxRate),
         carriedForwardIn: formatMoney(decision.carriedInOriented),
         carriedForwardOut: formatMoney(decision.carriedOutOriented),
-        netAmount: decision.invoiced,
+        netAmount: toNumber(decision.invoiced),
         version,
       };
       // BR-13 — append only.
@@ -364,7 +361,7 @@ export class SettlementService {
     scope: {
       onlyPair?: { consumerId: string; producerId: string };
       onlyParticipantId?: string;
-      includeCarriedOnly: (carry: number) => boolean;
+      includeCarriedOnly: (carry: Dec) => boolean;
     },
   ): CanonicalPairBucket[] {
     const pairs = new Map<string, CanonicalPairBucket>();
@@ -378,8 +375,8 @@ export class SettlementService {
           low: carry.low,
           high: carry.high,
           tradeIds: [],
-          netKWh: 0,
-          netEur: 0,
+          netKWh: ZERO,
+          netEur: ZERO,
         });
       }
     }
@@ -418,7 +415,11 @@ export class SettlementService {
   }
 
   /** BR-06 — EUR identity rate; CHF from AC-13 when wired, else ECB fixture (S8). */
-  private async resolveFxRate(period: string): Promise<number> {
+  private async resolveFxRate(period: string): Promise<Dec> {
+    return dec(await this.resolveFxRateNumber(period));
+  }
+
+  private async resolveFxRateNumber(period: string): Promise<number> {
     if (this.context.currency === "EUR") {
       return 1;
     }

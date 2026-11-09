@@ -160,6 +160,8 @@ components:
             type: string
         kWh:
           type: string
+          description: Net energy of the pair in kWh, three decimals (BR-08).
+          pattern: '^\d+\.\d{3}$'
         energyAmount:
           $ref: '../components/schemas.yaml#/components/schemas/Money'
         vat:
@@ -167,7 +169,7 @@ components:
         currency:
           $ref: '../components/schemas.yaml#/components/schemas/Currency'
         rate:
-          $ref: '../components/schemas.yaml#/components/schemas/Rate'
+          $ref: '../components/schemas.yaml#/components/schemas/FxRate'
         carriedForwardIn:
           $ref: '../components/schemas.yaml#/components/schemas/Money'
         carriedForwardOut:

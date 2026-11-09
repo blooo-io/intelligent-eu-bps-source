@@ -30,6 +30,13 @@ components:
       description: Decimal rate rounded to the cent, such as a VAT rate (BR-07, BR-08).
       pattern: '^\d+\.\d{2}$'
       examples: ['0.00']
+    FxRate:
+      type: string
+      description: >
+        ECB reference rate EUR → community currency, kept with 4 to 6 decimals
+        and shown on the invoice (BR-06, REQ-002). 1.0000 for EUR communities.
+      pattern: '^\d+\.\d{4,6}$'
+      examples: ['0.9412']
     BillingMode:
       type: string
       description: Community billing mode (REQ-043). V1 communities are virtual.

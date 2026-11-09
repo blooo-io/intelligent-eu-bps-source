@@ -9,6 +9,7 @@ import {
   OutboxService,
 } from "@intelligent/module-template";
 import { SettlementStore } from "../domain/store.js";
+import { dec } from "../domain/decimal.js";
 import type { UnbilledTrade } from "../domain/types.js";
 import { FixtureTradeSource } from "../ports/fixture-trade-source.js";
 import type { TradeSourcePort } from "../ports/trade-source.port.js";
@@ -46,7 +47,7 @@ describe("SettlementService", () => {
     for (const id of run.settlementIds) {
       const s = service.getPairSettlement(id);
       expect(s.currency).toBe("EUR");
-      expect(s.rate).toBe("1.00");
+      expect(s.rate).toBe("1.0000");
       expect(s.vat).toBe("0.00");
       expect(Number(s.energyAmount)).toBeGreaterThan(0);
     }
@@ -69,7 +70,7 @@ describe("SettlementService", () => {
     const s = service.getPairSettlement(run.settlementIds[0]);
     // 8*0.2 - 3*0.2 = 1.00 EUR
     expect(s.energyAmount).toBe("1.00");
-    expect(s.kWh).toBe("5.00");
+    expect(s.kWh).toBe("5.000");
   });
 
   it("S3: below threshold is carried forward (BR-05)", async () => {
@@ -129,8 +130,8 @@ describe("SettlementService", () => {
     expect(run.settlementIds.length).toBeGreaterThan(0);
     const s = service.getPairSettlement(run.settlementIds[0]);
     expect(s.currency).toBe("CHF");
-    // Fixture ECB rate 0.9412 from AC-15 S8, stored to two decimals (formatRate).
-    expect(s.rate).toBe("0.94");
+    // INT-352 / BR-06 — fixture ECB rate 0.9412 from AC-15 S8 kept at full precision.
+    expect(s.rate).toBe("0.9412");
     expect(Number(s.energyAmount)).toBeGreaterThan(0);
   });
 
@@ -287,7 +288,7 @@ describe("SettlementService", () => {
     expect(calls).toBe(2);
     const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]!);
     expect(s.currency).toBe("CHF");
-    expect(s.rate).toBe("0.94");
+    expect(s.rate).toBe("0.9400");
   });
 
   describe("INT-351 — signed carry-forward (BR-04, BR-05, UAT-073)", () => {
@@ -348,6 +349,31 @@ describe("SettlementService", () => {
       ]);
     });
 
+    it("INT-352: 96 quarter-hour trades of 0.004 kWh are not rounded away (BR-08)", async () => {
+      queue.push(
+        Array.from({ length: 96 }, (_, i) => ({
+          tradeId: `q${i}`,
+          consumerId: A,
+          producerId: B,
+          communityId: COM,
+          kWh: 0.004,
+          pricePerKWhEur: 0.25,
+        })),
+      );
+      const early = await service.startRun({ communityId: COM, type: "early", onlyPair: { consumerId: A, producerId: B } });
+      expect(await settlementsOf(early.runId)).toEqual([
+        expect.objectContaining({ kWh: "0.384", energyAmount: "0.10" }),
+      ]);
+    });
+
+    it("INT-352: VAT is computed on the rounded energy line, total = sum of lines (BR-07, BR-08)", async () => {
+      queue.push([trade("t1", A, B, 10.005)]);
+      service.useFixtureScenario("S1", { threshold: 0.01, vatRate: 0.077 });
+      const run = await service.startRun({ communityId: COM, type: "periodic", period: "2026-11" });
+      const [s] = await settlementsOf(run.runId);
+      expect(s).toMatchObject({ energyAmount: "10.01", vat: "0.77" });
+    });
+
     it("flips the invoice when the reversal exceeds the carried balance", async () => {
       queue.push([trade("t1", A, B, 3)], [trade("t2", B, A, 9)]);
       await service.startRun({ communityId: COM, type: "periodic", period: "2026-10" });
@@ -361,13 +387,13 @@ describe("SettlementService", () => {
           carriedForwardOut: "0.00",
         }),
       ]);
-      expect(store.getCarry(A, B)).toBe(0);
+      expect(store.getCarry(A, B)).toBe(0n);
     });
 
     it("a final run invoices a carried-only pair without new trades (REQ-056)", async () => {
       queue.push([trade("t1", B, A, 2)]);
       await service.startRun({ communityId: COM, type: "periodic", period: "2026-11" });
-      expect(store.getCarry(B, A)).toBe(2);
+      expect(store.getCarry(B, A)).toBe(dec("2"));
 
       const periodic = await service.startRun({ communityId: COM, type: "periodic", period: "2026-12" });
       expect(store.getRun(periodic.runId)!.settlementIds).toHaveLength(0);

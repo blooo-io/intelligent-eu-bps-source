@@ -1,5 +1,5 @@
-import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
-import { ModuleTemplateModule } from "@intelligent/module-template";
+import { Inject, Injectable, MiddlewareConsumer, Module, NestModule, OnModuleInit } from "@nestjs/common";
+import { ModuleTemplateModule, OutboxService } from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
 import { InvoiceStore } from "./domain/store.js";
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
@@ -10,6 +10,23 @@ import { SettlementCompletedListener } from "./events/settlement-completed.liste
 import { InvoicingController } from "./invoicing/invoicing.controller.js";
 import { PublicInvoicingController } from "./invoicing/public.controller.js";
 import { InvoicingService } from "./invoicing/invoicing.service.js";
+import { createInvoiceTransaction } from "./persistence/invoice-journal.js";
+
+/** INT-356 — load invoices at boot and commit them with the outbox. */
+@Injectable()
+class InvoicePersistence implements OnModuleInit {
+  constructor(
+    @Inject(InvoiceStore) private readonly store: InvoiceStore,
+    @Inject(OutboxService) private readonly outbox: OutboxService,
+    @Inject(InvoicingService) private readonly invoicing: InvoicingService,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    const { transaction, hydrate } = createInvoiceTransaction(this.store, this.outbox);
+    await hydrate();
+    this.invoicing.useTransaction(transaction);
+  }
+}
 import {
   createPaymentsClient,
   PAYMENTS_CLIENT,
@@ -49,6 +66,7 @@ function resolveInvoiceProvider(): "stripe" | "mock" {
   providers: [
     InvoiceStore,
     InvoicingService,
+    InvoicePersistence,
     MockStripeInvoiceAdapter,
     {
       provide: STRIPE_INVOICE_PORT,

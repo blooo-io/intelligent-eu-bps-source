@@ -1,10 +1,27 @@
-import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
-import { ModuleTemplateModule } from "@intelligent/module-template";
+import { Inject, Injectable, MiddlewareConsumer, Module, NestModule, OnModuleInit } from "@nestjs/common";
+import { ModuleTemplateModule, OutboxService } from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
 import { PaymentsStore } from "./domain/store.js";
 import { InternalPaymentsController } from "./payments/internal.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
 import { PaymentsService } from "./payments/payments.service.js";
+import { createPaymentTransaction } from "./persistence/payment-journal.js";
+
+/** INT-356 — load payment attempts at boot and commit them with the outbox. */
+@Injectable()
+class PaymentPersistence implements OnModuleInit {
+  constructor(
+    @Inject(PaymentsStore) private readonly store: PaymentsStore,
+    @Inject(OutboxService) private readonly outbox: OutboxService,
+    @Inject(PaymentsService) private readonly payments: PaymentsService,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    const { transaction, hydrate } = createPaymentTransaction(this.store, this.outbox);
+    await hydrate();
+    this.payments.useTransaction(transaction);
+  }
+}
 import {
   createPaymentAccountsStore,
   PAYMENT_ACCOUNTS_STORE,
@@ -46,6 +63,7 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
   providers: [
     PaymentsStore,
     PaymentsService,
+    PaymentPersistence,
     MockPspAdapter,
     MockPspEraseAdapter,
     StripePspEraseAdapter,

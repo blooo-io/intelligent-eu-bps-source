@@ -10,15 +10,61 @@ import {
   seedS1CommunitySettings,
 } from "./seed.js";
 
+export type ParticipantWrite =
+  | { kind: "participant"; row: ParticipantRecord }
+  | { kind: "community"; row: CommunitySettings };
+
 /**
- * In-memory unit of work for AC-03 V1. PostgreSQL + transactional outbox
- * replace this store when CNPG wiring lands; the service API stays the same.
+ * AC-03 registry. INT-356 — mutations are recorded and committed with the
+ * outbox when DATABASE_URL is set. The service API stays the same.
  */
 export class ParticipantsStore {
   private readonly communities = new Map<string, CommunitySettings>();
   private readonly participants = new Map<string, ParticipantRecord>();
   private readonly marketIndex = new Map<string, string>();
   private terms: TermsDocument = { ...SEED_TERMS };
+  private recording = false;
+  private writes: ParticipantWrite[] = [];
+
+  beginRecording(): void {
+    this.recording = true;
+    this.writes = [];
+  }
+
+  takeRecording(): ParticipantWrite[] {
+    this.recording = false;
+    return this.writes.splice(0);
+  }
+
+  stopRecording(): void {
+    this.recording = false;
+    this.writes = [];
+  }
+
+  snapshot(): string {
+    return JSON.stringify({
+      communities: [...this.communities.values()],
+      participants: [...this.participants.values()],
+      terms: this.terms,
+    });
+  }
+
+  restore(snapshot: string): void {
+    const data = JSON.parse(snapshot) as {
+      communities: CommunitySettings[];
+      participants: ParticipantRecord[];
+      terms: TermsDocument;
+    };
+    const recording = this.recording;
+    this.recording = false;
+    this.communities.clear();
+    this.participants.clear();
+    this.marketIndex.clear();
+    for (const row of data.communities) this.putCommunity(row);
+    for (const row of data.participants) this.putParticipant(row);
+    this.terms = { ...data.terms };
+    this.recording = recording;
+  }
 
   constructor() {
     this.reset();
@@ -50,6 +96,7 @@ export class ParticipantsStore {
 
   putCommunity(settings: CommunitySettings): void {
     this.communities.set(settings.communityId, { ...settings });
+    if (this.recording) this.writes.push({ kind: "community", row: { ...settings } });
   }
 
   getParticipant(participantId: string): ParticipantRecord | undefined {
@@ -83,6 +130,7 @@ export class ParticipantsStore {
       this.marketIndex.delete(previous.marketActorId);
     }
     this.participants.set(row.participantId, structuredClone(row));
+    if (this.recording) this.writes.push({ kind: "participant", row: structuredClone(row) });
     if (row.marketActorId && row.status !== "Offboarded") {
       this.marketIndex.set(row.marketActorId, row.participantId);
     }

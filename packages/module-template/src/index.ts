@@ -22,6 +22,12 @@ export {
   createPgPoolExecutor,
   defaultOutboxStore,
 } from "./outbox/create-pg-outbox-store.js";
+export { inTransaction, type TransactionClient } from "./persistence/in-transaction.js";
+export {
+  PassthroughTransaction,
+  RecordingTransaction,
+  type RecordableStore,
+} from "./persistence/recording-transaction.js";
 
 export {
   IdempotentConsumer,

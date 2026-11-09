@@ -24,7 +24,12 @@ export type AppendOutboxInput = {
 export class OutboxService {
   constructor(private readonly store: OutboxStore) {}
 
-  async append(input: AppendOutboxInput): Promise<DomainEventEnvelope> {
+  /**
+   * Build the envelope and the outbox row without writing.
+   * INT-356 — the recording transaction inserts the row in the same
+   * database transaction as the business rows.
+   */
+  stage(input: AppendOutboxInput): { event: DomainEventEnvelope; row: OutboxRow } {
     const event: DomainEventEnvelope = {
       eventId: input.eventId ?? randomUUID(),
       type: input.type,
@@ -42,7 +47,12 @@ export class OutboxService {
       event,
       createdAt: new Date().toISOString(),
     };
-    await this.store.append(row);
-    return event;
+    return { event, row };
+  }
+
+  async append(input: AppendOutboxInput): Promise<DomainEventEnvelope> {
+    const staged = this.stage(input);
+    await this.store.append(staged.row);
+    return staged.event;
   }
 }

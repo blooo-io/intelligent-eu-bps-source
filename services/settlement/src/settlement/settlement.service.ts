@@ -14,7 +14,13 @@ import {
   formatRate,
   roundCent,
 } from "../domain/money.js";
-import { netPairs } from "../domain/netting.js";
+import { decidePairBalance } from "../domain/carry.js";
+import {
+  type CanonicalPairBucket,
+  canonicalPair,
+  netCanonicalPairs,
+} from "../domain/netting.js";
+import type { UnbilledTrade } from "../domain/types.js";
 import { SettlementStore } from "../domain/store.js";
 import type {
   BillingRunType,
@@ -158,19 +164,28 @@ export class SettlementService {
     await this.refreshBillingContext(communityId, period);
     const until = `${period}-28T23:59:59Z`;
     const unbilled = await this.trades.getUnbilled(communityId, until);
-    const pairs = netPairs(unbilled).filter((p) => p.consumerId === participantId);
     const fxRate = await this.resolveFxRate(period);
     const rows: Array<{ counterpartId: string; amount: string; currency: string }> =
       [];
 
-    for (const pair of pairs) {
-      const carriedIn = this.store.getCarry(pair.consumerId, pair.producerId);
-      const energyCommunity = roundCent(pair.netEur * fxRate);
-      const gross = roundCent(energyCommunity + carriedIn);
-      if (gross === 0) continue;
+    for (const pair of this.collectPairs(communityId, unbilled, {
+      onlyParticipantId: participantId,
+      includeCarriedOnly: () => true,
+    })) {
+      const decision = decidePairBalance(
+        {
+          low: pair.low,
+          high: pair.high,
+          energy: roundCent(pair.netEur * fxRate),
+          carriedIn: this.store.getCarry(pair.low, pair.high),
+        },
+        0,
+        true,
+      );
+      if (decision.consumerId !== participantId || decision.gross === 0) continue;
       rows.push({
-        counterpartId: pair.producerId,
-        amount: formatMoney(gross),
+        counterpartId: decision.producerId,
+        amount: formatMoney(decision.gross),
         currency: this.context.currency,
       });
     }
@@ -241,21 +256,15 @@ export class SettlementService {
 
     const until = `${period}-28T23:59:59Z`;
     const unbilled = await this.trades.getUnbilled(input.communityId, until);
-    let pairs = netPairs(unbilled);
-    if (input.onlyPair) {
-      pairs = pairs.filter(
-        (p) =>
-          p.consumerId === input.onlyPair!.consumerId &&
-          p.producerId === input.onlyPair!.producerId,
-      );
-    }
-    if (input.onlyParticipantId) {
-      pairs = pairs.filter(
-        (p) =>
-          p.consumerId === input.onlyParticipantId ||
-          p.producerId === input.onlyParticipantId,
-      );
-    }
+    const forceInvoice = input.type === "early" || input.type === "final";
+    const pairs = this.collectPairs(input.communityId, unbilled, {
+      onlyPair: input.onlyPair,
+      onlyParticipantId: input.onlyParticipantId,
+      // BR-05 — a carried-only pair is settled when the run forces invoicing
+      // or when the threshold no longer holds it back.
+      includeCarriedOnly: (carry) =>
+        forceInvoice || Math.abs(carry) >= this.context.threshold,
+    });
     const runId = randomUUID();
     const settlementIds: string[] = [];
     // INT-278 / BR-13 / REQ-005 — correction appends a new version; never overwrite.
@@ -263,46 +272,50 @@ export class SettlementService {
     const fxRate = await this.resolveFxRate(period);
 
     for (const pair of pairs) {
-      const carriedIn = this.store.getCarry(pair.consumerId, pair.producerId);
-      const energyEur = pair.netEur;
-      const energyCommunity = roundCent(energyEur * fxRate);
-      const gross = roundCent(energyCommunity + carriedIn);
-
-      // BR-05 — below threshold → carry forward (unless early/final).
-      const forceInvoice =
-        input.type === "early" || input.type === "final" || gross === 0;
-      const belowThreshold = Math.abs(gross) < this.context.threshold;
-
-      const carryPair = !forceInvoice && belowThreshold && gross !== 0;
-      const energyAmount = carryPair ? 0 : gross;
-      const carriedForwardOut = carryPair ? gross : 0;
+      const decision = decidePairBalance(
+        {
+          low: pair.low,
+          high: pair.high,
+          energy: roundCent(pair.netEur * fxRate),
+          carriedIn: this.store.getCarry(pair.low, pair.high),
+        },
+        this.context.threshold,
+        forceInvoice,
+      );
 
       // BR-07 — VAT at community rate (default 0).
-      const vat = roundCent(energyAmount * this.context.vatRate);
+      const vat = roundCent(decision.invoiced * this.context.vatRate);
       const settlementId = randomUUID();
       const record: PairSettlementRecord = {
         settlementId,
         runId,
-        consumerId: pair.consumerId,
-        producerId: pair.producerId,
+        consumerId: decision.consumerId,
+        producerId: decision.producerId,
         tradeIds: pair.tradeIds,
         kWh: formatKWh(Math.abs(pair.netKWh)),
-        energyAmount: formatMoney(energyAmount),
+        energyAmount: formatMoney(decision.invoiced),
         vat: formatMoney(vat),
         currency: this.context.currency,
         rate: formatRate(fxRate),
-        carriedForwardIn: formatMoney(carriedIn),
-        carriedForwardOut: formatMoney(carriedForwardOut),
-        netAmount: energyAmount,
+        carriedForwardIn: formatMoney(decision.carriedInOriented),
+        carriedForwardOut: formatMoney(decision.carriedOutOriented),
+        netAmount: decision.invoiced,
         version,
       };
       // BR-13 — append only.
       this.store.appendSettlement(record);
-      this.store.setCarry(pair.consumerId, pair.producerId, carriedForwardOut);
+      this.store.setCarry(
+        input.communityId,
+        pair.low,
+        pair.high,
+        decision.carriedOutCanonical,
+      );
       settlementIds.push(settlementId);
 
       // INT-232 — mark billed on any TradeSourcePort (fixture or AC-04 HTTP).
-      await this.trades.markBilled(pair.tradeIds);
+      if (pair.tradeIds.length > 0) {
+        await this.trades.markBilled(pair.tradeIds);
+      }
     }
 
     this.store.appendRun({
@@ -339,6 +352,49 @@ export class SettlementService {
     });
 
     return { runId };
+  }
+
+  /**
+   * BR-04 / BR-05 — period buckets plus carried-only pairs of the community,
+   * scoped to one pair (early settlement) or one participant (final / balances).
+   */
+  private collectPairs(
+    communityId: string,
+    unbilled: UnbilledTrade[],
+    scope: {
+      onlyPair?: { consumerId: string; producerId: string };
+      onlyParticipantId?: string;
+      includeCarriedOnly: (carry: number) => boolean;
+    },
+  ): CanonicalPairBucket[] {
+    const pairs = new Map<string, CanonicalPairBucket>();
+    for (const bucket of netCanonicalPairs(unbilled)) {
+      pairs.set(`${bucket.low}|${bucket.high}`, bucket);
+    }
+    for (const carry of this.store.listCarries(communityId)) {
+      const key = `${carry.low}|${carry.high}`;
+      if (!pairs.has(key) && scope.includeCarriedOnly(carry.amount)) {
+        pairs.set(key, {
+          low: carry.low,
+          high: carry.high,
+          tradeIds: [],
+          netKWh: 0,
+          netEur: 0,
+        });
+      }
+    }
+    const onlyKey = scope.onlyPair
+      ? canonicalPair(scope.onlyPair.consumerId, scope.onlyPair.producerId).join("|")
+      : undefined;
+    return [...pairs.entries()]
+      .filter(([key]) => onlyKey === undefined || key === onlyKey)
+      .filter(
+        ([, p]) =>
+          scope.onlyParticipantId === undefined ||
+          p.low === scope.onlyParticipantId ||
+          p.high === scope.onlyParticipantId,
+      )
+      .map(([, p]) => p);
   }
 
   /**

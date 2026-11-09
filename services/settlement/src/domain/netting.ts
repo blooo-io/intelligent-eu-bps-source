@@ -12,62 +12,62 @@ export type PairBucket = {
 };
 
 /**
- * BR-03 / BR-04 — amount = kWh × price; purchases and sales of a pair are netted.
- * Pair key is unordered participant pair oriented so the net payer is consumer.
+ * Pair netted on a canonical participant order (`low` < `high`).
+ * Positive amounts mean `low` owes `high`; negative amounts mean `high` owes `low`.
  */
-export function netPairs(trades: UnbilledTrade[]): PairBucket[] {
-  const buckets = new Map<string, PairBucket & { a: string; b: string }>();
+export type CanonicalPairBucket = {
+  low: string;
+  high: string;
+  tradeIds: string[];
+  netKWh: number;
+  netEur: number;
+};
+
+/** Canonical order shared by netting and the carry-forward store (BR-04, BR-05). */
+export function canonicalPair(x: string, y: string): [string, string] {
+  return x < y ? [x, y] : [y, x];
+}
+
+/** BR-03 / BR-04 — amount = kWh × price; purchases and sales of a pair are netted. */
+export function netCanonicalPairs(trades: UnbilledTrade[]): CanonicalPairBucket[] {
+  const buckets = new Map<string, CanonicalPairBucket>();
 
   for (const t of trades) {
-    const [low, high] =
-      t.consumerId < t.producerId
-        ? [t.consumerId, t.producerId]
-        : [t.producerId, t.consumerId];
+    const [low, high] = canonicalPair(t.consumerId, t.producerId);
     const key = `${low}|${high}`;
     let bucket = buckets.get(key);
     if (!bucket) {
-      bucket = {
-        a: low,
-        b: high,
-        consumerId: low,
-        producerId: high,
-        tradeIds: [],
-        netKWh: 0,
-        netEur: 0,
-      };
+      bucket = { low, high, tradeIds: [], netKWh: 0, netEur: 0 };
       buckets.set(key, bucket);
     }
     bucket.tradeIds.push(t.tradeId);
-    // Signed contribution from consumer←producer purchase direction.
-    const signedKWh =
-      t.consumerId === bucket.a && t.producerId === bucket.b
-        ? t.kWh
-        : -t.kWh;
+    // The buyer owes the seller: positive when `low` buys from `high`.
+    const signedKWh = t.consumerId === low ? t.kWh : -t.kWh;
     const signedEur = signedKWh * t.pricePerKWhEur;
     bucket.netKWh = roundCent(bucket.netKWh + signedKWh);
     bucket.netEur = roundCent(bucket.netEur + signedEur);
   }
 
-  const result: PairBucket[] = [];
-  for (const bucket of buckets.values()) {
-    // Orient so consumer owes producer when netEur > 0 (BR-04 invoice direction).
-    if (bucket.netEur < 0) {
-      result.push({
-        consumerId: bucket.b,
-        producerId: bucket.a,
-        tradeIds: bucket.tradeIds,
-        netKWh: roundCent(-bucket.netKWh),
-        netEur: roundCent(-bucket.netEur),
-      });
-    } else {
-      result.push({
-        consumerId: bucket.a,
-        producerId: bucket.b,
-        tradeIds: bucket.tradeIds,
-        netKWh: bucket.netKWh,
-        netEur: bucket.netEur,
-      });
-    }
-  }
-  return result;
+  return [...buckets.values()];
+}
+
+/** BR-04 — invoice direction follows the net amount (consumer owes producer). */
+export function netPairs(trades: UnbilledTrade[]): PairBucket[] {
+  return netCanonicalPairs(trades).map((b) =>
+    b.netEur < 0
+      ? {
+          consumerId: b.high,
+          producerId: b.low,
+          tradeIds: b.tradeIds,
+          netKWh: roundCent(-b.netKWh),
+          netEur: roundCent(-b.netEur),
+        }
+      : {
+          consumerId: b.low,
+          producerId: b.high,
+          tradeIds: b.tradeIds,
+          netKWh: b.netKWh,
+          netEur: b.netEur,
+        },
+  );
 }

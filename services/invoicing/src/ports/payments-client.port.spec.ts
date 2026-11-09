@@ -51,6 +51,44 @@ describe("payments-client.port (INT-228 / INT-231)", () => {
     ).resolves.toBeNull();
   });
 
+  it("UAT-014 REQ-014 HttpPaymentsClient ensures the connected-account Customer (INT-355)", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          participantId: "c1",
+          stripeAccountId: "acct_1",
+          stripeCustomerId: "cus_conn",
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = new HttpPaymentsClient("http://payments:8080/", fetchImpl as never);
+    await expect(client.ensureConnectedCustomer("c1", "acct_1")).resolves.toBe("cus_conn");
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("http://payments:8080/internal/v1/connected-customers:ensure");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({
+      participantId: "c1",
+      stripeAccountId: "acct_1",
+    });
+  });
+
+  it("HttpPaymentsClient ensureConnectedCustomer handles empty and error responses", async () => {
+    const empty = new HttpPaymentsClient(
+      "http://payments:8080",
+      vi.fn(async () => new Response(JSON.stringify({}), { status: 200 })) as never,
+    );
+    await expect(empty.ensureConnectedCustomer("c1", "acct_1")).resolves.toBeNull();
+    const failing = new HttpPaymentsClient(
+      "http://payments:8080",
+      vi.fn(async () => new Response("", { status: 503 })) as never,
+    );
+    await expect(failing.ensureConnectedCustomer("c1", "acct_1")).rejects.toThrow(/503/);
+    await expect(
+      new NoopPaymentsClient().ensureConnectedCustomer("c1", "acct_1"),
+    ).resolves.toBeNull();
+  });
+
   it("HttpPaymentsClient surfaces chargesEnabled=false", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(

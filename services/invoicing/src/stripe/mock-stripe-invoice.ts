@@ -8,13 +8,15 @@ import type {
 /** Stripe test-mode stand-in for unit tests (no network, no secrets). */
 export class MockStripeInvoiceAdapter implements StripeInvoicePort {
   readonly created: StripeInvoiceCreateResult[] = [];
+  readonly requests: Array<{ stripeAccountId: string; stripeCustomerId: string }> = [];
   private readonly seq = new Map<string, number>();
 
   async createFromSettlement(
     settlement: PairSettlementInput,
-    opts: { stripeAccountId: string; dueDate: string },
+    opts: { stripeAccountId: string; stripeCustomerId: string; dueDate: string },
   ): Promise<StripeInvoiceCreateResult> {
-    const { stripeAccountId } = opts;
+    const { stripeAccountId, stripeCustomerId } = opts;
+    this.requests.push({ stripeAccountId, stripeCustomerId });
     const n = (this.seq.get(stripeAccountId) ?? 0) + 1;
     this.seq.set(stripeAccountId, n);
     // BR-10 — sequential legal number per producer Connect account.

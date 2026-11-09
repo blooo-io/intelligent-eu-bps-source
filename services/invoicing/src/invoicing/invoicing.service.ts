@@ -95,6 +95,31 @@ export class InvoicingService {
     return `acct_test_${settlement.producerId.replaceAll("-", "").slice(0, 16)}`;
   }
 
+  /**
+   * INT-355 / REQ-014 — the invoice bills the consumer's Customer on the
+   * producer Connect account, owned by AC-07 (EnsureConnectedCustomer), so the
+   * payment is a direct charge on that account. Never synthesised against live
+   * Stripe: the NATS consumer naks until AC-07 answers.
+   */
+  private async resolveConnectedCustomer(
+    consumerId: string,
+    stripeAccountId: string,
+  ): Promise<string> {
+    const fromPayments = await this.payments.ensureConnectedCustomer(
+      consumerId,
+      stripeAccountId,
+    );
+    if (fromPayments) {
+      return fromPayments;
+    }
+    if (isLiveStripeInvoiceProvider()) {
+      throw new BadRequestException(
+        "consumer connected-account Customer required (AC-07 EnsureConnectedCustomer)",
+      );
+    }
+    return `cus_test_${consumerId.replaceAll("-", "").slice(0, 16)}`;
+  }
+
   getInvoice(invoiceId: string): {
     invoiceId: string;
     producerId: string;
@@ -106,6 +131,7 @@ export class InvoicingService {
     tradeIds: string[];
     pairSettlementId: string;
     producerStripeAccountId?: string;
+    stripeInvoiceId?: string;
     hostedInvoiceUrl?: string;
   } {
     const row = this.store.get(invoiceId);
@@ -126,6 +152,7 @@ export class InvoicingService {
     tradeIds: string[];
     pairSettlementId: string;
     producerStripeAccountId?: string;
+    stripeInvoiceId?: string;
     hostedInvoiceUrl?: string;
   } {
     const row = this.store.findBySettlement(settlementId);
@@ -147,6 +174,7 @@ export class InvoicingService {
     tradeIds: string[];
     pairSettlementId: string;
     producerStripeAccountId?: string;
+    stripeInvoiceId?: string;
     hostedInvoiceUrl?: string;
   } {
     return {
@@ -161,6 +189,7 @@ export class InvoicingService {
       ...(row.producerStripeAccountId
         ? { producerStripeAccountId: row.producerStripeAccountId }
         : {}),
+      ...(row.stripeInvoiceId ? { stripeInvoiceId: row.stripeInvoiceId } : {}),
       ...(row.hostedInvoiceUrl ? { hostedInvoiceUrl: row.hostedInvoiceUrl } : {}),
     };
   }
@@ -260,6 +289,10 @@ export class InvoicingService {
     }
 
     const stripeAccountId = await this.resolveProducerStripeAccount(settlement);
+    const stripeCustomerId = await this.resolveConnectedCustomer(
+      settlement.consumerId,
+      stripeAccountId,
+    );
 
     const dueDate = new Date();
     dueDate.setUTCDate(dueDate.getUTCDate() + 14);
@@ -267,6 +300,7 @@ export class InvoicingService {
 
     const stripeInvoice = await this.stripe.createFromSettlement(settlement, {
       stripeAccountId,
+      stripeCustomerId,
       dueDate: due,
     });
 

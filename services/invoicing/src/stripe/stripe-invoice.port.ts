@@ -4,6 +4,7 @@ export type StripeInvoiceCreateResult = {
   stripeInvoiceId: string;
   /** Present once Stripe finalizes — sequential per Connect account (BR-10). */
   legalNumber: string;
+  /** Invoice PDF URL (falls back to the hosted page when Stripe returns no PDF). */
   hostedInvoiceUrl: string;
   status: "draft" | "open" | "paid" | "void";
 };
@@ -15,7 +16,12 @@ export type StripeInvoiceCreateResult = {
 export interface StripeInvoicePort {
   createFromSettlement(
     settlement: PairSettlementInput,
-    opts: { stripeAccountId: string; dueDate: string },
+    opts: {
+      stripeAccountId: string;
+      /** INT-355 — consumer Customer on that Connect account (AC-07 EnsureConnectedCustomer). */
+      stripeCustomerId: string;
+      dueDate: string;
+    },
   ): Promise<StripeInvoiceCreateResult>;
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { BillingRunsPage } from "./billing-runs-page";
 import type { OidcFacade } from "../auth/oidc";
@@ -271,7 +272,8 @@ describe("BillingRunsPage (INT-146 / UAT-006)", () => {
       expect(screen.getByTestId("billing-runs-community-help")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("radio", { name: /^early$/i }));
+    // Ant Design 6 hides the radio input (pointer-events: none); the label receives the click.
+    await userEvent.click(screen.getByText(/^early$/i));
 
     fireEvent.click(screen.getByRole("button", { name: /start run/i }));
     await waitFor(() => {

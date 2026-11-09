@@ -21,9 +21,9 @@ See [`RELEASE-NOTES.md`](RELEASE-NOTES.md). In-scope UAT: **62 Pass / 0 Blocked 
 
 ## Change control after freeze
 
-1. Do not move `v1.0.0`.
-2. Fixes land on `develop` under a new `INT-xxx`, then a new tag (`v1.0.1` / `v1.1.0`) via [`VERSIONING.md`](VERSIONING.md) / `cut-release.mjs` (INT-305) if partners need a refreshed snapshot.
-3. `dev` continues on floating `:develop` images (INT-178).
+1. Do not create or move `v1.0.0`. It was named on 2026-10-18 and never pushed; creating it now would point at a different tree.
+2. The first published snapshot is `v1.0.1` (INT-359), cut with [`VERSIONING.md`](VERSIONING.md) / `cut-release.mjs` (INT-305). Later fixes are a new tag.
+3. `dev` continues on floating `:develop` images (INT-178). `demo` pins the published tag.
 
 ## Remaining partner-report gate (Maylis)
 

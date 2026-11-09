@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/blooo-io/intelligent-eu-bps-source.git
-    targetRevision: REPLACE_WITH_RELEASE_TAG
+    targetRevision: v1.0.1
     path: deploy/charts/cnpg-int-data
     helm:
       valueFiles:

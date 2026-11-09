@@ -7,5 +7,8 @@ Version 2.0 (see LICENSE).
 
 This product includes software developed by third parties under the MIT or
 Apache-2.0 licences. The list of third-party components and their licences is
-maintained in docs/architecture/04-technical-architecture.md (§4) and will be
-generated for each release.
+maintained in docs/architecture/04-technical-architecture.md (§4).
+
+Accepted exceptions (separate unmodified services, never linked into this
+source): OpenBao (MPL-2.0), SonarQube Community Build, and the DDHub Client
+Gateway images (GPL-3.0). See docs/release/RELEASE-NOTES.md.

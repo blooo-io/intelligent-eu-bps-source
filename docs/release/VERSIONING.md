@@ -57,7 +57,7 @@ Or pin container images to `ghcr.io/blooo-io/intelligent-eu-billing-and-payment-
 
 | Doc | Role |
 |---|---|
-| [SOURCE-RELEASE.md](SOURCE-RELEASE.md) | Historical V1 tag `v1.0.0` (INT-92) |
+| [SOURCE-RELEASE.md](SOURCE-RELEASE.md) | Freeze name `v1.0.0` (INT-92, never pushed). First published tag `v1.0.1` (INT-359) |
 | [FREEZE.md](FREEZE.md) | Partner freeze rules for D5.5 |
 | [RELEASE-NOTES.md](RELEASE-NOTES.md) | Narrative what ships / limitations |
 | [deployment.md](deployment.md) | `dev` vs `demo` refs |

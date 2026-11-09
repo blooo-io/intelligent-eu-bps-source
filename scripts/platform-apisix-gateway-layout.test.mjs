@@ -16,7 +16,7 @@ test("dev APISIX gateway Argo app lands in ingress wave 4 (INT-114)", async () =
 
   const demo = await readFile("deploy/argocd/demo/apisix-gateway.yaml", "utf8");
   assert.equal(demo.includes("automated:"), false);
-  assert.match(demo, /REPLACE_WITH_RELEASE_TAG/);
+  assert.match(demo, /targetRevision: v1\.0\.1/);
 });
 
 test("gateway chart has webhook without OIDC and /v1 with openid-connect", async () => {

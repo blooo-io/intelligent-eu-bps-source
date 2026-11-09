@@ -389,6 +389,10 @@ export class StripePspAdapter implements PspPort {
         { payment_method: cloned.id, off_session: true, expand: ["payments"] },
         opts,
       );
+      // INT-367 — pay creates the PaymentIntent. Tag it and the charge afterwards:
+      // a metadata update on the PaymentIntent does not copy onto a charge that
+      // already exists, and the e2e assertion finds the charge by invoiceId.
+      await this.tagProducerCharge(paid, input.invoiceId, opts);
       const stripePaymentId = invoicePaymentIntentId(paid);
       if (paid.status === "paid") {
         return { stripePaymentId, status: "succeeded" };
@@ -416,6 +420,29 @@ export class StripePspAdapter implements PspPort {
         failureCategory: mapFailureCategory(String(code)),
       };
     }
+  }
+
+  /**
+   * INT-367 — write the AC-06 invoice id onto the producer charge.
+   * A new invoice has no PaymentIntent until `invoices.pay`, so the pre-pay
+   * update never runs. The charge is created during pay and does not inherit
+   * a later PaymentIntent metadata change.
+   */
+  private async tagProducerCharge(
+    invoice: Stripe.Invoice,
+    invoiceId: string,
+    opts: Stripe.RequestOptions,
+  ): Promise<void> {
+    const intentId = invoicePaymentIntentId(invoice);
+    if (!intentId.startsWith("pi_")) return;
+    const intent = await this.stripe.paymentIntents.update(
+      intentId,
+      { metadata: { invoiceId } },
+      opts,
+    );
+    const chargeId = stripeId(intent?.latest_charge);
+    if (!chargeId) return;
+    await this.stripe.charges.update(chargeId, { metadata: { invoiceId } }, opts);
   }
 
   async refund(stripePaymentId: string): Promise<{ status: "refunded" }> {

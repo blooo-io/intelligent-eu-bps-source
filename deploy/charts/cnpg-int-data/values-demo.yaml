@@ -1,0 +1,8 @@
+# INT-358 / PD-4 — demo overrides for the module database Cluster.
+# Layered after values.yaml by deploy/argocd/demo/cnpg-demo-data.yaml.
+backup:
+  retentionPolicy: 30d
+  destinationPath: s3://intelligent-eu-bps-backups-demo/
+  openbaoPath: demo/cnpg-backup
+recovery:
+  sourceServerName: demo-data

@@ -123,6 +123,55 @@ test("observability values disable Grafana and contain no secret material", asyn
   assert.equal(/grafana/i.test(otel), false);
 });
 
+test("Alertmanager routes critical / warning alerts to Slack via an optional Secret (INT-358)", async () => {
+  const prom = await readFile("deploy/platform/kube-prometheus/values.yaml", "utf8");
+  assert.match(prom, /slack_api_url_file: \/etc\/alertmanager\/slack\/webhook_url/);
+  assert.equal(/slack_api_url:/.test(prom), false);
+  assert.equal(/hooks\.slack\.com/.test(prom), false);
+  assert.match(prom, /receiver: 'null'\n\s+routes:/);
+  assert.match(prom, /- receiver: 'null'\n\s+matchers:\n\s+- alertname =~ "Watchdog\|InfoInhibitor"/);
+  assert.match(prom, /- receiver: slack\n\s+matchers:\n\s+- severity =~ "critical\|warning"/);
+  assert.match(prom, /- name: 'null'\n\s+- name: slack\n\s+slack_configs:/);
+  assert.match(prom, /send_resolved: true/);
+  assert.match(
+    prom,
+    /volumes:\n\s+- name: slack-webhook\n\s+secret:\n\s+secretName: alertmanager-slack\n\s+optional: true/,
+  );
+  assert.match(prom, /mountPath: \/etc\/alertmanager\/slack/);
+
+  const app = await readFile(
+    "deploy/argocd/platform/alertmanager-slack-secret.yaml",
+    "utf8",
+  );
+  assert.match(app, /kind: Application/);
+  assert.match(app, /name: platform-alertmanager-slack-secret/);
+  assert.match(app, /sync-wave: "2"/);
+  assert.match(app, /path: deploy\/charts\/alertmanager-slack-secret/);
+  assert.match(app, /namespace: observability/);
+  assert.match(app, /targetRevision: develop/);
+  assert.match(app, /automated:/);
+
+  const values = await readFile(
+    "deploy/charts/alertmanager-slack-secret/values.yaml",
+    "utf8",
+  );
+  assert.match(values, /^storeName: openbao$/m);
+  assert.match(values, /^secretName: alertmanager-slack$/m);
+  assert.match(values, /^secretKey: webhook_url$/m);
+  assert.match(values, /^openbaoPath: platform\/alertmanager$/m);
+  assert.match(values, /^openbaoProperty: slack_webhook_url$/m);
+
+  const tpl = await readFile(
+    "deploy/charts/alertmanager-slack-secret/templates/externalsecret.yaml",
+    "utf8",
+  );
+  assert.match(tpl, /kind: ExternalSecret/);
+  assert.match(tpl, /kind: ClusterSecretStore/);
+  assert.match(tpl, /secretKey: \{\{ \.Values\.secretKey \}\}/);
+  assert.match(tpl, /key: \{\{ \.Values\.openbaoPath \}\}/);
+  assert.equal(/^\s*kind:\s*Secret\s*$/m.test(tpl), false);
+});
+
 test("platform README documents TD-10 stack without Grafana (INT-134)", async () => {
   const text = await readFile("deploy/platform/README.md", "utf8");
   assert.match(text, /INT-134/);
@@ -136,4 +185,7 @@ test("platform README documents TD-10 stack without Grafana (INT-134)", async ()
   assert.match(text, /Do not `helm install`/);
   assert.match(text, /INT-327/);
   assert.match(text, /prometheus-rules|PrometheusRule/);
+  assert.match(text, /INT-358/);
+  assert.match(text, /alertmanager-slack-secret/);
+  assert.match(text, /platform\/alertmanager/);
 });

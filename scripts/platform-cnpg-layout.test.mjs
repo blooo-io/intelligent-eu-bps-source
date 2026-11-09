@@ -66,12 +66,100 @@ test("dev CNPG app tracks develop; demo stays manual", async () => {
   assert.match(demo, /namespace: demo-data/);
 });
 
+test("int-data Cluster archives WAL and takes daily base backups to nl-ams (INT-358 / PD-4)", async () => {
+  const values = await readFile("deploy/charts/cnpg-int-data/values.yaml", "utf8");
+  // Packaged but off until buckets and OpenBao paths exist (INT-358).
+  assert.match(values, /^backup:\n\s+enabled: false$/m);
+  assert.match(values, /^\s+retentionPolicy: 7d$/m);
+  assert.match(values, /endpointURL: https:\/\/s3\.nl-ams\.scw\.cloud/);
+  assert.match(values, /^\s+region: nl-ams$/m);
+  assert.match(values, /destinationPath: s3:\/\/intelligent-eu-bps-backups-dev\//);
+  assert.match(values, /walCompression: gzip/);
+  assert.match(values, /schedule: "0 0 2 \* \* \*"/);
+  assert.match(values, /^\s+storeName: openbao$/m);
+  assert.match(values, /^\s+openbaoPath: dev\/cnpg-backup$/m);
+  assert.equal(/access_?key_?id:\s*\S+/i.test(values), false);
+  assert.equal(/secret_?access_?key:\s*\S+/i.test(values), false);
+
+  const demo = await readFile("deploy/charts/cnpg-int-data/values-demo.yaml", "utf8");
+  assert.match(demo, /^\s+retentionPolicy: 30d$/m);
+  assert.match(demo, /destinationPath: s3:\/\/intelligent-eu-bps-backups-demo\//);
+  assert.match(demo, /^\s+openbaoPath: demo\/cnpg-backup$/m);
+
+  const cluster = await readFile(
+    "deploy/charts/cnpg-int-data/templates/cluster.yaml",
+    "utf8",
+  );
+  assert.match(cluster, /\{\{- if \.Values\.backup\.enabled \}\}\n\s+# [^\n]*\n\s+backup:/);
+  assert.match(cluster, /barmanObjectStore:/);
+  assert.match(cluster, /retentionPolicy: \{\{ \.Values\.backup\.retentionPolicy \| quote \}\}/);
+  assert.match(cluster, /endpointURL: \{\{ \.Values\.backup\.endpointURL \| quote \}\}/);
+  assert.match(cluster, /s3Credentials:/);
+  assert.match(cluster, /name: \{\{ \.Values\.clusterName \}\}-backup-s3/);
+  assert.match(cluster, /wal:\s*\n\s+compression: \{\{ \.Values\.backup\.walCompression \}\}/);
+  assert.match(cluster, /target: prefer-standby/);
+
+  const backup = await readFile(
+    "deploy/charts/cnpg-int-data/templates/backup.yaml",
+    "utf8",
+  );
+  assert.match(backup, /\{\{- if \.Values\.backup\.enabled \}\}/);
+  assert.match(backup, /kind: ExternalSecret/);
+  assert.match(backup, /kind: ClusterSecretStore/);
+  assert.match(backup, /name: \{\{ \.Values\.backup\.storeName \}\}/);
+  assert.match(backup, /key: \{\{ \.Values\.backup\.openbaoPath \}\}/);
+  assert.match(backup, /property: access_key_id/);
+  assert.match(backup, /property: secret_access_key/);
+  assert.match(backup, /ACCESS_KEY_ID:/);
+  assert.match(backup, /ACCESS_SECRET_KEY:/);
+  assert.match(backup, /cnpg\.io\/reload: "true"/);
+  assert.match(backup, /kind: ScheduledBackup/);
+  assert.match(backup, /schedule: \{\{ \.Values\.backup\.schedule \| quote \}\}/);
+  assert.match(backup, /method: barmanObjectStore/);
+  assert.match(backup, /immediate: true/);
+  assert.match(backup, /backupOwnerReference: self/);
+  assert.equal(/^\s*kind:\s*Secret\s*$/m.test(backup), false);
+  assert.equal(backup.includes("stringData:"), false);
+
+  // PITR goes through Git: recovery is off by default and reuses the backup credentials.
+  assert.match(values, /^recovery:\n\s+enabled: false$/m);
+  assert.match(values, /^\s+sourceServerName: int-data$/m);
+  assert.match(demo, /^\s+sourceServerName: demo-data$/m);
+  assert.match(cluster, /\{\{- with \.Values\.backup\.serverName \}\}/);
+  assert.match(cluster, /\{\{- if \.Values\.recovery\.enabled \}\}/);
+  assert.match(cluster, /fail "recovery\.enabled needs backup\.enabled/);
+  assert.match(cluster, /recovery:\n\s+source: origin/);
+  assert.match(cluster, /targetTime: \{\{ \. \| quote \}\}/);
+  assert.match(cluster, /externalClusters:\n\s+- name: origin/);
+  assert.match(cluster, /serverName: \{\{ \.Values\.recovery\.sourceServerName \| quote \}\}/);
+
+  const demoApp = await readFile("deploy/argocd/demo/cnpg-demo-data.yaml", "utf8");
+  assert.match(demoApp, /- values\.yaml\n(\s+#[^\n]*\n)?\s+- values-demo\.yaml/);
+});
+
 test("platform README documents CNPG packaging (INT-158)", async () => {
   const text = await readFile("deploy/platform/README.md", "utf8");
   assert.match(text, /INT-158/);
   assert.match(text, /cloudnative-pg/);
   assert.match(text, /cnpg-int-data/);
   assert.match(text, /never in Git/);
+  assert.match(text, /INT-358/);
+  assert.match(text, /dev\/cnpg-backup/);
+  assert.match(text, /demo\/cnpg-backup/);
+});
+
+test("deployment note documents backup seeding, verification and PITR (INT-358)", async () => {
+  const text = await readFile("docs/release/deployment.md", "utf8");
+  assert.match(text, /INT-358/);
+  assert.match(text, /dev\/cnpg-backup/);
+  assert.match(text, /demo\/cnpg-backup/);
+  assert.match(text, /access_key_id/);
+  assert.match(text, /secret_access_key/);
+  assert.match(text, /ContinuousArchiving/);
+  assert.match(text, /recoveryTarget/);
+  assert.match(text, /targetTime/);
+  assert.match(text, /platform\/alertmanager/);
+  assert.match(text, /slack_webhook_url/);
 });
 
 test("outbox-bootstrap RBAC uses Role rules at top level (INT-213)", async () => {

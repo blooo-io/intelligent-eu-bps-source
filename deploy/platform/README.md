@@ -54,7 +54,16 @@ Env hosts: `deploy/envs/<env>/apisix-gateway-values.yaml`. Webhook `POST /webhoo
 | CloudNativePG operator | `cloudnative-pg` **0.29.1** (Apache-2.0) | `cnpg-system` | `platform-cloudnative-pg` | 0 |
 | `int-data` Cluster + DBs | local `deploy/charts/cnpg-int-data` | `int-data` | `dev-cnpg-int-data` | 1 |
 
-Values: `deploy/platform/cloudnative-pg/values.yaml`. One PostgreSQL database and login role per NestJS module (`trade_intake`, `reference_data`, …). Role passwords are created once by the ESO Password generator into `kubernetes.io/basic-auth` Secrets (referenced by `passwordSecret`) — never in Git. Object Storage backups (PD-4) wait on Scaleway bucket + OpenBao path. `demo-data` Application stays manual (`deploy/argocd/demo/cnpg-demo-data.yaml`).
+Values: `deploy/platform/cloudnative-pg/values.yaml`. One PostgreSQL database and login role per NestJS module (`trade_intake`, `reference_data`, …). Role passwords are created once by the ESO Password generator into `kubernetes.io/basic-auth` Secrets (referenced by `passwordSecret`) — never in Git. `demo-data` Application stays manual (`deploy/argocd/demo/cnpg-demo-data.yaml`).
+
+**Backups (INT-358 / PD-4):** the module database Cluster archives WAL continuously and takes a daily base backup (`ScheduledBackup` `<cluster>-daily`, 02:00 UTC, first one immediately) to Scaleway Object Storage `https://s3.nl-ams.scw.cloud`, gzip-compressed, with point-in-time recovery. Operator 1.30.x (chart 0.29.1) still serves the in-tree `backup.barmanObjectStore`, so no Barman Cloud plugin is deployed; revisit on the next operator upgrade. Retention and target per environment:
+
+| Env | Values | Bucket prefix | Retention | OpenBao path (properties `access_key_id`, `secret_access_key`) |
+|---|---|---|---|---|
+| `dev` (`int-data`) | `values.yaml` | `s3://intelligent-eu-bps-backups-dev/` | 7d | `dev/cnpg-backup` |
+| `demo` (`demo-data`) | `values.yaml` + `values-demo.yaml` | `s3://intelligent-eu-bps-backups-demo/` | 30d | `demo/cnpg-backup` |
+
+ExternalSecret `<cluster>-backup-s3` turns those properties into the keys CNPG reads; credentials are never in Git. Create the bucket and seed the OpenBao path **before** the Application syncs: until then WAL archiving fails and WAL files accumulate on the data volume. Platform databases (Keycloak, Temporal, SonarQube, DDHub) are not backed up; PD-4 only covers module databases. Verification and PITR restore: `docs/release/deployment.md`.
 
 ## Identity (INT-160)
 
@@ -210,12 +219,13 @@ Do not `helm install` the CG chart by hand outside Argo (INT-157).
 | Jaeger (traces) | `jaeger` **4.16.1** | `platform-jaeger` | 1 |
 | VictoriaLogs (logs) | `victoria-logs-single` **0.13.10** | `platform-victoria-logs` | 1 |
 | Security PrometheusRules (INT-327) | local `deploy/charts/prometheus-rules` | `platform-prometheus-rules` | 1 |
+| Alertmanager Slack webhook ExternalSecret (INT-358) | local `deploy/charts/alertmanager-slack-secret` | `platform-alertmanager-slack-secret` | 2 |
 | OpenTelemetry Collector | `opentelemetry-collector` **0.176.0** | `platform-otel-collector` | 2 |
 | Perses (dashboards) | `perses` **0.23.3** | `platform-perses` | 2 |
 
 Values files:
 
-- `deploy/platform/kube-prometheus/values.yaml` — `grafana.enabled: false`; `ruleSelectorNilUsesHelmValues: false` so INT-327 rules are discovered; INT-331 sets `retention: 2d` / `retentionSize: 5GB` and a 1Gi memory limit for V1 / virtual `dev`
+- `deploy/platform/kube-prometheus/values.yaml` — `grafana.enabled: false`; `ruleSelectorNilUsesHelmValues: false` so INT-327 rules are discovered; INT-331 sets `retention: 2d` / `retentionSize: 5GB` and a 1Gi memory limit for V1 / virtual `dev`; INT-358 routes `severity` `critical` / `warning` to the `slack` receiver (default and `Watchdog` / `InfoInhibitor` go to `null`). The webhook URL is read through `slack_api_url_file` from Secret `alertmanager-slack` (OpenBao `platform/alertmanager`, property `slack_webhook_url`), mounted as an **optional** volume: Alertmanager starts without it and only the Slack sends fail
 - `deploy/platform/jaeger/values.yaml` — in-memory storage for V1 / virtual `dev`
 - `deploy/platform/victoria-logs/values.yaml`
 - `deploy/platform/otel-collector/values.yaml` — OTLP in; traces→Jaeger, logs→VictoriaLogs, metrics scrape endpoint; attributes redaction (NFR-015 / INT-328: email, name, phone, iban, address, tax ids, …); INT-331 384Mi limit

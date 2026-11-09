@@ -724,7 +724,7 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
 
     it("INT-363 attaches the reusable pm_card_visa token before cloning it", async () => {
       paymentMethodsRetrieve.mockResolvedValue({
-        id: "pm_card_visa",
+        id: "pm_retrieved_token",
         type: "card",
         customer: null,
       });
@@ -750,7 +750,7 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
 
     it("INT-363 attaches onto the existing token Customer when it has no card yet", async () => {
       paymentMethodsRetrieve.mockResolvedValue({
-        id: "pm_card_visa",
+        id: "pm_retrieved_token",
         type: "card",
         customer: null,
       });
@@ -770,7 +770,7 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
 
     it("INT-363 still attaches the token when customer search is unavailable", async () => {
       paymentMethodsRetrieve.mockResolvedValue({
-        id: "pm_card_visa",
+        id: "pm_retrieved_token",
         type: "card",
         customer: null,
       });
@@ -787,7 +787,7 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
 
     it("INT-363 reuses the platform Customer already holding the test card", async () => {
       paymentMethodsRetrieve.mockResolvedValue({
-        id: "pm_card_visa",
+        id: "pm_retrieved_token",
         type: "card",
         customer: null,
       });

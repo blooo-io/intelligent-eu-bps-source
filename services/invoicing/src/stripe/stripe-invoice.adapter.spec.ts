@@ -151,4 +151,57 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
       value: "1.0000",
     });
   });
+
+  it("creates one Stripe line per trade and never a grid-fee line (INT-354 / REQ-007 / A20)", async () => {
+    invoiceItemsCreate.mockResolvedValue({});
+    invoicesCreate.mockResolvedValue({ id: "in_lines" });
+    finalizeInvoice.mockResolvedValue({
+      id: "in_lines",
+      number: "LINES-0001",
+      invoice_pdf: "https://pay.stripe.com/invoice/in_lines/pdf",
+      status: "open",
+    });
+    const adapter = new StripeInvoiceAdapter({ secretKey: "sk_test_abc" });
+    await adapter.createFromSettlement(
+      {
+        ...settlement,
+        energyAmount: "3.00",
+        vat: "0.00",
+        carriedForwardIn: "1.00",
+        lines: [
+          {
+            tradeId: "t-1",
+            deliveryStart: "2026-11-01T00:00:00Z",
+            deliveryEnd: "2026-11-01T00:15:00Z",
+            kWh: "10.000",
+            pricePerKWh: "0.20",
+            amount: "2.00",
+          },
+          {
+            tradeId: "t-2",
+            deliveryStart: "2026-11-01T00:15:00Z",
+            deliveryEnd: "2026-11-01T00:30:00Z",
+            kWh: "0.004",
+            pricePerKWh: "0.25",
+            amount: "0.00",
+          },
+        ],
+      },
+      {
+        stripeAccountId: "acct_prod",
+        stripeCustomerId: "cus_conn",
+        dueDate: "2099-01-15",
+      },
+    );
+    const descriptions = invoiceItemsCreate.mock.calls.map(
+      (call) => call[0].description as string,
+    );
+    expect(descriptions).toEqual([
+      "Trade t-1: 10.000 kWh at 0.20 EUR/kWh, 2026-11-01T00:00:00Z to 2026-11-01T00:15:00Z",
+      "Balance carried forward",
+    ]);
+    expect(descriptions.join(" ")).not.toMatch(/grid/i);
+    expect(invoiceItemsCreate.mock.calls[0][0].amount).toBe(200);
+    expect(invoiceItemsCreate.mock.calls[1][0].amount).toBe(100);
+  });
 });

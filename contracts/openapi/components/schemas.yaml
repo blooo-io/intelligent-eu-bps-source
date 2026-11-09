@@ -25,6 +25,33 @@ components:
       description: Decimal amount rounded to the cent (BR-08).
       pattern: '^-?\d+\.\d{2}$'
       examples: ['5.00']
+
+    InvoiceTradeLine:
+      type: object
+      additionalProperties: false
+      required: [tradeId, kWh, pricePerKWh, amount]
+      description: >
+        REQ-007 — one trade covered by the invoice. kWh and amount are signed
+        in the invoice direction (a purchase is positive). No grid-fee line (A20).
+      properties:
+        tradeId:
+          type: string
+        deliveryStart:
+          type: string
+          format: date-time
+          description: Start of the delivery period (BR-02).
+        deliveryEnd:
+          type: string
+          format: date-time
+          description: End of the delivery period (BR-02).
+        kWh:
+          type: string
+          description: Signed energy, three decimals (BR-08).
+          pattern: '^-?\d+\.\d{3}$'
+        pricePerKWh:
+          $ref: '#/components/schemas/Money'
+        amount:
+          $ref: '#/components/schemas/Money'
     Rate:
       type: string
       description: Decimal rate rounded to the cent, such as a VAT rate (BR-07, BR-08).

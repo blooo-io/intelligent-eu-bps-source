@@ -85,20 +85,56 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
     );
 
     // A20 — energy + VAT only; no grid-fee lines on P2P invoices.
-    const energy = toMinorUnits(settlement.energyAmount);
-    const vat = toMinorUnits(settlement.vat);
-    if (energy > 0) {
-      await this.stripe.invoiceItems.create(
-        {
-          customer,
-          invoice: draft.id,
-          amount: energy,
-          currency,
-          description: `Energy ${settlement.kWh} kWh (EUR to ${settlement.currency} at ${ecbRate(settlement)})`,
-        },
-        { stripeAccount },
-      );
+    // REQ-007 — one Stripe line per trade when the settlement carries them.
+    const lines = settlement.lines ?? [];
+    if (lines.length > 0) {
+      for (const line of lines) {
+        const amount = toMinorUnits(line.amount);
+        if (amount === 0) continue;
+        const period =
+          line.deliveryStart && line.deliveryEnd
+            ? `, ${line.deliveryStart} to ${line.deliveryEnd}`
+            : "";
+        await this.stripe.invoiceItems.create(
+          {
+            customer,
+            invoice: draft.id,
+            amount,
+            currency,
+            description: `Trade ${line.tradeId}: ${line.kWh} kWh at ${line.pricePerKWh} EUR/kWh${period}`,
+          },
+          { stripeAccount },
+        );
+      }
+      const carried = toMinorUnits(settlement.carriedForwardIn ?? "0");
+      if (carried !== 0) {
+        await this.stripe.invoiceItems.create(
+          {
+            customer,
+            invoice: draft.id,
+            amount: carried,
+            currency,
+            description: "Balance carried forward",
+          },
+          { stripeAccount },
+        );
+      }
+    } else {
+      const energy = toMinorUnits(settlement.energyAmount);
+      if (energy > 0) {
+        await this.stripe.invoiceItems.create(
+          {
+            customer,
+            invoice: draft.id,
+            amount: energy,
+            currency,
+            description: `Energy ${settlement.kWh} kWh (EUR to ${settlement.currency} at ${ecbRate(settlement)})`,
+          },
+          { stripeAccount },
+        );
+      }
     }
+    const vat = toMinorUnits(settlement.vat);
     if (vat > 0) {
       await this.stripe.invoiceItems.create(
         {

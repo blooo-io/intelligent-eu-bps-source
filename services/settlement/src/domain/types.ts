@@ -1,4 +1,5 @@
 import type { Cadence } from "./period.js";
+import type { InvoiceTradeLine } from "./trade-lines.js";
 
 export type BillingRunType = "periodic" | "early" | "final";
 
@@ -11,6 +12,9 @@ export type UnbilledTrade = {
   kWh: number;
   /** EUR price per kWh from the market (never adjusted — BR-03). */
   pricePerKWhEur: number;
+  /** BR-02 — delivery period copied from the market. */
+  deliveryStart?: string;
+  deliveryEnd?: string;
 };
 
 export type CommunityBillingContext = {
@@ -31,6 +35,8 @@ export type PairSettlementRecord = {
   consumerId: string;
   producerId: string;
   tradeIds: string[];
+  /** REQ-007 — per-trade lines. Empty for a carried-only settlement. */
+  lines: InvoiceTradeLine[];
   kWh: string;
   energyAmount: string;
   vat: string;

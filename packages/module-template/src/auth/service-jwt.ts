@@ -3,12 +3,19 @@
  */
 import * as jose from "jose";
 import type { AuthClaims } from "./auth.types.js";
+import {
+  DEFAULT_OIDC_ROLE_CLAIM,
+  resolveRoleClaimPath,
+  rolesAtClaimPath,
+} from "./role-claim.js";
 
 export type ServiceJwtVerifierOptions = {
   jwksUrl: string;
   issuer: string;
   /** Expected azp / client_id (optional). */
   audienceClientId?: string;
+  /** Dot-path of the roles array claim (NFR-013, `OIDC_ROLE_CLAIM`). */
+  roleClaim?: string;
 };
 
 let cachedJwks: ReturnType<typeof jose.createRemoteJWKSet> | null = null;
@@ -49,18 +56,8 @@ export function resolveServiceJwtOptions(
     jwksUrl,
     issuer,
     audienceClientId: env.KEYCLOAK_SERVICE_CLIENT_ID,
+    roleClaim: resolveRoleClaimPath(env),
   };
-}
-
-function rolesFromPayload(payload: jose.JWTPayload): string[] {
-  const roles: string[] = [];
-  const realmAccess = payload.realm_access as { roles?: unknown } | undefined;
-  if (Array.isArray(realmAccess?.roles)) {
-    for (const r of realmAccess.roles) {
-      if (typeof r === "string" && r) roles.push(r);
-    }
-  }
-  return roles;
 }
 
 export async function verifyServiceAccessToken(
@@ -73,7 +70,10 @@ export async function verifyServiceAccessToken(
   const { payload } = await jose.jwtVerify(token, key, {
     issuer: options.issuer,
   });
-  const roles = rolesFromPayload(payload);
+  const roles = rolesAtClaimPath(
+    payload,
+    options.roleClaim ?? DEFAULT_OIDC_ROLE_CLAIM,
+  );
   const azp = typeof payload.azp === "string" ? payload.azp : "";
   const clientId =
     typeof (payload as { client_id?: unknown }).client_id === "string"

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  listRecentConnectedAccounts,
   listStripeCharges,
   requireStripeSecretKey,
   waitForSucceededChargeForInvoice,
@@ -83,5 +84,59 @@ describe("stripe-money-assert (INT-251)", () => {
     });
     expect(hit.id).toBe("ch_ok");
     expect(hit.payment_intent).toBe("pi_ok");
+  });
+
+  it("UAT-014 REQ-014 finds the direct charge on the producer Connect account (INT-355)", async () => {
+    const fetchImpl = vi.fn().mockImplementation(
+      async (url: string, init: { headers: Record<string, string> }) => {
+        if (url.includes("/v1/accounts")) {
+          return {
+            ok: true,
+            json: async () => ({ data: [{ id: "acct_other" }, { id: "acct_prod" }, {}] }),
+          };
+        }
+        const account = init.headers["Stripe-Account"];
+        return {
+          ok: true,
+          json: async () => ({
+            data:
+              account === "acct_prod"
+                ? [
+                    {
+                      id: "ch_direct",
+                      status: "succeeded",
+                      paid: true,
+                      amount: 300,
+                      currency: "eur",
+                      created: 200,
+                      metadata: { invoiceId: "inv-d" },
+                      payment_intent: "pi_direct",
+                    },
+                  ]
+                : [],
+          }),
+        };
+      },
+    );
+    const hit = await waitForSucceededChargeForInvoice("sk_test_x", "inv-d", {
+      createdAfter: 150,
+      timeoutMs: 5_000,
+      pollMs: 10,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(hit.id).toBe("ch_direct");
+    const chargeCalls = fetchImpl.mock.calls.filter(([url]) => url.includes("/v1/charges"));
+    expect(chargeCalls.map(([, init]) => init.headers["Stripe-Account"])).toEqual([
+      undefined,
+      "acct_other",
+      "acct_prod",
+    ]);
+  });
+
+  it("listRecentConnectedAccounts surfaces Stripe errors", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 401 });
+    await expect(
+      listRecentConnectedAccounts("sk_test_x", { fetchImpl: fetchImpl as unknown as typeof fetch }),
+    ).rejects.toThrow(/401/);
   });
 });

@@ -139,9 +139,14 @@ export function BillingRunsPage({
                 name="period"
                 rules={[
                   { required: true, message: "Period is required for periodic runs" },
+                  {
+                    // REQ-006 — monthly (YYYY-MM) or quarterly (YYYY-Qn) period.
+                    pattern: /^\d{4}-(0[1-9]|1[0-2]|Q[1-4])$/,
+                    message: "Use YYYY-MM or YYYY-Qn, e.g. 2026-09 or 2026-Q3",
+                  },
                 ]}
               >
-                <Input placeholder="2026-09" aria-label="Billing period" />
+                <Input placeholder="2026-09 or 2026-Q3" aria-label="Billing period" />
               </Form.Item>
             )}
             <Form.Item>

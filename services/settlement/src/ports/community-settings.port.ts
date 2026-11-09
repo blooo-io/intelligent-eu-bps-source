@@ -1,4 +1,5 @@
 import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
+import { cadenceOf } from "../domain/period.js";
 import type { CommunityBillingContext } from "../domain/types.js";
 
 /** Narrow client of AC-03 GetCommunitySettings (BR-05 / REQ-056). */
@@ -13,6 +14,7 @@ type SettingsDto = {
   threshold?: string | number;
   vatRate?: string | number;
   billingMode?: string;
+  billingPeriod?: string;
 };
 
 /**
@@ -50,6 +52,7 @@ export class HttpCommunitySettings implements CommunitySettingsPort {
       threshold: Number(body.threshold ?? 5),
       vatRate: Number(body.vatRate ?? 0),
       billingMode,
+      billingPeriod: cadenceOf(body.billingPeriod),
     };
   }
 }

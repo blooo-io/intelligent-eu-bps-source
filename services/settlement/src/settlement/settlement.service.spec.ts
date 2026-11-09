@@ -172,10 +172,10 @@ describe("SettlementService", () => {
     expect(completed.map((e) => e.event.data.version)).toEqual([1, 2]);
   });
 
-  it("rejects missing period for periodic runs", async () => {
+  it("INT-353: rejects a malformed period (REQ-006)", async () => {
     await expect(
-      service.startRun({ communityId, type: "periodic" }),
-    ).rejects.toThrow(/period/);
+      service.startRun({ communityId, type: "periodic", period: "2026-11-28" }),
+    ).rejects.toThrow(/YYYY-MM or YYYY-Qn/);
   });
 
   it("INT-272: threshold from AC-03 settings drives carry-forward (BR-05)", async () => {
@@ -188,6 +188,7 @@ describe("SettlementService", () => {
           threshold: 100,
           vatRate: 0,
           billingMode: "virtual" as const,
+          billingPeriod: "monthly" as const,
         };
       },
     };
@@ -219,6 +220,7 @@ describe("SettlementService", () => {
           threshold: 0.01,
           vatRate: 0,
           billingMode: "virtual" as const,
+          billingPeriod: "monthly" as const,
         };
       },
     };
@@ -256,7 +258,7 @@ describe("SettlementService", () => {
       },
       async getRate(_currency: "EUR" | "CHF", date: string) {
         calls += 1;
-        if (date === "2026-11-28") {
+        if (date === "2026-11-30") {
           throw new Error("missing");
         }
         return 0.94;
@@ -269,6 +271,7 @@ describe("SettlementService", () => {
           threshold: 0.01,
           vatRate: 0,
           billingMode: "virtual" as const,
+          billingPeriod: "monthly" as const,
         };
       },
     };
@@ -289,6 +292,143 @@ describe("SettlementService", () => {
     const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]!);
     expect(s.currency).toBe("CHF");
     expect(s.rate).toBe("0.9400");
+    expect(s.rateDate).toBe("2026-11-27");
+  });
+
+  it("INT-353: CHF rate lookup gives up after the look-back window (BR-06)", async () => {
+    const referenceData = {
+      async getVatRate() {
+        return 0;
+      },
+      async getRate(): Promise<number> {
+        throw new Error("no rate");
+      },
+    };
+    service = new SettlementService(store, new OutboxService(outboxStore), trades, null, referenceData);
+    service.useFixtureScenario("S8");
+    await expect(
+      service.startRun({ communityId, type: "periodic", period: "2026-11" }),
+    ).rejects.toThrow(/no rate/);
+  });
+
+  describe("INT-353 — billing periods and ECB rate date (REQ-006, BR-06, UAT-002, UAT-006)", () => {
+    const COM = "00000000-0000-4000-8000-0000000000c0";
+    const A = "00000000-0000-4000-8000-00000000000a";
+    const B = "00000000-0000-4000-8000-00000000000b";
+    let untils: string[];
+    let rateDates: string[];
+    let cadence: "monthly" | "quarterly";
+
+    const build = (currency: "EUR" | "CHF" = "CHF") => {
+      untils = [];
+      rateDates = [];
+      const source: TradeSourcePort = {
+        async getUnbilled(_communityId, until) {
+          untils.push(until);
+          return [
+            { tradeId: `t${untils.length}`, consumerId: A, producerId: B, communityId: COM, kWh: 100, pricePerKWhEur: 0.1 },
+          ];
+        },
+        async markBilled() {},
+      };
+      const settings = {
+        async get() {
+          return { currency, threshold: 0, vatRate: 0, billingMode: "virtual" as const, billingPeriod: cadence };
+        },
+      };
+      const referenceData = {
+        async getVatRate() {
+          return 0;
+        },
+        async getRate(_currency: "EUR" | "CHF", date: string) {
+          rateDates.push(date);
+          return 0.9412;
+        },
+      };
+      service = new SettlementService(store, new OutboxService(outboxStore), source, settings, referenceData);
+    };
+
+    beforeEach(() => {
+      cadence = "monthly";
+    });
+
+    it("periodic run cuts off at the real end of the month and uses its last business day", async () => {
+      build();
+      const { runId } = await service.startRun({ communityId: COM, type: "periodic", period: "2026-02" });
+      expect(untils).toEqual(["2026-03-01T00:00:00Z"]);
+      const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]!);
+      expect(s).toMatchObject({ rate: "0.9412", rateDate: "2026-02-27", energyAmount: "9.41" });
+    });
+
+    it("quarterly period YYYY-Qn covers three months (UAT-006)", async () => {
+      cadence = "quarterly";
+      build();
+      const { runId } = await service.startRun({ communityId: COM, type: "periodic", period: "2026-Q4" });
+      expect(untils).toEqual(["2027-01-01T00:00:00Z"]);
+      expect(rateDates).toEqual(["2026-12-31"]);
+      expect(store.getRun(runId)!.period).toBe("2026-Q4");
+    });
+
+    it("AC-14 close without a period settles the elapsed month once", async () => {
+      build();
+      service.useClock(() => new Date("2026-12-01T02:00:00Z"));
+      const first = await service.startRun({ communityId: COM, type: "periodic" });
+      const retry = await service.startRun({ communityId: COM, type: "periodic" });
+      expect(retry.runId).toBe(first.runId);
+      expect(store.getRun(first.runId)!.period).toBe("2026-11");
+      expect(untils).toEqual(["2026-12-01T00:00:00Z"]);
+      expect(rateDates).toEqual(["2026-11-30"]);
+    });
+
+    it("AC-14 close in a quarterly community settles the elapsed quarter, not the month", async () => {
+      cadence = "quarterly";
+      build();
+      service.useClock(() => new Date("2026-04-01T02:00:00Z"));
+      const april = await service.startRun({ communityId: COM, type: "periodic" });
+      expect(store.getRun(april.runId)!.period).toBe("2026-Q1");
+      service.useClock(() => new Date("2026-05-01T02:00:00Z"));
+      const may = await service.startRun({ communityId: COM, type: "periodic" });
+      expect(may.runId).toBe(april.runId);
+      expect(untils).toHaveLength(1);
+    });
+
+    it("an explicit periodic rerun still appends a correction version (BR-13)", async () => {
+      build();
+      const first = await service.startRun({ communityId: COM, type: "periodic", period: "2026-11" });
+      const again = await service.startRun({ communityId: COM, type: "periodic", period: "2026-11" });
+      expect(again.runId).not.toBe(first.runId);
+      expect(store.getRun(again.runId)!.version).toBe(2);
+    });
+
+    it("early settlement converts at the settlement date, back to the previous business day", async () => {
+      build();
+      service.useClock(() => new Date("2026-11-15T10:30:00Z"));
+      const run = await service.createEarlySettlement({ consumerId: A, producerId: B, communityId: COM });
+      expect(run.period).toBe("2026-11");
+      expect(untils).toEqual(["2026-11-15T10:30:00.000Z"]);
+      const s = service.getPairSettlement(store.getRun(run.runId)!.settlementIds[0]!);
+      expect(s.rateDate).toBe("2026-11-13");
+    });
+
+    it("final run in a quarterly community is labelled with the quarter", async () => {
+      cadence = "quarterly";
+      build("EUR");
+      service.useClock(() => new Date("2026-12-31T03:00:00Z"));
+      const { runId } = await service.startRun({ communityId: COM, type: "final" });
+      expect(store.getRun(runId)!.period).toBe("2026-Q4");
+      const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]!);
+      expect(s).toMatchObject({ rate: "1.0000", rateDate: "2026-12-31" });
+      expect(rateDates).toEqual([]);
+    });
+
+    it("balances use trades delivered so far", async () => {
+      build();
+      service.useClock(() => new Date("2026-11-15T10:30:00Z"));
+      const rows = await service.listBalancesForParticipant(A, COM);
+      expect(rows).toEqual([{ counterpartId: B, amount: "9.41", currency: "CHF" }]);
+      expect(untils).toEqual(["2026-11-15T10:30:00.000Z"]);
+      expect(rateDates).toEqual(["2026-11-13"]);
+    });
   });
 
   describe("INT-351 — signed carry-forward (BR-04, BR-05, UAT-073)", () => {
@@ -457,6 +597,7 @@ describe("SettlementService", () => {
             threshold: 5,
             vatRate: 0,
             billingMode: "live" as const,
+            billingPeriod: "monthly" as const,
           };
         },
       },

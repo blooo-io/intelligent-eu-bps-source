@@ -12,6 +12,16 @@ import { type Dec, ZERO, compareAbs, dec, mul, roundCentDec, toNumber } from "..
 import { formatKWh, formatMoney, formatRate } from "../domain/money.js";
 import { decidePairBalance } from "../domain/carry.js";
 import {
+  businessDayOnOrBefore,
+  isPeriod,
+  lastBusinessDayOf,
+  lastClosedPeriod,
+  parsePeriod,
+  periodContaining,
+  previousBusinessDay,
+  untilOf,
+} from "../domain/period.js";
+import {
   type CanonicalPairBucket,
   canonicalPair,
   netCanonicalPairs,
@@ -40,6 +50,8 @@ import {
 } from "../ports/trade-source.port.js";
 
 const PRODUCER = "AC-05";
+/** ECB publishes no rate on TARGET holidays; look back a few business days. */
+const RATE_LOOKBACK_DAYS = 5;
 
 /**
  * AC-05 settlement engine — BR-03..BR-08, BR-12, BR-13 / INT-105.
@@ -54,7 +66,9 @@ export class SettlementService {
     threshold: 5,
     vatRate: 0,
     billingMode: "virtual",
+    billingPeriod: "monthly",
   };
+  private clock: () => Date = () => new Date();
 
   constructor(
     @Inject(SettlementStore) private readonly store: SettlementStore,
@@ -67,6 +81,12 @@ export class SettlementService {
     @Inject(REFERENCE_DATA_PORT)
     private readonly referenceData: ReferenceDataPort | null = null,
   ) {}
+
+  /** Test helper — override the wall clock used for periods and rate dates. */
+  useClock(now: () => Date): this {
+    this.clock = now;
+    return this;
+  }
 
   resetStore(): void {
     this.store.reset();
@@ -156,11 +176,10 @@ export class SettlementService {
     if (!communityId) {
       return [];
     }
-    const period = new Date().toISOString().slice(0, 7);
-    await this.refreshBillingContext(communityId, period);
-    const until = `${period}-28T23:59:59Z`;
-    const unbilled = await this.trades.getUnbilled(communityId, until);
-    const fxRate = await this.resolveFxRate(period);
+    const now = this.clock();
+    await this.refreshBillingContext(communityId);
+    const unbilled = await this.trades.getUnbilled(communityId, now.toISOString());
+    const { rate: fxRate } = await this.resolveFxRate(businessDayOnOrBefore(now));
     const rows: Array<{ counterpartId: string; amount: string; currency: string }> =
       [];
 
@@ -237,20 +256,36 @@ export class SettlementService {
     if (!["periodic", "early", "final"].includes(input.type)) {
       throw new BadRequestException("invalid run type");
     }
-    if (input.type === "periodic" && !input.period) {
-      throw new BadRequestException("period is required for periodic runs");
+    if (input.period !== undefined && !isPeriod(input.period)) {
+      throw new BadRequestException("period must be YYYY-MM or YYYY-Qn");
     }
 
-    const period = input.period ?? new Date().toISOString().slice(0, 7);
+    const now = this.clock();
     // INT-272 — AC-03 settings + AC-13 VAT/FX before threshold / VAT / FX (BR-05..07).
-    await this.refreshBillingContext(input.communityId, period);
+    await this.refreshBillingContext(input.communityId);
 
     // BR-12 — V1 communities are virtual; settlement still computes amounts.
     if (this.context.billingMode === "live") {
       throw new BadRequestException("V1 billingMode must be virtual");
     }
 
-    const until = `${period}-28T23:59:59Z`;
+    // REQ-006 — without a period, a periodic run closes the last elapsed period
+    // of the community calendar, once (AC-14 cron and its retries).
+    const closing = input.type === "periodic" && input.period === undefined;
+    const cadence = this.context.billingPeriod;
+    const period =
+      input.period ??
+      (input.type === "periodic"
+        ? lastClosedPeriod(now, cadence)
+        : periodContaining(now, cadence));
+    if (closing) {
+      const closed = this.store.findPeriodicRun(input.communityId, period);
+      if (closed) return { runId: closed.runId };
+    }
+    const bounds = parsePeriod(period);
+    // A periodic run covers trades delivered up to the end of the period; early
+    // and final runs settle everything delivered so far.
+    const until = input.type === "periodic" ? untilOf(bounds) : now.toISOString();
     const unbilled = await this.trades.getUnbilled(input.communityId, until);
     const forceInvoice = input.type === "early" || input.type === "final";
     const threshold = dec(this.context.threshold);
@@ -266,7 +301,11 @@ export class SettlementService {
     const settlementIds: string[] = [];
     // INT-278 / BR-13 / REQ-005 — correction appends a new version; never overwrite.
     const version = this.store.nextRunVersion(input.communityId, period);
-    const fxRate = await this.resolveFxRate(period);
+    // BR-06 — ECB rate of the last business day of the period, or of the
+    // settlement date for early and final runs.
+    const { rate: fxRate, rateDate } = await this.resolveFxRate(
+      input.type === "periodic" ? lastBusinessDayOf(bounds) : businessDayOnOrBefore(now),
+    );
 
     for (const pair of pairs) {
       const decision = decidePairBalance(
@@ -294,6 +333,7 @@ export class SettlementService {
         vat: formatMoney(vat),
         currency: this.context.currency,
         rate: formatRate(fxRate),
+        rateDate,
         carriedForwardIn: formatMoney(decision.carriedInOriented),
         carriedForwardOut: formatMoney(decision.carriedOutOriented),
         netAmount: toNumber(decision.invoiced),
@@ -400,7 +440,6 @@ export class SettlementService {
    */
   private async refreshBillingContext(
     communityId: string,
-    _period: string,
   ): Promise<void> {
     if (this.settings) {
       const remote = await this.settings.get(communityId);
@@ -415,26 +454,27 @@ export class SettlementService {
   }
 
   /** BR-06 — EUR identity rate; CHF from AC-13 when wired, else ECB fixture (S8). */
-  private async resolveFxRate(period: string): Promise<Dec> {
-    return dec(await this.resolveFxRateNumber(period));
-  }
-
-  private async resolveFxRateNumber(period: string): Promise<number> {
+  private async resolveFxRate(
+    rateDate: string,
+  ): Promise<{ rate: Dec; rateDate: string }> {
     if (this.context.currency === "EUR") {
-      return 1;
+      return { rate: dec(1), rateDate };
     }
-    const rateDate = `${period}-28`;
-    if (this.referenceData) {
+    let date = rateDate;
+    for (let attempt = 1; ; attempt++) {
       try {
-        return await this.referenceData.getRate("CHF", rateDate);
-      } catch {
-        return await this.referenceData.getRate("CHF", "2026-11-30");
+        return { rate: dec(await this.fetchChfRate(date)), rateDate: date };
+      } catch (error) {
+        if (attempt >= RATE_LOOKBACK_DAYS) throw error;
+        date = previousBusinessDay(date);
       }
     }
-    try {
-      return this.fx.getRate("CHF", rateDate).rate;
-    } catch {
-      return this.fx.getRate("CHF", "2026-11-30").rate;
+  }
+
+  private async fetchChfRate(date: string): Promise<number> {
+    if (this.referenceData) {
+      return this.referenceData.getRate("CHF", date);
     }
+    return this.fx.getRate("CHF", date).rate;
   }
 }

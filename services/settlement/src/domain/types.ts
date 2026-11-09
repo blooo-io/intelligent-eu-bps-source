@@ -1,3 +1,5 @@
+import type { Cadence } from "./period.js";
+
 export type BillingRunType = "periodic" | "early" | "final";
 
 export type UnbilledTrade = {
@@ -19,6 +21,8 @@ export type CommunityBillingContext = {
   /** VAT rate as fraction, e.g. 0 (BR-07). */
   vatRate: number;
   billingMode: "live" | "virtual";
+  /** REQ-006 — community calendar, monthly by default. */
+  billingPeriod: Cadence;
 };
 
 export type PairSettlementRecord = {
@@ -32,6 +36,8 @@ export type PairSettlementRecord = {
   vat: string;
   currency: string;
   rate: string;
+  /** BR-06 — date of the ECB reference rate applied. */
+  rateDate: string;
   carriedForwardIn: string;
   carriedForwardOut: string;
   /** Net before threshold decision, community currency. */

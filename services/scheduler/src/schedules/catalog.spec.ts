@@ -19,7 +19,7 @@ describe("schedule catalog (INT-277)", () => {
     expect(yearEnd.body).toMatchObject({ type: "final", communityId: "c1" });
   });
 
-  it("materializeBody resolves YEAR-12 and previous month for periodic", () => {
+  it("materializeBody resolves YEAR-12 and leaves the periodic period to AC-05 (INT-353)", () => {
     expect(
       materializeBody(
         { type: "final", period: "YEAR-12" },
@@ -34,7 +34,6 @@ describe("schedule catalog (INT-277)", () => {
     ).toEqual({
       type: "periodic",
       communityId: "c1",
-      period: "2026-11",
     });
   });
 

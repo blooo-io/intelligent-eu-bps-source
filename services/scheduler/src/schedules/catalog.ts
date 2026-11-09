@@ -39,6 +39,7 @@ export function buildScheduleCatalog(
       scheduleId: "intelligent.start-run.monthly",
       cronExpressions: ["0 2 1 * *"],
       jobName: "StartRun",
+      // No period — AC-05 closes the last elapsed period of the community calendar.
       body: { communityId, type: "periodic" },
       description: "Close billing period monthly (day 1 02:00 UTC)",
     },
@@ -46,7 +47,7 @@ export function buildScheduleCatalog(
       scheduleId: "intelligent.start-run.year-end-final",
       cronExpressions: ["0 3 31 12 *"],
       jobName: "StartRun",
-      // No period — AC-05 defaults to current month (YYYY-12 on 31 Dec).
+      // No period — AC-05 labels the run with the current period of the community.
       body: { communityId, type: "final" },
       description: "Forced final invoices 31 Dec 03:00 UTC",
     },
@@ -108,10 +109,7 @@ export function materializeBody(
   if (out.period === "YEAR-12") {
     out.period = `${now.getUTCFullYear()}-12`;
   }
-  if (out.type === "periodic" && !out.period) {
-    // Monthly cron fires on day 1 → close the previous calendar month.
-    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
-    out.period = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-  }
+  // REQ-006 — StartRun(periodic) carries no period: the body is frozen when the
+  // schedule is created, so AC-05 resolves the elapsed period at fire time.
   return out;
 }

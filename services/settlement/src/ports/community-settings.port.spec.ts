@@ -37,6 +37,7 @@ describe("community-settings port (INT-272)", () => {
       threshold: 7.5,
       vatRate: 0.08,
       billingMode: "virtual",
+      billingPeriod: "monthly",
     });
     expect(fetchImpl).toHaveBeenCalledOnce();
     const [url, init] = fetchImpl.mock.calls[0]!;
@@ -58,6 +59,7 @@ describe("community-settings port (INT-272)", () => {
       threshold: 5,
       vatRate: 0,
       billingMode: "virtual",
+      billingPeriod: "monthly",
     });
 
     const fail = new HttpCommunitySettings(
@@ -76,11 +78,13 @@ describe("community-settings port (INT-272)", () => {
           threshold: 5,
           vatRate: 0,
           billingMode: "live",
+          billingPeriod: "quarterly",
         }),
       ) as never,
     );
     await expect(client.get("c1")).resolves.toMatchObject({
       billingMode: "live",
+      billingPeriod: "quarterly",
     });
   });
 });

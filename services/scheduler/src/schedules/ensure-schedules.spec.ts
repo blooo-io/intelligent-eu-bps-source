@@ -26,6 +26,10 @@ describe("ensureSchedules (INT-277)", () => {
       communityId: "c1",
     });
     expect(yearEnd.action.args[0].body.period).toBeUndefined();
+    const monthly = create.mock.calls.find(
+      (c) => c[0].scheduleId === "intelligent.start-run.monthly",
+    )![0];
+    expect(monthly.action.args[0].body).toEqual({ communityId: "c1", type: "periodic" });
   });
 
   it("updates when schedule already exists", async () => {

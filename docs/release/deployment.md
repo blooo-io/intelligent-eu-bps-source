@@ -44,6 +44,8 @@ Bootstrap and operator scripts: `deploy/README.md`, `deploy/argocd/README.md`, `
 
 Source: physical view PD-4 (backups) and §7 (monitoring). Packaging: `deploy/charts/cnpg-int-data` (module databases), `deploy/platform/kube-prometheus/values.yaml` and `deploy/charts/alertmanager-slack-secret`. Details per environment: `deploy/platform/README.md`.
 
+V1 ships with `backup.enabled: false` in `deploy/charts/cnpg-int-data/values.yaml`. To activate: create the buckets, seed the OpenBao paths below, then open a pull request that sets `backup.enabled: true`.
+
 ### OpenBao paths to seed before Argo sync
 
 KV v2 mount `secret/`. Names only; values are never in Git and the placeholder seed script does not write them (a fake key would only make archiving fail later).

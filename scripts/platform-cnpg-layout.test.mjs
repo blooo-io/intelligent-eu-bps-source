@@ -68,7 +68,8 @@ test("dev CNPG app tracks develop; demo stays manual", async () => {
 
 test("int-data Cluster archives WAL and takes daily base backups to nl-ams (INT-358 / PD-4)", async () => {
   const values = await readFile("deploy/charts/cnpg-int-data/values.yaml", "utf8");
-  assert.match(values, /^backup:\n\s+enabled: true$/m);
+  // Packaged but off until buckets and OpenBao paths exist (INT-358).
+  assert.match(values, /^backup:\n\s+enabled: false$/m);
   assert.match(values, /^\s+retentionPolicy: 7d$/m);
   assert.match(values, /endpointURL: https:\/\/s3\.nl-ams\.scw\.cloud/);
   assert.match(values, /^\s+region: nl-ams$/m);

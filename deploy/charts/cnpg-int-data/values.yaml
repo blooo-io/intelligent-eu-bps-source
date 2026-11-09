@@ -23,8 +23,9 @@ postgresql:
 # (properties access_key_id / secret_access_key) — never in Git.
 # The bucket and the OpenBao path must exist before sync, otherwise WAL
 # archiving fails and WAL files pile up on the data volume.
+# Off until the Scaleway buckets exist and the OpenBao paths are seeded.
 backup:
-  enabled: true
+  enabled: false
   retentionPolicy: 7d
   endpointURL: https://s3.nl-ams.scw.cloud
   region: nl-ams

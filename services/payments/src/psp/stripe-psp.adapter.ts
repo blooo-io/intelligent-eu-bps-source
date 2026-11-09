@@ -163,12 +163,14 @@ export class StripePspAdapter implements PspPort {
     const customer = await this.stripe.customers.create({
       metadata: { participantId },
     });
-    // INT-276 / REQ-014 — card or SEPA Direct Debit (Twint/PayPal out of scope).
+    // INT-361 / REQ-014 — cards only in V1: a platform sepa_debit
+    // PaymentMethod cannot be shared to the producer's connected account
+    // (direct charge, INT-355). Twint/PayPal out of scope.
     // Stripe SDK v23: use allowed_payment_method_types (payment_method_types removed).
     const intent = await this.stripe.setupIntents.create({
       customer: customer.id,
       usage: "off_session",
-      allowed_payment_method_types: ["card", "sepa_debit"],
+      allowed_payment_method_types: ["card"],
       metadata: { participantId },
     });
     if (!intent.client_secret) {

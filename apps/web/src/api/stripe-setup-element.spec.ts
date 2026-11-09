@@ -33,7 +33,7 @@ describe("stripe-setup-element (INT-193)", () => {
       loadStripeFn,
     });
     expect(create).toHaveBeenCalledWith("payment", {
-      paymentMethodOrder: ["card", "sepa_debit"],
+      paymentMethodOrder: ["card"],
     });
     expect(mount).toHaveBeenCalledWith(container);
 

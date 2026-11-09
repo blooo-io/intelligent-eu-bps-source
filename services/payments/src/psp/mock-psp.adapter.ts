@@ -1,5 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
+import { PRODUCER_ONBOARDING_DUE } from "./psp.port.js";
 import type {
+  CreateEmbeddedProducerAccountInput,
   CreateProducerAccountInput,
   OnboardingRequirementsSubmission,
   OnboardingSession,
@@ -59,6 +61,27 @@ export class MockPspAdapter implements PspPort {
       "external_account",
     ]);
     return { stripeAccountId };
+  }
+
+  async createEmbeddedProducerAccount(
+    input: CreateEmbeddedProducerAccountInput,
+  ): Promise<ProducerAccount> {
+    this.accountSeq += 1;
+    const stripeAccountId = `acct_test_${input.participantId.replaceAll("-", "").slice(0, 12)}${this.accountSeq}`;
+    this.accounts.set(input.participantId, stripeAccountId);
+    this.dueByAccount.set(stripeAccountId, [...PRODUCER_ONBOARDING_DUE]);
+    return { stripeAccountId };
+  }
+
+  async createAccountOnboardingSession(
+    stripeAccountId: string,
+  ): Promise<{ clientSecret: string }> {
+    return { clientSecret: `accs_secret_test_${stripeAccountId}` };
+  }
+
+  /** Test seam: the producer finished the embedded component (Stripe side). */
+  completeOnboarding(stripeAccountId: string): void {
+    this.dueByAccount.set(stripeAccountId, []);
   }
 
   async getAccountSession(stripeAccountId: string): Promise<OnboardingSession> {

@@ -5,6 +5,7 @@ const {
   accountsRetrieve,
   accountsUpdate,
   tokensCreate,
+  accountSessionsCreate,
   paymentMethodsRetrieve,
   paymentMethodsCreate,
   paymentMethodsAttach,
@@ -32,6 +33,7 @@ const {
     accountsRetrieve: vi.fn(),
     accountsUpdate: vi.fn(),
     tokensCreate: vi.fn(),
+    accountSessionsCreate: vi.fn(),
     paymentMethodsRetrieve: vi.fn(),
     paymentMethodsCreate: vi.fn(),
     paymentMethodsAttach: vi.fn(),
@@ -56,6 +58,7 @@ vi.mock("stripe", () => {
         update: accountsUpdate,
       },
       tokens: { create: tokensCreate },
+      accountSessions: { create: accountSessionsCreate },
       paymentMethods: {
         retrieve: paymentMethodsRetrieve,
         create: paymentMethodsCreate,
@@ -144,6 +147,41 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
         metadata: { participantId: "part-1" },
       }),
     );
+  });
+
+  it("creates the portal producer account with fees and disputes on the producer (INT-362)", async () => {
+    accountsCreate.mockResolvedValue({ id: "acct_embedded" });
+    const adapter = new StripePspAdapter(creds);
+    const created = await adapter.createEmbeddedProducerAccount({
+      participantId: "part-3",
+    });
+    expect(created.stripeAccountId).toBe("acct_embedded");
+    expect(accountsCreate).toHaveBeenCalledWith({
+      country: "FR",
+      controller: {
+        stripe_dashboard: { type: "none" },
+        fees: { payer: "account" },
+        losses: { payments: "stripe" },
+        requirement_collection: "stripe",
+      },
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      metadata: { participantId: "part-3" },
+    });
+  });
+
+  it("creates an Account Session for embedded onboarding (INT-362)", async () => {
+    accountSessionsCreate.mockResolvedValue({ client_secret: "accs_secret_1" });
+    const adapter = new StripePspAdapter(creds);
+    await expect(
+      adapter.createAccountOnboardingSession("acct_embedded"),
+    ).resolves.toEqual({ clientSecret: "accs_secret_1" });
+    expect(accountSessionsCreate).toHaveBeenCalledWith({
+      account: "acct_embedded",
+      components: { account_onboarding: { enabled: true } },
+    });
   });
 
   it("defaults Custom account country to FR (INT-191)", async () => {

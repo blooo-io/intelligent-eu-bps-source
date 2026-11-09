@@ -45,7 +45,6 @@ import {
 import {
   PAYMENT_WEBHOOK_EVENTS,
   PSP_PORT,
-  PRODUCER_ONBOARDING_DUE,
   type OnboardingRequirementsSubmission,
   type OnboardingSession,
   type PspPort,
@@ -389,20 +388,35 @@ export class PaymentsService {
     return this.startConsumerElementsOnboarding(input.participantId, account);
   }
 
+  /**
+   * INT-362 — embedded Connect onboarding. The first call creates the
+   * Stripe-collected account (producer pays fees and bears disputes); every
+   * call re-reads Stripe (TP-7), so the portal refreshes the status by calling
+   * Start again when the embedded component exits.
+   */
   private async startProducerOnboarding(
     account: AccountRecord,
   ): Promise<OnboardingSession> {
-    const stripeAccountId = account.stripeAccountId;
-    if (stripeAccountId) {
-      return this.psp.getAccountSession(stripeAccountId);
+    let stripeAccountId = account.stripeAccountId;
+    if (!stripeAccountId) {
+      const created = await this.psp.createEmbeddedProducerAccount({
+        participantId: account.participantId,
+        country: "FR",
+      });
+      stripeAccountId = created.stripeAccountId;
+      await this.saveAccount({ ...account, stripeAccountId, kycStatus: "pending" });
     }
-    // INT-191 — defer Custom account create until Account Token is available.
-    return {
-      mode: "requirements",
-      status: "requirements_due",
-      currentlyDue: [...PRODUCER_ONBOARDING_DUE],
-      eventuallyDue: [],
-    };
+    const status = await this.psp.getAccountSession(stripeAccountId);
+    if (status.status === "complete") {
+      // account.updated may lag behind the component exit; sync readiness here too.
+      if (this.store.getAccount(account.participantId)?.kycStatus !== "verified") {
+        await this.completeProducerKyc(account.participantId);
+      }
+      return { ...status, mode: "embedded" };
+    }
+    const { clientSecret } =
+      await this.psp.createAccountOnboardingSession(stripeAccountId);
+    return { ...status, mode: "embedded", clientSecret };
   }
 
   private async startConsumerElementsOnboarding(
@@ -766,6 +780,15 @@ export class PaymentsService {
   ): Promise<void> {
     const participantId = asString(payload?.participantId);
     if (!participantId) return;
+    // INT-362 — Stripe sends account.updated during embedded onboarding too;
+    // complete only once Stripe reports nothing due (TP-7, Stripe is master).
+    const stripeAccountId =
+      asString(payload?.stripeAccountId) ??
+      this.store.getAccount(participantId)?.stripeAccountId;
+    if (stripeAccountId) {
+      const session = await this.psp.getAccountSession(stripeAccountId);
+      if (session.status !== "complete") return;
+    }
     await this.completeProducerKyc(participantId);
   }
 

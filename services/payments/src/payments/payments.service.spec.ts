@@ -92,18 +92,68 @@ describe("PaymentsService", () => {
     expect(row.stripeAccountId).toBeNull();
   });
 
-  it("defers Custom account create until KYC submit (INT-191 / REQ-051)", async () => {
+  it("creates a Stripe-collected account and returns an embedded Account Session (INT-362 / REQ-051)", async () => {
     const session = await service.startOnboarding({
       participantId: PRODUCER,
       communityId: COMMUNITY,
       role: "producer",
     });
-    expect(session.mode).toBe("requirements");
+    expect(session.mode).toBe("embedded");
     expect(session.status).toBe("requirements_due");
-    expect(session.currentlyDue?.length).toBeGreaterThan(0);
-    expect(session.stripeAccountId).toBeUndefined();
-    expect(store.getAccount(PRODUCER)?.stripeAccountId).toBeNull();
-    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("none");
+    expect(session.clientSecret).toMatch(/^accs_secret_test_acct_test_/);
+    expect(session.stripeAccountId).toMatch(/^acct_test_/);
+    expect(store.getAccount(PRODUCER)?.stripeAccountId).toBe(session.stripeAccountId);
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("pending");
+
+    // A second Start reuses the account and issues a fresh Account Session.
+    const again = await service.startOnboarding({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    expect(again.stripeAccountId).toBe(session.stripeAccountId);
+    expect(again.clientSecret).toBeTruthy();
+  });
+
+  it("Start after the embedded component completes verifies KYC without a session (INT-362)", async () => {
+    const started = await service.startOnboarding({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    psp.completeOnboarding(started.stripeAccountId!);
+    const done = await service.startOnboarding({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    expect(done).toMatchObject({ mode: "embedded", status: "complete" });
+    expect(done.clientSecret).toBeUndefined();
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
+  });
+
+  it("account.updated during embedded onboarding does not verify KYC until Stripe reports nothing due (INT-362)", async () => {
+    const started = await service.startOnboarding({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    const midway = JSON.stringify({
+      id: "evt_test_account_updated_midway",
+      type: "account.updated",
+      data: { participantId: PRODUCER, stripeAccountId: started.stripeAccountId },
+    });
+    await service.receiveWebhook(midway, MockPspAdapter.sign(midway));
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("pending");
+
+    psp.completeOnboarding(started.stripeAccountId!);
+    const done = JSON.stringify({
+      id: "evt_test_account_updated_done",
+      type: "account.updated",
+      data: { participantId: PRODUCER, stripeAccountId: started.stripeAccountId },
+    });
+    await service.receiveWebhook(done, MockPspAdapter.sign(done));
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
   });
 
   it("reuses existing Connect account on startOnboarding (INT-191)", async () => {
@@ -948,13 +998,13 @@ describe("PaymentsService", () => {
   });
 
   // INT-269 / REQ-051 — prosumer Connect then Elements; Ready only with KYC + PM.
-  it("INT-269 — prosumer Start is requirements until KYC, then elements", async () => {
+  it("INT-269 — prosumer Start is embedded Connect until KYC, then elements", async () => {
     const first = await service.startOnboarding({
       participantId: PRODUCER,
       communityId: COMMUNITY,
       role: "prosumer",
     });
-    expect(first.mode).toBe("requirements");
+    expect(first.mode).toBe("embedded");
 
     await service.submitOnboardingRequirements({
       participantId: PRODUCER,

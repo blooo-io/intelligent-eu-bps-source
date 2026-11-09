@@ -301,7 +301,7 @@ describe("payments HTTP (INT-107)", () => {
     expect(submit.status).toBe(200);
   });
 
-  it("producer and prosumer onboarding use Account Tokens (INT-191)", async () => {
+  it("producer and prosumer onboarding use embedded Connect; legacy KYC submit still updates (INT-362 / INT-191)", async () => {
     const producer = "66666666-7777-4888-9999-aaaaaaaaaaaa";
     const res = await fetch(`${base}/v1/me/payment-account/onboarding`, {
       method: "POST",
@@ -314,10 +314,11 @@ describe("payments HTTP (INT-107)", () => {
     expect(res.status).toBe(200);
     const started = await res.json();
     expect(started).toMatchObject({
-      mode: "requirements",
+      mode: "embedded",
       status: "requirements_due",
+      stripeAccountId: expect.stringMatching(/^acct_test_/),
+      clientSecret: expect.any(String),
     });
-    expect(started.stripeAccountId).toBeUndefined();
 
     const prosumer = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
     const res2 = await fetch(`${base}/v1/me/payment-account/onboarding`, {
@@ -330,7 +331,7 @@ describe("payments HTTP (INT-107)", () => {
     });
     expect(res2.status).toBe(200);
     expect(await res2.json()).toMatchObject({
-      mode: "requirements",
+      mode: "embedded",
       status: "requirements_due",
     });
 

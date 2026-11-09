@@ -41,6 +41,43 @@ paths:
                 $ref: '#/components/schemas/PaymentAccount'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /connected-customers:ensure:
+    post:
+      operationId: ensureConnectedCustomer
+      tags: [Payments]
+      summary: Get or create the consumer's Customer on a producer Connect account
+      description: >
+        INT-355 / REQ-014 — returns the Stripe Customer that represents the
+        consumer on the producer's connected account, creating it on first use.
+        One Customer per (consumer, connected account), reused for every invoice
+        of that pair. Called by AC-06 before creating the self-billing Stripe
+        invoice so that AC-07 can later pay that invoice on the connected account
+        (direct charge). AC-07 owns the mapping; the Customer carries only the
+        participantId in metadata (no personal data). Idempotent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [participantId, stripeAccountId]
+              properties:
+                participantId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                stripeAccountId:
+                  type: string
+                  pattern: '^acct_'
+                  description: Producer Connect account id (acct_…).
+      responses:
+        '200':
+          description: Connected-account Customer for this consumer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectedCustomer'
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
   /payment-accounts:provision:
     post:
       operationId: provisionPaymentAccount
@@ -89,6 +126,19 @@ paths:
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
 components:
   schemas:
+    ConnectedCustomer:
+      type: object
+      additionalProperties: false
+      required: [participantId, stripeAccountId, stripeCustomerId]
+      properties:
+        participantId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        stripeAccountId:
+          type: string
+          description: Producer Connect account id (acct_…).
+        stripeCustomerId:
+          type: string
+          description: Customer id (cus_…) on that connected account.
     PaymentAccount:
       type: object
       additionalProperties: false

@@ -38,11 +38,10 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Test docs package
         run: pnpm --filter @intelligent/site test
-      # Private Pages host serves at /; use DOCS_BASE=/intelligent-eu-billing-and-payment/
-      # only after the repository (or Pages visibility) is public on github.io/<repo>/.
+      # Public repository: GitHub Pages serves the site at https://<org>.github.io/<repo>/.
       - name: Build VitePress site
         env:
-          DOCS_BASE: /
+          DOCS_BASE: /intelligent-eu-bps-source/
         run: pnpm --filter @intelligent/site build
       - name: Upload Pages artifact
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

@@ -25,9 +25,9 @@ After DNS propagates, use your domain instead of `*.pages.github.io`. The privat
 
 If the repository (or Pages visibility) becomes **public**, GitHub serves:
 
-`https://<org>.github.io/intelligent-eu-billing-and-payment/`
+`https://<org>.github.io/intelligent-eu-bps-source/`
 
-Then set `DOCS_BASE=/intelligent-eu-billing-and-payment/` in `.github/workflows/docs.yml` so asset paths match that prefix.
+Then set `DOCS_BASE=/intelligent-eu-bps-source/` in `.github/workflows/docs.yml` so asset paths match that prefix.
 
 ### 3. Host elsewhere
 

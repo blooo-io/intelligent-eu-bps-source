@@ -9,7 +9,9 @@ import {
   OutboxService,
 } from "@intelligent/module-template";
 import { SettlementStore } from "../domain/store.js";
+import type { UnbilledTrade } from "../domain/types.js";
 import { FixtureTradeSource } from "../ports/fixture-trade-source.js";
+import type { TradeSourcePort } from "../ports/trade-source.port.js";
 import { SettlementService } from "./settlement.service.js";
 
 describe("SettlementService", () => {
@@ -286,6 +288,135 @@ describe("SettlementService", () => {
     const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]!);
     expect(s.currency).toBe("CHF");
     expect(s.rate).toBe("0.94");
+  });
+
+  describe("INT-351 — signed carry-forward (BR-04, BR-05, UAT-073)", () => {
+    const A = "00000000-0000-4000-8000-00000000000a";
+    const B = "00000000-0000-4000-8000-00000000000b";
+    const COM = "00000000-0000-4000-8000-0000000000c0";
+    let queue: UnbilledTrade[][];
+    let source: TradeSourcePort;
+
+    const trade = (tradeId: string, buyer: string, seller: string, eur: number): UnbilledTrade => ({
+      tradeId,
+      consumerId: buyer,
+      producerId: seller,
+      communityId: COM,
+      kWh: eur * 10,
+      pricePerKWhEur: 0.1,
+    });
+
+    beforeEach(() => {
+      queue = [];
+      source = {
+        async getUnbilled() {
+          return queue.shift() ?? [];
+        },
+        async markBilled() {},
+      };
+      service = new SettlementService(store, new OutboxService(outboxStore), source);
+    });
+
+    const settlementsOf = async (runId: string) =>
+      store.getRun(runId)!.settlementIds.map((id) => service.getPairSettlement(id));
+
+    it("A owes B 3.00 then B owes A 2.00: A still carries 1.00 (no 5.00 invoice)", async () => {
+      queue.push([trade("t1", A, B, 3)], [trade("t2", B, A, 2)]);
+      const first = await service.startRun({ communityId: COM, type: "periodic", period: "2026-10" });
+      expect(await settlementsOf(first.runId)).toEqual([
+        expect.objectContaining({ consumerId: A, producerId: B, energyAmount: "0.00", carriedForwardOut: "3.00" }),
+      ]);
+
+      const second = await service.startRun({ communityId: COM, type: "periodic", period: "2026-11" });
+      expect(await settlementsOf(second.runId)).toEqual([
+        expect.objectContaining({
+          consumerId: A,
+          producerId: B,
+          energyAmount: "0.00",
+          carriedForwardIn: "3.00",
+          carriedForwardOut: "1.00",
+        }),
+      ]);
+    });
+
+    it("UAT-073: 3.00 in January carried, 4.00 in February gives a 7.00 invoice", async () => {
+      queue.push([trade("t1", A, B, 3)], [trade("t2", A, B, 4)]);
+      await service.startRun({ communityId: COM, type: "periodic", period: "2026-01" });
+      const feb = await service.startRun({ communityId: COM, type: "periodic", period: "2026-02" });
+      expect(await settlementsOf(feb.runId)).toEqual([
+        expect.objectContaining({ consumerId: A, producerId: B, energyAmount: "7.00", carriedForwardIn: "3.00" }),
+      ]);
+    });
+
+    it("flips the invoice when the reversal exceeds the carried balance", async () => {
+      queue.push([trade("t1", A, B, 3)], [trade("t2", B, A, 9)]);
+      await service.startRun({ communityId: COM, type: "periodic", period: "2026-10" });
+      const second = await service.startRun({ communityId: COM, type: "periodic", period: "2026-11" });
+      expect(await settlementsOf(second.runId)).toEqual([
+        expect.objectContaining({
+          consumerId: B,
+          producerId: A,
+          energyAmount: "6.00",
+          carriedForwardIn: "-3.00",
+          carriedForwardOut: "0.00",
+        }),
+      ]);
+      expect(store.getCarry(A, B)).toBe(0);
+    });
+
+    it("a final run invoices a carried-only pair without new trades (REQ-056)", async () => {
+      queue.push([trade("t1", B, A, 2)]);
+      await service.startRun({ communityId: COM, type: "periodic", period: "2026-11" });
+      expect(store.getCarry(B, A)).toBe(2);
+
+      const periodic = await service.startRun({ communityId: COM, type: "periodic", period: "2026-12" });
+      expect(store.getRun(periodic.runId)!.settlementIds).toHaveLength(0);
+
+      const final = await service.startRun({ communityId: COM, type: "final", period: "2026-12" });
+      expect(await settlementsOf(final.runId)).toEqual([
+        expect.objectContaining({
+          consumerId: B,
+          producerId: A,
+          tradeIds: [],
+          energyAmount: "2.00",
+          carriedForwardIn: "2.00",
+          carriedForwardOut: "0.00",
+        }),
+      ]);
+      expect(store.listCarries(COM)).toEqual([]);
+    });
+
+    it("early settlement of a pair includes its carried balance in either direction", async () => {
+      queue.push([trade("t1", B, A, 2)], []);
+      await service.startRun({ communityId: COM, type: "periodic", period: "2026-11" });
+      const early = await service.startRun({
+        communityId: COM,
+        type: "early",
+        onlyPair: { consumerId: A, producerId: B },
+      });
+      expect(await settlementsOf(early.runId)).toEqual([
+        expect.objectContaining({ consumerId: B, producerId: A, energyAmount: "2.00" }),
+      ]);
+    });
+
+    it("balances include the carried amount for the paying participant only (REQ-057)", async () => {
+      queue.push([trade("t1", A, B, 3)], [trade("t2", A, B, 1)], [trade("t3", A, B, 1)]);
+      await service.startRun({ communityId: COM, type: "periodic", period: "2026-10" });
+      expect(await service.listBalancesForParticipant(A, COM)).toEqual([
+        { counterpartId: B, amount: "4.00", currency: "EUR" },
+      ]);
+      expect(await service.listBalancesForParticipant(B, COM)).toEqual([]);
+    });
+
+    it("a lowered threshold releases a carried-only pair on a periodic run", async () => {
+      queue.push([trade("t1", A, B, 3)]);
+      await service.startRun({ communityId: COM, type: "periodic", period: "2026-10" });
+      service.useFixtureScenario("S1", { threshold: 1 });
+      const next = await service.startRun({ communityId: COM, type: "periodic", period: "2026-11" });
+      expect(await settlementsOf(next.runId)).toEqual([
+        expect.objectContaining({ consumerId: A, producerId: B, energyAmount: "3.00" }),
+      ]);
+    });
   });
 
   it("INT-272: rejects live billingMode from settings (BR-12)", async () => {

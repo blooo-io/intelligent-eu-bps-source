@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { netPairs } from "./netting.js";
+import { canonicalPair, netCanonicalPairs, netPairs } from "./netting.js";
 
 describe("netPairs (BR-03, BR-04)", () => {
   it("computes amount as kWh × price and nets a pair", () => {
@@ -48,5 +48,28 @@ describe("netPairs (BR-03, BR-04)", () => {
       },
     ]);
     expect(pairs).toHaveLength(2);
+  });
+
+  it("orients the invoice towards the net payer when the seller sorts first", () => {
+    const pairs = netPairs([
+      {
+        tradeId: "t1",
+        consumerId: "b",
+        producerId: "a",
+        communityId: "com",
+        kWh: 10,
+        pricePerKWhEur: 0.2,
+      },
+    ]);
+    expect(pairs[0]).toMatchObject({ consumerId: "b", producerId: "a", netKWh: 10, netEur: 2 });
+  });
+
+  it("nets on the canonical order with a signed amount (BR-04)", () => {
+    const [bucket] = netCanonicalPairs([
+      { tradeId: "t1", consumerId: "b", producerId: "a", communityId: "com", kWh: 10, pricePerKWhEur: 0.2 },
+      { tradeId: "t2", consumerId: "a", producerId: "b", communityId: "com", kWh: 4, pricePerKWhEur: 0.2 },
+    ]);
+    expect(bucket).toEqual({ low: "a", high: "b", tradeIds: ["t1", "t2"], netKWh: -6, netEur: -1.2 });
+    expect(canonicalPair("b", "a")).toEqual(["a", "b"]);
   });
 });

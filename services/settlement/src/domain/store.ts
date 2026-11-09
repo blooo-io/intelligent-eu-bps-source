@@ -1,3 +1,4 @@
+import { canonicalPair } from "./netting.js";
 import type { BillingRunRecord, PairSettlementRecord } from "./types.js";
 
 /**
@@ -7,7 +8,7 @@ export class SettlementStore {
   private readonly settlements = new Map<string, PairSettlementRecord>();
   private readonly runs = new Map<string, BillingRunRecord>();
   /** Carry-forward balances per unordered pair key, community currency. */
-  private readonly carry = new Map<string, number>();
+  private readonly carry = new Map<string, { communityId: string; amount: number }>();
 
   reset(): void {
     this.settlements.clear();
@@ -54,15 +55,35 @@ export class SettlementStore {
     return max + 1;
   }
 
-  pairKey(consumerId: string, producerId: string): string {
-    return [consumerId, producerId].sort((a, b) => a.localeCompare(b)).join("|");
+  pairKey(x: string, y: string): string {
+    return canonicalPair(x, y).join("|");
   }
 
-  getCarry(consumerId: string, producerId: string): number {
-    return this.carry.get(this.pairKey(consumerId, producerId)) ?? 0;
+  /** Signed carried balance of a pair: positive when `low` owes `high` (BR-05). */
+  getCarry(x: string, y: string): number {
+    const [low] = canonicalPair(x, y);
+    const signed = this.carry.get(this.pairKey(x, y))?.amount ?? 0;
+    return x === low ? signed : -signed;
   }
 
-  setCarry(consumerId: string, producerId: string, amount: number): void {
-    this.carry.set(this.pairKey(consumerId, producerId), amount);
+  /** Stores the balance carried to the next period, signed `x` → `y`. */
+  setCarry(communityId: string, x: string, y: string, amount: number): void {
+    const [low] = canonicalPair(x, y);
+    const key = this.pairKey(x, y);
+    if (amount === 0) {
+      this.carry.delete(key);
+      return;
+    }
+    this.carry.set(key, { communityId, amount: x === low ? amount : -amount });
+  }
+
+  /** Pairs with a non-zero carried balance, signed `low` → `high`. */
+  listCarries(communityId: string): Array<{ low: string; high: string; amount: number }> {
+    return [...this.carry.entries()]
+      .filter(([, row]) => row.communityId === communityId)
+      .map(([key, row]) => {
+        const [low, high] = key.split("|") as [string, string];
+        return { low, high, amount: row.amount };
+      });
   }
 }

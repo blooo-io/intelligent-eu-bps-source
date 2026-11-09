@@ -11,11 +11,26 @@ export type PaymentsClientPort = {
   getProducerStripeAccountId(producerId: string): Promise<string | null>;
   /** INT-231 — full GetPaymentAccount including charges_enabled. */
   getPaymentAccount(producerId: string): Promise<PaymentAccountSnapshot | null>;
+  /**
+   * INT-355 / REQ-014 — AC-07 EnsureConnectedCustomer: the consumer's Customer
+   * on the producer Connect account, billed by the self-billing invoice.
+   */
+  ensureConnectedCustomer(
+    consumerId: string,
+    stripeAccountId: string,
+  ): Promise<string | null>;
 };
 
 /** CI / unit tests — no AC-07; callers fall back to registerConnectAccount / override. */
 export class NoopPaymentsClient implements PaymentsClientPort {
   async getProducerStripeAccountId(_producerId: string): Promise<string | null> {
+    return null;
+  }
+
+  async ensureConnectedCustomer(
+    _consumerId: string,
+    _stripeAccountId: string,
+  ): Promise<string | null> {
     return null;
   }
 
@@ -70,6 +85,28 @@ export class HttpPaymentsClient implements PaymentsClientPort {
   async getProducerStripeAccountId(producerId: string): Promise<string | null> {
     const account = await this.getPaymentAccount(producerId);
     return account?.stripeAccountId ?? null;
+  }
+
+  async ensureConnectedCustomer(
+    consumerId: string,
+    stripeAccountId: string,
+  ): Promise<string | null> {
+    const url = `${this.baseUrl.replace(/\/$/, "")}/internal/v1/connected-customers:ensure`;
+    const res = await this.fetchImpl(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(await resolveServiceAuthHeaders("ac-06-invoicing", this.auth)),
+      },
+      body: JSON.stringify({ participantId: consumerId, stripeAccountId }),
+    });
+    if (!res.ok) {
+      throw new Error(`payments ensureConnectedCustomer failed with ${res.status}`);
+    }
+    const body = (await res.json()) as { stripeCustomerId?: string };
+    return typeof body.stripeCustomerId === "string" && body.stripeCustomerId.length > 0
+      ? body.stripeCustomerId
+      : null;
   }
 }
 

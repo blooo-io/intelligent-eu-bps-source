@@ -24,6 +24,17 @@ export class InternalPaymentsController {
     return this.payments.getPaymentAccount(participantId);
   }
 
+  @Post(String.raw`connected-customers\:ensure`)
+  @HttpCode(200)
+  ensureConnectedCustomer(
+    @Body() body: { participantId: string; stripeAccountId: string },
+  ) {
+    return this.payments.ensureConnectedCustomer({
+      participantId: body?.participantId,
+      stripeAccountId: body?.stripeAccountId,
+    });
+  }
+
   @Post(String.raw`payment-accounts\:provision`)
   @HttpCode(201)
   provision(

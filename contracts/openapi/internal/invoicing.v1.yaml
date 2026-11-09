@@ -58,11 +58,21 @@ paths:
                     $ref: '../components/schemas.yaml#/components/schemas/Uuid'
                   producerStripeAccountId:
                     type: string
-                    description: Connect account id for destination charges (AC-07).
+                    description: >
+                      Connect account that issued the Stripe invoice. AC-07 pays
+                      the invoice on this account (direct charge, REQ-014).
+                  stripeInvoiceId:
+                    type: string
+                    description: >
+                      INT-355 — Stripe invoice id (in_…) on the producer Connect
+                      account. AC-07 pays this invoice with invoices.pay.
                   hostedInvoiceUrl:
                     type: string
                     format: uri
-                    description: Stripe hosted invoice / PDF URL when available.
+                    description: >
+                      Stripe invoice PDF URL (REQ-039 / REQ-042). INT-355 — the
+                      PDF is preferred over the hosted payment page so the
+                      consumer pays only through AC-07.
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /invoices:mark-overdue:
@@ -132,6 +142,8 @@ paths:
                   pairSettlementId:
                     $ref: '../components/schemas.yaml#/components/schemas/Uuid'
                   producerStripeAccountId:
+                    type: string
+                  stripeInvoiceId:
                     type: string
                   hostedInvoiceUrl:
                     type: string

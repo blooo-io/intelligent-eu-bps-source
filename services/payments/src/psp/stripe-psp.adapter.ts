@@ -6,6 +6,7 @@ import type {
   PaymentMethodDetails,
   PaymentMethodRef,
   ProducerAccount,
+  PspPaymentInput,
   PspPaymentResult,
   PspPort,
   WebhookVerification,
@@ -14,7 +15,8 @@ import { readStripeEnv, toMinorUnits, type StripeEnv } from "./stripe-env.js";
 
 /**
  * Real Stripe test-mode P-PSP adapter (INT-189 / INT-190 / INT-191 / AD-6 / BR-12).
- * Destination charges to the producer Connect account (TD-6).
+ * Direct charges: the producer's Stripe invoice is paid on the producer Connect
+ * account (INT-355 / REQ-014 / TD-6).
  * FR Custom accounts via Account Tokens (requirement_collection=application).
  */
 export class StripePspAdapter implements PspPort {
@@ -206,46 +208,121 @@ export class StripePspAdapter implements PspPort {
     };
   }
 
-  async createPayment(input: {
-    invoiceId: string;
-    amount: string;
-    currency: string;
-    producerStripeAccountId: string;
-    consumerPaymentMethodId: string;
-  }): Promise<PspPaymentResult> {
+  async createConnectedCustomer(input: {
+    participantId: string;
+    stripeAccountId: string;
+  }): Promise<{ stripeCustomerId: string }> {
+    // INT-355 / NFR-015 — identifiers only; Stripe never receives the consumer's name or e-mail here.
+    const customer = await this.stripe.customers.create(
+      { metadata: { participantId: input.participantId } },
+      { stripeAccount: input.stripeAccountId },
+    );
+    return { stripeCustomerId: customer.id };
+  }
+
+  /**
+   * INT-355 / REQ-014 / TD-6 — direct charge: the consumer pays the producer's
+   * Stripe invoice on the producer Connect account, so funds never sit on the
+   * platform balance (no transfer_data). Stripe allows one payment per invoice,
+   * which rules out a second charge for the same invoice.
+   */
+  async createPayment(input: PspPaymentInput): Promise<PspPaymentResult> {
+    const opts: Stripe.RequestOptions = { stripeAccount: input.producerStripeAccountId };
     try {
-      const intent = await this.stripe.paymentIntents.create({
-        amount: toMinorUnits(input.amount),
-        currency: input.currency.toLowerCase(),
-        payment_method: input.consumerPaymentMethodId,
-        confirm: true,
-        off_session: true,
-        transfer_data: { destination: input.producerStripeAccountId },
-        metadata: { invoiceId: input.invoiceId },
-      });
-      if (intent.status === "succeeded") {
-        return { stripePaymentId: intent.id, status: "succeeded" };
+      const invoice = await this.stripe.invoices.retrieve(
+        input.stripeInvoiceId,
+        { expand: ["payments"] },
+        opts,
+      );
+      if (invoice.status === "paid") {
+        return { stripePaymentId: invoicePaymentIntentId(invoice), status: "succeeded" };
       }
-      if (intent.status === "requires_action" || intent.status === "processing") {
-        return { stripePaymentId: intent.id, status: "pending" };
+      if (invoice.status !== "open") {
+        return {
+          stripePaymentId: invoicePaymentIntentId(invoice),
+          status: "failed",
+          failureCategory: "invoice_not_payable",
+        };
       }
-      return {
-        stripePaymentId: intent.id,
-        status: "failed",
-        failureCategory: intent.last_payment_error?.code ?? "declined",
-      };
+      if (
+        invoice.amount_due !== toMinorUnits(input.amount) ||
+        invoice.currency !== input.currency.toLowerCase()
+      ) {
+        return {
+          stripePaymentId: invoicePaymentIntentId(invoice),
+          status: "failed",
+          failureCategory: "amount_mismatch",
+        };
+      }
+
+      const platformPm = await this.stripe.paymentMethods.retrieve(
+        input.consumerPaymentMethodId,
+      );
+      // Stripe refuses to share sepa_debit PaymentMethods with a connected
+      // account, so a platform SEPA mandate cannot fund a direct charge.
+      if (platformPm.type === "sepa_debit") {
+        return {
+          stripePaymentId: invoicePaymentIntentId(invoice),
+          status: "failed",
+          failureCategory: "sepa_debit_not_shareable",
+        };
+      }
+      const platformCustomer = stripeId(platformPm.customer);
+      if (!platformCustomer) {
+        return {
+          stripePaymentId: invoicePaymentIntentId(invoice),
+          status: "failed",
+          failureCategory: "payment_method_not_attached",
+        };
+      }
+      // Stripe master (TP-7): pay as the invoice's own customer; the mapped
+      // customer only differs for invoices issued before INT-355.
+      const customer = stripeId(invoice.customer) ?? input.connectedCustomerId;
+      const cloned = await this.stripe.paymentMethods.create(
+        { customer: platformCustomer, payment_method: platformPm.id },
+        opts,
+      );
+      await this.stripe.paymentMethods.attach(cloned.id, { customer }, opts);
+
+      // The charge copies PaymentIntent metadata: keep the AC-06 invoice id on the
+      // producer-side charge for reconciliation (identifier only, NFR-015).
+      const intentId = invoicePaymentIntentId(invoice);
+      if (intentId.startsWith("pi_")) {
+        await this.stripe.paymentIntents.update(
+          intentId,
+          { metadata: { invoiceId: input.invoiceId } },
+          opts,
+        );
+      }
+
+      const paid = await this.stripe.invoices.pay(
+        invoice.id,
+        { payment_method: cloned.id, off_session: true, expand: ["payments"] },
+        opts,
+      );
+      const stripePaymentId = invoicePaymentIntentId(paid);
+      if (paid.status === "paid") {
+        return { stripePaymentId, status: "succeeded" };
+      }
+      // Still open (e.g. processing / requires_action): invoice.paid or
+      // invoice.payment_failed on the Connect endpoint closes it.
+      if (paid.status === "open") {
+        return { stripePaymentId, status: "pending" };
+      }
+      return { stripePaymentId, status: "failed", failureCategory: "declined" };
     } catch (err) {
       const stripeErr = err as {
         decline_code?: string;
         code?: string;
         message?: string;
+        payment_intent?: { id?: string };
       };
       const code =
         stripeErr.decline_code ??
         stripeErr.code ??
         (typeof stripeErr.message === "string" ? stripeErr.message.slice(0, 64) : "declined");
       return {
-        stripePaymentId: `pi_failed_${Date.now()}`,
+        stripePaymentId: stripeErr.payment_intent?.id ?? input.stripeInvoiceId,
         status: "failed",
         failureCategory: mapFailureCategory(String(code)),
       };
@@ -312,6 +389,30 @@ function normalizeStripeEvent(event: Stripe.Event): WebhookVerification {
       payload: {
         stripePaymentId: intent.id,
         status: intent.status,
+        ...connectAccount(event),
+        ...(intent.last_payment_error
+          ? {
+              failureCategory: mapFailureCategory(
+                intent.last_payment_error.decline_code ??
+                  intent.last_payment_error.code ??
+                  "declined",
+              ),
+            }
+          : {}),
+      },
+    };
+  }
+  // INT-355 — the invoice is paid on the producer Connect account (Connect endpoint).
+  if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
+    const invoice = event.data.object as Stripe.Invoice;
+    return {
+      ok: true,
+      eventId: event.id,
+      eventType: event.type,
+      payload: {
+        stripeInvoiceId: invoice.id,
+        status: invoice.status,
+        ...connectAccount(event),
       },
     };
   }
@@ -321,6 +422,22 @@ function normalizeStripeEvent(event: Stripe.Event): WebhookVerification {
     eventType: event.type,
     payload: event.data.object as unknown as Record<string, unknown>,
   };
+}
+
+function connectAccount(event: Stripe.Event): { stripeAccountId?: string } {
+  return event.account ? { stripeAccountId: event.account } : {};
+}
+
+function stripeId(ref: string | { id: string } | null | undefined): string | undefined {
+  if (!ref) return undefined;
+  return typeof ref === "string" ? ref : ref.id;
+}
+
+/** PaymentIntent behind the invoice (API ≥ basil exposes it through invoice.payments). */
+function invoicePaymentIntentId(invoice: Stripe.Invoice): string {
+  const payments = invoice.payments?.data ?? [];
+  const chosen = payments.find((p) => p.is_default) ?? payments[0];
+  return stripeId(chosen?.payment.payment_intent) ?? invoice.id;
 }
 
 function mapFailureCategory(code: string): string {

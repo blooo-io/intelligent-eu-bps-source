@@ -7,7 +7,7 @@ const SUBJECT = "PaymentStatusChanged";
 
 /**
  * INT-270 / INT-130 — bind AC-06 to PaymentStatusChanged so Open invoices
- * become Paid after a succeeded destination charge (BR-11).
+ * become Paid after a succeeded direct charge on the producer account (BR-11, INT-355).
  */
 @Injectable()
 export class PaymentStatusListener implements OnModuleInit {

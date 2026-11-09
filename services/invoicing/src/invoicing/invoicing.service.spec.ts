@@ -140,6 +140,7 @@ describe("InvoicingService", () => {
         stripeAccountId: "acct_pending",
         chargesEnabled: false,
       }),
+      ensureConnectedCustomer: async () => "cus_unused",
     };
     const gated = new InvoicingService(
       store,
@@ -157,6 +158,55 @@ describe("InvoicingService", () => {
     expect(stripe.created).toHaveLength(0);
   });
 
+  it("UAT-014 REQ-014 bills the consumer's AC-07 connected-account Customer and exposes the Stripe invoice id (INT-355)", async () => {
+    const calls: Array<[string, string]> = [];
+    const payments: PaymentsClientPort = {
+      getProducerStripeAccountId: async () => "acct_live_p",
+      getPaymentAccount: async () => ({ stripeAccountId: "acct_live_p", chargesEnabled: true }),
+      ensureConnectedCustomer: async (consumerId, stripeAccountId) => {
+        calls.push([consumerId, stripeAccountId]);
+        return "cus_conn_1";
+      },
+    };
+    const direct = new InvoicingService(
+      store,
+      new OutboxService(outboxStore),
+      stripe,
+      new MapReadiness(new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]])),
+      payments,
+      new NoopParticipantsResolver(),
+    );
+    const invoice = (await direct.createFromSettlement(settlement()))!;
+    expect(calls).toEqual([["11111111-2222-4333-8444-555555555555", "acct_live_p"]]);
+    expect(stripe.requests).toEqual([
+      { stripeAccountId: "acct_live_p", stripeCustomerId: "cus_conn_1" },
+    ]);
+    expect(direct.getInvoice(invoice.invoiceId)).toMatchObject({
+      producerStripeAccountId: "acct_live_p",
+      stripeInvoiceId: invoice.stripeInvoiceId,
+    });
+    expect(direct.getInvoiceBySettlement(invoice.settlementId).stripeInvoiceId).toBe(
+      invoice.stripeInvoiceId,
+    );
+  });
+
+  it("uses a synthetic Customer only with the mock invoice provider (INT-355)", async () => {
+    await service.createFromSettlement(settlement());
+    expect(stripe.requests[0]!.stripeCustomerId).toMatch(/^cus_test_/);
+
+    const prev = process.env.STRIPE_INVOICE_PROVIDER;
+    process.env.STRIPE_INVOICE_PROVIDER = "stripe";
+    try {
+      await expect(
+        service.createFromSettlement(
+          settlement({ settlementId: "s2222222-2222-4222-8222-222222222222" }),
+        ),
+      ).rejects.toThrow(/connected-account Customer required/);
+    } finally {
+      if (prev === undefined) delete process.env.STRIPE_INVOICE_PROVIDER;
+      else process.env.STRIPE_INVOICE_PROVIDER = prev;
+    }
+  });
 
   it("marks open invoices overdue (REQ-044)", async () => {
     const invoice = (await service.createFromSettlement(settlement()))!;

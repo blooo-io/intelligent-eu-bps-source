@@ -24,7 +24,8 @@ function toMinorUnits(amount: string): number {
 
 /**
  * Real Stripe test-mode invoice adapter (INT-189 / TD-2 / BR-10).
- * Creates the invoice on the producer Connect account (self-billing).
+ * Creates the invoice on the producer Connect account (self-billing) for the
+ * consumer's connected-account Customer; AC-07 pays it there (INT-355).
  */
 export class StripeInvoiceAdapter implements StripeInvoicePort {
   private readonly stripe: Stripe;
@@ -41,42 +42,27 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
 
   async createFromSettlement(
     settlement: PairSettlementInput,
-    opts: { stripeAccountId: string; dueDate: string },
+    opts: { stripeAccountId: string; stripeCustomerId: string; dueDate: string },
   ): Promise<StripeInvoiceCreateResult> {
     const stripeAccount = opts.stripeAccountId;
     const currency = settlement.currency.toLowerCase();
-
-    // INT-198 — send_invoice requires a customer email. Identifiers only (NFR-015).
-    // INT-228 — include settlement id so each run creates a distinct Stripe Customer
-    // visible in the Dashboard (no reused synthetic users outside Stripe).
-    const customerEmail = `consumer-${settlement.consumerId.replaceAll("-", "").slice(0, 8)}-${settlement.settlementId.replaceAll("-", "").slice(0, 8)}@example.test`;
-    const customer = await this.stripe.customers.create(
-      {
-        email: customerEmail,
-        metadata: {
-          consumerId: settlement.consumerId,
-          settlementId: settlement.settlementId,
-          runId: settlement.runId,
-        },
-      },
-      { stripeAccount },
-    );
-
-    const due = Date.parse(`${opts.dueDate}T00:00:00.000Z`);
-    const daysUntilDue = Number.isFinite(due)
-      ? Math.max(1, Math.ceil((due - Date.now()) / 86_400_000))
-      : 14;
+    // INT-355 / REQ-014 — bill the consumer's reusable Customer on the producer
+    // Connect account (owned by AC-07) so AC-07 can pay this very invoice there.
+    const customer = opts.stripeCustomerId;
 
     const tradeSummary = settlement.tradeIds.slice(0, 8).join(", ");
     // TD-2 / REQ-039 — self-billing footer + trade summary on the Stripe PDF.
     // INT-202 — create the draft first, then attach line items by invoice id.
     // Modern Stripe API defaults pending_invoice_items_behavior to "exclude",
     // so pending items created before the invoice never appear on the PDF.
+    // INT-355 — charge_automatically with auto_advance=false: Stripe numbers and
+    // renders the invoice on finalize but never e-mails a payable link nor
+    // charges on its own; AC-07 pays it once with invoices.pay. The due date
+    // (REQ-044) stays in AC-06 because Stripe only accepts it for send_invoice.
     const draft = await this.stripe.invoices.create(
       {
-        customer: customer.id,
-        collection_method: "send_invoice",
-        days_until_due: daysUntilDue,
+        customer,
+        collection_method: "charge_automatically",
         auto_advance: false,
         pending_invoice_items_behavior: "exclude",
         description: `Self-billing energy settlement (${settlement.kWh} kWh). Trades: ${tradeSummary}`,
@@ -103,7 +89,7 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
     if (energy > 0) {
       await this.stripe.invoiceItems.create(
         {
-          customer: customer.id,
+          customer,
           invoice: draft.id,
           amount: energy,
           currency,
@@ -115,7 +101,7 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
     if (vat > 0) {
       await this.stripe.invoiceItems.create(
         {
-          customer: customer.id,
+          customer,
           invoice: draft.id,
           amount: vat,
           currency,
@@ -127,23 +113,16 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
 
     const finalized = await this.stripe.invoices.finalizeInvoice(
       draft.id,
-      {},
+      { auto_advance: false },
       { stripeAccount },
     );
 
-    // TD-2 — Stripe emails the consumer for send_invoice (live); sandbox may suppress.
-    // Best-effort resend so dashboard email logs capture an attempt when allowed.
-    try {
-      await this.stripe.invoices.sendInvoice(finalized.id, {}, { stripeAccount });
-    } catch {
-      // Non-fatal in test mode when automatic emails are disabled.
-    }
-
     // BR-10 — Stripe-assigned number is master once finalized.
+    // REQ-039 / REQ-042 — expose the PDF rather than the hosted payment page.
     return {
       stripeInvoiceId: finalized.id,
       legalNumber: finalized.number ?? finalized.id,
-      hostedInvoiceUrl: finalized.hosted_invoice_url ?? "",
+      hostedInvoiceUrl: finalized.invoice_pdf ?? finalized.hosted_invoice_url ?? "",
       status: mapStatus(finalized.status),
     };
   }

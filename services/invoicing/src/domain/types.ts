@@ -45,13 +45,13 @@ export type InvoiceRecord = {
   stripeInvoiceId: string;
   /** Stripe-assigned legal number once finalized (BR-10). */
   legalNumber: string | null;
-  /** Stripe hosted invoice URL (PDF / pay page) when available (REQ-039). */
+  /** Stripe invoice PDF URL, hosted page as fallback (REQ-039, INT-355). */
   hostedInvoiceUrl: string | null;
   /** Energy line amount at issue time (for public InvoiceAmounts). */
   energyAmount: string;
   /** VAT line amount at issue time. */
   vatAmount: string;
-  /** Producer Connect account used at issue (AC-07 destination charges). */
+  /** Producer Connect account that issued the Stripe invoice; AC-07 pays it there (INT-355). */
   producerStripeAccountId: string | null;
   dueDate: string;
   communityId: string;

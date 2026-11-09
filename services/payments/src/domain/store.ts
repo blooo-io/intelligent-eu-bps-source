@@ -6,6 +6,8 @@ export type PaymentRecord = {
   currency: string;
   status: "pending" | "succeeded" | "failed" | "cancelled" | "refunded";
   stripePaymentId: string;
+  /** INT-355 — Stripe invoice paid on the producer Connect account. */
+  stripeInvoiceId?: string;
   failureCategory?: string;
   communityId: string;
   /** Payment method label for KPI TE-2 (REQ-046). */
@@ -53,6 +55,26 @@ export class PaymentsStore {
   findByStripePaymentId(stripePaymentId: string): PaymentRecord | undefined {
     for (const row of this.payments.values()) {
       if (row.stripePaymentId === stripePaymentId) {
+        return { ...row };
+      }
+    }
+    return undefined;
+  }
+
+  /** Latest payment attempt for a Stripe invoice (Connect invoice.* webhooks). */
+  findByStripeInvoiceId(stripeInvoiceId: string): PaymentRecord | undefined {
+    let found: PaymentRecord | undefined;
+    for (const row of this.payments.values()) {
+      if (row.stripeInvoiceId === stripeInvoiceId) {
+        found = row;
+      }
+    }
+    return found ? { ...found } : undefined;
+  }
+
+  findSucceededByInvoiceId(invoiceId: string): PaymentRecord | undefined {
+    for (const row of this.payments.values()) {
+      if (row.invoiceId === invoiceId && row.status === "succeeded") {
         return { ...row };
       }
     }

@@ -11,6 +11,8 @@ export type InvoiceLookupResult = {
   status: string;
   total: string;
   producerStripeAccountId?: string;
+  /** INT-355 — Stripe invoice on the producer Connect account, paid by AC-07. */
+  stripeInvoiceId?: string;
 };
 
 export type InvoiceLookupPort = {

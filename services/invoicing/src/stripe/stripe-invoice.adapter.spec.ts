@@ -45,64 +45,58 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
   });
 
   it("maps unknown Stripe status to open", async () => {
-    customersCreate.mockResolvedValue({ id: "cus_2" });
     invoiceItemsCreate.mockResolvedValue({});
     invoicesCreate.mockResolvedValue({ id: "in_draft2" });
     finalizeInvoice.mockResolvedValue({
       id: "in_final2",
       number: null,
       hosted_invoice_url: null,
+      invoice_pdf: null,
       status: "uncollectible",
     });
     const adapter = new StripeInvoiceAdapter({ secretKey: "sk_test_abc" });
     const result = await adapter.createFromSettlement(
       { ...settlement, energyAmount: "0", vat: "0" },
-      { stripeAccountId: "acct_prod", dueDate: "not-a-date" },
+      { stripeAccountId: "acct_prod", stripeCustomerId: "cus_conn", dueDate: "not-a-date" },
     );
     expect(result.status).toBe("open");
     expect(result.legalNumber).toBe("in_final2");
+    expect(result.hostedInvoiceUrl).toBe("");
     expect(invoiceItemsCreate).not.toHaveBeenCalled();
   });
 
-  it("creates energy+VAT items and finalizes on Connect account (A20 / BR-10)", async () => {
-    customersCreate.mockResolvedValue({ id: "cus_1" });
+  it("UAT-014 REQ-014 bills the connected-account Customer, finalizes without e-mail and returns the PDF (INT-355 / A20 / BR-10)", async () => {
     invoiceItemsCreate.mockResolvedValue({});
     invoicesCreate.mockResolvedValue({ id: "in_draft" });
     finalizeInvoice.mockResolvedValue({
       id: "in_final",
       number: "ACCT-000001",
       hosted_invoice_url: "https://invoice.stripe.com/i/in_final",
+      invoice_pdf: "https://pay.stripe.com/invoice/in_final/pdf",
       status: "open",
     });
 
     const adapter = new StripeInvoiceAdapter({ secretKey: "sk_test_abc" });
     const result = await adapter.createFromSettlement(settlement, {
       stripeAccountId: "acct_prod",
+      stripeCustomerId: "cus_conn",
       dueDate: "2099-01-15",
     });
 
     expect(result).toEqual({
       stripeInvoiceId: "in_final",
       legalNumber: "ACCT-000001",
-      hostedInvoiceUrl: "https://invoice.stripe.com/i/in_final",
+      hostedInvoiceUrl: "https://pay.stripe.com/invoice/in_final/pdf",
       status: "open",
     });
-    expect(customersCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        // INT-198 / UAT-028 — email required for collection_method=send_invoice
-        // INT-228 — settlement id in email so each run creates a distinct Customer
-        email: "consumer-c1-set1@example.test",
-        metadata: expect.objectContaining({
-          consumerId: "c-1",
-          settlementId: "set-1",
-          runId: "run-1",
-        }),
-      }),
-      { stripeAccount: "acct_prod" },
-    );
+    // INT-355 — AC-07 owns the Customer; no synthetic per-settlement Customer or e-mail.
+    expect(customersCreate).not.toHaveBeenCalled();
     // INT-202 / UAT-050 — draft first, then line items bound to that invoice
     expect(invoicesCreate).toHaveBeenCalledWith(
       expect.objectContaining({
+        customer: "cus_conn",
+        collection_method: "charge_automatically",
+        auto_advance: false,
         footer: expect.stringMatching(/Self-billing/i),
         description: expect.stringContaining("t-1"),
         pending_invoice_items_behavior: "exclude",
@@ -112,8 +106,10 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
       }),
       { stripeAccount: "acct_prod" },
     );
+    expect(invoicesCreate.mock.calls[0][0]).not.toHaveProperty("days_until_due");
     expect(invoiceItemsCreate).toHaveBeenCalledTimes(2);
     expect(invoiceItemsCreate.mock.calls[0][0]).toMatchObject({
+      customer: "cus_conn",
       invoice: "in_draft",
       amount: 1000,
       description: expect.stringContaining("Energy"),
@@ -125,18 +121,14 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
     });
     expect(finalizeInvoice).toHaveBeenCalledWith(
       "in_draft",
-      {},
+      { auto_advance: false },
       { stripeAccount: "acct_prod" },
     );
-    expect(sendInvoice).toHaveBeenCalledWith(
-      "in_final",
-      {},
-      { stripeAccount: "acct_prod" },
-    );
+    // No payable hosted-invoice e-mail: payment only through AC-07 (no double payment).
+    expect(sendInvoice).not.toHaveBeenCalled();
   });
 
-  it("still returns the invoice when sendInvoice fails in sandbox (INT-201)", async () => {
-    customersCreate.mockResolvedValue({ id: "cus_3" });
+  it("falls back to the hosted invoice URL when Stripe returns no PDF", async () => {
     invoiceItemsCreate.mockResolvedValue({});
     invoicesCreate.mockResolvedValue({ id: "in_draft3" });
     finalizeInvoice.mockResolvedValue({
@@ -145,14 +137,12 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
       hosted_invoice_url: "https://invoice.stripe.com/i/in_final3",
       status: "open",
     });
-    sendInvoice.mockRejectedValueOnce(new Error("email suppressed in sandbox"));
-
     const adapter = new StripeInvoiceAdapter({ secretKey: "sk_test_abc" });
     const result = await adapter.createFromSettlement(settlement, {
       stripeAccountId: "acct_prod",
+      stripeCustomerId: "cus_conn",
       dueDate: "2099-01-15",
     });
-    expect(result.stripeInvoiceId).toBe("in_final3");
-    expect(result.status).toBe("open");
+    expect(result.hostedInvoiceUrl).toBe("https://invoice.stripe.com/i/in_final3");
   });
 });

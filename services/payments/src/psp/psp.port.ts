@@ -73,9 +73,27 @@ export type PaymentMethodDetails = {
 };
 
 export type PspPaymentResult = {
+  /** PaymentIntent id on the producer Connect account (or the invoice id when Stripe exposes none). */
   stripePaymentId: string;
   status: "pending" | "succeeded" | "failed";
   failureCategory?: string;
+};
+
+/**
+ * INT-355 / REQ-014 — direct charge: pay the producer's Stripe invoice on the
+ * producer Connect account with a clone of the consumer's platform PaymentMethod.
+ */
+export type PspPaymentInput = {
+  invoiceId: string;
+  amount: string;
+  currency: string;
+  producerStripeAccountId: string;
+  /** Stripe invoice (in_…) issued by AC-06 on the producer Connect account. */
+  stripeInvoiceId: string;
+  /** Consumer Customer on the producer Connect account (EnsureConnectedCustomer). */
+  connectedCustomerId: string;
+  /** Platform PaymentMethod saved through the SetupIntent flow. */
+  consumerPaymentMethodId: string;
 };
 
 export type WebhookVerification = {
@@ -97,6 +115,14 @@ export const PRODUCER_ONBOARDING_DUE = [
   "representative.dob",
   "external_account",
   "tos_acceptance.date",
+] as const;
+
+/** Event types mapped to PaymentStatusChanged (platform and Connect endpoints). */
+export const PAYMENT_WEBHOOK_EVENTS = [
+  "payment_intent.succeeded",
+  "payment_intent.payment_failed",
+  "invoice.paid",
+  "invoice.payment_failed",
 ] as const;
 
 export interface PspPort {
@@ -135,13 +161,15 @@ export interface PspPort {
   getPaymentMethodDetails(
     paymentMethodId: string,
   ): Promise<PaymentMethodDetails>;
-  createPayment(input: {
-    invoiceId: string;
-    amount: string;
-    currency: string;
-    producerStripeAccountId: string;
-    consumerPaymentMethodId: string;
-  }): Promise<PspPaymentResult>;
+  /**
+   * INT-355 — create the consumer's Customer on a producer Connect account
+   * (metadata participantId only, no personal data).
+   */
+  createConnectedCustomer(input: {
+    participantId: string;
+    stripeAccountId: string;
+  }): Promise<{ stripeCustomerId: string }>;
+  createPayment(input: PspPaymentInput): Promise<PspPaymentResult>;
   refund(stripePaymentId: string): Promise<{ status: "refunded" }>;
   verifyWebhook(rawBody: string, signature: string): WebhookVerification;
 }

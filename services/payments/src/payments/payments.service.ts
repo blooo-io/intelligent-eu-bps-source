@@ -379,9 +379,14 @@ export class PaymentsService {
     }
     if (input.role === "prosumer") {
       if (!account.stripeAccountId || account.kycStatus !== "verified") {
-        return this.startProducerOnboarding(account);
+        const connect = await this.startProducerOnboarding(account);
+        if (connect.status !== "complete") return connect;
       }
-      return this.startConsumerElementsOnboarding(input.participantId, account);
+      // INT-362 — Connect done (possibly just now): continue to the card step.
+      return this.startConsumerElementsOnboarding(
+        input.participantId,
+        this.store.getAccount(input.participantId)!,
+      );
     }
 
     // INT-193 — consumer SetupIntent for in-wizard Payment Element.

@@ -1042,6 +1042,23 @@ describe("PaymentsService", () => {
     expect(second.clientSecret).toBeTruthy();
   });
 
+  it("INT-362 — prosumer Start goes to the card step once embedded Connect completes", async () => {
+    const first = await service.startOnboarding({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "prosumer",
+    });
+    expect(first.mode).toBe("embedded");
+    psp.completeOnboarding(first.stripeAccountId!);
+    const next = await service.startOnboarding({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "prosumer",
+    });
+    expect(next).toMatchObject({ mode: "elements", status: "requirements_due" });
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
+  });
+
   it("INT-269 — prosumer Ready only after KYC and payment method (REQ-045/051)", async () => {
     const readyCalls: Array<{ ready: boolean }> = [];
     const notifier = {

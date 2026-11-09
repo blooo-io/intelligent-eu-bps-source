@@ -277,6 +277,17 @@ export class StripePspAdapter implements PspPort {
       );
       await this.stripe.paymentMethods.attach(cloned.id, { customer }, opts);
 
+      // The charge copies PaymentIntent metadata: keep the AC-06 invoice id on the
+      // producer-side charge for reconciliation (identifier only, NFR-015).
+      const intentId = invoicePaymentIntentId(invoice);
+      if (intentId.startsWith("pi_")) {
+        await this.stripe.paymentIntents.update(
+          intentId,
+          { metadata: { invoiceId: input.invoiceId } },
+          opts,
+        );
+      }
+
       const mandate =
         platformPm.type === "sepa_debit"
           ? await this.createConnectedSepaMandate(platformPm.id, cloned.id, customer, opts)

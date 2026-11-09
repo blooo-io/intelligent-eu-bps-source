@@ -9,6 +9,7 @@ const {
   paymentMethodsCreate,
   paymentMethodsAttach,
   paymentIntentsCreate,
+  paymentIntentsUpdate,
   refundsCreate,
   customersCreate,
   setupIntentsCreate,
@@ -37,6 +38,7 @@ const {
     paymentMethodsCreate: vi.fn(),
     paymentMethodsAttach: vi.fn(),
     paymentIntentsCreate: vi.fn(),
+    paymentIntentsUpdate: vi.fn(),
     refundsCreate: vi.fn(),
     customersCreate: vi.fn(),
     setupIntentsCreate: vi.fn(),
@@ -63,7 +65,7 @@ vi.mock("stripe", () => {
         create: paymentMethodsCreate,
         attach: paymentMethodsAttach,
       },
-      paymentIntents: { create: paymentIntentsCreate },
+      paymentIntents: { create: paymentIntentsCreate, update: paymentIntentsUpdate },
       refunds: { create: refundsCreate },
       customers: { create: customersCreate },
       setupIntents: { create: setupIntentsCreate, list: setupIntentsList },
@@ -564,6 +566,10 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
     });
 
     it("clones the platform PaymentMethod and pays the invoice on the connected account", async () => {
+      invoicesRetrieve.mockResolvedValue({
+        ...openInvoice,
+        payments: { data: [{ is_default: true, payment: { payment_intent: "pi_conn" } }] },
+      });
       invoicesPay.mockResolvedValue({
         id: "in_1",
         status: "paid",
@@ -585,6 +591,11 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
       expect(paymentMethodsAttach).toHaveBeenCalledWith(
         "pm_clone",
         { customer: "cus_conn" },
+        connect,
+      );
+      expect(paymentIntentsUpdate).toHaveBeenCalledWith(
+        "pi_conn",
+        { metadata: { invoiceId: "inv-2" } },
         connect,
       );
       expect(invoicesPay).toHaveBeenCalledWith(
@@ -623,6 +634,8 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
         { customer: "cus_conn" },
         connect,
       );
+      // No PaymentIntent exposed on the invoice: nothing to tag.
+      expect(paymentIntentsUpdate).not.toHaveBeenCalled();
     });
 
     it("returns succeeded without charging when the invoice is already paid", async () => {

@@ -140,6 +140,12 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
           losses: { payments: "application" },
           requirement_collection: "application",
         }),
+        // INT-355 — card and SEPA direct charges on the producer account.
+        capabilities: {
+          card_payments: { requested: true },
+          sepa_debit_payments: { requested: true },
+          transfers: { requested: true },
+        },
         metadata: { participantId: "part-1" },
       }),
     );

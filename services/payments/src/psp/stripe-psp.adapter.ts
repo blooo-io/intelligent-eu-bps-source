@@ -102,6 +102,8 @@ export class StripePspAdapter implements PspPort {
       },
       capabilities: {
         card_payments: { requested: true },
+        // INT-355 — direct charges with a SEPA Direct Debit PaymentMethod (REQ-014).
+        sepa_debit_payments: { requested: true },
         transfers: { requested: true },
       },
       metadata: { participantId: input.participantId },

@@ -1,7 +1,6 @@
-import { Form } from "antd";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
-import type { LoadStripeFn } from "../api/stripe-account-token";
+import type { LoadConnectFn } from "../api/stripe-connect-onboarding";
 import type { LoadStripeSetupFn } from "../api/stripe-setup-element";
 import { PageFrame } from "../layout/page-frame";
 import { PaymentSetupBody } from "./payment-setup-body";
@@ -12,7 +11,6 @@ import {
   paymentSetupPageTitle,
   paymentSetupStartLabel,
 } from "./payment-setup-copy";
-import type { PaymentKycFormValues } from "./payment-setup-kyc-form";
 import { usePaymentSetup } from "./use-payment-setup";
 
 /**
@@ -24,25 +22,23 @@ export function PaymentSetupPage({
   openUrl = (url: string) => {
     window.location.assign(url);
   },
-  loadStripe,
   loadStripeSetup,
+  loadConnect,
   onComplete,
   embedded = false,
 }: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
   openUrl?: (url: string) => void;
-  loadStripe?: LoadStripeFn;
   loadStripeSetup?: LoadStripeSetupFn;
+  loadConnect?: LoadConnectFn;
   onComplete?: () => void;
   embedded?: boolean;
 }>) {
-  const [form] = Form.useForm<PaymentKycFormValues>();
   const setup = usePaymentSetup({
     config,
     oidc,
     openUrl,
-    loadStripe,
     onComplete,
   });
 
@@ -82,13 +78,11 @@ export function PaymentSetupPage({
       account={setup.account}
       brandLabel={brandLabel}
       readyConsumerCard={readyConsumerCard}
-      showRequirements={setup.showRequirements}
-      form={form}
       onStart={() => void setup.startOnboarding()}
       onPaymentMethodAttached={(id) => setup.onPaymentMethodAttached(id)}
-      onSubmitRequirements={(values) => void setup.submitRequirements(values)}
+      refreshClientSecret={setup.refreshClientSecret}
       loadStripeSetup={loadStripeSetup}
-      loadStripe={loadStripe}
+      loadConnect={loadConnect}
     />
   );
 

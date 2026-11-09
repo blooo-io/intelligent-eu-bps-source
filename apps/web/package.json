@@ -24,6 +24,7 @@
     "@ant-design/icons": "^6.0.0",
     "@refinedev/core": "^5.0.12",
     "@refinedev/react-router": "^2.0.4",
+    "@stripe/connect-js": "^3.5.0",
     "@stripe/stripe-js": "^7.9.0",
     "antd": "^5.27.4",
     "oidc-client-ts": "^3.5.0",

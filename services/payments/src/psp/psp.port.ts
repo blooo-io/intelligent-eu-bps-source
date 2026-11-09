@@ -4,15 +4,22 @@ export type ProducerAccount = {
   stripeAccountId: string;
 };
 
-/** INT-190 / INT-193 — in-platform Connect KYC or consumer SetupIntent session. */
+/**
+ * INT-362 — producer embedded Connect onboarding (`embedded`), consumer
+ * SetupIntent session (`elements` / `link`). `requirements` is the deprecated
+ * INT-191 API KYC path for accounts created before INT-362.
+ */
 export type OnboardingSession = {
-  mode: "requirements" | "link" | "elements";
+  mode: "embedded" | "requirements" | "link" | "elements";
   status: "requirements_due" | "pending_verification" | "complete";
   stripeAccountId?: string;
   currentlyDue?: string[];
   eventuallyDue?: string[];
   url?: string;
-  /** SetupIntent client secret when mode is elements (INT-193). */
+  /**
+   * SetupIntent client secret when mode is elements (INT-193), or Account
+   * Session client secret when mode is embedded (INT-362). Never logged.
+   */
   clientSecret?: string;
 };
 
@@ -56,6 +63,11 @@ export type CreateProducerAccountInput = {
   participantId: string;
   /** Required for FR Custom accounts (INT-191). */
   accountToken: string;
+  country?: string;
+};
+
+export type CreateEmbeddedProducerAccountInput = {
+  participantId: string;
   country?: string;
 };
 
@@ -104,7 +116,7 @@ export type WebhookVerification = {
   payload?: Record<string, unknown>;
 };
 
-/** Initial currently_due keys before a Custom account exists (INT-191). */
+/** Initial currently_due keys of a new producer account (mock PSP). */
 export const PRODUCER_ONBOARDING_DUE = [
   "business_type",
   "business_profile.url",
@@ -129,8 +141,27 @@ export interface PspPort {
   /**
    * INT-191 — create a Custom Connect account with `account_token`
    * (controller.requirement_collection=application, losses=application).
+   * INT-362 — test fixtures only (operator `payment-accounts:provision`):
+   * Stripe does not let the platform accept the terms of service of accounts
+   * it does not collect requirements for, so seeds cannot use the embedded path.
    */
   createProducerAccount(input: CreateProducerAccountInput): Promise<ProducerAccount>;
+  /**
+   * INT-362 — portal producer account. The producer pays Stripe fees and bears
+   * disputes (fees.payer=account); Stripe collects KYC and covers losses the
+   * producer cannot repay (losses.payments=stripe, requirement_collection=stripe).
+   * The platform absorbs no cost.
+   */
+  createEmbeddedProducerAccount(
+    input: CreateEmbeddedProducerAccountInput,
+  ): Promise<ProducerAccount>;
+  /**
+   * INT-362 — Account Session for the Connect embedded Account onboarding
+   * component. The client secret is short-lived and returned to the browser only.
+   */
+  createAccountOnboardingSession(
+    stripeAccountId: string,
+  ): Promise<{ clientSecret: string }>;
   /**
    * INT-191 — build an Account Token from KYC fields (server-side tokens.create).
    * Prefer Stripe.js in the browser; this path covers mock/tests and API fallback.

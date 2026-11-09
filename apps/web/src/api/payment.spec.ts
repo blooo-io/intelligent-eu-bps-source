@@ -3,7 +3,6 @@ import {
   attachMyPaymentMethod,
   createPaymentOnboarding,
   fetchMyPaymentAccount,
-  submitPaymentOnboardingRequirements,
 } from "./payment";
 
 describe("createPaymentOnboarding (REQ-051 / INT-190)", () => {
@@ -31,31 +30,6 @@ describe("createPaymentOnboarding (REQ-051 / INT-190)", () => {
     );
     expect(session.mode).toBe("requirements");
     expect(session.currentlyDue).toContain("business_type");
-  });
-
-  it("submits KYC requirements", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          mode: "requirements",
-          status: "complete",
-          stripeAccountId: "acct_1",
-          currentlyDue: [],
-        }),
-      }),
-    );
-    const session = await submitPaymentOnboardingRequirements(
-      "https://api.example",
-      "tok",
-      { businessType: "individual", tosAccepted: true },
-    );
-    expect(fetch).toHaveBeenCalledWith(
-      "https://api.example/v1/me/payment-account/onboarding/requirements",
-      expect.objectContaining({ method: "POST" }),
-    );
-    expect(session.status).toBe("complete");
   });
 
   it("attaches consumer payment method (INT-193)", async () => {

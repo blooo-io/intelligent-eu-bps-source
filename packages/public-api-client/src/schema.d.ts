@@ -115,7 +115,7 @@ export interface paths {
         put?: never;
         /**
          * Start payment-account onboarding
-         * @description Producer/prosumer: returns outstanding KYC requirements for in-platform collection (INT-190 / INT-191, REQ-051, UAT-051). The Custom Connect account is created on the first requirements submit with an Account Token. Consumer: returns a SetupIntent client secret (`mode: elements`) for in-platform Payment Element collection (INT-193 / REQ-040), or a provider setup link (`mode: link`) as fallback.
+         * @description Producer/prosumer: creates the Connect account on first call and returns an Account Session client secret (`mode: embedded`) for the Stripe Connect embedded Account onboarding component (INT-362, REQ-051, UAT-051). Stripe collects the KYC and the terms of service; the producer pays Stripe fees and bears disputes (`fees.payer = account`, `losses.payments = stripe`), so the platform absorbs no cost. Consumer: returns a SetupIntent client secret (`mode: elements`) for in-platform Payment Element collection (INT-193 / REQ-040), or a provider setup link (`mode: link`) as fallback.
          */
         post: operations["createPaymentOnboarding"];
         delete?: never;
@@ -155,7 +155,8 @@ export interface paths {
         put?: never;
         /**
          * Submit Connect KYC requirements
-         * @description Creates or updates a Custom Connect account using an Account Token (INT-191, REQ-051) and returns the refreshed onboarding session. Personal data is not retained by billing.
+         * @deprecated
+         * @description Deprecated by INT-362: producers onboard through the embedded Account onboarding component (`mode: embedded`). Kept for producer accounts created before INT-362 (Custom, `requirement_collection = application`): updates such an account using an Account Token (INT-191, REQ-051) and returns the refreshed onboarding session. Personal data is not retained by billing.
          */
         post: operations["submitPaymentOnboardingRequirements"];
         delete?: never;
@@ -698,13 +699,13 @@ export interface components {
              */
             dashboardUrl?: string;
         };
-        /** @description INT-190 / INT-191 / INT-193 — producer uses `mode: requirements` (in-platform KYC via Account Tokens + Custom Connect); consumer uses `mode: elements` (SetupIntent client secret for Payment Element) or `mode: link` (hosted fallback). `stripeAccountId` is absent until the first successful requirements submit creates the Custom account. */
+        /** @description INT-362 — producer uses `mode: embedded` (Account Session client secret for the Connect embedded Account onboarding component); consumer uses `mode: elements` (SetupIntent client secret for Payment Element) or `mode: link` (hosted fallback). `mode: requirements` is deprecated (INT-191 API KYC on accounts created before INT-362). */
         OnboardingSession: {
             /** @enum {string} */
-            mode: "requirements" | "link" | "elements";
+            mode: "embedded" | "requirements" | "link" | "elements";
             /** @enum {string} */
             status: "requirements_due" | "pending_verification" | "complete";
-            /** @description Connect account id once created (Custom + account_token). */
+            /** @description Connect account id once created. */
             stripeAccountId?: string;
             /** @description Stripe requirement keys still due (REQ-051). */
             currentlyDue?: string[];
@@ -714,7 +715,7 @@ export interface components {
              * @description Present when mode is link (consumer payment-method setup).
              */
             url?: string;
-            /** @description SetupIntent client secret when mode is elements (INT-193). Used only with the platform publishable key (BR-12). */
+            /** @description SetupIntent client secret when mode is elements (INT-193), or Account Session client secret when mode is embedded (INT-362). Used only with the platform publishable key (BR-12). Short-lived; never logged or stored. */
             clientSecret?: string;
         };
         /** @description KYC payload for Connect Custom accounts (INT-190 / INT-191). French platforms must supply `accountToken` (Stripe.js or tokens API); PII is not stored by billing. */
@@ -1174,7 +1175,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Onboarding session (requirements, elements, or link). */
+            /** @description Onboarding session (embedded, elements, or link). */
             200: {
                 headers: {
                     [name: string]: unknown;

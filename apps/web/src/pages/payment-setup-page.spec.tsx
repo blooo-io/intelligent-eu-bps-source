@@ -90,7 +90,7 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / INT-254 / UAT-063)", (
     expect(loadStripe).toHaveBeenCalledWith("pk_test_fixture");
   });
 
-  it("tokenizes KYC with Stripe.js then submits accountToken (INT-191)", async () => {
+  it("mounts Stripe embedded Account onboarding and refreshes status on exit (INT-362 / REQ-051)", async () => {
     const oidc: OidcFacade = {
       login: vi.fn(),
       handleCallback: vi.fn(),
@@ -98,35 +98,41 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / INT-254 / UAT-063)", (
       getUser: vi.fn(),
       getAccessToken: vi.fn().mockResolvedValue("tok"),
     };
-    const fetchImpl = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+    // Start returns an Account Session twice (mount, then expiry refresh), then complete.
+    const sessions = [
+      { mode: "embedded", status: "requirements_due", stripeAccountId: "acct_1", clientSecret: "accs_secret_1" },
+      { mode: "embedded", status: "requirements_due", stripeAccountId: "acct_1", clientSecret: "accs_secret_2" },
+      { mode: "embedded", status: "complete", stripeAccountId: "acct_1" },
+    ];
+    const fetchImpl = vi.fn().mockImplementation(async (url: string) => {
       const path = String(url);
       if (path.endsWith("/v1/me")) {
         return { ok: true, json: async () => meBody("producer") };
       }
-      if (path.includes("/onboarding/requirements") && init?.method === "POST") {
-        return {
-          ok: true,
-          json: async () => ({
-            mode: "requirements",
-            status: "complete",
-            stripeAccountId: "acct_1",
-            currentlyDue: [],
-          }),
-        };
+      if (path.endsWith("/v1/me/payment-account")) {
+        return { ok: true, json: async () => ({ status: "complete", stripeAccountId: "acct_1" }) };
       }
-      return {
-        ok: true,
-        json: async () => ({
-          mode: "requirements",
-          status: "requirements_due",
-          currentlyDue: ["business_type", "tos_acceptance.date"],
-        }),
-      };
+      const next = sessions.shift();
+      return { ok: true, json: async () => next };
     });
     vi.stubGlobal("fetch", fetchImpl);
-    const loadStripe = vi.fn().mockResolvedValue({
-      createToken: vi.fn().mockResolvedValue({ token: { id: "ct_from_js" } }),
-    });
+
+    // Fake Connect.js: a plain element with setOnExit, as the real one exposes.
+    let onExit: (() => void) | undefined;
+    let fetchClientSecret: (() => Promise<string>) | undefined;
+    const loadConnect = vi.fn().mockImplementation(
+      (params: { publishableKey: string; fetchClientSecret: () => Promise<string> }) => {
+        fetchClientSecret = params.fetchClientSecret;
+        return {
+          create: vi.fn().mockImplementation(() => {
+            const el = document.createElement("div");
+            el.textContent = "stripe onboarding";
+            Object.assign(el, { setOnExit: (cb: () => void) => { onExit = cb; } });
+            return el;
+          }),
+        };
+      },
+    );
 
     render(
       <MemoryRouter>
@@ -134,7 +140,7 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / INT-254 / UAT-063)", (
           config={config}
           oidc={oidc}
           openUrl={vi.fn()}
-          loadStripe={loadStripe}
+          loadConnect={loadConnect as never}
         />
       </MemoryRouter>,
     );
@@ -149,50 +155,24 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / INT-254 / UAT-063)", (
       screen.getByRole("button", { name: /continue to stripe connect/i }),
     );
     await waitFor(() => {
-      expect(screen.getByText(/outstanding/i)).toBeInTheDocument();
+      expect(screen.getByTestId("stripe-account-onboarding")).toHaveTextContent(
+        "stripe onboarding",
+      );
     });
-    expect(screen.getByLabelText(/business profile url/i)).toBeInTheDocument();
+    expect(loadConnect).toHaveBeenCalledWith(
+      expect.objectContaining({ publishableKey: "pk_test_fixture" }),
+    );
+    // First secret comes from Start; the next one is minted through Start again.
+    await expect(fetchClientSecret!()).resolves.toBe("accs_secret_1");
+    await expect(fetchClientSecret!()).resolves.toBe("accs_secret_2");
+    // No KYC form in the portal any more: Stripe collects everything.
+    expect(screen.queryByLabelText(/bank account/i)).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/business profile url/i), {
-      target: { value: "https://producer.example" },
-    });
-    fireEvent.change(screen.getByLabelText(/^first name/i), {
-      target: { value: "Ada" },
-    });
-    fireEvent.change(screen.getByLabelText(/^last name/i), {
-      target: { value: "Lovelace" },
-    });
-    fireEvent.change(screen.getByLabelText(/^email/i), {
-      target: { value: "ada@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText(/^address/i), {
-      target: { value: "1 Rue Example" },
-    });
-    fireEvent.change(screen.getByLabelText(/^city/i), {
-      target: { value: "Paris" },
-    });
-    fireEvent.change(screen.getByLabelText(/postal code/i), {
-      target: { value: "75001" },
-    });
-    fireEvent.change(screen.getByLabelText(/bank account/i), {
-      target: { value: "FR1420041010050500013M02606" },
-    });
-    fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.click(screen.getByRole("button", { name: /submit kyc/i }));
-
+    onExit!();
     await waitFor(() => {
       expect(screen.getByText(/payment account ready/i)).toBeInTheDocument();
     });
-    expect(loadStripe).toHaveBeenCalledWith("pk_test_fixture");
-    const submitCall = fetchImpl.mock.calls.find(
-      (c) => String(c[0]).includes("/onboarding/requirements"),
-    );
-    expect(submitCall).toBeTruthy();
-    const body = JSON.parse(submitCall![1].body as string);
-    expect(body.accountToken).toBe("ct_from_js");
-    expect(body.country).toBe("FR");
-    // INT-195 — DOB defaults (1902-01-01) and identity doc go into the Account Token.
-    expect(body.representative.dob).toEqual({ day: 1, month: 1, year: 1902 });
+    expect(screen.queryByTestId("stripe-account-onboarding")).not.toBeInTheDocument();
   });
 
   it("shows an error when onboarding fails", async () => {

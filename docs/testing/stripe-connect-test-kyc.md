@@ -15,10 +15,14 @@ Without the document file tokens, keyed identity failures leave `charges_enabled
 
 ## Product path
 
-1. Producer opens `/onboarding?step=payment` (or Payment setup).
-2. Form defaults (test) include DOB `1902-01-01`, address `address_full_match`, and identity file token `file_identity_document_success`.
-3. Stripe.js builds an Account Token including `individual.dob` and `individual.verification` (INT-195).
-4. AC-07 creates/updates the Custom account; poll until `charges_enabled` / session `complete` or `pending_verification` clears.
+Since INT-362 the portal no longer has a KYC form. The producer opens `/onboarding?step=payment` (or Payout account), AC-07 creates a Stripe-collected account (producer pays fees and bears disputes) and the Stripe embedded Account onboarding component collects everything. In test mode, enter the magic values above in that component (and Stripe's test phone / SMS code `000 000`). On exit the portal calls Start again and reads the status from Stripe.
+
+## Operator fixture path (test mode only)
+
+`POST /internal/v1/payment-accounts:provision` (seed scripts) keeps the INT-191 / INT-195 token path, because Stripe does not let the platform accept the terms of service of Stripe-collected accounts:
+
+1. AC-07 builds an Account Token with DOB `1902-01-01`, address `address_full_match`, and identity file token `file_identity_document_success`.
+2. AC-07 creates the Custom account; poll until `charges_enabled` / session `complete` or `pending_verification` clears.
 
 ## Live evidence (2026-10-18)
 

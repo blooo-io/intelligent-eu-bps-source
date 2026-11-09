@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import type {
+  CreateEmbeddedProducerAccountInput,
   CreateProducerAccountInput,
   OnboardingRequirementsSubmission,
   OnboardingSession,
@@ -107,6 +108,39 @@ export class StripePspAdapter implements PspPort {
       metadata: { participantId: input.participantId },
     });
     return { stripeAccountId: account.id };
+  }
+
+  async createEmbeddedProducerAccount(
+    input: CreateEmbeddedProducerAccountInput,
+  ): Promise<ProducerAccount> {
+    // INT-362 — fees and disputes on the producer; Stripe collects KYC and the
+    // terms of service, and covers losses the producer cannot repay.
+    // card_payments needs transfers (Stripe capability rule).
+    const account = await this.stripe.accounts.create({
+      country: (input.country ?? "FR").toUpperCase(),
+      controller: {
+        stripe_dashboard: { type: "none" },
+        fees: { payer: "account" },
+        losses: { payments: "stripe" },
+        requirement_collection: "stripe",
+      },
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      metadata: { participantId: input.participantId },
+    });
+    return { stripeAccountId: account.id };
+  }
+
+  async createAccountOnboardingSession(
+    stripeAccountId: string,
+  ): Promise<{ clientSecret: string }> {
+    const session = await this.stripe.accountSessions.create({
+      account: stripeAccountId,
+      components: { account_onboarding: { enabled: true } },
+    });
+    return { clientSecret: session.client_secret };
   }
 
   async getAccountSession(stripeAccountId: string): Promise<OnboardingSession> {

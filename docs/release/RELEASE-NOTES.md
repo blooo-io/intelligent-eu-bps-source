@@ -25,7 +25,7 @@
 | Grid fees / taxes on P2P invoices | Not on P2P invoices (A20) |
 | Acceptance | **62 Pass / 0 Blocked** in-scope UATs (INT-204, 2026-10-18). Remaining partner optimisations: pilot SLA number (NFR-008), onboarding step-count (NFR-016) — see [`docs/testing/v1-uat-package.md`](../testing/v1-uat-package.md) |
 | Partner IdP | V1 = single project IdP only (REQ-034 / REQ-037 and UAT-044 / UAT-047 out of scope, INT-192). Config-only issuer path Pass on UAT-061 |
-| Stripe Connect | Custom Account Tokens + test KYC tokens (INT-191 / INT-195); UAT-015 Pass (`charges_enabled`, destination charge, payout) |
+| Stripe Connect | Producers onboard in Stripe's embedded Account onboarding component; the producer pays Stripe fees and bears disputes, the platform absorbs nothing (INT-362). Direct charges on the producer account (INT-355). Operator test fixtures still use Account Tokens + test KYC tokens (INT-191 / INT-195). Cards only in V1 (INT-361) |
 
 ## Licensing
 

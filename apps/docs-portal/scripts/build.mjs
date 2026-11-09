@@ -22,6 +22,7 @@ const openapiDest = path.join(dist, "public.v1.yaml");
 cpSync(openapiSrc, openapiDest);
 
 const redocly = path.join(repoRoot, "node_modules/@redocly/cli/bin/cli.js");
+// INT-366 — Redocly CLI 2.71 dropped the Google Fonts switch; the page no longer loads those fonts.
 execFileSync(
   process.execPath,
   [
@@ -32,7 +33,6 @@ execFileSync(
     path.join(dist, "api.html"),
     "--title",
     "INTELLIGENT Billing API",
-    "--disableGoogleFont",
   ],
   { cwd: repoRoot, stdio: "inherit" },
 );

@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
+    // antd page specs with several fetch round trips exceed the 5 s default
+    // under coverage on shared CI runners.
+    testTimeout: 20_000,
     include: ["src/**/*.spec.{ts,tsx}", "server/**/*.spec.ts"],
     coverage: {
       ...coverage,

@@ -149,14 +149,11 @@ export class SchedulerService {
   ): Record<string, unknown> {
     switch (name) {
       case "StartRun": {
-        const p = period ?? currentPeriod(now);
         // INT-273 / BR-05 — 31 Dec cron forces StartRun(type=final) (02 §4.5).
         const type = isYearEndFinalDay(now) ? "final" : "periodic";
-        return {
-          communityId,
-          type,
-          period: type === "final" ? `${now.getUTCFullYear()}-12` : p,
-        };
+        // REQ-006 — without an explicit period AC-05 closes the last elapsed
+        // period of the community calendar (monthly or quarterly).
+        return { communityId, type, ...(period ? { period } : {}) };
       }
       case "RefreshIntake": {
         const to = new Date();

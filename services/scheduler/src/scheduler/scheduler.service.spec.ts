@@ -97,7 +97,15 @@ describe("SchedulerService", () => {
     expect(service.recordedDispatches()[0]?.body).toEqual({
       communityId: COMMUNITY,
       type: "final",
-      period: "2026-12",
+    });
+  });
+
+  it("INT-353: StartRun without a period lets AC-05 close the elapsed period (REQ-006)", async () => {
+    service.useClock(() => new Date("2026-12-01T02:00:00Z"));
+    await service.runJob(START_RUN_ID, { communityId: COMMUNITY });
+    expect(service.recordedDispatches()[0]?.body).toEqual({
+      communityId: COMMUNITY,
+      type: "periodic",
     });
   });
 

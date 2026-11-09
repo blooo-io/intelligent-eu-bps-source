@@ -419,7 +419,7 @@ export interface paths {
         put?: never;
         /**
          * Start a billing run
-         * @description A manager or operator starts a run for the community (REQ-006).
+         * @description A manager or operator starts a run for the community (REQ-006). The period is YYYY-MM or YYYY-Qn; a periodic run without a period closes the last elapsed period of the community calendar.
          */
         post: operations["startBillingRun"];
         delete?: never;
@@ -841,6 +841,13 @@ export interface components {
             status: components["schemas"]["ReadinessStatus"];
             marketActorId?: string;
             meterId?: string;
+            /** @description Directory display name for community managers (INT-283). */
+            name?: string;
+            /**
+             * Format: email
+             * @description Directory e-mail for community managers (INT-283).
+             */
+            email?: string;
         };
         ParticipantPatch: {
             marketActorId?: string;
@@ -849,13 +856,12 @@ export interface components {
         };
         BillingRunCreate: {
             type: components["schemas"]["BillingRunType"];
-            /** @description Required when type is periodic. */
-            period?: string;
+            period?: components["schemas"]["BillingPeriod"];
         };
         BillingRun: {
             runId: components["schemas"]["Uuid"];
             communityId: components["schemas"]["Uuid"];
-            period?: string;
+            period?: components["schemas"]["BillingPeriod"];
             type: components["schemas"]["BillingRunType"];
             status: components["schemas"]["BillingRunStatus"];
             version: number;
@@ -959,6 +965,12 @@ export interface components {
          * @enum {string}
          */
         PaymentStatus: "pending" | "succeeded" | "failed" | "cancelled" | "refunded";
+        /**
+         * @description Billing period of the community calendar, YYYY-MM (monthly) or YYYY-Qn (quarterly) (REQ-006).
+         * @example 2026-11
+         * @example 2026-Q4
+         */
+        BillingPeriod: string;
         /**
          * @description Kind of billing run (02 §6).
          * @enum {string}
@@ -1516,7 +1528,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Participants. Billing-profile personal data is not included. */
+            /** @description Participants. Full billing-profile address is not included; optional directory `name` / `email` help managers recognise members (INT-283 / REQ-008). */
             200: {
                 headers: {
                     [name: string]: unknown;

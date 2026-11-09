@@ -41,7 +41,12 @@ paths:
       operationId: startRun
       tags: [Settlement]
       summary: Start a billing run
-      description: StartRun(community, period) or StartRun(type = final). Called by AC-14 (REQ-006, REQ-056).
+      description: >
+        StartRun(community, period) or StartRun(type = final). Called by AC-14
+        (REQ-006, REQ-056). A periodic run without a period closes the last
+        elapsed period of the community calendar and is idempotent: a second
+        call returns the run that already closed it. Early and final runs
+        without a period are labelled with the current period.
       requestBody:
         required: true
         content:
@@ -54,7 +59,7 @@ paths:
                 communityId:
                   $ref: '../components/schemas.yaml#/components/schemas/Uuid'
                 period:
-                  type: string
+                  $ref: '../components/schemas.yaml#/components/schemas/BillingPeriod'
                 type:
                   $ref: '../components/schemas.yaml#/components/schemas/BillingRunType'
       responses:
@@ -100,7 +105,7 @@ paths:
                   communityId:
                     $ref: '../components/schemas.yaml#/components/schemas/Uuid'
                   period:
-                    type: string
+                    $ref: '../components/schemas.yaml#/components/schemas/BillingPeriod'
                   type:
                     $ref: '../components/schemas.yaml#/components/schemas/BillingRunType'
                   version:
@@ -170,6 +175,8 @@ components:
           $ref: '../components/schemas.yaml#/components/schemas/Currency'
         rate:
           $ref: '../components/schemas.yaml#/components/schemas/FxRate'
+        rateDate:
+          $ref: '../components/schemas.yaml#/components/schemas/RateDate'
         carriedForwardIn:
           $ref: '../components/schemas.yaml#/components/schemas/Money'
         carriedForwardOut:

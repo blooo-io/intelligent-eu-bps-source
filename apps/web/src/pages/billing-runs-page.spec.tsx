@@ -187,6 +187,45 @@ describe("BillingRunsPage (INT-146 / UAT-006)", () => {
     });
   });
 
+  it("INT-353: refuses a malformed period before calling the API (REQ-006)", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        participantId: "11111111-1111-1111-1111-111111111111",
+        communityId,
+        roles: ["manager"],
+        readiness: "Ready",
+        profile: { name: "Mgr", address: "1", email: "m@e.com" },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MemoryRouter>
+        <BillingRunsPage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("billing-runs-community-help")).toBeInTheDocument();
+    });
+    const calls = fetchMock.mock.calls.length;
+
+    fireEvent.change(screen.getByLabelText(/Billing period/i), {
+      target: { value: "2026-11-28" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /start run/i }));
+
+    expect(await screen.findByText(/Use YYYY-MM or YYYY-Qn/i)).toBeInTheDocument();
+    expect(fetchMock.mock.calls.length).toBe(calls);
+  });
+
   it("shows an error when start fails and when refresh fails", async () => {
     const oidc: OidcFacade = {
       login: vi.fn(),

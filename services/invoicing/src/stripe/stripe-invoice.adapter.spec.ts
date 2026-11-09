@@ -30,6 +30,7 @@ const settlement = {
   vat: "2.00",
   currency: "EUR",
   rate: "1.0000",
+  rateDate: "2026-11-30",
   communityId: "com-1",
 };
 
@@ -101,7 +102,7 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
         description: expect.stringContaining("t-1"),
         pending_invoice_items_behavior: "exclude",
         custom_fields: expect.arrayContaining([
-          expect.objectContaining({ name: "FX rate", value: "1.0000" }),
+          expect.objectContaining({ name: "ECB rate", value: "1.0000 (2026-11-30)" }),
         ]),
       }),
       { stripeAccount: "acct_prod" },
@@ -112,7 +113,7 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
       customer: "cus_conn",
       invoice: "in_draft",
       amount: 1000,
-      description: expect.stringContaining("Energy"),
+      description: "Energy 10 kWh (EUR to EUR at 1.0000 (2026-11-30))",
     });
     expect(invoiceItemsCreate.mock.calls[1][0]).toMatchObject({
       invoice: "in_draft",
@@ -138,11 +139,16 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
       status: "open",
     });
     const adapter = new StripeInvoiceAdapter({ secretKey: "sk_test_abc" });
-    const result = await adapter.createFromSettlement(settlement, {
+    const { rateDate: _omitted, ...withoutRateDate } = settlement;
+    const result = await adapter.createFromSettlement(withoutRateDate, {
       stripeAccountId: "acct_prod",
       stripeCustomerId: "cus_conn",
       dueDate: "2099-01-15",
     });
     expect(result.hostedInvoiceUrl).toBe("https://invoice.stripe.com/i/in_final3");
+    expect(invoicesCreate.mock.calls[0][0].custom_fields).toContainEqual({
+      name: "ECB rate",
+      value: "1.0000",
+    });
   });
 });

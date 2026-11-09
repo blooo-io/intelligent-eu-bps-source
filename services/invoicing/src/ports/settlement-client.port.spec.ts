@@ -21,6 +21,7 @@ describe("HttpSettlementClient (INT-223)", () => {
         vat: "0.10",
         currency: "EUR",
         rate: "1.0000",
+        rateDate: "2026-11-30",
         producerStripeAccountId: "acct_x",
       }),
     })) as unknown as typeof fetch;
@@ -33,6 +34,7 @@ describe("HttpSettlementClient (INT-223)", () => {
     expect(pair.settlementId).toBe("s1");
     expect(pair.energyAmount).toBe("1.25");
     expect(pair.producerStripeAccountId).toBe("acct_x");
+    expect(pair.rateDate).toBe("2026-11-30");
     expect(fetchImpl).toHaveBeenCalledWith(
       "http://settlement:8080/internal/v1/settlements/s1",
       expect.objectContaining({

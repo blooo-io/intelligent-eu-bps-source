@@ -18,6 +18,8 @@ export type PairSettlementInput = {
   vat: string;
   currency: string;
   rate: string;
+  /** BR-06 — date of the ECB reference rate (YYYY-MM-DD). */
+  rateDate?: string;
   communityId: string;
   /** INT-197 / UAT-028 — real Connect account when seeding against Stripe test. */
   producerStripeAccountId?: string;

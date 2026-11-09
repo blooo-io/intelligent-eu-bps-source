@@ -69,7 +69,8 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
         footer:
           "Self-billing invoice issued by the platform in the name of the producer (WA-07 / TD-2).",
         custom_fields: [
-          { name: "FX rate", value: settlement.rate },
+          // BR-06 / REQ-002 — the invoice shows the ECB rate and its date.
+          { name: "ECB rate", value: ecbRate(settlement) },
           { name: "Settlement", value: settlement.settlementId.slice(0, 18) },
         ],
         metadata: {
@@ -93,7 +94,7 @@ export class StripeInvoiceAdapter implements StripeInvoicePort {
           invoice: draft.id,
           amount: energy,
           currency,
-          description: `Energy ${settlement.kWh} kWh @ ${settlement.rate}`,
+          description: `Energy ${settlement.kWh} kWh (EUR to ${settlement.currency} at ${ecbRate(settlement)})`,
         },
         { stripeAccount },
       );
@@ -135,4 +136,10 @@ function mapStatus(
     return status;
   }
   return "open";
+}
+
+function ecbRate(settlement: PairSettlementInput): string {
+  return settlement.rateDate
+    ? `${settlement.rate} (${settlement.rateDate})`
+    : settlement.rate;
 }

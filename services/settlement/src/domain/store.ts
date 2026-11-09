@@ -56,6 +56,16 @@ export class SettlementStore {
     return max + 1;
   }
 
+  /** REQ-006 — the periodic run that closed this community period, if any. */
+  findPeriodicRun(communityId: string, period: string): BillingRunRecord | undefined {
+    for (const run of this.runs.values()) {
+      if (run.communityId === communityId && run.period === period && run.type === "periodic") {
+        return structuredClone(run);
+      }
+    }
+    return undefined;
+  }
+
   pairKey(x: string, y: string): string {
     return canonicalPair(x, y).join("|");
   }

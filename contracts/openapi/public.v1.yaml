@@ -587,7 +587,10 @@ paths:
       operationId: startBillingRun
       tags: [Billing]
       summary: Start a billing run
-      description: A manager or operator starts a run for the community (REQ-006).
+      description: >
+        A manager or operator starts a run for the community (REQ-006). The
+        period is YYYY-MM or YYYY-Qn; a periodic run without a period closes the
+        last elapsed period of the community calendar.
       x-served-by: AC-05
       parameters:
         - $ref: '#/components/parameters/ResourceId'
@@ -1327,8 +1330,7 @@ components:
         type:
           $ref: './components/schemas.yaml#/components/schemas/BillingRunType'
         period:
-          type: string
-          description: Required when type is periodic.
+          $ref: './components/schemas.yaml#/components/schemas/BillingPeriod'
     BillingRun:
       type: object
       additionalProperties: false
@@ -1339,7 +1341,7 @@ components:
         communityId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
         period:
-          type: string
+          $ref: './components/schemas.yaml#/components/schemas/BillingPeriod'
         type:
           $ref: './components/schemas.yaml#/components/schemas/BillingRunType'
         status:

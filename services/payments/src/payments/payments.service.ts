@@ -18,6 +18,11 @@ import {
   type AccountRecord,
 } from "../domain/store.js";
 import {
+  CONNECTED_CUSTOMERS_STORE,
+  type ConnectedCustomerRecord,
+  type ConnectedCustomersStore,
+} from "../ports/connected-customers.store.js";
+import {
   INVOICE_LOOKUP,
   type InvoiceLookupPort,
 } from "../ports/invoice-lookup.port.js";
@@ -38,6 +43,7 @@ import {
   type PspErasePort,
 } from "../psp/psp-erase.port.js";
 import {
+  PAYMENT_WEBHOOK_EVENTS,
   PSP_PORT,
   PRODUCER_ONBOARDING_DUE,
   type OnboardingRequirementsSubmission,
@@ -71,6 +77,8 @@ export class PaymentsService {
     private readonly idpResolver: ParticipantsResolverPort,
     @Inject(PSP_ERASE_PORT) private readonly pspErase: PspErasePort,
     @Inject(IdempotentConsumer) private readonly consumer: IdempotentConsumer,
+    @Inject(CONNECTED_CUSTOMERS_STORE)
+    private readonly connectedCustomers: ConnectedCustomersStore,
   ) {}
 
   /** INT-326 — exposed for tests / future Prometheus scrape. */
@@ -81,6 +89,34 @@ export class PaymentsService {
   resetStore(): void {
     this.store.reset();
     this.accountsStore.reset?.();
+    this.connectedCustomers.reset?.();
+  }
+
+  /**
+   * INT-355 / REQ-014 — EnsureConnectedCustomer: one Customer per consumer per
+   * producer Connect account, reused for every invoice of the pair. AC-06 bills
+   * it; AC-07 pays the invoice as that Customer (direct charge).
+   */
+  async ensureConnectedCustomer(input: {
+    participantId: string;
+    stripeAccountId: string;
+  }): Promise<ConnectedCustomerRecord> {
+    if (!input.participantId || !/^acct_/.test(input.stripeAccountId ?? "")) {
+      throw new BadRequestException("participantId and acct_ stripeAccountId required");
+    }
+    const existing = await this.connectedCustomers.get(
+      input.participantId,
+      input.stripeAccountId,
+    );
+    if (existing) {
+      return existing;
+    }
+    const created = await this.psp.createConnectedCustomer(input);
+    return this.connectedCustomers.putIfAbsent({
+      participantId: input.participantId,
+      stripeAccountId: input.stripeAccountId,
+      stripeCustomerId: created.stripeCustomerId,
+    });
   }
 
   /** INT-228 — write memory + durable store (Postgres when DATABASE_URL set). */
@@ -633,16 +669,41 @@ export class PaymentsService {
       undefined;
     if (!producerStripeAccountId) {
       throw new BadRequestException(
-        "Producer Connect account required for destination charge",
+        "Producer Connect account required for direct charge",
+      );
+    }
+    if (!invoice.stripeInvoiceId) {
+      throw new BadRequestException(
+        "Stripe invoice required for direct charge (REQ-014)",
       );
     }
 
+    // INT-355 — replaying Pay on a settled invoice returns the original payment.
+    const prior = this.store.findSucceededByInvoiceId(input.invoiceId);
+    if (prior) {
+      return {
+        paymentId: prior.paymentId,
+        invoiceId: prior.invoiceId,
+        amount: prior.amount,
+        currency: prior.currency,
+        status: prior.status,
+        method: prior.method,
+        processingTimeMs: prior.processingTimeMs,
+      };
+    }
+
     const started = Date.now();
+    const connected = await this.ensureConnectedCustomer({
+      participantId,
+      stripeAccountId: producerStripeAccountId,
+    });
     const pspResult = await this.psp.createPayment({
       invoiceId: input.invoiceId,
       amount: invoice.total,
       currency: invoice.currency,
       producerStripeAccountId,
+      stripeInvoiceId: invoice.stripeInvoiceId,
+      connectedCustomerId: connected.stripeCustomerId,
       consumerPaymentMethodId: account.paymentMethodId,
     });
     const processingTimeMs = Math.max(0, Date.now() - started);
@@ -666,6 +727,7 @@ export class PaymentsService {
       currency: invoice.currency,
       status: pspResult.status,
       stripePaymentId: pspResult.stripePaymentId,
+      stripeInvoiceId: invoice.stripeInvoiceId,
       failureCategory: pspResult.failureCategory,
       communityId,
       method,
@@ -707,28 +769,38 @@ export class PaymentsService {
     await this.completeProducerKyc(participantId);
   }
 
-  private async handlePaymentIntentWebhook(
+  /**
+   * INT-355 — payment_intent.* and invoice.* (Connect events on the producer
+   * account) both resolve to the local Payment and emit PaymentStatusChanged.
+   */
+  private async handlePaymentStatusWebhook(
     eventType: string,
     payload: Record<string, unknown> | undefined,
   ): Promise<void> {
     const stripePaymentId = asString(payload?.stripePaymentId);
-    const row = this.store.findByStripePaymentId(stripePaymentId);
+    const stripeInvoiceId = asString(payload?.stripeInvoiceId);
+    const row =
+      (stripePaymentId
+        ? this.store.findByStripePaymentId(stripePaymentId)
+        : undefined) ??
+      (stripeInvoiceId
+        ? this.store.findByStripeInvoiceId(stripeInvoiceId)
+        : undefined);
     if (!row) {
       return;
     }
     const status =
-      eventType === "payment_intent.succeeded" ? "succeeded" : "failed";
+      eventType === "payment_intent.succeeded" || eventType === "invoice.paid"
+        ? "succeeded"
+        : "failed";
     if (row.status === status) {
       return;
     }
-    this.store.putPayment({
-      ...row,
-      status,
-      failureCategory:
-        status === "failed"
-          ? asString(payload?.failureCategory ?? row.failureCategory, "declined")
-          : row.failureCategory,
-    });
+    const failureCategory =
+      status === "failed"
+        ? asString(payload?.failureCategory ?? row.failureCategory, "declined")
+        : undefined;
+    this.store.putPayment({ ...row, status, failureCategory });
     await this.outbox.append({
       aggregateType: "Payment",
       aggregateId: row.paymentId,
@@ -740,6 +812,7 @@ export class PaymentsService {
         paymentId: row.paymentId,
         invoiceId: row.invoiceId,
         status,
+        ...(failureCategory ? { failureCategory } : {}),
       },
     });
   }
@@ -765,14 +838,9 @@ export class PaymentsService {
           await this.handleAccountUpdatedWebhook(event.payload);
           return;
         }
-        if (
-          event.eventType === "payment_intent.succeeded" ||
-          event.eventType === "payment_intent.payment_failed"
-        ) {
-          await this.handlePaymentIntentWebhook(
-            event.eventType,
-            event.payload,
-          );
+        const eventType = event.eventType ?? "";
+        if ((PAYMENT_WEBHOOK_EVENTS as readonly string[]).includes(eventType)) {
+          await this.handlePaymentStatusWebhook(eventType, event.payload);
         }
       },
     );

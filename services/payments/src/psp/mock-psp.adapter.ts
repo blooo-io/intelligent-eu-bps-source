@@ -6,6 +6,7 @@ import type {
   PaymentMethodDetails,
   PaymentMethodRef,
   ProducerAccount,
+  PspPaymentInput,
   PspPaymentResult,
   PspPort,
   WebhookVerification,
@@ -23,6 +24,13 @@ export class MockPspAdapter implements PspPort {
   readonly payments: PspPaymentResult[] = [];
   readonly dueByAccount = new Map<string, string[]>();
   readonly tokens: string[] = [];
+  readonly connectedCustomers: Array<{
+    participantId: string;
+    stripeAccountId: string;
+    stripeCustomerId: string;
+  }> = [];
+  readonly paymentInputs: PspPaymentInput[] = [];
+  private readonly paidInvoices = new Map<string, PspPaymentResult>();
 
   async createAccountToken(
     _submission: OnboardingRequirementsSubmission,
@@ -146,19 +154,23 @@ export class MockPspAdapter implements PspPort {
     return { paymentMethodId, type: "card", brand: "visa", last4: "4242" };
   }
 
-  async createPayment(input: {
-    invoiceId: string;
-    amount: string;
-    currency: string;
-    producerStripeAccountId: string;
-    consumerPaymentMethodId: string;
-  }): Promise<PspPaymentResult> {
-    const {
-      amount: _amount,
-      currency: _currency,
-      producerStripeAccountId: _producerStripeAccountId,
-      consumerPaymentMethodId,
-    } = input;
+  async createConnectedCustomer(input: {
+    participantId: string;
+    stripeAccountId: string;
+  }): Promise<{ stripeCustomerId: string }> {
+    const stripeCustomerId = `cus_test_${randomUUID().replaceAll("-", "").slice(0, 14)}`;
+    this.connectedCustomers.push({ ...input, stripeCustomerId });
+    return { stripeCustomerId };
+  }
+
+  /** INT-355 — mirrors Stripe: a paid invoice is never charged twice. */
+  async createPayment(input: PspPaymentInput): Promise<PspPaymentResult> {
+    this.paymentInputs.push({ ...input });
+    const alreadyPaid = this.paidInvoices.get(input.stripeInvoiceId);
+    if (alreadyPaid) {
+      return { ...alreadyPaid };
+    }
+    const { consumerPaymentMethodId } = input;
     const fail = consumerPaymentMethodId.startsWith("pm_fail_");
     const result: PspPaymentResult = fail
       ? {
@@ -173,6 +185,9 @@ export class MockPspAdapter implements PspPort {
           status: "succeeded",
         };
     this.payments.push(result);
+    if (result.status === "succeeded") {
+      this.paidInvoices.set(input.stripeInvoiceId, result);
+    }
     return result;
   }
 

@@ -44,6 +44,34 @@ describe("payments HTTP (INT-107)", () => {
     expect(await res.json()).toEqual({ status: "ok", module: "payments" });
   });
 
+  it("UAT-014 REQ-014 internal EnsureConnectedCustomer reuses one Customer per pair (INT-355)", async () => {
+    const ensure = (body: unknown, roles = "service") =>
+      fetch(`${base}/internal/v1/connected-customers:ensure`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-intelligent-roles": roles,
+        },
+        body: JSON.stringify(body),
+      });
+    const first = await ensure({ participantId: CONSUMER, stripeAccountId: "acct_test_p1" });
+    expect(first.status).toBe(200);
+    const created = (await first.json()) as { stripeCustomerId: string };
+    expect(created).toMatchObject({
+      participantId: CONSUMER,
+      stripeAccountId: "acct_test_p1",
+      stripeCustomerId: expect.stringMatching(/^cus_test_/),
+    });
+    const again = await ensure({ participantId: CONSUMER, stripeAccountId: "acct_test_p1" });
+    expect(((await again.json()) as { stripeCustomerId: string }).stripeCustomerId).toBe(
+      created.stripeCustomerId,
+    );
+    expect((await ensure({ participantId: CONSUMER, stripeAccountId: "bad" })).status).toBe(400);
+    expect(
+      (await ensure({ participantId: CONSUMER, stripeAccountId: "acct_test_p1" }, "member")).status,
+    ).toBe(403);
+  });
+
   it("internal GetPaymentAccount + provision (INT-228)", async () => {
     const missing = await fetch(
       `${base}/internal/v1/payment-accounts/${PRODUCER}`,
@@ -111,6 +139,7 @@ describe("payments HTTP (INT-107)", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     invoices.put({
       invoiceId: INVOICE,
+      stripeInvoiceId: "in_test_http",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",

@@ -6,10 +6,16 @@ const {
   accountsUpdate,
   tokensCreate,
   paymentMethodsRetrieve,
+  paymentMethodsCreate,
+  paymentMethodsAttach,
   paymentIntentsCreate,
   refundsCreate,
   customersCreate,
   setupIntentsCreate,
+  setupIntentsList,
+  mandatesRetrieve,
+  invoicesRetrieve,
+  invoicesPay,
   constructEvent,
   StripeCardError,
 } = vi.hoisted(() => {
@@ -28,10 +34,16 @@ const {
     accountsUpdate: vi.fn(),
     tokensCreate: vi.fn(),
     paymentMethodsRetrieve: vi.fn(),
+    paymentMethodsCreate: vi.fn(),
+    paymentMethodsAttach: vi.fn(),
     paymentIntentsCreate: vi.fn(),
     refundsCreate: vi.fn(),
     customersCreate: vi.fn(),
     setupIntentsCreate: vi.fn(),
+    setupIntentsList: vi.fn(),
+    mandatesRetrieve: vi.fn(),
+    invoicesRetrieve: vi.fn(),
+    invoicesPay: vi.fn(),
     constructEvent: vi.fn(),
     StripeCardError,
   };
@@ -46,11 +58,17 @@ vi.mock("stripe", () => {
         update: accountsUpdate,
       },
       tokens: { create: tokensCreate },
-      paymentMethods: { retrieve: paymentMethodsRetrieve },
+      paymentMethods: {
+        retrieve: paymentMethodsRetrieve,
+        create: paymentMethodsCreate,
+        attach: paymentMethodsAttach,
+      },
       paymentIntents: { create: paymentIntentsCreate },
       refunds: { create: refundsCreate },
       customers: { create: customersCreate },
-      setupIntents: { create: setupIntentsCreate },
+      setupIntents: { create: setupIntentsCreate, list: setupIntentsList },
+      mandates: { retrieve: mandatesRetrieve },
+      invoices: { retrieve: invoicesRetrieve, pay: invoicesPay },
       webhooks: { constructEvent },
     };
   }
@@ -417,6 +435,61 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
     });
   });
 
+  it("UAT-014 maps Connect invoice.paid / invoice.payment_failed with the connected account (INT-355)", () => {
+    const adapter = new StripePspAdapter(creds);
+    constructEvent.mockReturnValueOnce({
+      id: "evt_inv_paid",
+      type: "invoice.paid",
+      account: "acct_p",
+      data: { object: { id: "in_1", status: "paid" } },
+    });
+    expect(adapter.verifyWebhook("{}", "sig")).toEqual({
+      ok: true,
+      eventId: "evt_inv_paid",
+      eventType: "invoice.paid",
+      payload: { stripeInvoiceId: "in_1", status: "paid", stripeAccountId: "acct_p" },
+    });
+    constructEvent.mockReturnValueOnce({
+      id: "evt_inv_failed",
+      type: "invoice.payment_failed",
+      data: { object: { id: "in_2", status: "open" } },
+    });
+    expect(adapter.verifyWebhook("{}", "sig").payload).toEqual({
+      stripeInvoiceId: "in_2",
+      status: "open",
+    });
+  });
+
+  it("maps Connect payment_intent.payment_failed with its decline category (INT-355)", () => {
+    const adapter = new StripePspAdapter(creds);
+    constructEvent.mockReturnValueOnce({
+      id: "evt_pi_failed",
+      type: "payment_intent.payment_failed",
+      account: "acct_p",
+      data: {
+        object: {
+          id: "pi_c",
+          status: "requires_payment_method",
+          last_payment_error: { code: "card_declined", decline_code: "insufficient_funds" },
+        },
+      },
+    });
+    expect(adapter.verifyWebhook("{}", "sig").payload).toEqual({
+      stripePaymentId: "pi_c",
+      status: "requires_payment_method",
+      stripeAccountId: "acct_p",
+      failureCategory: "insufficient_funds",
+    });
+    constructEvent.mockReturnValueOnce({
+      id: "evt_pi_failed_2",
+      type: "payment_intent.payment_failed",
+      data: { object: { id: "pi_d", status: "canceled", last_payment_error: {} } },
+    });
+    expect(adapter.verifyWebhook("{}", "sig").payload).toMatchObject({
+      failureCategory: "declined",
+    });
+  });
+
   it("maps account.updated webhook to participantId", () => {
     constructEvent.mockReturnValue({
       id: "evt_acct_1",
@@ -442,46 +515,314 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
     expect(adapter.verifyWebhook("{}", "sig")).toEqual({ ok: false });
   });
 
-  it("returns failed category on card decline", async () => {
-    paymentIntentsCreate.mockRejectedValue(
-      new StripeCardError("fail", "insufficient_funds"),
-    );
-    const adapter = new StripePspAdapter(creds);
-    const result = await adapter.createPayment({
-      invoiceId: "inv-1",
-      amount: "2.00",
-      currency: "EUR",
-      producerStripeAccountId: "acct_p",
-      consumerPaymentMethodId: "pm_fail",
-    });
-    expect(result.status).toBe("failed");
-    expect(result.failureCategory).toBe("insufficient_funds");
-  });
-
-  it("confirms destination PaymentIntent on success", async () => {
-    paymentIntentsCreate.mockResolvedValue({
-      id: "pi_ok",
-      status: "succeeded",
-    });
-    const adapter = new StripePspAdapter(creds);
-    const result = await adapter.createPayment({
+  describe("UAT-014 / UAT-015 REQ-014 direct charge on the producer Connect account (INT-355)", () => {
+    const connect = { stripeAccount: "acct_p" };
+    const payInput = {
       invoiceId: "inv-2",
       amount: "12.50",
       currency: "EUR",
       producerStripeAccountId: "acct_p",
-      consumerPaymentMethodId: "pm_card_visa",
+      stripeInvoiceId: "in_1",
+      connectedCustomerId: "cus_conn",
+      consumerPaymentMethodId: "pm_platform",
+    };
+    const openInvoice = {
+      id: "in_1",
+      status: "open",
+      amount_due: 1250,
+      currency: "eur",
+      customer: "cus_conn",
+    };
+
+    beforeEach(() => {
+      invoicesRetrieve.mockResolvedValue(openInvoice);
+      paymentMethodsRetrieve.mockResolvedValue({
+        id: "pm_platform",
+        type: "card",
+        customer: "cus_platform",
+      });
+      paymentMethodsCreate.mockResolvedValue({ id: "pm_clone" });
+      paymentMethodsAttach.mockResolvedValue({ id: "pm_clone" });
     });
-    expect(result).toEqual({ stripePaymentId: "pi_ok", status: "succeeded" });
-    expect(paymentIntentsCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        amount: 1250,
-        currency: "eur",
-        confirm: true,
-        off_session: true,
-        transfer_data: { destination: "acct_p" },
-        metadata: { invoiceId: "inv-2" },
-      }),
-    );
+
+    it("creates the connected-account Customer with participantId metadata only", async () => {
+      customersCreate.mockResolvedValue({ id: "cus_conn" });
+      const adapter = new StripePspAdapter(creds);
+      await expect(
+        adapter.createConnectedCustomer({ participantId: "part-1", stripeAccountId: "acct_p" }),
+      ).resolves.toEqual({ stripeCustomerId: "cus_conn" });
+      expect(customersCreate).toHaveBeenCalledWith(
+        { metadata: { participantId: "part-1" } },
+        connect,
+      );
+    });
+
+    it("clones the platform PaymentMethod and pays the invoice on the connected account", async () => {
+      invoicesPay.mockResolvedValue({
+        id: "in_1",
+        status: "paid",
+        payments: {
+          data: [{ is_default: true, payment: { type: "payment_intent", payment_intent: "pi_conn" } }],
+        },
+      });
+      const adapter = new StripePspAdapter(creds);
+      await expect(adapter.createPayment(payInput)).resolves.toEqual({
+        stripePaymentId: "pi_conn",
+        status: "succeeded",
+      });
+      expect(invoicesRetrieve).toHaveBeenCalledWith("in_1", { expand: ["payments"] }, connect);
+      expect(paymentMethodsRetrieve).toHaveBeenCalledWith("pm_platform");
+      expect(paymentMethodsCreate).toHaveBeenCalledWith(
+        { customer: "cus_platform", payment_method: "pm_platform" },
+        connect,
+      );
+      expect(paymentMethodsAttach).toHaveBeenCalledWith(
+        "pm_clone",
+        { customer: "cus_conn" },
+        connect,
+      );
+      expect(invoicesPay).toHaveBeenCalledWith(
+        "in_1",
+        { payment_method: "pm_clone", off_session: true, expand: ["payments"] },
+        connect,
+      );
+      // REQ-014 — no platform charge and no transfer_data destination.
+      expect(paymentIntentsCreate).not.toHaveBeenCalled();
+      expect(JSON.stringify(invoicesPay.mock.calls)).not.toContain("transfer_data");
+      expect(setupIntentsList).not.toHaveBeenCalled();
+    });
+
+    it("attaches to the invoice's own Customer when it differs from the mapping", async () => {
+      invoicesRetrieve.mockResolvedValue({ ...openInvoice, customer: { id: "cus_legacy" } });
+      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
+      const adapter = new StripePspAdapter(creds);
+      await expect(adapter.createPayment(payInput)).resolves.toEqual({
+        stripePaymentId: "in_1",
+        status: "succeeded",
+      });
+      expect(paymentMethodsAttach).toHaveBeenCalledWith(
+        "pm_clone",
+        { customer: "cus_legacy" },
+        connect,
+      );
+    });
+
+    it("falls back to the mapped Customer when the invoice has none", async () => {
+      invoicesRetrieve.mockResolvedValue({ ...openInvoice, customer: null });
+      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
+      const adapter = new StripePspAdapter(creds);
+      await adapter.createPayment(payInput);
+      expect(paymentMethodsAttach).toHaveBeenCalledWith(
+        "pm_clone",
+        { customer: "cus_conn" },
+        connect,
+      );
+    });
+
+    it("returns succeeded without charging when the invoice is already paid", async () => {
+      invoicesRetrieve.mockResolvedValue({
+        ...openInvoice,
+        status: "paid",
+        payments: { data: [{ is_default: false, payment: { payment_intent: { id: "pi_old" } } }] },
+      });
+      const adapter = new StripePspAdapter(creds);
+      await expect(adapter.createPayment(payInput)).resolves.toEqual({
+        stripePaymentId: "pi_old",
+        status: "succeeded",
+      });
+      expect(paymentMethodsCreate).not.toHaveBeenCalled();
+      expect(invoicesPay).not.toHaveBeenCalled();
+    });
+
+    it("refuses void / draft invoices", async () => {
+      invoicesRetrieve.mockResolvedValue({ ...openInvoice, status: "void" });
+      const adapter = new StripePspAdapter(creds);
+      await expect(adapter.createPayment(payInput)).resolves.toEqual({
+        stripePaymentId: "in_1",
+        status: "failed",
+        failureCategory: "invoice_not_payable",
+      });
+      expect(invoicesPay).not.toHaveBeenCalled();
+    });
+
+    it("refuses an amount or currency that differs from the Stripe invoice", async () => {
+      invoicesRetrieve.mockResolvedValue({ ...openInvoice, amount_due: 999 });
+      const adapter = new StripePspAdapter(creds);
+      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
+        status: "failed",
+        failureCategory: "amount_mismatch",
+      });
+      invoicesRetrieve.mockResolvedValue({ ...openInvoice, currency: "chf" });
+      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
+        failureCategory: "amount_mismatch",
+      });
+      expect(invoicesPay).not.toHaveBeenCalled();
+    });
+
+    it("fails when the platform PaymentMethod has no platform Customer", async () => {
+      paymentMethodsRetrieve.mockResolvedValue({ id: "pm_platform", type: "card", customer: null });
+      const adapter = new StripePspAdapter(creds);
+      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
+        status: "failed",
+        failureCategory: "payment_method_not_attached",
+      });
+    });
+
+    it("maps an open invoice after pay (async SEPA / requires_action) to pending", async () => {
+      invoicesPay.mockResolvedValue({ id: "in_1", status: "open" });
+      const adapter = new StripePspAdapter(creds);
+      await expect(adapter.createPayment(payInput)).resolves.toEqual({
+        stripePaymentId: "in_1",
+        status: "pending",
+      });
+    });
+
+    it("maps any other invoice status after pay to failed", async () => {
+      invoicesPay.mockResolvedValue({ id: "in_1", status: "uncollectible" });
+      const adapter = new StripePspAdapter(creds);
+      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
+        status: "failed",
+        failureCategory: "declined",
+      });
+    });
+
+    it("returns the failure category and PaymentIntent of a declined card", async () => {
+      invoicesPay.mockRejectedValue(
+        Object.assign(new StripeCardError("fail", "insufficient_funds"), {
+          payment_intent: { id: "pi_declined" },
+        }),
+      );
+      const adapter = new StripePspAdapter(creds);
+      await expect(adapter.createPayment(payInput)).resolves.toEqual({
+        stripePaymentId: "pi_declined",
+        status: "failed",
+        failureCategory: "insufficient_funds",
+      });
+    });
+
+    it("maps authentication and generic errors", async () => {
+      const adapter = new StripePspAdapter(creds);
+      invoicesPay.mockRejectedValue(
+        Object.assign(new Error("x"), { code: "authentication_required" }),
+      );
+      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
+        stripePaymentId: "in_1",
+        failureCategory: "authentication_required",
+      });
+      invoicesRetrieve.mockRejectedValue(new Error("network down"));
+      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
+        failureCategory: "declined",
+      });
+      invoicesRetrieve.mockRejectedValue({});
+      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
+        failureCategory: "declined",
+      });
+    });
+
+    describe("SEPA Direct Debit", () => {
+      beforeEach(() => {
+        paymentMethodsRetrieve.mockResolvedValue({
+          id: "pm_platform",
+          type: "sepa_debit",
+          customer: { id: "cus_platform" },
+        });
+        invoicesPay.mockResolvedValue({ id: "in_1", status: "open" });
+      });
+
+      it("re-creates the mandate on the connected account from the online acceptance", async () => {
+        setupIntentsList.mockResolvedValue({
+          data: [
+            { status: "requires_payment_method", mandate: null },
+            { status: "succeeded", mandate: "mandate_platform" },
+          ],
+        });
+        mandatesRetrieve.mockResolvedValue({
+          customer_acceptance: {
+            type: "online",
+            accepted_at: 1700000000,
+            online: { ip_address: "203.0.113.1", user_agent: "UA" },
+          },
+        });
+        setupIntentsCreate.mockResolvedValue({ id: "seti_c", mandate: { id: "mandate_conn" } });
+        const adapter = new StripePspAdapter(creds);
+        await expect(adapter.createPayment(payInput)).resolves.toEqual({
+          stripePaymentId: "in_1",
+          status: "pending",
+        });
+        expect(setupIntentsList).toHaveBeenCalledWith({ payment_method: "pm_platform", limit: 10 });
+        expect(setupIntentsCreate).toHaveBeenCalledWith(
+          {
+            customer: "cus_conn",
+            payment_method: "pm_clone",
+            confirm: true,
+            usage: "off_session",
+            allowed_payment_method_types: ["sepa_debit"],
+            mandate_data: {
+              customer_acceptance: {
+                type: "online",
+                accepted_at: 1700000000,
+                online: { ip_address: "203.0.113.1", user_agent: "UA" },
+              },
+            },
+          },
+          connect,
+        );
+        expect(invoicesPay).toHaveBeenCalledWith(
+          "in_1",
+          {
+            payment_method: "pm_clone",
+            off_session: true,
+            mandate: "mandate_conn",
+            expand: ["payments"],
+          },
+          connect,
+        );
+      });
+
+      it("falls back to offline acceptance when online details are missing", async () => {
+        setupIntentsList.mockResolvedValue({
+          data: [{ status: "succeeded", mandate: { id: "mandate_platform" } }],
+        });
+        mandatesRetrieve.mockResolvedValue({
+          customer_acceptance: { type: "offline", accepted_at: null },
+        });
+        setupIntentsCreate.mockResolvedValue({ id: "seti_c", mandate: "mandate_conn" });
+        const adapter = new StripePspAdapter(creds);
+        await adapter.createPayment(payInput);
+        expect(setupIntentsCreate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            mandate_data: {
+              customer_acceptance: { type: "offline", accepted_at: undefined, offline: {} },
+            },
+          }),
+          connect,
+        );
+      });
+
+      it("fails as mandate_required without a platform mandate", async () => {
+        setupIntentsList.mockResolvedValue({ data: [] });
+        const adapter = new StripePspAdapter(creds);
+        await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
+          status: "failed",
+          failureCategory: "mandate_required",
+        });
+        expect(invoicesPay).not.toHaveBeenCalled();
+      });
+
+      it("fails as mandate_required when Stripe returns no connected mandate", async () => {
+        setupIntentsList.mockResolvedValue({
+          data: [{ status: "succeeded", mandate: "mandate_platform" }],
+        });
+        mandatesRetrieve.mockResolvedValue({
+          customer_acceptance: { type: "online", accepted_at: 1, online: {} },
+        });
+        setupIntentsCreate.mockResolvedValue({ id: "seti_c", mandate: null });
+        const adapter = new StripePspAdapter(creds);
+        await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
+          failureCategory: "mandate_required",
+        });
+      });
+    });
   });
 
   it("refunds a PaymentIntent", async () => {
@@ -489,41 +830,6 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
     const adapter = new StripePspAdapter(creds);
     await expect(adapter.refund("pi_1")).resolves.toEqual({ status: "refunded" });
     expect(refundsCreate).toHaveBeenCalledWith({ payment_intent: "pi_1" });
-  });
-
-  it("maps processing PaymentIntent to pending", async () => {
-    paymentIntentsCreate.mockResolvedValue({ id: "pi_p", status: "processing" });
-    const adapter = new StripePspAdapter(creds);
-    await expect(
-      adapter.createPayment({
-        invoiceId: "inv",
-        amount: "1.00",
-        currency: "EUR",
-        producerStripeAccountId: "acct_p",
-        consumerPaymentMethodId: "pm_1",
-      }),
-    ).resolves.toEqual({ stripePaymentId: "pi_p", status: "pending" });
-  });
-
-  it("maps non-succeeded PaymentIntent status to failed", async () => {
-    paymentIntentsCreate.mockResolvedValue({
-      id: "pi_f",
-      status: "canceled",
-      last_payment_error: { code: "authentication_required" },
-    });
-    const adapter = new StripePspAdapter(creds);
-    const result = await adapter.createPayment({
-      invoiceId: "inv",
-      amount: "1.00",
-      currency: "EUR",
-      producerStripeAccountId: "acct_p",
-      consumerPaymentMethodId: "pm_1",
-    });
-    expect(result).toEqual({
-      stripePaymentId: "pi_f",
-      status: "failed",
-      failureCategory: "authentication_required",
-    });
   });
 
   it("returns ok:false when no webhook secrets configured", () => {

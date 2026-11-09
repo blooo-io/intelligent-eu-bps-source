@@ -10,6 +10,10 @@ import {
   PAYMENT_ACCOUNTS_STORE,
 } from "./ports/payment-accounts.store.js";
 import {
+  CONNECTED_CUSTOMERS_STORE,
+  createConnectedCustomersStore,
+} from "./ports/connected-customers.store.js";
+import {
   HttpInvoiceLookup,
   InMemoryInvoiceLookup,
   INVOICE_LOOKUP,
@@ -50,6 +54,11 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
       provide: PAYMENT_ACCOUNTS_STORE,
       // INT-228 — Postgres when DATABASE_URL is set (CNPG payments DB).
       useFactory: () => createPaymentAccountsStore(),
+    },
+    {
+      provide: CONNECTED_CUSTOMERS_STORE,
+      // INT-355 — consumer Customer per producer Connect account (Postgres when DATABASE_URL set).
+      useFactory: () => createConnectedCustomersStore(),
     },
     {
       provide: PSP_PORT,

@@ -2,7 +2,6 @@
 # One database and one login role per NestJS module (physical §3, TD-6).
 # SQL identifiers use underscores (PostgreSQL). Chart names with hyphens map here.
 # CNPG generates role passwords into Kubernetes Secrets — never commit them.
-# Backups to Scaleway Object Storage (PD-4) land when the bucket + OpenBao path exist.
 
 clusterName: int-data
 instances: 1
@@ -16,6 +15,39 @@ postgresql:
     wal_level: logical
     max_replication_slots: "16"
     max_wal_senders: "16"
+
+# INT-358 / PD-4 — continuous backup: WAL archiving + daily base backup to
+# Scaleway Object Storage (nl-ams, one bucket per environment), PITR.
+# Retention 7 days for int/dev, 30 days for demo (values-demo.yaml).
+# Object-store keys: ExternalSecret from OpenBao `openbaoPath`
+# (properties access_key_id / secret_access_key) — never in Git.
+# The bucket and the OpenBao path must exist before sync, otherwise WAL
+# archiving fails and WAL files pile up on the data volume.
+backup:
+  enabled: true
+  retentionPolicy: 7d
+  endpointURL: https://s3.nl-ams.scw.cloud
+  region: nl-ams
+  # barman appends the server name (= clusterName) under this prefix.
+  destinationPath: s3://intelligent-eu-bps-backups-dev/
+  walCompression: gzip
+  dataCompression: gzip
+  # Six-field cron (seconds first): daily base backup at 02:00 UTC.
+  schedule: "0 0 2 * * *"
+  storeName: openbao
+  openbaoPath: dev/cnpg-backup
+  # Archive folder under destinationPath; defaults to clusterName. Set a new
+  # value after a PITR restore, since barman refuses a non-empty WAL archive.
+  serverName: ""
+
+# PITR (docs/release/deployment.md). Only read when the Cluster is created, so a
+# restore under the same name also needs the existing Cluster removed.
+recovery:
+  enabled: false
+  # Archive folder to restore from (the serverName that wrote the backups).
+  sourceServerName: int-data
+  # RFC 3339 timestamp; empty = replay to the end of the archived WAL.
+  targetTime: ""
 
 # name = PostgreSQL database + role; module = deploy chart / service directory.
 databases:

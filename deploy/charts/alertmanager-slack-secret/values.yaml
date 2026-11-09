@@ -1,0 +1,8 @@
+# Path under OpenBao KV mount `secret/` (no values here).
+# secretName / secretKey must match the optional volume and
+# `slack_api_url_file` in deploy/platform/kube-prometheus/values.yaml.
+storeName: openbao
+secretName: alertmanager-slack
+secretKey: webhook_url
+openbaoPath: platform/alertmanager
+openbaoProperty: slack_webhook_url

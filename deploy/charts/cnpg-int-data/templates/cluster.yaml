@@ -67,6 +67,62 @@ spec:
       wal_level: {{ .Values.postgresql.parameters.wal_level | quote }}
       max_replication_slots: {{ .Values.postgresql.parameters.max_replication_slots | quote }}
       max_wal_senders: {{ .Values.postgresql.parameters.max_wal_senders | quote }}
+{{- if .Values.backup.enabled }}
+  # INT-358 / PD-4 — in-tree barman-cloud (still served by operator 1.30.x).
+  backup:
+    target: prefer-standby
+    retentionPolicy: {{ .Values.backup.retentionPolicy | quote }}
+    barmanObjectStore:
+      destinationPath: {{ .Values.backup.destinationPath | quote }}
+      endpointURL: {{ .Values.backup.endpointURL | quote }}
+{{- with .Values.backup.serverName }}
+      serverName: {{ . | quote }}
+{{- end }}
+      s3Credentials:
+        accessKeyId:
+          name: {{ .Values.clusterName }}-backup-s3
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: {{ .Values.clusterName }}-backup-s3
+          key: ACCESS_SECRET_KEY
+        region:
+          name: {{ .Values.clusterName }}-backup-s3
+          key: REGION
+      wal:
+        compression: {{ .Values.backup.walCompression }}
+      data:
+        compression: {{ .Values.backup.dataCompression }}
+{{- end }}
+{{- if .Values.recovery.enabled }}
+{{- if not .Values.backup.enabled }}
+{{- fail "recovery.enabled needs backup.enabled (object-store credentials Secret)" }}
+{{- end }}
+  bootstrap:
+    recovery:
+      source: origin
+{{- with .Values.recovery.targetTime }}
+      recoveryTarget:
+        targetTime: {{ . | quote }}
+{{- end }}
+  externalClusters:
+    - name: origin
+      barmanObjectStore:
+        destinationPath: {{ .Values.backup.destinationPath | quote }}
+        endpointURL: {{ .Values.backup.endpointURL | quote }}
+        serverName: {{ .Values.recovery.sourceServerName | quote }}
+        s3Credentials:
+          accessKeyId:
+            name: {{ .Values.clusterName }}-backup-s3
+            key: ACCESS_KEY_ID
+          secretAccessKey:
+            name: {{ .Values.clusterName }}-backup-s3
+            key: ACCESS_SECRET_KEY
+          region:
+            name: {{ .Values.clusterName }}-backup-s3
+            key: REGION
+        wal:
+          compression: {{ .Values.backup.walCompression }}
+{{- end }}
   enableSuperuserAccess: false
   managed:
     roles:

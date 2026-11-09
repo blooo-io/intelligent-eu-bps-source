@@ -1,0 +1,59 @@
+{{- /*
+  INT-358 / PD-4 — object-store credentials and daily base backup.
+  Keys come from OpenBao through the `openbao` ClusterSecretStore; the region
+  is a static template value so barman signs requests for nl-ams.
+  `cnpg.io/reload` lets the operator pick up rotated keys without a restart.
+*/ -}}
+{{- if .Values.backup.enabled }}
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .Values.clusterName }}-backup-s3
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: database-backup
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: {{ .Values.backup.storeName }}
+    kind: ClusterSecretStore
+  target:
+    name: {{ .Values.clusterName }}-backup-s3
+    creationPolicy: Owner
+    template:
+      engineVersion: v2
+      metadata:
+        labels:
+          cnpg.io/reload: "true"
+      data:
+        ACCESS_KEY_ID: "{{ `{{ .access_key_id }}` }}"
+        ACCESS_SECRET_KEY: "{{ `{{ .secret_access_key }}` }}"
+        REGION: {{ .Values.backup.region | quote }}
+  data:
+    - secretKey: access_key_id
+      remoteRef:
+        key: {{ .Values.backup.openbaoPath }}
+        property: access_key_id
+    - secretKey: secret_access_key
+      remoteRef:
+        key: {{ .Values.backup.openbaoPath }}
+        property: secret_access_key
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ .Values.clusterName }}-daily
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/component: database-backup
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  # First base backup right after creation so PITR has a starting point.
+  immediate: true
+  backupOwnerReference: self
+  method: barmanObjectStore
+  cluster:
+    name: {{ .Values.clusterName }}
+{{- end }}

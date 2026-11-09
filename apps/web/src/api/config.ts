@@ -3,6 +3,7 @@
  * Production loads `/config.json` from the static server (env-driven).
  * Local Vite falls back to import.meta.env / sensible defaults.
  */
+import { DEFAULT_ROLE_CLAIM } from "../auth/claims";
 
 export type WebConfig = {
   /** OIDC issuer (Keycloak realm URL). NFR-011 / REQ-033. */
@@ -16,6 +17,8 @@ export type WebConfig = {
    * Public by design (`pk_test_…`); never a secret key.
    */
   stripePublishableKey?: string;
+  /** Dot-path of the roles array claim in the IdP token (NFR-013). */
+  oidcRoleClaim?: string;
 };
 
 const DEFAULTS: WebConfig = {
@@ -23,6 +26,7 @@ const DEFAULTS: WebConfig = {
   oidcClientId: "web",
   apiBaseUrl: "https://api.dev.intelligent-eu-bp.blooo.dev",
   stripePublishableKey: undefined,
+  oidcRoleClaim: DEFAULT_ROLE_CLAIM,
 };
 
 let cached: WebConfig | null = null;
@@ -41,6 +45,7 @@ export async function loadConfig(fetchImpl: typeof fetch = fetch): Promise<WebCo
         apiBaseUrl: body.apiBaseUrl ?? DEFAULTS.apiBaseUrl,
         stripePublishableKey:
           body.stripePublishableKey ?? DEFAULTS.stripePublishableKey,
+        oidcRoleClaim: body.oidcRoleClaim || DEFAULTS.oidcRoleClaim,
       };
       return cached;
     }
@@ -54,6 +59,7 @@ export async function loadConfig(fetchImpl: typeof fetch = fetch): Promise<WebCo
     apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? DEFAULTS.apiBaseUrl,
     stripePublishableKey:
       import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? DEFAULTS.stripePublishableKey,
+    oidcRoleClaim: import.meta.env.VITE_OIDC_ROLE_CLAIM || DEFAULTS.oidcRoleClaim,
   };
   return cached;
 }

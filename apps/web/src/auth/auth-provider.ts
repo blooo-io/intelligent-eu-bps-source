@@ -1,12 +1,20 @@
 import type { AuthProvider } from "@refinedev/core";
 import type { OidcFacade } from "./oidc";
-import { communityIdFromClaims, rolesFromClaims, type TokenClaims } from "./claims";
+import {
+  DEFAULT_ROLE_CLAIM,
+  communityIdFromClaims,
+  rolesFromClaims,
+  type TokenClaims,
+} from "./claims";
 
 /**
  * Refine AuthProvider backed by OIDC PKCE (TD-5).
  * login() always redirects to the IdP — no password field in this app (REQ-033).
  */
-export function createAuthProvider(oidc: OidcFacade): AuthProvider {
+export function createAuthProvider(
+  oidc: OidcFacade,
+  roleClaim: string = DEFAULT_ROLE_CLAIM,
+): AuthProvider {
   return {
     login: async () => {
       await oidc.login();
@@ -33,14 +41,14 @@ export function createAuthProvider(oidc: OidcFacade): AuthProvider {
       return {
         id: user.profile.sub,
         name: user.profile.name ?? user.profile.preferred_username,
-        roles: rolesFromClaims(claims),
+        roles: rolesFromClaims(claims, roleClaim),
         communityId: communityIdFromClaims(claims),
       };
     },
     getPermissions: async () => {
       const user = await oidc.getUser();
       if (!user) return null;
-      return rolesFromClaims((user.profile ?? {}) as TokenClaims);
+      return rolesFromClaims((user.profile ?? {}) as TokenClaims, roleClaim);
     },
     onError: async (error) => {
       const status = (error as { statusCode?: number })?.statusCode;

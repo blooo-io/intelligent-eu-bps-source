@@ -37,7 +37,10 @@ export function App({
   oidc,
 }: Readonly<{ config: WebConfig; oidc: OidcFacade }>) {
   // Stable authProvider identity — a new object each render can reset Refine auth.
-  const authProvider = useMemo(() => createAuthProvider(oidc), [oidc]);
+  const authProvider = useMemo(
+    () => createAuthProvider(oidc, config.oidcRoleClaim),
+    [oidc, config.oidcRoleClaim],
+  );
 
   return (
     <BrowserRouter>

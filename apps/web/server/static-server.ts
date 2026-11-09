@@ -12,6 +12,8 @@ export type ServerEnv = {
   PORT?: string;
   OIDC_AUTHORITY?: string;
   OIDC_CLIENT_ID?: string;
+  /** NFR-013 — dot-path of the roles claim, default realm_access.roles. */
+  OIDC_ROLE_CLAIM?: string;
   API_BASE_URL?: string;
   /** OpenBao extract key (lowercase) or operator override. */
   stripe_publishable_key?: string;
@@ -42,6 +44,7 @@ export function buildConfigJson(env: ServerEnv = process.env): string {
     oidcAuthority:
       env.OIDC_AUTHORITY ?? "https://auth.intelligent-eu-bp.blooo.dev/realms/int",
     oidcClientId: env.OIDC_CLIENT_ID ?? "web",
+    oidcRoleClaim: env.OIDC_ROLE_CLAIM?.trim() || "realm_access.roles",
     apiBaseUrl: env.API_BASE_URL ?? "https://api.dev.intelligent-eu-bp.blooo.dev",
     ...(stripePublishableKey
       ? { stripePublishableKey }

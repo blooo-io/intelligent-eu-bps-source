@@ -20,7 +20,7 @@ describe("HttpSettlementClient (INT-223)", () => {
         energyAmount: "1.25",
         vat: "0.10",
         currency: "EUR",
-        rate: "1",
+        rate: "1.0000",
         producerStripeAccountId: "acct_x",
       }),
     })) as unknown as typeof fetch;

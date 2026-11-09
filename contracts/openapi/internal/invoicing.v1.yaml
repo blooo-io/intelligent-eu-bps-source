@@ -234,7 +234,7 @@ components:
         currency:
           $ref: '../components/schemas.yaml#/components/schemas/Currency'
         rate:
-          type: string
+          $ref: '../components/schemas.yaml#/components/schemas/FxRate'
         producerStripeAccountId:
           type: string
           description: >

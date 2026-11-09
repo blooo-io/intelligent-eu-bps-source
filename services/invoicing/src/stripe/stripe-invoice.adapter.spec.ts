@@ -29,7 +29,7 @@ const settlement = {
   energyAmount: "10.00",
   vat: "2.00",
   currency: "EUR",
-  rate: "1.00",
+  rate: "1.0000",
   communityId: "com-1",
 };
 
@@ -101,7 +101,7 @@ describe("StripeInvoiceAdapter (INT-189)", () => {
         description: expect.stringContaining("t-1"),
         pending_invoice_items_behavior: "exclude",
         custom_fields: expect.arrayContaining([
-          expect.objectContaining({ name: "FX rate", value: "1.00" }),
+          expect.objectContaining({ name: "FX rate", value: "1.0000" }),
         ]),
       }),
       { stripeAccount: "acct_prod" },

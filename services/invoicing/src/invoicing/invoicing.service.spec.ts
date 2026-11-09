@@ -31,7 +31,7 @@ const settlement = (
   energyAmount: "2.00",
   vat: "0.00",
   currency: "EUR",
-  rate: "1.00",
+  rate: "1.0000",
   communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
   ...over,
 });

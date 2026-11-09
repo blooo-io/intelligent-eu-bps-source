@@ -1,3 +1,4 @@
+import { type Dec, ZERO, neg } from "./decimal.js";
 import { canonicalPair } from "./netting.js";
 import type { BillingRunRecord, PairSettlementRecord } from "./types.js";
 
@@ -8,7 +9,7 @@ export class SettlementStore {
   private readonly settlements = new Map<string, PairSettlementRecord>();
   private readonly runs = new Map<string, BillingRunRecord>();
   /** Carry-forward balances per unordered pair key, community currency. */
-  private readonly carry = new Map<string, { communityId: string; amount: number }>();
+  private readonly carry = new Map<string, { communityId: string; amount: Dec }>();
 
   reset(): void {
     this.settlements.clear();
@@ -60,25 +61,25 @@ export class SettlementStore {
   }
 
   /** Signed carried balance of a pair: positive when `low` owes `high` (BR-05). */
-  getCarry(x: string, y: string): number {
+  getCarry(x: string, y: string): Dec {
     const [low] = canonicalPair(x, y);
-    const signed = this.carry.get(this.pairKey(x, y))?.amount ?? 0;
-    return x === low ? signed : -signed;
+    const signed = this.carry.get(this.pairKey(x, y))?.amount ?? ZERO;
+    return x === low ? signed : neg(signed);
   }
 
   /** Stores the balance carried to the next period, signed `x` → `y`. */
-  setCarry(communityId: string, x: string, y: string, amount: number): void {
+  setCarry(communityId: string, x: string, y: string, amount: Dec): void {
     const [low] = canonicalPair(x, y);
     const key = this.pairKey(x, y);
-    if (amount === 0) {
+    if (amount === ZERO) {
       this.carry.delete(key);
       return;
     }
-    this.carry.set(key, { communityId, amount: x === low ? amount : -amount });
+    this.carry.set(key, { communityId, amount: x === low ? amount : neg(amount) });
   }
 
   /** Pairs with a non-zero carried balance, signed `low` → `high`. */
-  listCarries(communityId: string): Array<{ low: string; high: string; amount: number }> {
+  listCarries(communityId: string): Array<{ low: string; high: string; amount: Dec }> {
     return [...this.carry.entries()]
       .filter(([, row]) => row.communityId === communityId)
       .map(([key, row]) => {

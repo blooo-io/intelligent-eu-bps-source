@@ -55,7 +55,7 @@ export class HttpSettlementClient implements SettlementClientPort {
       energyAmount: asString(body.energyAmount, "0"),
       vat: asString(body.vat, "0"),
       currency: asString(body.currency, "EUR"),
-      rate: asString(body.rate, "1"),
+      rate: asString(body.rate, "1.0000"),
       communityId: asString(body.communityId),
       ...(typeof body.producerStripeAccountId === "string"
         ? { producerStripeAccountId: body.producerStripeAccountId }

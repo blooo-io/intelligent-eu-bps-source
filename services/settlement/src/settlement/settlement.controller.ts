@@ -31,6 +31,7 @@ export class SettlementController {
       consumerId: row.consumerId,
       producerId: row.producerId,
       tradeIds: row.tradeIds,
+      lines: row.lines,
       kWh: row.kWh,
       energyAmount: row.energyAmount,
       vat: row.vat,

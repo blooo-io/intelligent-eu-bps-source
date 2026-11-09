@@ -33,7 +33,8 @@ describe("netPairs (BR-03, BR-04, BR-08)", () => {
 
   it("nets on the canonical order with a signed amount (BR-04)", () => {
     const [bucket] = netCanonicalPairs([trade("t1", "b", "a", 10, 0.2), trade("t2", "a", "b", 4, 0.2)]);
-    expect(bucket).toEqual({ low: "a", high: "b", tradeIds: ["t1", "t2"], netKWh: dec("-6"), netEur: dec("-1.2") });
+    expect(bucket).toMatchObject({ low: "a", high: "b", tradeIds: ["t1", "t2"], netKWh: dec("-6"), netEur: dec("-1.2") });
+    expect(bucket!.trades.map((line) => line.tradeId)).toEqual(["t1", "t2"]);
     expect(canonicalPair("b", "a")).toEqual(["a", "b"]);
   });
 

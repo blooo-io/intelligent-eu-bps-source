@@ -10,6 +10,7 @@ import { createMockSuite, type FxPort } from "@intelligent/mocks";
 import { OutboxService } from "@intelligent/module-template";
 import { type Dec, ZERO, compareAbs, dec, mul, roundCentDec, toNumber } from "../domain/decimal.js";
 import { formatKWh, formatMoney, formatRate } from "../domain/money.js";
+import { buildInvoiceTradeLines } from "../domain/trade-lines.js";
 import { decidePairBalance } from "../domain/carry.js";
 import {
   businessDayOnOrBefore,
@@ -328,6 +329,13 @@ export class SettlementService {
         consumerId: decision.consumerId,
         producerId: decision.producerId,
         tradeIds: pair.tradeIds,
+        lines: buildInvoiceTradeLines({
+          trades: pair.trades,
+          direction: decision.direction,
+          fxRate,
+          invoiced: decision.invoiced,
+          carriedInOriented: decision.carriedInOriented,
+        }),
         kWh: formatKWh(pair.netKWh),
         energyAmount: formatMoney(decision.invoiced),
         vat: formatMoney(vat),
@@ -415,6 +423,7 @@ export class SettlementService {
           low: carry.low,
           high: carry.high,
           tradeIds: [],
+          trades: [],
           netKWh: ZERO,
           netEur: ZERO,
         });

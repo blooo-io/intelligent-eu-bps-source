@@ -136,6 +136,20 @@ export function InvoicesPage({
     }
   }
 
+  const lineColumns: ColumnsType<NonNullable<Invoice["lines"]>[number]> = [
+    {
+      title: "Delivery",
+      key: "delivery",
+      render: (_value, line) =>
+        line.deliveryStart && line.deliveryEnd
+          ? `${line.deliveryStart} – ${line.deliveryEnd}`
+          : "—",
+    },
+    { title: "kWh", dataIndex: "kWh", key: "kWh" },
+    { title: "Price / kWh", dataIndex: "pricePerKWh", key: "price" },
+    { title: "Amount", dataIndex: "amount", key: "amount" },
+  ];
+
   const columns: ColumnsType<Invoice> = [
     {
       title: "Invoice",
@@ -213,8 +227,15 @@ export function InvoicesPage({
               {selected.amounts.total} {selected.currency}
             </Text>
           </Paragraph>
-          {selected.tradeIds && selected.tradeIds.length > 0 && (
-            <Paragraph>Trades: {selected.tradeIds.join(", ")}</Paragraph>
+          {selected.lines && selected.lines.length > 0 && (
+            <Table
+              size="small"
+              rowKey="tradeId"
+              pagination={false}
+              dataSource={selected.lines}
+              columns={lineColumns}
+              style={{ marginBottom: 12 }}
+            />
           )}
           <Paragraph type="secondary">
             Peer-to-peer invoices do not include grid fees, taxes or levies.

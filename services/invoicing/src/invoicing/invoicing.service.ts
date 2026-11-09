@@ -318,6 +318,7 @@ export class InvoicingService {
       status: "Open",
       total,
       tradeIds: settlement.tradeIds,
+      lines: settlement.lines ?? [],
       stripeInvoiceId: stripeInvoice.stripeInvoiceId,
       legalNumber: stripeInvoice.legalNumber,
       hostedInvoiceUrl: stripeInvoice.hostedInvoiceUrl || null,
@@ -548,6 +549,7 @@ export class InvoicingService {
       dueDate: row.dueDate,
       pairSettlementId: row.settlementId,
       tradeIds: row.tradeIds,
+      lines: row.lines ?? [],
       amounts: {
         energy: row.energyAmount ?? row.total,
         vat: row.vatAmount ?? "0.00",

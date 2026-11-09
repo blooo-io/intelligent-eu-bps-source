@@ -16,6 +16,17 @@ describe("HttpSettlementClient (INT-223)", () => {
         consumerId: "u1",
         producerId: "u2",
         tradeIds: ["t1"],
+        lines: [
+          {
+            tradeId: "t1",
+            deliveryStart: "2026-11-01T00:00:00Z",
+            deliveryEnd: "2026-11-01T00:15:00Z",
+            kWh: "10.000",
+            pricePerKWh: "0.20",
+            amount: "2.00",
+          },
+        ],
+        carriedForwardIn: "0.00",
         kWh: "2.5",
         energyAmount: "1.25",
         vat: "0.10",
@@ -35,6 +46,10 @@ describe("HttpSettlementClient (INT-223)", () => {
     expect(pair.energyAmount).toBe("1.25");
     expect(pair.producerStripeAccountId).toBe("acct_x");
     expect(pair.rateDate).toBe("2026-11-30");
+    expect(pair.lines).toEqual([
+      expect.objectContaining({ tradeId: "t1", kWh: "10.000", amount: "2.00" }),
+    ]);
+    expect(pair.carriedForwardIn).toBe("0.00");
     expect(fetchImpl).toHaveBeenCalledWith(
       "http://settlement:8080/internal/v1/settlements/s1",
       expect.objectContaining({

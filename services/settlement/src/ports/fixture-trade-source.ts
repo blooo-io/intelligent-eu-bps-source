@@ -64,6 +64,8 @@ export class FixtureTradeSource implements TradeSourcePort {
         communityId,
         kWh: t.energyKWh,
         pricePerKWhEur: t.pricePerKWhEur,
+        deliveryStart: t.deliveryStart,
+        deliveryEnd: t.deliveryEnd,
       }));
   }
 

@@ -94,6 +94,44 @@ describe("InvoicingService", () => {
     expect(stripe.created).toHaveLength(0);
   });
 
+  it("exposes per-trade lines to both parties and sums energy, VAT and total (INT-354 / REQ-007 / UAT-007)", async () => {
+    const lines = [
+      {
+        tradeId: "t1",
+        deliveryStart: "2026-11-01T00:00:00Z",
+        deliveryEnd: "2026-11-01T00:15:00Z",
+        kWh: "10.000",
+        pricePerKWh: "0.20",
+        amount: "2.00",
+      },
+      {
+        tradeId: "t2",
+        deliveryStart: "2026-11-01T00:15:00Z",
+        deliveryEnd: "2026-11-01T00:30:00Z",
+        kWh: "5.000",
+        pricePerKWh: "0.20",
+        amount: "1.00",
+      },
+    ];
+    const created = await service.createFromSettlement(
+      settlement({ energyAmount: "3.00", vat: "0.60", lines }),
+    );
+    expect(created!.total).toBe("3.60");
+    const viewed = await service.getPublicInvoiceForParticipant(
+      created!.invoiceId,
+      created!.consumerId,
+    );
+    expect(viewed.lines).toEqual(lines);
+    const amounts = viewed.amounts as { energy: string; vat: string; total: string };
+    expect((Number(amounts.energy) + Number(amounts.vat)).toFixed(2)).toBe(amounts.total);
+    expect(JSON.stringify(viewed)).not.toMatch(/grid fee/i);
+    const asProducer = await service.getPublicInvoiceForParticipant(
+      created!.invoiceId,
+      created!.producerId,
+    );
+    expect(asProducer.lines).toEqual(lines);
+  });
+
   it("skips zero-amount carry-forward settlements", async () => {
     const result = await service.createFromSettlement(
       settlement({ energyAmount: "0.00" }),

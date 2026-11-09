@@ -58,6 +58,11 @@ export {
   resetServiceJwtJwksCache,
   type ServiceJwtVerifierOptions,
 } from "./auth/service-jwt.js";
+export {
+  DEFAULT_OIDC_ROLE_CLAIM,
+  resolveRoleClaimPath,
+  rolesAtClaimPath,
+} from "./auth/role-claim.js";
 
 export { HealthController, type HealthResponse } from "./health/health.controller.js";
 

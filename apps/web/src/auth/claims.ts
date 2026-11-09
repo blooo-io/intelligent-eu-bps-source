@@ -14,14 +14,37 @@ export type TokenClaims = {
   /** Community scope claim (custom). */
   community_id?: string;
   communityId?: string;
+  [claim: string]: unknown;
 };
+
+/**
+ * NFR-013 — dot-path of the roles array claim (`oidcRoleClaim` in /config.json,
+ * same value as the gateway `oidc.roleClaim` and module `OIDC_ROLE_CLAIM`).
+ */
+export const DEFAULT_ROLE_CLAIM = "realm_access.roles";
 
 const KNOWN_ROLES = new Set<CallerRole>(["member", "manager", "operator", "service"]);
 
-/** Collect billing roles from standard Keycloak claim shapes. */
-export function rolesFromClaims(claims: TokenClaims): CallerRole[] {
+/** String roles found at a dot-path; a missing or non-array claim yields none. */
+export function rolesAtClaimPath(claims: unknown, path: string): string[] {
+  let node: unknown = claims;
+  for (const segment of path.split(".")) {
+    if (!segment || node === null || typeof node !== "object" || Array.isArray(node)) {
+      return [];
+    }
+    node = (node as Record<string, unknown>)[segment];
+  }
+  if (!Array.isArray(node)) return [];
+  return node.filter((r): r is string => typeof r === "string" && r !== "");
+}
+
+/** Collect billing roles from the configured claim plus Keycloak client roles. */
+export function rolesFromClaims(
+  claims: TokenClaims,
+  roleClaim: string = DEFAULT_ROLE_CLAIM,
+): CallerRole[] {
   const raw = [
-    ...(claims.realm_access?.roles ?? []),
+    ...rolesAtClaimPath(claims, roleClaim),
     ...Object.values(claims.resource_access ?? {}).flatMap((r) => r.roles ?? []),
   ];
   const found = new Set<CallerRole>();

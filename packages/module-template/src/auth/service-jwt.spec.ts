@@ -65,6 +65,46 @@ describe("service JWT (INT-287)", () => {
     expect(claims.roles).toContain("service");
   });
 
+  // NFR-013 / INT-357 — role claim path comes from OIDC_ROLE_CLAIM.
+  it("resolveServiceJwtOptions carries the configured role claim path", () => {
+    const base = { KEYCLOAK_BASE_URL: "http://kc", KEYCLOAK_REALM: "int" };
+    expect(resolveServiceJwtOptions(base)?.roleClaim).toBe("realm_access.roles");
+    expect(
+      resolveServiceJwtOptions({ ...base, OIDC_ROLE_CLAIM: "roles" })?.roleClaim,
+    ).toBe("roles");
+  });
+
+  it("reads the service role from a custom flat role claim", async () => {
+    const { privateKey, publicKey } = await generateKeyPair("RS256");
+    const jwk = await exportJWK(publicKey);
+    jwk.kid = "test";
+    jwk.alg = "RS256";
+    const getKey = createLocalJWKSet({ keys: [jwk] });
+    const token = await new SignJWT({ roles: ["service"], azp: "other" })
+      .setProtectedHeader({ alg: "RS256", kid: "test" })
+      .setSubject("svc")
+      .setIssuer("http://idp")
+      .setIssuedAt()
+      .setExpirationTime("2m")
+      .sign(privateKey);
+    const options = {
+      jwksUrl: "http://unused/jwks",
+      issuer: "http://idp",
+      audienceClientId: "module-service",
+    };
+
+    const claims = await verifyServiceAccessToken(
+      token,
+      { ...options, roleClaim: "roles" },
+      getKey,
+    );
+    expect(claims.roles).toEqual(["service"]);
+    // Default path ignores the flat claim → no service role, azp mismatch.
+    await expect(verifyServiceAccessToken(token, options, getKey)).rejects.toThrow(
+      /service_jwt_missing_service_role/,
+    );
+  });
+
   it("rejects token without service role or matching azp", async () => {
     const { privateKey, publicKey } = await generateKeyPair("RS256");
     const jwk = await exportJWK(publicKey);

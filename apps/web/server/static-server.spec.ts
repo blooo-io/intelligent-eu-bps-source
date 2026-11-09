@@ -42,6 +42,17 @@ describe("static-server", () => {
     expect(json.apiBaseUrl).toBe("https://api.test");
     expect(json.oidcClientId).toBe("web");
     expect(json.stripePublishableKey).toBe("pk_test_from_bao");
+    expect(json.oidcRoleClaim).toBe("realm_access.roles");
+  });
+
+  // NFR-013 / INT-357 — role claim path is runtime configuration.
+  it("buildConfigJson exposes OIDC_ROLE_CLAIM as oidcRoleClaim", () => {
+    expect(JSON.parse(buildConfigJson({ OIDC_ROLE_CLAIM: " roles " })).oidcRoleClaim).toBe(
+      "roles",
+    );
+    expect(JSON.parse(buildConfigJson({ OIDC_ROLE_CLAIM: "" })).oidcRoleClaim).toBe(
+      "realm_access.roles",
+    );
   });
 
   it("serves /health and /config.json", async () => {

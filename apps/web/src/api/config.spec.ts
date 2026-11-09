@@ -21,9 +21,19 @@ describe("loadConfig", () => {
     expect(cfg.oidcAuthority).toBe("https://auth.example/realms/int");
     expect(cfg.apiBaseUrl).toBe("https://api.example");
     expect(cfg.stripePublishableKey).toBe("pk_test_cfg");
+    expect(cfg.oidcRoleClaim).toBe("realm_access.roles");
     expect(fetchImpl).toHaveBeenCalledWith("/config.json", {
       credentials: "same-origin",
     });
+  });
+
+  it("reads oidcRoleClaim from /config.json (NFR-013)", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ oidcRoleClaim: "groups" }),
+    });
+    const cfg = await loadConfig(fetchImpl as unknown as typeof fetch);
+    expect(cfg.oidcRoleClaim).toBe("groups");
   });
 
   it("falls back to defaults when /config.json is missing", async () => {
@@ -31,6 +41,7 @@ describe("loadConfig", () => {
     const cfg = await loadConfig(fetchImpl as unknown as typeof fetch);
     expect(cfg.oidcClientId).toBe("web");
     expect(cfg.oidcAuthority).toContain("realms/int");
+    expect(cfg.oidcRoleClaim).toBe("realm_access.roles");
   });
 
   it("memoises the first successful load", async () => {

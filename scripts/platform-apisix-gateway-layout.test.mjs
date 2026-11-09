@@ -104,6 +104,37 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(values, /webhook:\s*\n[\s\S]*rate:\s*\n\s*rate:\s*\d+/);
 });
 
+test("role claim path is configuration on gateway, modules and web (NFR-013 / INT-357)", async () => {
+  const helpers = await readFile(
+    "deploy/charts/apisix-gateway/templates/_helpers.tpl",
+    "utf8",
+  );
+  assert.match(helpers, /define "apisix-gateway\.roleClaim"/);
+  assert.match(helpers, /Values\.oidc\.roleClaim \| default "realm_access\.roles"/);
+  // Value is inlined in Lua source: render must fail on anything but a safe dot-path.
+  assert.match(helpers, /regexMatch/);
+  assert.match(helpers, /fail \(printf "oidc\.roleClaim/);
+  assert.match(helpers, /string\.gmatch\(\{\{ include "apisix-gateway\.roleClaim" \. \| quote \}\}/);
+  assert.equal(/claims\.realm_access/.test(helpers), false);
+
+  const values = await readFile("deploy/charts/apisix-gateway/values.yaml", "utf8");
+  assert.match(values, /oidc:[\s\S]*\n\s+roleClaim: realm_access\.roles\n/);
+
+  const modules = [
+    "compliance", "invoicing", "notification", "participants", "payments",
+    "publication", "reconciliation", "reference-data", "reporting",
+    "scheduler", "settlement", "trade-intake", "web",
+  ];
+  for (const name of modules) {
+    const chart = await readFile(`deploy/charts/${name}/values.yaml`, "utf8");
+    assert.match(
+      chart,
+      /\n {2}OIDC_ROLE_CLAIM: realm_access\.roles\n/,
+      `${name} chart must expose OIDC_ROLE_CLAIM`,
+    );
+  }
+});
+
 test("gateway TLS templates gate Certificate and ApisixTls (INT-168)", async () => {
   const tls = await readFile(
     "deploy/charts/apisix-gateway/templates/tls.yaml",

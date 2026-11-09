@@ -34,6 +34,18 @@
         - Server
 {{- end -}}
 
+{{- /*
+  NFR-013 / INT-357 — dot-path of the roles array claim (default Keycloak
+  realm_access.roles). Restricted charset: the value is inlined in Lua source.
+*/ -}}
+{{- define "apisix-gateway.roleClaim" -}}
+{{- $claim := .Values.oidc.roleClaim | default "realm_access.roles" -}}
+{{- if not (regexMatch "^[A-Za-z0-9_:-]+(\\.[A-Za-z0-9_:-]+)*$" $claim) -}}
+{{- fail (printf "oidc.roleClaim %q must be a dot-path of [A-Za-z0-9_:-] segments" $claim) -}}
+{{- end -}}
+{{- $claim -}}
+{{- end -}}
+
 {{- define "apisix-gateway.oidcPlugin" -}}
 {{ include "apisix-gateway.corsPlugin" . }}
 {{ include "apisix-gateway.securityHeadersPlugin" (dict "Values" .Values "csp" .Values.securityHeaders.csp.api) }}
@@ -105,9 +117,16 @@
               end
             end
           end
-          if type(claims.realm_access) == "table" then
-            push_roles(claims.realm_access.roles)
+          -- NFR-013 / INT-357 — role claim dot-path from oidc.roleClaim.
+          local role_node = claims
+          for segment in string.gmatch({{ include "apisix-gateway.roleClaim" . | quote }}, "[^.]+") do
+            if type(role_node) ~= "table" then
+              role_node = nil
+              break
+            end
+            role_node = role_node[segment]
           end
+          push_roles(role_node)
           if type(claims.resource_access) == "table" then
             for _, client in pairs(claims.resource_access) do
               if type(client) == "table" then

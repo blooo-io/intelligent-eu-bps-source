@@ -51,6 +51,20 @@ describe("createAuthProvider", () => {
     });
   });
 
+  it("reads roles from the configured role claim (NFR-013)", async () => {
+    const provider = createAuthProvider(
+      facade({
+        getUser: vi.fn().mockResolvedValue({
+          expired: false,
+          profile: { sub: "user-2", roles: ["operator"], realm_access: { roles: ["member"] } },
+        }),
+      }),
+      "roles",
+    );
+    expect(await provider.getIdentity?.()).toMatchObject({ roles: ["operator"] });
+    expect(await provider.getPermissions?.()).toEqual(["operator"]);
+  });
+
   it("onError logs out on 401", async () => {
     const provider = createAuthProvider(facade());
     const result = await provider.onError({ statusCode: 401 });

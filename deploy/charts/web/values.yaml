@@ -12,3 +12,7 @@ egressModules: []
 ingressFrom: []
 keycloakEgress: false
 stripeEgress: false
+env:
+  # NFR-013 / INT-357 — roles claim dot-path served in /config.json
+  # (same as apisix-gateway oidc.roleClaim and module OIDC_ROLE_CLAIM).
+  OIDC_ROLE_CLAIM: realm_access.roles

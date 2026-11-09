@@ -25,12 +25,12 @@ pnpm --filter @intelligent/web dev
 ```
 
 Vite defaults to `http://localhost:5173` (registered on the Keycloak `web` client).
-Optional env: `VITE_OIDC_AUTHORITY`, `VITE_OIDC_CLIENT_ID`, `VITE_API_BASE_URL`, `VITE_STRIPE_PUBLISHABLE_KEY` (INT-191 Account Tokens, `pk_test_…` only).
+Optional env: `VITE_OIDC_AUTHORITY`, `VITE_OIDC_CLIENT_ID`, `VITE_OIDC_ROLE_CLAIM` (roles claim dot-path, default `realm_access.roles`, NFR-013), `VITE_API_BASE_URL`, `VITE_STRIPE_PUBLISHABLE_KEY` (INT-191 Account Tokens, `pk_test_…` only).
 
 ## Container
 
 `Dockerfile` serves the Vite build with a small Node static server:
 
 - `GET /health` → probes (module chart)
-- `GET /config.json` → runtime OIDC/API config from env
+- `GET /config.json` → runtime OIDC/API config from env (`OIDC_ROLE_CLAIM` → `oidcRoleClaim`)
 - SPA fallback to `index.html`

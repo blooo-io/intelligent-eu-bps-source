@@ -237,7 +237,7 @@ Consumed by AC-01 and by the project UI. Every call needs a bearer token, and re
 | `GET /me` (profile, roles, community, readiness) | all | AC-03 | REQ-049, REQ-009 | Portal home |
 | `PUT /me/profile` | member | AC-03 | REQ-009 | Profile |
 | `GET /terms/current`, `POST /me/terms-acceptance` | member, manager | AC-03 | REQ-050 | Terms |
-| `POST /me/payment-account/onboarding` (producer KYC link / consumer payment method) | member | AC-07 | REQ-051, REQ-040 | Payment setup |
+| `POST /me/payment-account/onboarding` (producer embedded Stripe Connect onboarding / consumer payment method) | member | AC-07 | REQ-051, REQ-040 | Payment setup |
 | `GET /me/balances` (unbilled amounts per counterpart) | member | AC-05 | REQ-002, REQ-057 | Balances |
 | `GET /me/invoices`, `GET /invoices/{id}`, `GET /invoices/{id}/document` | member | AC-06 | REQ-007, REQ-039 | Invoices |
 | `POST /invoices/{id}/payments` | consumer | AC-07 | REQ-014 | Pay |
@@ -348,6 +348,8 @@ Payment rules (INT-355, REQ-014, TD-6):
 - The consumer saves one PaymentMethod on the platform (SetupIntent). At payment time AC-07 clones it to the producer account and attaches it to the consumer's Customer on that account. AC-07 owns the mapping consumer × Connect account → Customer (one Customer per pair, metadata `participantId` only).
 - **SEPA Direct Debit (deferred, INT-361):** Stripe does not share `sepa_debit` PaymentMethods with connected accounts, so a platform SEPA mandate cannot fund a direct charge. V1 offers cards only: the SetupIntent and the Payment Element allow `card` alone. A SEPA method saved earlier is refused at pay time with `failureCategory: sepa_debit_not_shareable` and no charge is made. SEPA with a mandate per producer account is planned for the next release.
 - Stripe accepts a single payment per invoice, and the invoice is never e-mailed with a payable link: no double payment. A repeated Pay on a settled invoice returns the existing payment.
+- **Fees and disputes are on the producer; the platform absorbs nothing (INT-362).** Producer Connect accounts are created with `controller.fees.payer = account`, `controller.losses.payments = stripe` and `controller.requirement_collection = stripe`: Stripe takes its processing fees and any dispute amount from the producer's balance, and covers losses a producer cannot repay. The platform charges no application fee. No fee is added for the consumer: card surcharges are banned for EEA consumer cards (PSD2 art. 62(4)), and P2P invoices carry no extra lines (A20).
+- Because Stripe collects the requirements, producer onboarding (identity, bank account, terms of service) runs in Stripe's **embedded Account onboarding component** inside the portal's Payout account step. AC-07 returns an Account Session client secret (`mode: embedded`) and re-reads the account from Stripe on `account.updated` and on every Start; KYC is complete only when Stripe reports nothing due. Operator test fixtures (`payment-accounts:provision`, test mode only) still use Account Tokens on platform-collected accounts, because Stripe does not let a platform accept the terms of service of accounts it does not collect requirements for.
 - The webhook endpoint accepts both the platform and the Connect endpoint signing secrets (`stripe_webhook_secret`, `stripe_connect_webhook_secret`) and deduplicates on the Stripe event id.
 
 ## 6. Reference screens (AC-01, V1)
@@ -376,7 +378,7 @@ Every adapter implements one logical port behind a stable interface. Switching f
 |---|---|---|---|---|
 | Market adapter (AC-04) | P-MKT | queryTrades(window), queryClearingResults(marketId), queryMarkets(window) | **Mock** (AC-15) | EWDS request/reply on GSY channels + REST backfill |
 | Data-space adapter (AC-10) | P-DS | publish(topic, message), purgeCache(before) | **Mock** (AC-15, schema validation) | Blooo EWDS Client Gateway |
-| Payment adapter (AC-07) | P-PSP | createProducerAccount, onboardingLink, attachPaymentMethod, createConnectedCustomer, createPayment (direct charge: pays the producer's Stripe invoice), refund, verifyWebhook | **Stripe test mode** | Stripe live (per community, after V1) |
+| Payment adapter (AC-07) | P-PSP | createEmbeddedProducerAccount, createAccountOnboardingSession, createProducerAccount (test fixtures), attachPaymentMethod, createConnectedCustomer, createPayment (direct charge: pays the producer's Stripe invoice), refund, verifyWebhook | **Stripe test mode** | Stripe live (per community, after V1) |
 | IdP admin adapter (AC-03) + token validation (AC-02) | P-IDP | createUser, sendInvitation, deleteUser; validateToken | Keycloak, local instance | Project IdP (Blooo-operated) or pilot OIDC IdP |
 | FX adapter (AC-13) | P-FX | getRate(currency, date) | **Fixture** (AC-15) | ECB reference rates |
 | Mail adapter (AC-11) | P-MAIL | send(template, to, attachments) | Local mail catcher | Transactional mail service |

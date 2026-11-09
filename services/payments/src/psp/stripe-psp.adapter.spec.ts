@@ -13,8 +13,6 @@ const {
   refundsCreate,
   customersCreate,
   setupIntentsCreate,
-  setupIntentsList,
-  mandatesRetrieve,
   invoicesRetrieve,
   invoicesPay,
   constructEvent,
@@ -42,8 +40,6 @@ const {
     refundsCreate: vi.fn(),
     customersCreate: vi.fn(),
     setupIntentsCreate: vi.fn(),
-    setupIntentsList: vi.fn(),
-    mandatesRetrieve: vi.fn(),
     invoicesRetrieve: vi.fn(),
     invoicesPay: vi.fn(),
     constructEvent: vi.fn(),
@@ -68,8 +64,7 @@ vi.mock("stripe", () => {
       paymentIntents: { create: paymentIntentsCreate, update: paymentIntentsUpdate },
       refunds: { create: refundsCreate },
       customers: { create: customersCreate },
-      setupIntents: { create: setupIntentsCreate, list: setupIntentsList },
-      mandates: { retrieve: mandatesRetrieve },
+      setupIntents: { create: setupIntentsCreate },
       invoices: { retrieve: invoicesRetrieve, pay: invoicesPay },
       webhooks: { constructEvent },
     };
@@ -142,10 +137,8 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
           losses: { payments: "application" },
           requirement_collection: "application",
         }),
-        // INT-355 — card and SEPA direct charges on the producer account.
         capabilities: {
           card_payments: { requested: true },
-          sepa_debit_payments: { requested: true },
           transfers: { requested: true },
         },
         metadata: { participantId: "part-1" },
@@ -606,7 +599,6 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
       // REQ-014 — no platform charge and no transfer_data destination.
       expect(paymentIntentsCreate).not.toHaveBeenCalled();
       expect(JSON.stringify(invoicesPay.mock.calls)).not.toContain("transfer_data");
-      expect(setupIntentsList).not.toHaveBeenCalled();
     });
 
     it("attaches to the invoice's own Customer when it differs from the mapping", async () => {
@@ -738,109 +730,20 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
       });
     });
 
-    describe("SEPA Direct Debit", () => {
-      beforeEach(() => {
-        paymentMethodsRetrieve.mockResolvedValue({
-          id: "pm_platform",
-          type: "sepa_debit",
-          customer: { id: "cus_platform" },
-        });
-        invoicesPay.mockResolvedValue({ id: "in_1", status: "open" });
+    it("fails fast on SEPA: Stripe cannot share sepa_debit with a connected account", async () => {
+      paymentMethodsRetrieve.mockResolvedValue({
+        id: "pm_platform",
+        type: "sepa_debit",
+        customer: { id: "cus_platform" },
       });
-
-      it("re-creates the mandate on the connected account from the online acceptance", async () => {
-        setupIntentsList.mockResolvedValue({
-          data: [
-            { status: "requires_payment_method", mandate: null },
-            { status: "succeeded", mandate: "mandate_platform" },
-          ],
-        });
-        mandatesRetrieve.mockResolvedValue({
-          customer_acceptance: {
-            type: "online",
-            accepted_at: 1700000000,
-            online: { ip_address: "203.0.113.1", user_agent: "UA" },
-          },
-        });
-        setupIntentsCreate.mockResolvedValue({ id: "seti_c", mandate: { id: "mandate_conn" } });
-        const adapter = new StripePspAdapter(creds);
-        await expect(adapter.createPayment(payInput)).resolves.toEqual({
-          stripePaymentId: "in_1",
-          status: "pending",
-        });
-        expect(setupIntentsList).toHaveBeenCalledWith({ payment_method: "pm_platform", limit: 10 });
-        expect(setupIntentsCreate).toHaveBeenCalledWith(
-          {
-            customer: "cus_conn",
-            payment_method: "pm_clone",
-            confirm: true,
-            usage: "off_session",
-            allowed_payment_method_types: ["sepa_debit"],
-            mandate_data: {
-              customer_acceptance: {
-                type: "online",
-                accepted_at: 1700000000,
-                online: { ip_address: "203.0.113.1", user_agent: "UA" },
-              },
-            },
-          },
-          connect,
-        );
-        expect(invoicesPay).toHaveBeenCalledWith(
-          "in_1",
-          {
-            payment_method: "pm_clone",
-            off_session: true,
-            mandate: "mandate_conn",
-            expand: ["payments"],
-          },
-          connect,
-        );
+      const adapter = new StripePspAdapter(creds);
+      await expect(adapter.createPayment(payInput)).resolves.toEqual({
+        stripePaymentId: "in_1",
+        status: "failed",
+        failureCategory: "sepa_debit_not_shareable",
       });
-
-      it("falls back to offline acceptance when online details are missing", async () => {
-        setupIntentsList.mockResolvedValue({
-          data: [{ status: "succeeded", mandate: { id: "mandate_platform" } }],
-        });
-        mandatesRetrieve.mockResolvedValue({
-          customer_acceptance: { type: "offline", accepted_at: null },
-        });
-        setupIntentsCreate.mockResolvedValue({ id: "seti_c", mandate: "mandate_conn" });
-        const adapter = new StripePspAdapter(creds);
-        await adapter.createPayment(payInput);
-        expect(setupIntentsCreate).toHaveBeenCalledWith(
-          expect.objectContaining({
-            mandate_data: {
-              customer_acceptance: { type: "offline", accepted_at: undefined, offline: {} },
-            },
-          }),
-          connect,
-        );
-      });
-
-      it("fails as mandate_required without a platform mandate", async () => {
-        setupIntentsList.mockResolvedValue({ data: [] });
-        const adapter = new StripePspAdapter(creds);
-        await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
-          status: "failed",
-          failureCategory: "mandate_required",
-        });
-        expect(invoicesPay).not.toHaveBeenCalled();
-      });
-
-      it("fails as mandate_required when Stripe returns no connected mandate", async () => {
-        setupIntentsList.mockResolvedValue({
-          data: [{ status: "succeeded", mandate: "mandate_platform" }],
-        });
-        mandatesRetrieve.mockResolvedValue({
-          customer_acceptance: { type: "online", accepted_at: 1, online: {} },
-        });
-        setupIntentsCreate.mockResolvedValue({ id: "seti_c", mandate: null });
-        const adapter = new StripePspAdapter(creds);
-        await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
-          failureCategory: "mandate_required",
-        });
-      });
+      expect(paymentMethodsCreate).not.toHaveBeenCalled();
+      expect(invoicesPay).not.toHaveBeenCalled();
     });
   });
 

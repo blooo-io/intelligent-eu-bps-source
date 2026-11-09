@@ -384,6 +384,8 @@ describe("PaymentsService", () => {
       communityId: COMMUNITY,
     });
     expect(paid.method).toBe("sepa_debit");
+    // INT-355 — direct charges cannot reuse a platform SEPA PaymentMethod (open decision).
+    expect(paid).toMatchObject({ status: "failed", failureCategory: "sepa_debit_not_shareable" });
   });
 
   it("getMyPaymentAccount returns dashboardUrl for Ready producer (INT-255)", async () => {

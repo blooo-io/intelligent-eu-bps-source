@@ -171,6 +171,16 @@ export class MockPspAdapter implements PspPort {
       return { ...alreadyPaid };
     }
     const { consumerPaymentMethodId } = input;
+    // Mirrors Stripe: sepa_debit cannot be shared with a connected account.
+    if ((await this.getPaymentMethodDetails(consumerPaymentMethodId)).type === "sepa_debit") {
+      const refused: PspPaymentResult = {
+        stripePaymentId: `pi_test_${randomUUID().slice(0, 8)}`,
+        status: "failed",
+        failureCategory: "sepa_debit_not_shareable",
+      };
+      this.payments.push(refused);
+      return refused;
+    }
     const fail = consumerPaymentMethodId.startsWith("pm_fail_");
     const result: PspPaymentResult = fail
       ? {

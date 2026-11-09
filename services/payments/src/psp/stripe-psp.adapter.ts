@@ -102,8 +102,6 @@ export class StripePspAdapter implements PspPort {
       },
       capabilities: {
         card_payments: { requested: true },
-        // INT-355 — direct charges with a SEPA Direct Debit PaymentMethod (REQ-014).
-        sepa_debit_payments: { requested: true },
         transfers: { requested: true },
       },
       metadata: { participantId: input.participantId },
@@ -260,6 +258,15 @@ export class StripePspAdapter implements PspPort {
       const platformPm = await this.stripe.paymentMethods.retrieve(
         input.consumerPaymentMethodId,
       );
+      // Stripe refuses to share sepa_debit PaymentMethods with a connected
+      // account, so a platform SEPA mandate cannot fund a direct charge.
+      if (platformPm.type === "sepa_debit") {
+        return {
+          stripePaymentId: invoicePaymentIntentId(invoice),
+          status: "failed",
+          failureCategory: "sepa_debit_not_shareable",
+        };
+      }
       const platformCustomer = stripeId(platformPm.customer);
       if (!platformCustomer) {
         return {
@@ -288,26 +295,17 @@ export class StripePspAdapter implements PspPort {
         );
       }
 
-      const mandate =
-        platformPm.type === "sepa_debit"
-          ? await this.createConnectedSepaMandate(platformPm.id, cloned.id, customer, opts)
-          : undefined;
-
       const paid = await this.stripe.invoices.pay(
         invoice.id,
-        {
-          payment_method: cloned.id,
-          off_session: true,
-          ...(mandate ? { mandate } : {}),
-          expand: ["payments"],
-        },
+        { payment_method: cloned.id, off_session: true, expand: ["payments"] },
         opts,
       );
       const stripePaymentId = invoicePaymentIntentId(paid);
       if (paid.status === "paid") {
         return { stripePaymentId, status: "succeeded" };
       }
-      // SEPA Direct Debit settles asynchronously; invoice.paid / invoice.payment_failed close it.
+      // Still open (e.g. processing / requires_action): invoice.paid or
+      // invoice.payment_failed on the Connect endpoint closes it.
       if (paid.status === "open") {
         return { stripePaymentId, status: "pending" };
       }
@@ -329,56 +327,6 @@ export class StripePspAdapter implements PspPort {
         failureCategory: mapFailureCategory(String(code)),
       };
     }
-  }
-
-  /**
-   * INT-355 — a cloned sepa_debit PaymentMethod needs a mandate on the producer
-   * Connect account. Re-use the acceptance the consumer gave on the platform
-   * SetupIntent (INT-276); without one the payment fails as mandate_required.
-   */
-  private async createConnectedSepaMandate(
-    platformPmId: string,
-    clonedPmId: string,
-    customer: string,
-    opts: Stripe.RequestOptions,
-  ): Promise<string> {
-    const setups = await this.stripe.setupIntents.list({
-      payment_method: platformPmId,
-      limit: 10,
-    });
-    const source = setups.data.find((si) => si.status === "succeeded" && si.mandate);
-    const sourceMandateId = stripeId(source?.mandate);
-    if (!sourceMandateId) {
-      throw Object.assign(new Error("SEPA mandate missing"), { code: "mandate_required" });
-    }
-    const sourceMandate = await this.stripe.mandates.retrieve(sourceMandateId);
-    const acceptance = sourceMandate.customer_acceptance;
-    const acceptedAt = acceptance.accepted_at ?? undefined;
-    const online = acceptance.online;
-    const customerAcceptance: Stripe.SetupIntentCreateParams.MandateData.CustomerAcceptance =
-      acceptance.type === "online" && online?.ip_address && online.user_agent
-        ? {
-            type: "online",
-            accepted_at: acceptedAt,
-            online: { ip_address: online.ip_address, user_agent: online.user_agent },
-          }
-        : { type: "offline", accepted_at: acceptedAt, offline: {} };
-    const setup = await this.stripe.setupIntents.create(
-      {
-        customer,
-        payment_method: clonedPmId,
-        confirm: true,
-        usage: "off_session",
-        allowed_payment_method_types: ["sepa_debit"],
-        mandate_data: { customer_acceptance: customerAcceptance },
-      },
-      opts,
-    );
-    const mandate = stripeId(setup.mandate);
-    if (!mandate) {
-      throw Object.assign(new Error("SEPA mandate not created"), { code: "mandate_required" });
-    }
-    return mandate;
   }
 
   async refund(stripePaymentId: string): Promise<{ status: "refunded" }> {
@@ -496,7 +444,6 @@ function mapFailureCategory(code: string): string {
   const lower = code.toLowerCase();
   if (lower.includes("insufficient")) return "insufficient_funds";
   if (lower.includes("authenticat")) return "authentication_required";
-  if (lower.includes("mandate")) return "mandate_required";
   return "declined";
 }
 

@@ -14,6 +14,8 @@ spec:
       app.kubernetes.io/name: {{ .Values.name }}-scheduler
   template:
     metadata:
+      annotations:
+        checksum/config: {{ toJson .Values.config | sha256sum | quote }}
       labels:
         app.kubernetes.io/name: {{ .Values.name }}-scheduler
     spec:

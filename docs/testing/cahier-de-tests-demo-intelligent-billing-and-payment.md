@@ -3,7 +3,7 @@
 **Produit :** Intelligent Billing & Payment  
 **Environnement :** https://app.dev.intelligent-eu-bp.blooo.dev  
 **IdP :** Keycloak realm `int` (thème Volt INT-332)  
-**Mot de passe (tous) :** `Intelligent-UAT-2026!`  
+**Mot de passe (tous) :** secret opérateur `KEYCLOAK_UAT_PASSWORD` (absent du dépôt, INT-337)  
 **Communauté démo :** **Horizon Energy**  
 **Tickets :** INT-282 … INT-285 · refresh captures INT-333  
 

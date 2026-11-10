@@ -17,7 +17,7 @@ AC-05 writes `SettlementCompleted` / `BillingRunCompleted` to the outbox. INT-22
 
 S1 community `c0ffee00-1234-4abc-8def-0123456789ab` has Keycloak users
 `lea.martin` / `thomas.bernard` / `claire.dubois` / **`marie.leroy`**
-(password `Intelligent-UAT-2026!`). No operator script required.
+(password: operator secret `KEYCLOAK_UAT_PASSWORD`, not in Git). No operator script required.
 
 **Full click-by-click script (creds, form values, pass/fail checks):**  
 [`manual-s1-portal-journey.md`](./manual-s1-portal-journey.md)

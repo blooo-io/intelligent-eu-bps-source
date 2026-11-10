@@ -19,7 +19,7 @@ Related: `docs/testing/stripe-connect-test-kyc.md`, `docs/testing/uat028-operato
 |---|---|
 | Web app | https://app.dev.intelligent-eu-bp.blooo.dev |
 | How to sign in | Open app → **Sign in with IdP** → Keycloak realm `int` |
-| Password (all S1 / UAT fixtures) | `Intelligent-UAT-2026!` |
+| Password (all S1 / UAT fixtures) | operator secret `KEYCLOAK_UAT_PASSWORD` (not in Git, INT-337) |
 
 If login fails with wrong password / missing user, ask an operator to run `scripts/keycloak-ensure-uat-users.mjs` once against the live realm (not part of this script).
 
@@ -70,7 +70,7 @@ Use a private / incognito window per role (or **Sign out** between users).
 1. Open https://app.dev.intelligent-eu-bp.blooo.dev  
 2. **Sign in with IdP**  
    - Username: `thomas.bernard`  
-   - Password: `Intelligent-UAT-2026!`  
+   - Password: the operator secret `KEYCLOAK_UAT_PASSWORD` (not in Git)  
 3. Go to **Payment setup** (`/payment-setup`).  
 4. Click **Start payment setup**.  
 5. Fill the producer KYC form (Stripe Connect **test** tokens — INT-195):
@@ -119,7 +119,7 @@ Repeat Step 1 with:
 
 ### Step 3 — Manager starts an early billing run
 
-1. Sign in as `marie.leroy` / `Intelligent-UAT-2026!`  
+1. Sign in as `marie.leroy` with the operator secret `KEYCLOAK_UAT_PASSWORD`  
 2. Open **Billing runs** (`/billing-runs`).  
 3. **Checks before start**  
    - [ ] Page title **Billing runs**  
@@ -139,7 +139,7 @@ If the run completes with **no invoices** later (Step 4 empty): fixture trades w
 
 ### Step 4 — Consumer pays
 
-1. Sign in as `lea.martin` / `Intelligent-UAT-2026!`  
+1. Sign in as `lea.martin` with the operator secret `KEYCLOAK_UAT_PASSWORD`  
 2. Open **Payment setup** → **Start payment setup**.  
 3. Consumer Stripe Payment Element — enter test card:
 

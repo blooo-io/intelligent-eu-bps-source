@@ -18,6 +18,7 @@
  *   KEYCLOAK_MODULE_SERVICE_CLIENT_SECRET
  *   KEYCLOAK_PARTICIPANTS_ADMIN_CLIENT_SECRET
  *   KEYCLOAK_APISIX_GATEWAY_CLIENT_SECRET
+ * Required (INT-337 — no UAT password is stored in Git):
  *   KEYCLOAK_UAT_PASSWORD
  *
  * Rotation (INT-325): write new values to OpenBao (platform/apisix
@@ -129,10 +130,17 @@ export const S1_USERS = [
   },
 ];
 
-// Shared Keycloak UAT fixture (INT-194) — V1 placeholder only; never in realm JSON.
-export const UAT_PASSWORD_DEFAULT = ["Intelligent", "UAT", "2026!"].join("-");
-export const UAT_PASSWORD =
-  process.env.KEYCLOAK_UAT_PASSWORD || UAT_PASSWORD_DEFAULT;
+/**
+ * INT-337 — the UAT password is an operator secret. The script refuses to
+ * set a password when KEYCLOAK_UAT_PASSWORD is unset.
+ */
+export function uatPassword() {
+  const value = process.env.KEYCLOAK_UAT_PASSWORD ?? "";
+  if (!value) {
+    throw new Error("KEYCLOAK_UAT_PASSWORD is required");
+  }
+  return value;
+}
 
 /** INT-218 — AC-03 Admin IdP client (secret from OpenBao / env, not realm JSON). */
 export const PARTICIPANTS_ADMIN_CLIENT = {
@@ -224,6 +232,7 @@ async function importUserWithFixedId(baseUrl, token, fixture) {
   const communityId = fixture.communityId ?? UAT_COMMUNITY_ID;
   const firstName = fixture.firstName ?? "UAT";
   const lastName = fixture.lastName ?? fixture.role;
+  const password = uatPassword();
   const res = await fetch(`${realmBase}/partialImport`, {
     method: "POST",
     headers,
@@ -244,7 +253,7 @@ async function importUserWithFixedId(baseUrl, token, fixture) {
             {
               type: "password",
               temporary: false,
-              value: UAT_PASSWORD,
+              value: password,
             },
           ],
         },
@@ -368,7 +377,7 @@ async function ensureUser(baseUrl, token, fixture) {
     body: JSON.stringify({
       type: "password",
       temporary: false,
-      value: UAT_PASSWORD,
+      value: uatPassword(),
     }),
   });
   if (!pw.ok) {

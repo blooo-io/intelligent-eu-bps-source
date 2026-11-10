@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -31,13 +32,24 @@ export class PublicComplianceController {
     @Body() body: { type: DataSubjectRequestType; participantId?: string },
   ) {
     const user = req.user!;
-    // Member acts for self; DPO/manager may target another participant (REQ-013).
-    const participantId =
-      body.participantId ??
-      (user.roles.includes("member") ? user.sub : undefined);
+    // REQ-013 — manager and DPO may name another participant. A member may not.
+    const elevated =
+      user.roles.includes("manager") || user.roles.includes("dpo");
+    const participantId = elevated
+      ? body.participantId?.trim() || user.sub
+      : user.sub;
+    if (!participantId) {
+      throw new BadRequestException("participantId is required");
+    }
+    if (elevated && participantId !== user.sub) {
+      await this.compliance.assertParticipantInCommunity(
+        participantId,
+        user.communityId,
+      );
+    }
     return this.compliance.createDataSubjectRequest({
       type: body.type,
-      participantId: participantId ?? "",
+      participantId,
       actorId: user.sub,
       communityId: user.communityId,
     });
@@ -45,7 +57,13 @@ export class PublicComplianceController {
 
   @Get("data-subject-requests/:id")
   @UseGuards(new ModuleAuthGuard({ roles: ["member", "dpo", "manager", "operator"] }))
-  get(@Param("id") id: string) {
-    return this.compliance.getRequest(id);
+  get(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    const user = req.user!;
+    // REQ-049 — hide a request the caller does not own or whose community differs.
+    return this.compliance.getRequestForCaller(id, {
+      sub: user.sub,
+      communityId: user.communityId,
+      roles: user.roles,
+    });
   }
 }

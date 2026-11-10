@@ -1,5 +1,6 @@
 import { UserManager, WebStorageStateStore, type User } from "oidc-client-ts";
 import type { WebConfig } from "../api/config";
+import { clearPrivacySession } from "./privacy-session";
 
 /**
  * OIDC Authorization Code + PKCE client (NFR-011, REQ-033, UAT-043).
@@ -42,6 +43,7 @@ export function createOidcFacade(manager: UserManager): OidcFacade {
       return manager.signinRedirectCallback();
     },
     async logout() {
+      clearPrivacySession();
       await manager.signoutRedirect();
     },
     async getUser() {

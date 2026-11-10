@@ -12,6 +12,7 @@ import {
 import { ComplianceStore } from "../domain/store.js";
 import { MockIdpAdapter } from "../idp/mock-idp.adapter.js";
 import { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
+import { NoopParticipantCommunity } from "../ports/participant-community.port.js";
 import { ComplianceService } from "./compliance.service.js";
 
 const PARTICIPANT = "11111111-2222-4333-8444-555555555555";
@@ -37,6 +38,7 @@ describe("ComplianceService", () => {
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       idp,
       psp,
+      new NoopParticipantCommunity(),
     );
   });
 
@@ -187,6 +189,49 @@ describe("ComplianceService", () => {
       target: `participant:${PARTICIPANT}`,
       timestamp: "2026-10-17T12:00:00.000Z",
     });
+  });
+
+  it("REQ-049 — a caller outside the community cannot read the request", async () => {
+    service.seedPersonal({
+      participantId: PARTICIPANT,
+      communityId: COMMUNITY,
+      relationshipEndedAt: "2024-01-01T00:00:00.000Z",
+      activeRelationship: true,
+      anonymized: false,
+      invoiceIds: [],
+    });
+    const created = await service.createDataSubjectRequest({
+      type: "export",
+      participantId: PARTICIPANT,
+      actorId: ACTOR,
+      communityId: COMMUNITY,
+    });
+    expect(() =>
+      service.getRequestForCaller(created.requestId, {
+        sub: "other",
+        communityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        roles: ["dpo"],
+      }),
+    ).toThrow(/Unknown request/);
+    expect(
+      service.getRequestForCaller(created.requestId, {
+        sub: PARTICIPANT,
+        communityId: COMMUNITY,
+        roles: ["member"],
+      }).participantId,
+    ).toBe(PARTICIPANT);
+    await expect(
+      service.assertParticipantInCommunity(PARTICIPANT, COMMUNITY),
+    ).resolves.toBeUndefined();
+    await expect(
+      service.assertParticipantInCommunity(PARTICIPANT, ""),
+    ).rejects.toThrow(/community scope/);
+    await expect(
+      service.assertParticipantInCommunity(
+        "99999999-9999-4999-8999-999999999999",
+        COMMUNITY,
+      ),
+    ).rejects.toThrow(/Unknown participant/);
   });
 
   it("export completes with confirmation listing retained invoices", async () => {

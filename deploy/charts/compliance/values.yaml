@@ -9,7 +9,8 @@ image:
   tag: "0.0.0"
 port: 8080
 # INT-287 — peer allow-list only (no namespace-wide ingress).
-egressModules: []
+egressModules:
+  - participants
 ingressFrom:
   - scheduler-worker
 keycloakEgress: true
@@ -26,3 +27,5 @@ env:
   KEYCLOAK_SERVICE_CLIENT_ID: module-service
   # INT-314 — require Bearer JWT on /internal/* (forgeable headers alone rejected).
   SERVICE_JWT_REQUIRED: "true"
+  # INT-336 — manager/DPO DSR target must belong to the caller community (AC-03).
+  PARTICIPANTS_INTERNAL_URL: http://participants:8080

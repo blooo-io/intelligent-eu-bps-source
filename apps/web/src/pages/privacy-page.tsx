@@ -9,11 +9,12 @@ import {
   type DataSubjectRequest,
   type DataSubjectRequestType,
 } from "../api/privacy";
+import { clearPrivacySession, PRIVACY_REQUEST_KEY } from "../auth/privacy-session";
 
 const { Paragraph, Text } = Typography;
 
 /** INT-256 — survive shell remounts within the tab (auth revalidation races). */
-const CURRENT_REQUEST_KEY = "int.privacy.currentRequest";
+const CURRENT_REQUEST_KEY = PRIVACY_REQUEST_KEY;
 
 function readStoredRequest(): DataSubjectRequest | null {
   try {
@@ -42,9 +43,26 @@ export function PrivacyPage({
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [current, setCurrent] = useState<DataSubjectRequest | null>(() =>
-    readStoredRequest(),
-  );
+  const [current, setCurrent] = useState<DataSubjectRequest | null>(null);
+
+  // INT-336 — restore only the request that belongs to the signed-in subject.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const user = await oidc.getUser();
+      if (cancelled) return;
+      const sub = user?.profile?.sub;
+      const stored = readStoredRequest();
+      if (stored && sub && stored.participantId === sub) {
+        setCurrent(stored);
+        return;
+      }
+      if (stored) clearPrivacySession();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [oidc]);
 
   useEffect(() => {
     if (!current) return;

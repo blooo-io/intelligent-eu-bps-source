@@ -12,6 +12,11 @@ import spec from "../public/openapi/public.v1.json" with { type: "json" };
  */
 const base = (process.env.DOCS_BASE || "/").replace(/\/?$/, "/") || "/";
 
+// INT-370 — VitePress leaves non-HTML nav and sidebar links unprefixed.
+// The raw contract must already include `base`, or GitHub Pages resolves it
+// at the host root (404) instead of under /<repo>/.
+const rawOpenApi = `${base}openapi/public.v1.yaml`;
+
 const openapiSidebar = useSidebar({
   spec,
   linkPrefix: "/api/operations/",
@@ -57,7 +62,7 @@ export default withMermaid({
         items: [
           { text: "API overview", link: "/api/" },
           { text: "API & events (notes)", link: "/reference/api" },
-          { text: "public.v1.yaml", link: "/openapi/public.v1.yaml" },
+          { text: "public.v1.yaml", link: rawOpenApi },
         ],
       },
       {
@@ -103,7 +108,7 @@ export default withMermaid({
           items: [
             { text: "Overview", link: "/api/" },
             { text: "Narrative notes", link: "/reference/api" },
-            { text: "Raw OpenAPI YAML", link: "/openapi/public.v1.yaml" },
+            { text: "Raw OpenAPI YAML", link: rawOpenApi },
           ],
         },
         ...openapiSidebar

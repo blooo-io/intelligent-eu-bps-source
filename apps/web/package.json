@@ -25,7 +25,7 @@
     "@refinedev/core": "^5.0.12",
     "@refinedev/react-router": "^2.0.4",
     "@stripe/connect-js": "^3.5.0",
-    "@stripe/stripe-js": "^7.9.0",
+    "@stripe/stripe-js": "^10.2.1",
     "antd": "^6.7.0",
     "oidc-client-ts": "^3.5.0",
     "react": "^19.3.1",

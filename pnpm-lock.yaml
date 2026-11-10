@@ -83,8 +83,8 @@ importers:
         specifier: ^3.5.0
         version: 3.5.0
       '@stripe/stripe-js':
-        specifier: ^7.9.0
-        version: 7.10.0
+        specifier: ^10.2.1
+        version: 10.2.1
       antd:
         specifier: ^6.7.0
         version: 6.7.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -3672,8 +3672,8 @@ packages:
   '@stripe/connect-js@3.5.0':
     resolution: {integrity: sha512-r0x134GLNJaQa0xY2bVEWZ/57D2QU78bigs+F/I3GJx4UBNwkmq4WeZKkYla9vHPZZ00454lDKpz0KJwnXzE5g==}
 
-  '@stripe/stripe-js@7.10.0':
-    resolution: {integrity: sha512-LKrDpCop593iWnPxOHgjYmZGngOdgzPYLjyVzUdQ7f7bSnAEKkBMEwsOmWRrq40TR8KG96woms5xPUmffZkJ0Q==}
+  '@stripe/stripe-js@10.2.1':
+    resolution: {integrity: sha512-diHeR1/FeWZZzuFXEvkjRMzydgKEpxUTrKEUxSV8NcpeZY3Kl8C4Gerw/JSMK+3oXsBRJtgkG7ckviQJ651moA==}
     engines: {node: '>=12.16'}
 
   '@swc/core-darwin-arm64@1.16.18':
@@ -13295,7 +13295,7 @@ snapshots:
 
   '@stripe/connect-js@3.5.0': {}
 
-  '@stripe/stripe-js@7.10.0': {}
+  '@stripe/stripe-js@10.2.1': {}
 
   '@swc/core-darwin-arm64@1.16.18':
     optional: true

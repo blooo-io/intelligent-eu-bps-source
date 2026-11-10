@@ -91,6 +91,16 @@ describe("participants HTTP (INT-103)", () => {
       status: "Invited",
     });
 
+    const community = await fetch(
+      `${base}/internal/v1/participants/${imported[0].participantId}/community`,
+      { headers: { "x-intelligent-roles": "service" } },
+    );
+    expect(community.status).toBe(200);
+    expect(await community.json()).toEqual({
+      participantId: imported[0].participantId,
+      communityId: SEED_COMMUNITY_ID,
+    });
+
     // INT-230 — IdP sub resolve (seeded UAT member).
     const byIdp = await fetch(
       `${base}/internal/v1/participants:by-idp-sub/b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f`,

@@ -93,6 +93,32 @@ paths:
                     type: string
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants/{participantId}/community:
+    get:
+      operationId: getParticipantCommunity
+      tags: [Participants]
+      summary: Community of a participant
+      description: >
+        Called by AC-12 so a manager or DPO can open a data-subject request
+        only for a participant of their own community (REQ-013 / REQ-049).
+      parameters:
+        - $ref: '#/components/parameters/ParticipantId'
+      responses:
+        '200':
+          description: Participant and community identifiers.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [participantId, communityId]
+                properties:
+                  participantId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  communityId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /participants:by-idp-sub/{idpUserId}:
     get:
       operationId: resolveParticipantByIdpSub

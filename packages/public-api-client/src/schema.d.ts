@@ -580,7 +580,7 @@ export interface paths {
         put?: never;
         /**
          * Request an export or an erasure
-         * @description The member or the DPO opens an export or erasure request (REQ-013).
+         * @description The member opens an export or erasure for themselves; the token subject is used and a body participantId is ignored (REQ-013). A community manager or the DPO may name another participant of their own community. A peer or another community is rejected (REQ-049).
          */
         post: operations["createDataSubjectRequest"];
         delete?: never;
@@ -598,7 +598,7 @@ export interface paths {
         };
         /**
          * Read a data-subject request
-         * @description Status of one export or erasure request (REQ-013).
+         * @description Status of one export or erasure request (REQ-013). A member reads a request they opened or that names them. A manager, operator or DPO reads a request in their own community. Another community returns 404 (REQ-049).
          */
         get: operations["getDataSubjectRequest"];
         put?: never;

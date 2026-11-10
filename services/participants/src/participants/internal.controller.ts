@@ -35,6 +35,12 @@ export class InternalParticipantsController {
     return this.participants.checkReadiness(participantId);
   }
 
+  /** INT-336 — AC-12 binds a manager/DPO data-subject request to this community. */
+  @Get("participants/:participantId/community")
+  getParticipantCommunity(@Param("participantId") participantId: string) {
+    return this.participants.getParticipantCommunity(participantId);
+  }
+
   /** INT-274 — AC-11 payment-notice recipient from profile e-mail. */
   @Get("participants/:participantId/notification-contact")
   getNotificationContact(@Param("participantId") participantId: string) {

@@ -20,7 +20,7 @@ describe("PrivacyPage (INT-143 / UAT-013)", () => {
     sessionStorage.clear();
   });
 
-  it("restores the last request from sessionStorage after remount (INT-256)", () => {
+  it("restores the last request from sessionStorage after remount (INT-256)", async () => {
     sessionStorage.setItem(
       "int.privacy.currentRequest",
       JSON.stringify({
@@ -34,7 +34,7 @@ describe("PrivacyPage (INT-143 / UAT-013)", () => {
       login: vi.fn(),
       handleCallback: vi.fn(),
       logout: vi.fn(),
-      getUser: vi.fn(),
+      getUser: vi.fn().mockResolvedValue({ profile: { sub: participantId } }),
       getAccessToken: vi.fn().mockResolvedValue("tok"),
     };
 
@@ -44,8 +44,40 @@ describe("PrivacyPage (INT-143 / UAT-013)", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("privacy-request-status")).toHaveTextContent(requestId);
+    expect(await screen.findByTestId("privacy-request-status")).toHaveTextContent(requestId);
     expect(screen.getByTestId("privacy-request-status")).toHaveTextContent(/completed/i);
+  });
+
+  it("drops a stored request that belongs to another account (INT-336)", async () => {
+    sessionStorage.setItem(
+      "int.privacy.currentRequest",
+      JSON.stringify({
+        requestId,
+        participantId,
+        type: "export",
+        status: "completed",
+      }),
+    );
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn().mockResolvedValue({
+        profile: { sub: "22222222-2222-2222-2222-222222222222" },
+      }),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+
+    render(
+      <MemoryRouter>
+        <PrivacyPage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(sessionStorage.getItem("int.privacy.currentRequest")).toBeNull();
+    });
+    expect(screen.queryByTestId("privacy-request-status")).not.toBeInTheDocument();
   });
 
   it("submits an erasure request and refreshes status", async () => {

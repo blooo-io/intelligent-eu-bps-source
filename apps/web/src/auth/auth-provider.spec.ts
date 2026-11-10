@@ -79,10 +79,15 @@ describe("createAuthProvider", () => {
   });
 
   it("logout redirects to the IdP end-session then /login (INT-181)", async () => {
+    sessionStorage.setItem(
+      "int.privacy.currentRequest",
+      JSON.stringify({ requestId: "r", participantId: "p" }),
+    );
     const oidc = facade({ logout: vi.fn().mockResolvedValue(undefined) });
     const provider = createAuthProvider(oidc);
     const result = await provider.logout({} as never);
     expect(oidc.logout).toHaveBeenCalled();
+    expect(sessionStorage.getItem("int.privacy.currentRequest")).toBeNull();
     expect(result).toMatchObject({ success: true, redirectTo: "/login" });
   });
 

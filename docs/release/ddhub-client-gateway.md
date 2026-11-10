@@ -18,7 +18,7 @@ Upstream Client Gateway **images** ship under **GPL-3.0**. Accepted as a **separ
 
 Values: `deploy/platform/ddhub-client-gateway/values.yaml`.
 
-Phase 1 flags: `MTLS_ENABLED=false`, `USER_AUTH_ENABLED=false`, no UI Deployment, no Ingress, `WEBSOCKET=NONE`. Enrolment / mTLS / API keys = INT-309.
+Flags: `MTLS_ENABLED=true` (INT-309, after the EWF-signed client certificate was loaded through `POST /api/v2/certificate`), `USER_AUTH_ENABLED=false`, no UI Deployment, no Ingress, `WEBSOCKET=NONE`. API keys remain open under INT-309.
 
 ## Secrets
 

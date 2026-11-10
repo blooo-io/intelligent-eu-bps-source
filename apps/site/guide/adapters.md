@@ -20,7 +20,7 @@ Trade intake and publication talk to GSY DEX / EWDS through adapters. Ship-with 
 The public API expects **OIDC bearer tokens**. The reference packaging uses Keycloak realms. Any IdP works if:
 
 - Access tokens validate at the gateway
-- Claims used by the services (subject, roles, community) match the [public OpenAPI](https://github.com/blooo-io/intelligent-eu-billing-and-payment/tree/develop/contracts/openapi) assumptions
+- Claims used by the services (subject, roles, community) match the [public OpenAPI](https://github.com/blooo-io/intelligent-eu-bps-source/tree/develop/contracts/openapi) assumptions
 
 ## FX rates
 

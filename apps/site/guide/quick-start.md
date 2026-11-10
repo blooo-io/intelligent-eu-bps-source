@@ -4,7 +4,7 @@ Goal: run tests and inspect contracts on a developer machine without a full clus
 
 ## Prerequisites
 
-- **Node.js** ≥ 22 ([`.nvmrc`](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/.nvmrc))
+- **Node.js** ≥ 22 ([`.nvmrc`](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/.nvmrc))
 - **pnpm** 9 (see `packageManager` in the root `package.json`)
 - Git
 
@@ -13,8 +13,8 @@ Optional for a full local cluster: Docker, [k3d](https://k3d.io), [Tilt](https:/
 ## Clone and install
 
 ```bash
-git clone https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
-cd intelligent-eu-billing-and-payment
+git clone https://github.com/blooo-io/intelligent-eu-bps-source.git
+cd intelligent-eu-bps-source
 pnpm install
 ```
 
@@ -52,7 +52,7 @@ node scripts/local-stack.mjs --up
 tilt up
 ```
 
-Details and smoke URLs: repository file [`docs/release/deployment.md`](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/docs/release/deployment.md) (includes a **reference** environment; treat hostnames as examples).
+Details and smoke URLs: repository file [`docs/release/deployment.md`](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/docs/release/deployment.md) (includes a **reference** environment; treat hostnames as examples).
 
 ## Next steps
 

@@ -1,6 +1,6 @@
 # API & events
 
-The interactive reference lives under **[/api/](/api/)** — VitePress pages driven by [vitepress-openapi](https://vitepress-openapi.vercel.app/) from [`contracts/openapi/public.v1.yaml`](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/contracts/openapi/public.v1.yaml) (INT-302).
+The interactive reference lives under **[/api/](/api/)** — VitePress pages driven by [vitepress-openapi](https://vitepress-openapi.vercel.app/) from [`contracts/openapi/public.v1.yaml`](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/contracts/openapi/public.v1.yaml) (INT-302).
 
 | Resource | Path |
 |---|---|
@@ -32,5 +32,5 @@ AsyncAPI 3 documents under `contracts/asyncapi/` describe domain events. Deliver
 ## Further reading
 
 - [Docs hosting & URL](/guide/docs-hosting)
-- [Integration notes](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/docs/release/integration-api.md)
+- [Integration notes](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/docs/release/integration-api.md)
 - Technical decision TD-13 (contract-first tooling) in the technical architecture

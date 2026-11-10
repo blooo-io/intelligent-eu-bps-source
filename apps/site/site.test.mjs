@@ -64,6 +64,27 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.doesNotMatch(yaml, /api\.dev\.intelligent-eu-bp/);
   });
 
+  it("links the repository by its current name (INT-369)", () => {
+    const sources = [
+      "index.md",
+      "api/index.md",
+      "contribute/index.md",
+      "reference/api.md",
+      "reference/architecture.md",
+      "guide/quick-start.md",
+      "guide/introduction.md",
+      "guide/deploy.md",
+      "guide/adapters.md",
+      ".vitepress/config.mts",
+    ];
+    for (const file of sources) {
+      const text = readFileSync(path.join(root, file), "utf8");
+      assert.doesNotMatch(text, /intelligent-eu-billing-and-payment/, file);
+    }
+    const config = readFileSync(path.join(root, ".vitepress/config.mts"), "utf8");
+    assert.match(config, /github\.com\/blooo-io\/intelligent-eu-bps-source/);
+  });
+
   it("includes adopter-facing guide pages", () => {
     for (const rel of [
       "index.md",

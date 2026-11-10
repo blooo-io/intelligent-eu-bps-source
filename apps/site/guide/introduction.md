@@ -2,7 +2,7 @@
 
 The **INTELLIGENT Billing & Payment Service** turns settled local-market energy trades into **peer-to-peer invoices and payments** between community members, then publishes the results for other project systems.
 
-It is developed under Horizon Europe project [INTELLIGENT](https://cordis.europa.eu/project/id/101160678) (GA 101160678), Task **T5.6**, Deliverable **D5.5**, and released as **open source** under the [Apache License 2.0](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/LICENSE).
+It is developed under Horizon Europe project [INTELLIGENT](https://cordis.europa.eu/project/id/101160678) (GA 101160678), Task **T5.6**, Deliverable **D5.5**, and released as **open source** under the [Apache License 2.0](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/LICENSE).
 
 ## Who this documentation is for
 
@@ -23,7 +23,7 @@ This site describes how to **use and run** the software in **your** environment.
 4. The consumer pays the producer **directly** through the payment provider (Stripe Connect). Money does not transit through the billing platform.
 5. Grid fees, taxes and levies stay on the supplier/DSO bill — not on P2P invoices.
 
-Full business rules: [functional architecture](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/docs/architecture/01-functional-architecture.md) in the repository.
+Full business rules: [functional architecture](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/docs/architecture/01-functional-architecture.md) in the repository.
 
 ## V1 scope
 

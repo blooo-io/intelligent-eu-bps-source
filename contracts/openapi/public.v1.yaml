@@ -9,7 +9,7 @@ info:
     to the billing profile on `/me`.
   contact:
     name: Blooo
-    url: https://github.com/blooo-io/intelligent-eu-billing-and-payment
+    url: https://github.com/blooo-io/intelligent-eu-bps-source
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html

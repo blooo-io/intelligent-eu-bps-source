@@ -1,6 +1,11 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { asString, redactPersonalData } from "@intelligent/module-template";
+import {
+  asString,
+  IdempotentConsumer,
+  InMemoryProcessedEventsStore,
+  redactPersonalData,
+} from "@intelligent/module-template";
 import { MAIL_PORT, type MailPort } from "../mail/mail.port.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
 
@@ -21,11 +26,17 @@ export class OperatorAlertsListener implements OnModuleInit {
   constructor(
     @Inject(EVENT_BUS_PORT) private readonly bus: EventBusPort,
     @Inject(MAIL_PORT) private readonly mail: MailPort,
+    @Inject(IdempotentConsumer)
+    private readonly consumer: IdempotentConsumer = new IdempotentConsumer(
+      new InMemoryProcessedEventsStore(),
+    ),
   ) {}
 
   async onModuleInit(): Promise<void> {
     for (const subject of SUBJECTS) {
-      await this.bus.subscribe(subject, (p) => this.onAlert(subject, p));
+      await this.bus.subscribe(subject, (p) =>
+        this.dedupe(p, () => this.onAlert(subject, p)),
+      );
     }
     this.logger.log(`subscribed to ${SUBJECTS.join("/")}`);
   }
@@ -56,6 +67,22 @@ export class OperatorAlertsListener implements OnModuleInit {
         }),
       ),
     );
+  }
+
+  /** INT-339 — dedupe when the envelope carries an eventId. */
+  private async dedupe(
+    payload: unknown,
+    work: () => Promise<void>,
+  ): Promise<void> {
+    const eventId = asString((payload as { eventId?: string }).eventId);
+    if (!eventId) {
+      await work();
+      return;
+    }
+    const result = await this.consumer.handle(eventId, payload, async () => {
+      await work();
+    });
+    if (result.status === "failed") throw result.error;
   }
 }
 

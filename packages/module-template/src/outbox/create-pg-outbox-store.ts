@@ -1,4 +1,9 @@
 import { createRequire } from "node:module";
+import {
+  InMemoryProcessedEventsStore,
+  type ProcessedEventsStore,
+} from "../consumer/idempotent-consumer.js";
+import { PostgresProcessedEventsStore } from "../consumer/postgres-processed-events.store.js";
 import { InMemoryOutboxStore, type OutboxStore } from "./outbox.types.js";
 import { resolveOutboxStore, type SqlExecutor } from "./postgres-outbox.store.js";
 
@@ -30,6 +35,19 @@ export function createPgPoolExecutor(databaseUrl: string): SqlExecutor {
 /**
  * Prefer Postgres outbox when DATABASE_URL is set; otherwise in-memory (CI).
  */
+/**
+ * INT-339 — Postgres processed_events when DATABASE_URL is set; memory in CI.
+ */
+export function defaultProcessedEventsStore(
+  env: NodeJS.ProcessEnv = process.env,
+): ProcessedEventsStore {
+  const url = env.DATABASE_URL ?? "";
+  if (url) {
+    return new PostgresProcessedEventsStore(createPgPoolExecutor(url));
+  }
+  return new InMemoryProcessedEventsStore();
+}
+
 export function defaultOutboxStore(env: NodeJS.ProcessEnv = process.env): OutboxStore {
   return resolveOutboxStore({
     databaseUrl: env.DATABASE_URL,

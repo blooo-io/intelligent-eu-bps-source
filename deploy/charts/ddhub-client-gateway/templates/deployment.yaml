@@ -13,6 +13,8 @@ spec:
       app.kubernetes.io/name: {{ .Values.name }}
   template:
     metadata:
+      annotations:
+        checksum/config: {{ toJson .Values.config | sha256sum | quote }}
       labels:
         app.kubernetes.io/name: {{ .Values.name }}
     spec:

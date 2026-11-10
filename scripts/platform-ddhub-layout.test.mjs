@@ -57,9 +57,15 @@ test("DDHub values keep Phase 1 auth off and secret refs only", async () => {
     "deploy/charts/ddhub-client-gateway/templates/deployment.yaml",
     "utf8",
   );
+  assert.match(deploy, /checksum\/config/);
   assert.match(deploy, /migration:run/);
   assert.match(deploy, /ormconfig\.js/);
   assert.equal(deploy.includes("migrations:run"), false);
+  const scheduler = await readFile(
+    "deploy/charts/ddhub-client-gateway/templates/scheduler.yaml",
+    "utf8",
+  );
+  assert.match(scheduler, /checksum\/config/);
 
   const esValues = await readFile(
     "deploy/charts/ddhub-gateway-secret/values.yaml",

@@ -85,6 +85,12 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(config, /github\.com\/blooo-io\/intelligent-eu-bps-source/);
   });
 
+  it("prefixes the raw OpenAPI nav link with the Pages base (INT-370)", () => {
+    const config = readFileSync(path.join(root, ".vitepress/config.mts"), "utf8");
+    assert.match(config, /const rawOpenApi = `\$\{base\}openapi\/public\.v1\.yaml`/);
+    assert.doesNotMatch(config, /link:\s*"\/openapi\/public\.v1\.yaml"/);
+  });
+
   it("includes adopter-facing guide pages", () => {
     for (const rel of [
       "index.md",

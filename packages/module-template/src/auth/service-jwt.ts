@@ -36,7 +36,13 @@ export function resetServiceJwtJwksCache(): void {
   cachedJwksUrl = null;
 }
 
+/**
+ * INT-342 — cluster images set NODE_ENV=production and must not accept
+ * forgeable `x-intelligent-*` headers on `/internal`. An explicit
+ * SERVICE_JWT_REQUIRED=false only opts out outside production (unit tests, local).
+ */
 export function serviceJwtRequired(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (env.NODE_ENV === "production") return true;
   return env.SERVICE_JWT_REQUIRED === "true" || env.SERVICE_JWT_REQUIRED === "1";
 }
 

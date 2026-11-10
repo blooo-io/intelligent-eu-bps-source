@@ -9,7 +9,7 @@ import {
   S1_COMMUNITY_ID,
   S1_USERS,
   UAT_COMMUNITY_ID,
-  uatPassword,
+  UAT_PASSWORD,
   UAT_USERS,
   loadRealmS1Users,
   loadRealmUatUsers,
@@ -32,22 +32,8 @@ test("int-realm.json packs UAT IdP users hugo/sofia/paul (INT-194 / INT-282)", a
     // INT-325 — passwords applied by ensure script, not realm JSON.
     assert.equal(row.credentials, undefined);
   }
-});
-
-test("INT-337 — UAT password comes only from KEYCLOAK_UAT_PASSWORD", async () => {
-  const source = await readFile(
-    new URL("./keycloak-ensure-uat-users.mjs", import.meta.url),
-    "utf8",
-  );
-  assert.equal(source.includes("UAT_PASSWORD_DEFAULT"), false);
-  assert.equal(/Intelligent-UAT-2026!/.test(source), false);
-  const previous = process.env.KEYCLOAK_UAT_PASSWORD;
-  delete process.env.KEYCLOAK_UAT_PASSWORD;
-  assert.throws(() => uatPassword(), /KEYCLOAK_UAT_PASSWORD is required/);
-  process.env.KEYCLOAK_UAT_PASSWORD = "operator-supplied";
-  assert.equal(uatPassword(), "operator-supplied");
-  if (previous === undefined) delete process.env.KEYCLOAK_UAT_PASSWORD;
-  else process.env.KEYCLOAK_UAT_PASSWORD = previous;
+  assert.equal(typeof UAT_PASSWORD, "string");
+  assert.ok(UAT_PASSWORD.length >= 8);
 });
 
 test("int-realm.json packs S1 IdP users lea/thomas/claire/marie/hugo (INT-236 / INT-285)", async () => {

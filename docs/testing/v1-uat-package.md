@@ -33,9 +33,9 @@ Packed in `deploy/charts/keycloak-realms/realms/int-realm.json` (V1 `dev`/`int` 
 
 | Role | Username | Password |
 |---|---|---|
-| member | `hugo.petit` | operator secret `KEYCLOAK_UAT_PASSWORD` (not in Git) |
-| manager | `sofia.garcia` | operator secret `KEYCLOAK_UAT_PASSWORD` (not in Git) |
-| operator | `paul.nguyen` | operator secret `KEYCLOAK_UAT_PASSWORD` (not in Git) |
+| member | `hugo.petit` | `Intelligent-UAT-2026!` |
+| manager | `sofia.garcia` | `Intelligent-UAT-2026!` |
+| operator | `paul.nguyen` | `Intelligent-UAT-2026!` |
 
 ConfigMap sync alone does not re-import users on an already-initialised realm. After deploy, ensure passwords with:
 
@@ -43,7 +43,6 @@ ConfigMap sync alone does not re-import users on an already-initialised realm. A
 kubectl -n keycloak port-forward svc/platform-keycloak-keycloakx-http 18082:80
 KEYCLOAK_URL=http://127.0.0.1:18082 \
 KEYCLOAK_ADMIN_PASSWORD="$(kubectl -n keycloak get secret keycloak-admin -o jsonpath='{.data.password}' | base64 -d)" \
-KEYCLOAK_UAT_PASSWORD="<operator secret>" \
 node scripts/keycloak-ensure-uat-users.mjs
 ```
 

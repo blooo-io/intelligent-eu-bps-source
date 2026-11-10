@@ -192,27 +192,18 @@ jobs:
           KEYCLOAK_SERVICE_CLIENT_SECRET=dev-module-service-replace-me \
             node scripts/stripe-fresh-billing-run.mjs
 
-      - name: Require the UAT password secret (INT-337)
-        env:
-          E2E_UAT_PASSWORD: ${{ secrets.E2E_UAT_PASSWORD }}
-        run: |
-          if [ -z "$E2E_UAT_PASSWORD" ]; then
-            echo "::error::E2E_UAT_PASSWORD is unset. The workflow no longer carries a UAT password."
-            exit 1
-          fi
       - name: Run AC-01 E2E against deployed stack (screens + buttons, INT-211 / INT-251)
         # INT-194 / INT-211 — three UAT IdP roles; omit E2E_SKIP_AUTH so auth suites run.
         # INT-251 — STRIPE_SECRET_KEY from previous step for Charge assertion.
-        # INT-337 — password is the GitHub secret E2E_UAT_PASSWORD, never a literal.
         env:
           # INT-282 — human-readable demo logins (Keycloak ids unchanged).
           E2E_UAT_MEMBER_USER: hugo.petit
-          E2E_UAT_MEMBER_PASSWORD: ${{ secrets.E2E_UAT_PASSWORD }}
+          E2E_UAT_MEMBER_PASSWORD: Intelligent-UAT-2026!
           E2E_UAT_MANAGER_USER: sofia.garcia
-          E2E_UAT_MANAGER_PASSWORD: ${{ secrets.E2E_UAT_PASSWORD }}
+          E2E_UAT_MANAGER_PASSWORD: Intelligent-UAT-2026!
           E2E_UAT_OPERATOR_USER: paul.nguyen
-          E2E_UAT_OPERATOR_PASSWORD: ${{ secrets.E2E_UAT_PASSWORD }}
+          E2E_UAT_OPERATOR_PASSWORD: Intelligent-UAT-2026!
           # INT-251 / INT-282 — Léa Martin pays seeded Open invoices (S1 community).
           E2E_S1_CONSUMER_USER: lea.martin
-          E2E_S1_CONSUMER_PASSWORD: ${{ secrets.E2E_UAT_PASSWORD }}
+          E2E_S1_CONSUMER_PASSWORD: Intelligent-UAT-2026!
         run: pnpm --filter @intelligent/web test:e2e

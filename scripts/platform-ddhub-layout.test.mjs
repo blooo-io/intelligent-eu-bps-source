@@ -37,7 +37,7 @@ test("DDHub values keep Phase 1 auth off and secret refs only", async () => {
     "deploy/platform/ddhub-client-gateway/values.yaml",
     "utf8",
   );
-  assert.match(values, /MTLS_ENABLED:\s*"false"/);
+  assert.match(values, /MTLS_ENABLED:\s*"true"/);
   assert.match(values, /USER_AUTH_ENABLED:\s*"false"/);
   assert.match(values, /WEBSOCKET:\s*NONE/);
   assert.match(values, /DSB_BASE_URL:\s*https:\/\/ddhub-ewc\.energyweb\.org/);

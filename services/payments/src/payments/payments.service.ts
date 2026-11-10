@@ -655,6 +655,26 @@ export class PaymentsService {
     await this.emitAccountStatus(participantId);
   }
 
+  /**
+   * INT-338 / TP-7 — Stripe-backed payment row is the source AC-06 confirms
+   * before marking an invoice Paid. Unknown ids are not found.
+   */
+  getPaymentStatus(paymentId: string): {
+    paymentId: string;
+    invoiceId: string;
+    status: string;
+  } {
+    const row = this.store.getPayment(paymentId);
+    if (!row) {
+      throw new NotFoundException(`Unknown payment ${paymentId}`);
+    }
+    return {
+      paymentId: row.paymentId,
+      invoiceId: row.invoiceId,
+      status: row.status,
+    };
+  }
+
   async payInvoice(input: Parameters<PaymentsService["performPayInvoice"]>[0]) {
     return this.tx.run(() => this.performPayInvoice(input));
   }

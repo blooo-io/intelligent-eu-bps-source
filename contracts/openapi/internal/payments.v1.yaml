@@ -17,6 +17,31 @@ tags:
 security:
   - serviceAuth: []
 paths:
+  /payments/{paymentId}:
+    get:
+      operationId: getPayment
+      tags: [Payments]
+      summary: Read a payment recorded by AC-07
+      description: >
+        INT-338 / TP-7 — authoritative payment status. AC-06 confirms
+        PaymentStatusChanged against this read before marking an invoice Paid.
+        The event body is not trusted on its own.
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: Payment recorded by AC-07.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /payment-accounts/{participantId}:
     get:
       operationId: getPaymentAccount
@@ -139,6 +164,18 @@ components:
         stripeCustomerId:
           type: string
           description: Customer id (cus_…) on that connected account.
+    PaymentStatus:
+      type: object
+      additionalProperties: false
+      required: [paymentId, invoiceId, status]
+      properties:
+        paymentId:
+          type: string
+        invoiceId:
+          type: string
+        status:
+          type: string
+          description: AC-07 payment status (succeeded, failed, pending, …).
     PaymentAccount:
       type: object
       additionalProperties: false

@@ -115,7 +115,13 @@ export class NatsEventBus implements EventBusPort {
   }
 
   private async ensureConnected(): Promise<NatsConnection> {
-    this.nc ??= await connect({ servers: this.url });
+    const user = process.env.NATS_USER;
+    const pass = process.env.NATS_PASSWORD;
+    // INT-338 — authenticate when the broker account is configured. CI leaves both unset.
+    this.nc ??= await connect({
+      servers: this.url,
+      ...(user ? { user, pass: pass ?? "" } : {}),
+    });
     return this.nc;
   }
 }

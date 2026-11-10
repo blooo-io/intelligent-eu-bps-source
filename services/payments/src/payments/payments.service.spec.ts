@@ -53,6 +53,25 @@ describe("PaymentsService", () => {
     );
   });
 
+  it("INT-338 — getPaymentStatus returns the stored row and 404s otherwise", () => {
+    store.putPayment({
+      paymentId: "pay-1",
+      invoiceId: "inv-1",
+      participantId: CONSUMER,
+      amount: "10.00",
+      currency: "EUR",
+      status: "succeeded",
+      stripePaymentId: "pi_1",
+      communityId: COMMUNITY,
+    });
+    expect(service.getPaymentStatus("pay-1")).toEqual({
+      paymentId: "pay-1",
+      invoiceId: "inv-1",
+      status: "succeeded",
+    });
+    expect(() => service.getPaymentStatus("missing")).toThrow(/Unknown payment/);
+  });
+
   it("provisions a fresh producer Connect account each run (INT-228)", async () => {
     const first = await service.provisionPaymentAccount({
       participantId: PRODUCER,

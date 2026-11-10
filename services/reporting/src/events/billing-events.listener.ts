@@ -1,4 +1,8 @@
-import { asString } from "@intelligent/module-template";
+import {
+  asString,
+  IdempotentConsumer,
+  InMemoryProcessedEventsStore,
+} from "@intelligent/module-template";
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ReportingService } from "../reporting/reporting.service.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
@@ -13,13 +17,17 @@ export class BillingEventsListener implements OnModuleInit {
   constructor(
     @Inject(EVENT_BUS_PORT) private readonly bus: EventBusPort,
     @Inject(ReportingService) private readonly reporting: ReportingService,
+    @Inject(IdempotentConsumer)
+    private readonly consumer: IdempotentConsumer = new IdempotentConsumer(
+      new InMemoryProcessedEventsStore(),
+    ),
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.bus.subscribe("InvoiceIssued", (p) => this.onInvoice(p));
-    await this.bus.subscribe("InvoiceStatusChanged", (p) => this.onInvoice(p));
-    await this.bus.subscribe("PaymentStatusChanged", (p) => this.onPayment(p));
-    await this.bus.subscribe("BillingRunCompleted", (p) => this.onBillingRun(p));
+    await this.bus.subscribe("InvoiceIssued", (p) => this.dedupe(p, () => this.onInvoice(p)));
+    await this.bus.subscribe("InvoiceStatusChanged", (p) => this.dedupe(p, () => this.onInvoice(p)));
+    await this.bus.subscribe("PaymentStatusChanged", (p) => this.dedupe(p, () => this.onPayment(p)));
+    await this.bus.subscribe("BillingRunCompleted", (p) => this.dedupe(p, () => this.onBillingRun(p)));
     this.logger.log("subscribed to Invoice*/PaymentStatusChanged/BillingRunCompleted");
   }
 
@@ -79,6 +87,22 @@ export class BillingEventsListener implements OnModuleInit {
       communityId: env.communityId,
       period,
     });
+  }
+
+  /** INT-339 — dedupe when the envelope carries an eventId. */
+  private async dedupe(
+    payload: unknown,
+    work: () => Promise<void>,
+  ): Promise<void> {
+    const eventId = asString((payload as { eventId?: string }).eventId);
+    if (!eventId) {
+      await work();
+      return;
+    }
+    const result = await this.consumer.handle(eventId, payload, async () => {
+      await work();
+    });
+    if (result.status === "failed") throw result.error;
   }
 }
 

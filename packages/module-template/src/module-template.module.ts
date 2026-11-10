@@ -6,13 +6,13 @@ import {
   PROCESSED_EVENTS_STORE,
 } from "./module-template.tokens.js";
 import { OutboxService } from "./outbox/outbox.service.js";
-import { defaultOutboxStore } from "./outbox/create-pg-outbox-store.js";
+import {
+  defaultOutboxStore,
+  defaultProcessedEventsStore,
+} from "./outbox/create-pg-outbox-store.js";
 import { type OutboxStore } from "./outbox/outbox.types.js";
 import { IdempotentConsumer } from "./consumer/idempotent-consumer.js";
-import {
-  InMemoryProcessedEventsStore,
-  type ProcessedEventsStore,
-} from "./consumer/idempotent-consumer.js";
+import { type ProcessedEventsStore } from "./consumer/idempotent-consumer.js";
 
 export type ModuleTemplateOptions = {
   moduleName: string;
@@ -30,7 +30,7 @@ export class ModuleTemplateModule {
   static forRoot(options: ModuleTemplateOptions): DynamicModule {
     const outboxStore = options.outboxStore ?? defaultOutboxStore();
     const processedEventsStore =
-      options.processedEventsStore ?? new InMemoryProcessedEventsStore();
+      options.processedEventsStore ?? defaultProcessedEventsStore();
 
     return {
       module: ModuleTemplateModule,

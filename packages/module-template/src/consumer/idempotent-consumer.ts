@@ -1,6 +1,9 @@
 export interface ProcessedEventsStore {
   has(eventId: string): Promise<boolean>;
-  mark(eventId: string): Promise<void>;
+  /** Claim the event id. False means another delivery already owns it. */
+  claim(eventId: string): Promise<boolean>;
+  /** Drop a claim so a failed delivery can be retried (NFR-006). */
+  release(eventId: string): Promise<void>;
 }
 
 export class InMemoryProcessedEventsStore implements ProcessedEventsStore {
@@ -10,8 +13,14 @@ export class InMemoryProcessedEventsStore implements ProcessedEventsStore {
     return this.seen.has(eventId);
   }
 
-  async mark(eventId: string): Promise<void> {
+  async claim(eventId: string): Promise<boolean> {
+    if (this.seen.has(eventId)) return false;
     this.seen.add(eventId);
+    return true;
+  }
+
+  async release(eventId: string): Promise<void> {
+    this.seen.delete(eventId);
   }
 }
 
@@ -23,8 +32,8 @@ export type ConsumeResult =
   | { status: "failed"; error: Error };
 
 /**
- * At-least-once consumer with dedupe on eventId (03 §4 / TD-7).
- * Failures are not marked processed so the message can be retried (NFR-006 / UAT-038).
+ * At-least-once consumer with dedupe on eventId (03 §4 / TD-7 / INT-339).
+ * The claim is released when the handler throws so JetStream can redeliver (NFR-006).
  */
 export class IdempotentConsumer {
   constructor(private readonly processed: ProcessedEventsStore) {}
@@ -34,14 +43,15 @@ export class IdempotentConsumer {
     payload: T,
     handler: EventHandler<T>,
   ): Promise<ConsumeResult> {
-    if (await this.processed.has(eventId)) {
+    const claimed = await this.processed.claim(eventId);
+    if (!claimed) {
       return { status: "duplicate" };
     }
     try {
       await handler(payload);
-      await this.processed.mark(eventId);
       return { status: "processed" };
     } catch (error) {
+      await this.processed.release(eventId);
       return {
         status: "failed",
         error: error instanceof Error ? error : new Error(String(error)),

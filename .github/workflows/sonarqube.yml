@@ -14,6 +14,8 @@ permissions:
 jobs:
   analyze:
     name: sonarqube
+    # INT-341 — a dispatched feature branch must not receive SONAR_TOKEN.
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

@@ -760,6 +760,32 @@ describe("PaymentsService", () => {
       const events = (await outboxStore.list()).filter(
         (e) => e.event.type === "PaymentStatusChanged",
       );
+      // INT-368 — AC-06 still reports Open, so the replay re-announces the payment.
+      expect(events).toHaveLength(2);
+      expect(events.map((e) => e.event.data)).toEqual([
+        expect.objectContaining({ paymentId: first.paymentId, status: "succeeded" }),
+        expect.objectContaining({ paymentId: first.paymentId, status: "succeeded" }),
+      ]);
+      expect(events[0]!.event.eventId).not.toBe(events[1]!.event.eventId);
+    });
+
+    it("INT-368 does not re-announce a replay once AC-06 shows the invoice Paid", async () => {
+      putInvoice("inv-dc-paid", "acct_p1");
+      const first = await service.payInvoice({
+        invoiceId: "inv-dc-paid",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      });
+      putInvoice("inv-dc-paid", "acct_p1", { status: "Paid" });
+      const again = await service.payInvoice({
+        invoiceId: "inv-dc-paid",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      });
+      expect(again.paymentId).toBe(first.paymentId);
+      const events = (await outboxStore.list()).filter(
+        (e) => e.event.type === "PaymentStatusChanged",
+      );
       expect(events).toHaveLength(1);
     });
 

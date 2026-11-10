@@ -4,6 +4,10 @@ import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import { AppModule } from "./app.module.js";
 import { ReportingService } from "./reporting/reporting.service.js";
+import {
+  PARTICIPANTS_RESOLVER,
+  type ParticipantsResolverPort,
+} from "./ports/participants-resolver.port.js";
 
 const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
 const OTHER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -16,6 +20,7 @@ describe("reporting HTTP (INT-112)", () => {
   let app: INestApplication;
   let base: string;
   let service: ReportingService;
+  let resolver: ParticipantsResolverPort;
 
   beforeAll(async () => {
     app = await NestFactory.create(AppModule, { logger: false });
@@ -26,10 +31,14 @@ describe("reporting HTTP (INT-112)", () => {
     }
     base = `http://127.0.0.1:${address.port}`;
     service = app.get(ReportingService);
+    resolver = app.get<ParticipantsResolverPort>(PARTICIPANTS_RESOLVER);
   });
 
   beforeEach(() => {
     service.resetStore();
+    // INT-373 — the IdP sub of the seeded member is bound to the registry CONSUMER id.
+    resolver.resolveByIdpSub = async (sub: string) =>
+      sub === CONSUMER ? { participantId: CONSUMER, communityId: COMMUNITY } : null;
     service.projectInvoice({
       invoiceId: INV,
       communityId: COMMUNITY,
@@ -195,5 +204,18 @@ describe("reporting HTTP (INT-112)", () => {
       },
     );
     expect(otherMember.status).toBe(404);
+
+    const unbound = await fetch(
+      `${base}/v1/participants/${CONSUMER}/history`,
+      {
+        headers: {
+          "x-intelligent-roles": "member",
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": "unbound-sub",
+          "x-intelligent-community": COMMUNITY,
+        },
+      },
+    );
+    expect(unbound.status).toBe(404);
   });
 });

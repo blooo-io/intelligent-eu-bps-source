@@ -3,6 +3,7 @@ import {
   Get,
   Header,
   Inject,
+  NotFoundException,
   Param,
   Query,
   Req,
@@ -14,12 +15,18 @@ import {
   type AuthenticatedRequest,
 } from "@intelligent/module-template";
 import { ReportingService } from "./reporting.service.js";
+import {
+  PARTICIPANTS_RESOLVER,
+  type ParticipantsResolverPort,
+} from "../ports/participants-resolver.port.js";
 
 /** Public API — contracts/openapi/public.v1.yaml Reports paths (AC-09). */
 @Controller("v1")
 export class PublicReportingController {
   constructor(
     @Inject(ReportingService) private readonly reporting: ReportingService,
+    @Inject(PARTICIPANTS_RESOLVER)
+    private readonly participants: ParticipantsResolverPort,
   ) {}
 
   @Get("communities/:communityId/payments-overview")
@@ -38,19 +45,27 @@ export class PublicReportingController {
   @UseGuards(
     new ModuleAuthGuard({ roles: ["member", "manager", "operator"] }),
   )
-  history(
+  async history(
     @Param("id") participantId: string,
     @Req() req: AuthenticatedRequest,
   ) {
     const user = req.user!;
-    // REQ-049 — a member reads only their own participant id.
+    // REQ-049 — a member reads only their own registry participant (INT-373 via AC-03).
     const selfOnly =
       user.roles.includes("member") &&
       !user.roles.includes("manager") &&
       !user.roles.includes("operator");
+    let selfParticipantId: string | undefined;
+    if (selfOnly) {
+      const bound = await this.participants.resolveByIdpSub(user.sub);
+      if (!bound) {
+        throw new NotFoundException(`Unknown participant ${participantId}`);
+      }
+      selfParticipantId = bound.participantId;
+    }
     return this.reporting.getParticipantHistory(participantId, {
       communityId: user.communityId,
-      selfParticipantId: selfOnly ? user.sub : undefined,
+      selfParticipantId,
     });
   }
 

@@ -8,6 +8,10 @@ import { createEventBus } from "./events/nats-event-bus.js";
 import { InternalReportingController } from "./reporting/internal.controller.js";
 import { PublicReportingController } from "./reporting/public.controller.js";
 import { ReportingService } from "./reporting/reporting.service.js";
+import {
+  createParticipantsResolver,
+  PARTICIPANTS_RESOLVER,
+} from "./ports/participants-resolver.port.js";
 
 @Module({
   imports: [ModuleTemplateModule.forRoot({ moduleName: "reporting" })],
@@ -15,6 +19,8 @@ import { ReportingService } from "./reporting/reporting.service.js";
   providers: [
     ReportingStore,
     ReportingService,
+    // INT-373 — AC-03 binds a member's IdP sub to their registry participantId.
+    { provide: PARTICIPANTS_RESOLVER, useFactory: () => createParticipantsResolver() },
     // INT-271 — NATS when NATS_URL set; in-memory otherwise (CI).
     { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
     BillingEventsListener,

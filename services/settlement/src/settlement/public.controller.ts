@@ -50,11 +50,17 @@ export class PublicSettlementController {
     });
   }
 
-  @Post("communities/:id/billing-runs")
+  @Post("communities/:communityId/billing-runs")
   @HttpCode(202)
-  @UseGuards(new ModuleAuthGuard({ roles: ["manager", "operator"] }))
+  @UseGuards(
+    new ModuleAuthGuard({
+      roles: ["manager", "operator"],
+      // REQ-049 / UAT-060 — token community must be this community.
+      requireCommunityScope: true,
+    }),
+  )
   async startCommunityRun(
-    @Param("id") communityId: string,
+    @Param("communityId") communityId: string,
     @Body() body: { type: BillingRunType; period?: string },
   ) {
     return this.settlement.startPublicRun({
@@ -66,7 +72,8 @@ export class PublicSettlementController {
 
   @Get("billing-runs/:id")
   @UseGuards(new ModuleAuthGuard({ roles: ["member", "manager", "operator"] }))
-  getBillingRun(@Param("id") runId: string) {
-    return this.settlement.getPublicBillingRun(runId);
+  getBillingRun(@Param("id") runId: string, @Req() req: AuthenticatedRequest) {
+    // REQ-049 — 404 when the run is outside the caller's community.
+    return this.settlement.getPublicBillingRun(runId, req.user!.communityId);
   }
 }

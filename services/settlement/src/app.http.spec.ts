@@ -171,10 +171,59 @@ describe("settlement HTTP (INT-105)", () => {
         "x-intelligent-roles": "manager",
         "x-intelligent-token-use": "user",
         "x-intelligent-sub": "manager-1",
+        "x-intelligent-community": communityId,
       },
     });
     expect(get.status).toBe(200);
     expect(await get.json()).toMatchObject({ runId: body.runId, status: "completed" });
+  });
+
+  // UAT-060 — community A must not start or read community B's billing run.
+  it("UAT-060 — another community cannot start or read a billing run (REQ-049)", async () => {
+    service.useFixtureScenario("S1", { threshold: 0.01 });
+    const other = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const deniedStart = await fetch(
+      `${base}/v1/communities/${communityId}/billing-runs`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-intelligent-roles": "manager",
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": "manager-b",
+          "x-intelligent-community": other,
+        },
+        body: JSON.stringify({ type: "early" }),
+      },
+    );
+    expect(deniedStart.status).toBe(403);
+
+    const started = await fetch(
+      `${base}/v1/communities/${communityId}/billing-runs`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-intelligent-roles": "manager",
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": "manager-1",
+          "x-intelligent-community": communityId,
+        },
+        body: JSON.stringify({ type: "early" }),
+      },
+    );
+    expect(started.status).toBe(202);
+    const { runId } = (await started.json()) as { runId: string };
+
+    const deniedGet = await fetch(`${base}/v1/billing-runs/${runId}`, {
+      headers: {
+        "x-intelligent-roles": "manager",
+        "x-intelligent-token-use": "user",
+        "x-intelligent-sub": "manager-b",
+        "x-intelligent-community": other,
+      },
+    });
+    expect(deniedGet.status).toBe(404);
   });
 
   it("POST /v1/early-settlements settles one producer pair (BR-05)", async () => {

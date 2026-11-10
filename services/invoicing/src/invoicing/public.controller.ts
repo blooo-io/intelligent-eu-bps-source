@@ -84,6 +84,7 @@ export class PublicInvoicingController {
       status: body.status,
       reason: body.reason,
       actorId: req.user!.sub,
+      communityId: req.user!.communityId,
     });
   }
 }

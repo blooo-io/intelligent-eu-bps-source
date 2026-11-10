@@ -596,8 +596,10 @@ paths:
       summary: Start a billing run
       description: >
         A manager or operator starts a run for the community (REQ-006). The
-        period is YYYY-MM or YYYY-Qn; a periodic run without a period closes the
-        last elapsed period of the community calendar.
+        token community must be this community (REQ-049 / UAT-060); another
+        community receives 403. The period is YYYY-MM or YYYY-Qn; a periodic
+        run without a period closes the last elapsed period of the community
+        calendar.
       x-served-by: AC-05
       parameters:
         - $ref: '#/components/parameters/ResourceId'
@@ -627,7 +629,9 @@ paths:
       operationId: getBillingRun
       tags: [Billing]
       summary: Read a billing run
-      description: Status of one billing run (REQ-006).
+      description: >
+        Status of one billing run (REQ-006). Returns 404 when the run is not
+        in the caller's community (REQ-049 / UAT-060).
       x-served-by: AC-05
       parameters:
         - $ref: '#/components/parameters/ResourceId'
@@ -649,7 +653,10 @@ paths:
       operationId: getPaymentsOverview
       tags: [Reports]
       summary: Payment overview of a community
-      description: Manager view of payments in the community (REQ-018). Lists use the provider read cache (TD-6).
+      description: >
+        Manager view of payments in the community (REQ-018). The token
+        community must be this community (REQ-049 / UAT-060). Lists use the
+        provider read cache (TD-6).
       x-served-by: AC-09
       parameters:
         - $ref: '#/components/parameters/ResourceId'
@@ -673,7 +680,11 @@ paths:
       operationId: getParticipantHistory
       tags: [Reports]
       summary: Member history
-      description: Invoices and payments of one participant (REQ-031).
+      description: >
+        Invoices and payments of one participant (REQ-031). A member reads
+        only their own participant. A manager or operator reads a participant
+        of their own community. Another community returns 404 (REQ-049 /
+        UAT-060).
       x-served-by: AC-09
       parameters:
         - $ref: '#/components/parameters/ResourceId'
@@ -695,7 +706,9 @@ paths:
       operationId: getPeriodicSummary
       tags: [Reports]
       summary: Periodic summary
-      description: Summary of one community and period (REQ-032).
+      description: >
+        Summary of one community and period (REQ-032). The token community
+        must match communityId (REQ-049 / UAT-060).
       x-served-by: AC-09
       parameters:
         - $ref: '#/components/parameters/CommunityIdQuery'

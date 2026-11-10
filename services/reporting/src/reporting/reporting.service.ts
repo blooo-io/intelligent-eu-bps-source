@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -64,8 +65,13 @@ export class ReportingService {
 
   /**
    * Member history — invoices + payments for one participant (REQ-031 / UAT-031).
+   * Scope binds the read to the caller's community and, for a member, their sub
+   * (REQ-049 / UAT-060). Another community is hidden as an unknown participant.
    */
-  getParticipantHistory(participantId: string): {
+  getParticipantHistory(
+    participantId: string,
+    scope?: { communityId: string; selfParticipantId?: string },
+  ): {
     participantId: string;
     invoices: Array<Record<string, unknown>>;
     payments: Array<Record<string, unknown>>;
@@ -73,14 +79,33 @@ export class ReportingService {
     if (!participantId) {
       throw new BadRequestException("participantId is required");
     }
-    const invoices = this.store.listInvoices({ participantId });
+    if (scope && !scope.communityId) {
+      throw new ForbiddenException("Missing community scope");
+    }
+    if (
+      scope?.selfParticipantId &&
+      scope.selfParticipantId !== participantId
+    ) {
+      throw new NotFoundException(`Unknown participant ${participantId}`);
+    }
+    const invoices = this.store.listInvoices({
+      participantId,
+      communityId: scope?.communityId,
+    });
+    if (scope && invoices.length === 0) {
+      const elsewhere = this.store.listInvoices({ participantId });
+      if (elsewhere.length > 0) {
+        throw new NotFoundException(`Unknown participant ${participantId}`);
+      }
+      // Empty history is valid when the participant has no invoices here.
+      return { participantId, invoices: [], payments: [] };
+    }
     if (invoices.length === 0) {
-      // Empty history is valid for a known id; still return the shell.
       return { participantId, invoices: [], payments: [] };
     }
     const invoiceIds = new Set(invoices.map((i) => i.invoiceId));
     const payments = this.store
-      .listPayments({})
+      .listPayments(scope ? { communityId: scope.communityId } : {})
       .filter((p) => invoiceIds.has(p.invoiceId));
 
     return {

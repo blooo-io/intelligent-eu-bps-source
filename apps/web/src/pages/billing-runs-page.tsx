@@ -36,7 +36,6 @@ export function BillingRunsPage({
   const [error, setError] = useState<string | null>(null);
   const [current, setCurrent] = useState<BillingRun | null>(null);
   const [form] = Form.useForm<FormValues>();
-  const runType = Form.useWatch("type", form);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,22 +132,29 @@ export function BillingRunsPage({
                 <Radio.Button value="final">Final</Radio.Button>
               </Radio.Group>
             </Form.Item>
-            {runType === "periodic" && (
-              <Form.Item
-                label="Period"
-                name="period"
-                rules={[
-                  { required: true, message: "Period is required for periodic runs" },
-                  {
-                    // REQ-006 — monthly (YYYY-MM) or quarterly (YYYY-Qn) period.
-                    pattern: /^\d{4}-(0[1-9]|1[0-2]|Q[1-4])$/,
-                    message: "Use YYYY-MM or YYYY-Qn, e.g. 2026-09 or 2026-Q3",
-                  },
-                ]}
-              >
-                <Input placeholder="2026-09 or 2026-Q3" aria-label="Billing period" />
-              </Form.Item>
-            )}
+            {/* INT-371 — read the type from the form store. Form.useWatch is
+                still empty on the first paint, which hid this field while
+                Periodic was already selected (REQ-006). */}
+            <Form.Item noStyle shouldUpdate={(prev, next) => prev.type !== next.type}>
+              {({ getFieldValue }) =>
+                getFieldValue("type") === "periodic" ? (
+                  <Form.Item
+                    label="Period"
+                    name="period"
+                    rules={[
+                      { required: true, message: "Period is required for periodic runs" },
+                      {
+                        // REQ-006 — monthly (YYYY-MM) or quarterly (YYYY-Qn) period.
+                        pattern: /^\d{4}-(0[1-9]|1[0-2]|Q[1-4])$/,
+                        message: "Use YYYY-MM or YYYY-Qn, e.g. 2026-09 or 2026-Q3",
+                      },
+                    ]}
+                  >
+                    <Input placeholder="2026-09 or 2026-Q3" aria-label="Billing period" />
+                  </Form.Item>
+                ) : null
+              }
+            </Form.Item>
             <Form.Item>
               <Button type="primary" htmlType="submit" loading={busy}>
                 Start run

@@ -31,6 +31,8 @@ test("ci workflow sonarqube job uses Scanner CLI wrapper after coverage", async 
   assert.match(text, /name:\s*sonarqube/);
   assert.match(text, /needs:\s*\[test\]/);
   assert.match(text, /node scripts\/sonar-scan\.mjs/);
+  assert.match(text, /github\.event_name == 'push'/);
+  assert.match(text, /gitleaks@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055/);
   assert.doesNotMatch(text, /SonarSource\/sonarqube-scan-action/);
   assert.match(text, /SONAR_TOKEN/);
   assert.match(text, /SONAR_HOST_URL/);

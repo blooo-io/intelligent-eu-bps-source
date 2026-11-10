@@ -4,7 +4,7 @@ Measures maintainability, reliability, security hotspots and test coverage for t
 
 ## What runs
 
-1. **CI job `sonarqube`** in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) on every pull request and on `develop` — downloads the Vitest coverage artifact from the `test` job (no second full test run), then runs the **official SonarScanner CLI** in Docker via [`scripts/sonar-scan.mjs`](../../scripts/sonar-scan.mjs).
+1. **CI job `sonarqube`** in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) on push to `develop` — downloads the Vitest coverage artifact from the `test` job (no second full test run), then runs the **official SonarScanner CLI** in Docker via [`scripts/sonar-scan.mjs`](../../scripts/sonar-scan.mjs). Pull requests do not receive `SONAR_TOKEN` (INT-341). The job still runs on a pull request so the check stays green, and it skips the scan.
 2. **Manual re-scan** via [`.github/workflows/sonarqube.yml`](../../.github/workflows/sonarqube.yml) (`workflow_dispatch`) when operators want an on-demand analysis.
 
 Both wait on the Sonar **quality gate** (`sonar.qualitygate.wait=true`) when `SONAR_TOKEN` is set — a failed gate fails the job.

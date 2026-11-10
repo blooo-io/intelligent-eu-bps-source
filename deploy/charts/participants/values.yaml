@@ -16,6 +16,7 @@ ingressFrom:
   - payments
   - notification
   - compliance
+  - reporting
 keycloakEgress: true
 stripeEgress: false
 # INT-215 / INT-218 / INT-325 — Keycloak Admin P-IDP.

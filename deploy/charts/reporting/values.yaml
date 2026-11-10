@@ -9,13 +9,16 @@ image:
   tag: "0.0.0"
 port: 8080
 # INT-287 — peer allow-list only (no namespace-wide ingress).
-egressModules: []
+egressModules:
+  - participants
 ingressFrom:
   - scheduler-worker
 keycloakEgress: true
 stripeEgress: false
 # INT-271 — JetStream projections (same DebeziumStream as AC-06/AC-11).
 env:
+  # INT-373 — member history is bound to the AC-03 registry participant.
+  PARTICIPANTS_INTERNAL_URL: http://participants:8080
   KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
   # INT-348 — JWT iss is public KC_HOSTNAME (INT-345); JWKS stays on KEYCLOAK_BASE_URL.
   KEYCLOAK_ISSUER: https://auth.intelligent-eu-bp.blooo.dev/realms/int

@@ -7,8 +7,17 @@ export type PaymentAccountSnapshot = {
   chargesEnabled?: boolean;
 };
 
+/** INT-338 — AC-07 payment row used to confirm PaymentStatusChanged. */
+export type PaymentStatusSnapshot = {
+  paymentId: string;
+  invoiceId: string;
+  status: string;
+};
+
 export type PaymentsClientPort = {
   getProducerStripeAccountId(producerId: string): Promise<string | null>;
+  /** Authoritative payment status. Null when AC-07 has no such payment. */
+  getPayment(paymentId: string): Promise<PaymentStatusSnapshot | null>;
   /** INT-231 — full GetPaymentAccount including charges_enabled. */
   getPaymentAccount(producerId: string): Promise<PaymentAccountSnapshot | null>;
   /**
@@ -24,6 +33,10 @@ export type PaymentsClientPort = {
 /** CI / unit tests — no AC-07; callers fall back to registerConnectAccount / override. */
 export class NoopPaymentsClient implements PaymentsClientPort {
   async getProducerStripeAccountId(_producerId: string): Promise<string | null> {
+    return null;
+  }
+
+  async getPayment(_paymentId: string): Promise<PaymentStatusSnapshot | null> {
     return null;
   }
 
@@ -47,6 +60,39 @@ export class HttpPaymentsClient implements PaymentsClientPort {
     private readonly fetchImpl: typeof fetch = fetch,
     private readonly auth: ServiceAuthSource = null,
   ) {}
+
+  async getPayment(paymentId: string): Promise<PaymentStatusSnapshot | null> {
+    const url = `${this.baseUrl.replace(/\/$/, "")}/internal/v1/payments/${encodeURIComponent(paymentId)}`;
+    const res = await this.fetchImpl(url, {
+      method: "GET",
+      headers: {
+        ...(await resolveServiceAuthHeaders("ac-06-invoicing", this.auth)),
+      },
+    });
+    if (res.status === 404) {
+      return null;
+    }
+    if (!res.ok) {
+      throw new Error(`payments getPayment ${paymentId} failed with ${res.status}`);
+    }
+    const body = (await res.json()) as {
+      paymentId?: string;
+      invoiceId?: string;
+      status?: string;
+    };
+    if (
+      typeof body.paymentId !== "string" ||
+      typeof body.invoiceId !== "string" ||
+      typeof body.status !== "string"
+    ) {
+      return null;
+    }
+    return {
+      paymentId: body.paymentId,
+      invoiceId: body.invoiceId,
+      status: body.status,
+    };
+  }
 
   async getPaymentAccount(
     producerId: string,

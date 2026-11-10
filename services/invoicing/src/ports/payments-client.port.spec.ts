@@ -7,6 +7,27 @@ import {
 } from "./payments-client.port.js";
 
 describe("payments-client.port (INT-228 / INT-231)", () => {
+  it("INT-338 — reads the authoritative payment and treats 404 as absent", async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ paymentId: "pay-1", invoiceId: "inv-1", status: "succeeded" }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response("", { status: 404 }));
+    const client = new HttpPaymentsClient("http://payments:8080/", fetchImpl as never);
+    await expect(client.getPayment("pay-1")).resolves.toEqual({
+      paymentId: "pay-1",
+      invoiceId: "inv-1",
+      status: "succeeded",
+    });
+    await expect(client.getPayment("missing")).resolves.toBeNull();
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toBe(
+      "http://payments:8080/internal/v1/payments/pay-1",
+    );
+  });
+
   it("returns noop without PAYMENTS_INTERNAL_URL", () => {
     expect(createPaymentsClient({})).toBeInstanceOf(NoopPaymentsClient);
   });

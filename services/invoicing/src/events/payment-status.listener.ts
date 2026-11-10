@@ -1,6 +1,10 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { asString, IdempotentConsumer } from "@intelligent/module-template";
 import { InvoicingService } from "../invoicing/invoicing.service.js";
+import {
+  PAYMENTS_CLIENT,
+  type PaymentsClientPort,
+} from "../ports/payments-client.port.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
 
 const SUBJECT = "PaymentStatusChanged";
@@ -17,6 +21,7 @@ export class PaymentStatusListener implements OnModuleInit {
     @Inject(EVENT_BUS_PORT) private readonly bus: EventBusPort,
     @Inject(InvoicingService) private readonly invoicing: InvoicingService,
     @Inject(IdempotentConsumer) private readonly consumer: IdempotentConsumer,
+    @Inject(PAYMENTS_CLIENT) private readonly payments: PaymentsClientPort,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -25,18 +30,30 @@ export class PaymentStatusListener implements OnModuleInit {
   }
 
   async onMessage(payload: unknown): Promise<void> {
-    const { eventId, invoiceId, paymentId, status } = mapEnvelope(payload);
-    if (!eventId || !invoiceId) {
+    const { eventId, invoiceId, paymentId } = mapEnvelope(payload);
+    if (!eventId || !invoiceId || !paymentId) {
       this.logger.warn(
         `PaymentStatusChanged missing eventId/invoiceId — skipping`,
       );
       return;
     }
     const result = await this.consumer.handle(eventId, payload, async () => {
+      // INT-338 / TP-7 — the event body is not authority for Paid.
+      const confirmed = await this.payments.getPayment(paymentId);
+      if (!confirmed || confirmed.invoiceId !== invoiceId) {
+        this.logger.warn(
+          `PaymentStatusChanged ${eventId} not confirmed by AC-07 — skipping`,
+        );
+        return;
+      }
+      const confirmedStatus = confirmed.status.toLowerCase();
+      if (confirmedStatus !== "succeeded" && confirmedStatus !== "paid") {
+        return;
+      }
       await this.invoicing.applyPaymentStatusChanged({
         invoiceId,
         paymentId,
-        status,
+        status: confirmed.status,
       });
     });
     if (result.status === "failed") {

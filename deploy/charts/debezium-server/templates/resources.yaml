@@ -86,6 +86,19 @@ spec:
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
           imagePullPolicy: IfNotPresent
           env:
+            - name: NATS_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nats-client
+                  key: NATS_USER
+            - name: NATS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nats-client
+                  key: NATS_PASSWORD
+            # INT-338 — Kubernetes expands $(NATS_*) from the vars above.
+            - name: DEBEZIUM_SINK_NATS_JETSTREAM_URL
+              value: nats://$(NATS_USER):$(NATS_PASSWORD)@{{ $.Values.nats.host }}:{{ $.Values.nats.port }}
             - name: DEBEZIUM_SOURCE_DATABASE_USER
               valueFrom:
                 secretKeyRef:
@@ -142,6 +155,32 @@ spec:
   dataFrom:
     - extract:
         key: {{ .Values.environment }}/debezium-server
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: nats-client
+  labels:
+    app.kubernetes.io/name: {{ .Values.name }}
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
+    app.kubernetes.io/component: {{ .Values.component }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
+    name: nats-client
+    creationPolicy: Owner
+  data:
+    - secretKey: NATS_USER
+      remoteRef:
+        key: platform/nats/accounts
+        property: user
+    - secretKey: NATS_PASSWORD
+      remoteRef:
+        key: platform/nats/accounts
+        property: password
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

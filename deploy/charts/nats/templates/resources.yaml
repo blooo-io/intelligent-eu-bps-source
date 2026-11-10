@@ -23,8 +23,8 @@ data:
     jetstream {
       store_dir: {{ .Values.config.jetstream.storeDir }}
     }
-    # Account resolution: mount OpenBao-synced credentials when present.
-    # Until ExternalSecret is bound (INT-133), JetStream runs with the default account.
+    # INT-338 — account file is required. The pod does not start without it.
+    include "/etc/nats-accounts/auth.conf"
 ---
 apiVersion: v1
 kind: Service
@@ -101,6 +101,9 @@ spec:
             - name: config
               mountPath: /etc/nats
               readOnly: true
+            - name: accounts
+              mountPath: /etc/nats-accounts
+              readOnly: true
             - name: data
               mountPath: {{ .Values.config.jetstream.storeDir }}
             - name: tmp
@@ -119,6 +122,13 @@ spec:
         - name: config
           configMap:
             name: {{ .Values.name }}
+        - name: accounts
+          secret:
+            secretName: {{ .Values.config.accountsFromSecret }}
+            optional: false
+            items:
+              - key: auth.conf
+                path: auth.conf
         - name: tmp
           emptyDir: {}
   volumeClaimTemplates:
@@ -168,7 +178,11 @@ spec:
     - Egress
   ingress:
     - from:
-        - namespaceSelector: {}
+        {{- range .Values.clientNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . }}
+        {{- end }}
       ports:
         - port: {{ .Values.service.clientPort }}
           protocol: TCP

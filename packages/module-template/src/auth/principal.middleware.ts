@@ -1,6 +1,7 @@
 /**
  * APISIX forwards validated claims for /v1/*; modules re-check via ModuleAuthGuard (REQ-010).
- * INT-287 — /internal/* requires Keycloak service JWT when SERVICE_JWT_REQUIRED=true.
+ * INT-287 / INT-342 — /internal/* requires a Keycloak service JWT in production
+ * even when SERVICE_JWT_REQUIRED is unset. Header fallthrough is test-only.
  * INT-290 — `operator` is a user role; only `service` / token_use=service bypasses community scope.
  */
 import type { NextFunction, Request, Response } from "express";

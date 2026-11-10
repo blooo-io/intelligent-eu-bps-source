@@ -16,6 +16,14 @@ describe("service JWT (INT-287)", () => {
   it("serviceJwtRequired reads env", () => {
     expect(serviceJwtRequired({})).toBe(false);
     expect(serviceJwtRequired({ SERVICE_JWT_REQUIRED: "true" })).toBe(true);
+    expect(serviceJwtRequired({ SERVICE_JWT_REQUIRED: "false" })).toBe(false);
+  });
+
+  it("INT-342 — production fails closed even when the flag is unset or false", () => {
+    expect(serviceJwtRequired({ NODE_ENV: "production" })).toBe(true);
+    expect(
+      serviceJwtRequired({ NODE_ENV: "production", SERVICE_JWT_REQUIRED: "false" }),
+    ).toBe(true);
   });
 
   // INT-348 — public KC_HOSTNAME iss while JWKS stays on in-cluster BASE_URL.

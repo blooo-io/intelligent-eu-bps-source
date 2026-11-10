@@ -161,9 +161,18 @@ export class SettlementService {
     };
   }
 
-  /** Public BillingRun shape (status completed after sync run). */
-  getPublicBillingRun(runId: string) {
+  /**
+   * Public BillingRun shape (status completed after sync run).
+   * When callerCommunityId is set, a run from another community is hidden (REQ-049).
+   */
+  getPublicBillingRun(runId: string, callerCommunityId?: string) {
     const row = this.getBillingRun(runId);
+    if (
+      callerCommunityId !== undefined &&
+      row.communityId !== callerCommunityId
+    ) {
+      throw new NotFoundException(`Unknown billing run ${runId}`);
+    }
     return {
       runId: row.runId,
       communityId: row.communityId,

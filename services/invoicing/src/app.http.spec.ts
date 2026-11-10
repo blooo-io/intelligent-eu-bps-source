@@ -280,4 +280,41 @@ describe("invoicing HTTP (INT-106)", () => {
       status: "Paid",
     });
   });
+
+  // UAT-060 — a manager may change status only inside their community (REQ-049).
+  it("UAT-060 — manager of another community cannot set invoice status (REQ-049)", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s5555555-5555-4555-8555-555555555555",
+      runId: "r5555555-5555-4555-8555-555555555555",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x5"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    const denied = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/status`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-intelligent-roles": "manager",
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "x-intelligent-community": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        },
+        body: JSON.stringify({
+          status: "Void",
+          reason: "wrong community",
+        }),
+      },
+    );
+    expect(denied.status).toBe(404);
+    expect(service.getInvoice(created!.invoiceId).status).toBe("Open");
+  });
 });

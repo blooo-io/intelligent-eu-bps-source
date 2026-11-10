@@ -6,6 +6,7 @@ import { AppModule } from "./app.module.js";
 import { ReportingService } from "./reporting/reporting.service.js";
 
 const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
+const OTHER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const PERIOD = "2026-09";
 const CONSUMER = "11111111-2222-4333-8444-555555555555";
 const PRODUCER = "22222222-2222-4333-8444-555555555555";
@@ -69,7 +70,12 @@ describe("reporting HTTP (INT-112)", () => {
 
     const overview = await fetch(
       `${base}/v1/communities/${COMMUNITY}/payments-overview`,
-      { headers: { "x-intelligent-roles": "manager" } },
+      {
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-community": COMMUNITY,
+        },
+      },
     );
     expect(overview.status).toBe(200);
     expect(await overview.json()).toHaveLength(1);
@@ -86,7 +92,12 @@ describe("reporting HTTP (INT-112)", () => {
 
     const summary = await fetch(
       `${base}/v1/reports/summary?communityId=${COMMUNITY}&period=${PERIOD}`,
-      { headers: { "x-intelligent-roles": "manager" } },
+      {
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-community": COMMUNITY,
+        },
+      },
     );
     expect(summary.status).toBe(200);
     expect(await summary.json()).toMatchObject({
@@ -114,5 +125,75 @@ describe("reporting HTTP (INT-112)", () => {
     const body = await kpi.text();
     expect(body).toContain(INV);
     expect(body).toContain("10.00");
+  });
+
+  // UAT-060 — community B must not read community A's reports or history.
+  it("UAT-060 — another community cannot read overview, summary or history (REQ-049)", async () => {
+    const overview = await fetch(
+      `${base}/v1/communities/${COMMUNITY}/payments-overview`,
+      {
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": "manager-b",
+          "x-intelligent-community": OTHER,
+        },
+      },
+    );
+    expect(overview.status).toBe(403);
+
+    const summary = await fetch(
+      `${base}/v1/reports/summary?communityId=${COMMUNITY}&period=${PERIOD}`,
+      {
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": "manager-b",
+          "x-intelligent-community": OTHER,
+        },
+      },
+    );
+    expect(summary.status).toBe(403);
+
+    const foreignHistory = await fetch(
+      `${base}/v1/participants/${CONSUMER}/history`,
+      {
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": "manager-b",
+          "x-intelligent-community": OTHER,
+        },
+      },
+    );
+    expect(foreignHistory.status).toBe(404);
+
+    const ownHistory = await fetch(
+      `${base}/v1/participants/${CONSUMER}/history`,
+      {
+        headers: {
+          "x-intelligent-roles": "member",
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": CONSUMER,
+          "x-intelligent-community": COMMUNITY,
+        },
+      },
+    );
+    expect(ownHistory.status).toBe(200);
+    const history = (await ownHistory.json()) as { invoices: unknown[] };
+    expect(history.invoices).toHaveLength(1);
+
+    const otherMember = await fetch(
+      `${base}/v1/participants/${PRODUCER}/history`,
+      {
+        headers: {
+          "x-intelligent-roles": "member",
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": CONSUMER,
+          "x-intelligent-community": COMMUNITY,
+        },
+      },
+    );
+    expect(otherMember.status).toBe(404);
   });
 });

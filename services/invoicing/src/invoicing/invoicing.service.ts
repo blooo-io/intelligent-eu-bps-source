@@ -400,14 +400,25 @@ export class InvoicingService {
    */
   async setInvoiceStatus(
     invoiceId: string,
-    input: { status: InvoiceStatus; reason: string; actorId: string },
+    input: {
+      status: InvoiceStatus;
+      reason: string;
+      actorId: string;
+      /** REQ-049 — when set, another community's invoice is hidden. */
+      communityId?: string;
+    },
   ): Promise<Record<string, unknown>> {
     return this.tx.run(() => this.performSetInvoiceStatus(invoiceId, input));
   }
 
   private async performSetInvoiceStatus(
     invoiceId: string,
-    input: { status: InvoiceStatus; reason: string; actorId: string },
+    input: {
+      status: InvoiceStatus;
+      reason: string;
+      actorId: string;
+      communityId?: string;
+    },
   ): Promise<Record<string, unknown>> {
     if (!input.reason?.trim()) {
       throw new BadRequestException("reason is required");
@@ -417,6 +428,13 @@ export class InvoicingService {
     }
     const row = this.store.get(invoiceId);
     if (!row) throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    // REQ-049 / UAT-060 — manager acts only inside their community.
+    if (
+      input.communityId !== undefined &&
+      row.communityId !== input.communityId
+    ) {
+      throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    }
 
     const next = await this.applyStatus(row, {
       status: input.status,

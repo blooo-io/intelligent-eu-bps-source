@@ -136,6 +136,37 @@ describe("ReportingService", () => {
       invoices: [],
       payments: [],
     });
+    expect(
+      service.getParticipantHistory("99999999-9999-4999-8999-999999999999", {
+        communityId: COMMUNITY,
+      }),
+    ).toEqual({
+      participantId: "99999999-9999-4999-8999-999999999999",
+      invoices: [],
+      payments: [],
+    });
+  });
+
+  it("UAT-060 — history stays inside the caller community (REQ-049)", () => {
+    expect(() =>
+      service.getParticipantHistory(CONSUMER, {
+        communityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      }),
+    ).toThrow(/Unknown participant/);
+    expect(() =>
+      service.getParticipantHistory(PRODUCER, {
+        communityId: COMMUNITY,
+        selfParticipantId: CONSUMER,
+      }),
+    ).toThrow(/Unknown participant/);
+    expect(() =>
+      service.getParticipantHistory(CONSUMER, { communityId: "" }),
+    ).toThrow(/Missing community scope/);
+    const own = service.getParticipantHistory(CONSUMER, {
+      communityId: COMMUNITY,
+      selfParticipantId: CONSUMER,
+    });
+    expect(own.invoices.length).toBeGreaterThan(0);
   });
 
   it("rejects missing scope and unknown KPI period", async () => {

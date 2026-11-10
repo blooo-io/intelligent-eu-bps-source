@@ -61,6 +61,60 @@ describe("ModuleAuthGuard (REQ-010)", () => {
     ).toThrow(ForbiddenException);
   });
 
+  // REQ-049 — community id may be the communityId query (reports summary).
+  it("allows a manager when the communityId query matches the token", () => {
+    const guard = new ModuleAuthGuard({
+      roles: ["manager"],
+      requireCommunityScope: true,
+    });
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          user: { ...member, roles: ["manager"] },
+          params: {},
+          query: { communityId: "c1" },
+        }),
+      }),
+    };
+    expect(guard.canActivate(context as never)).toBe(true);
+  });
+
+  it("rejects a communityId query outside the token community", () => {
+    const guard = new ModuleAuthGuard({
+      roles: ["manager"],
+      requireCommunityScope: true,
+    });
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          user: { ...member, roles: ["manager"] },
+          params: {},
+          query: { communityId: "other" },
+        }),
+      }),
+    };
+    expect(() => guard.canActivate(context as never)).toThrow(
+      /Community scope mismatch/,
+    );
+  });
+
+  it("uses the first repeated communityId query value", () => {
+    const guard = new ModuleAuthGuard({
+      roles: ["manager"],
+      requireCommunityScope: true,
+    });
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          user: { ...member, roles: ["manager"] },
+          params: {},
+          query: { communityId: ["", "c1"] },
+        }),
+      }),
+    };
+    expect(guard.canActivate(context as never)).toBe(true);
+  });
+
   it("allows a member in their own community", () => {
     const guard = new ModuleAuthGuard({
       roles: ["member"],

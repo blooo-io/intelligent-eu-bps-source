@@ -79,19 +79,29 @@ export class InvoicingService {
   private async resolveProducerStripeAccount(
     settlement: PairSettlementInput,
   ): Promise<string> {
-    if (settlement.producerStripeAccountId) {
-      return settlement.producerStripeAccountId;
-    }
     const fromPayments = await this.payments.getPaymentAccount(
       settlement.producerId,
     );
+    // INT-340 — an operator override is kept only when it matches AC-07, or when
+    // AC-07 has no Connect id yet (UAT-028 seed before provisioning).
     if (fromPayments?.stripeAccountId) {
       if (fromPayments.chargesEnabled === false) {
         throw new BadRequestException(
           "producer charges_enabled not ready (retry until KYC completes)",
         );
       }
+      if (
+        settlement.producerStripeAccountId &&
+        settlement.producerStripeAccountId !== fromPayments.stripeAccountId
+      ) {
+        throw new BadRequestException(
+          "producer Connect account does not match AC-07",
+        );
+      }
       return fromPayments.stripeAccountId;
+    }
+    if (settlement.producerStripeAccountId) {
+      return settlement.producerStripeAccountId;
     }
     const fromFixture = this.connectAccounts.get(settlement.producerId);
     if (fromFixture) {

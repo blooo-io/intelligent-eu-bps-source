@@ -456,6 +456,50 @@ describe("PaymentsService", () => {
     expect(summary.dashboardUrl).toContain(summary.stripeAccountId!);
   });
 
+  it("INT-340 — a payment method cannot be attached to a second participant", async () => {
+    const other = "22222222-3333-4444-8555-666666666666";
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.ensureParticipant({
+      participantId: other,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await expect(service.attachPaymentMethod(other, "pm_card_visa")).rejects.toThrow(
+      /another participant/,
+    );
+  });
+
+  it("INT-340 — a void invoice is not payable", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    invoices.put({
+      invoiceId: "inv-void",
+      stripeInvoiceId: "in_void",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Void",
+      total: "2.00",
+      producerStripeAccountId: "acct_test_producer",
+    });
+    await expect(
+      service.payInvoice({
+        invoiceId: "inv-void",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      }),
+    ).rejects.toThrow(/not payable/);
+  });
+
   it("pays an invoice to the producer account (REQ-014, BR-12)", async () => {
     await service.ensureParticipant({
       participantId: CONSUMER,

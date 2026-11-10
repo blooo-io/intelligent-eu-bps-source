@@ -261,12 +261,22 @@ export class StripePspAdapter implements PspPort {
   }
 
   async attachPaymentMethod(
-    _participantId: string,
+    participantId: string,
     paymentMethodId: string,
   ): Promise<PaymentMethodRef> {
-    // Validate the PaymentMethod exists in test mode; attachment to a Customer
-    // is deferred until pay time if the PM is already platform-scoped.
     const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+    const customerId =
+      typeof pm.customer === "string" ? pm.customer : pm.customer?.id;
+    // INT-363 — a reusable test token has no Customer and stays attachable.
+    // A PaymentMethod already on a Customer must belong to this participant.
+    if (customerId) {
+      const customer = await this.stripe.customers.retrieve(customerId);
+      const owner =
+        "metadata" in customer ? customer.metadata?.participantId : undefined;
+      if (owner !== participantId) {
+        throw new Error("payment_method_owned_by_other");
+      }
+    }
     return { paymentMethodId: pm.id };
   }
 
@@ -387,7 +397,8 @@ export class StripePspAdapter implements PspPort {
       const paid = await this.stripe.invoices.pay(
         invoice.id,
         { payment_method: cloned.id, off_session: true, expand: ["payments"] },
-        opts,
+        // INT-340 — one charge per invoice. A replay returns the first result.
+        { ...opts, idempotencyKey: `pay:${input.invoiceId}` },
       );
       // INT-367 — pay creates the PaymentIntent. Tag it and the charge afterwards:
       // a metadata update on the PaymentIntent does not copy onto a charge that

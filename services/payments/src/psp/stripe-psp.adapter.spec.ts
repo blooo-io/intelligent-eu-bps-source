@@ -641,7 +641,7 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
       expect(invoicesPay).toHaveBeenCalledWith(
         "in_1",
         { payment_method: "pm_clone", off_session: true, expand: ["payments"] },
-        connect,
+        { ...connect, idempotencyKey: "pay:inv-2" },
       );
       expect(chargesUpdate).toHaveBeenCalledWith(
         "ch_conn",

@@ -535,7 +535,17 @@ export class PaymentsService {
     if (!account) {
       throw new NotFoundException("Unknown participant");
     }
-    await this.psp.attachPaymentMethod(participantId, paymentMethodId);
+    try {
+      await this.psp.attachPaymentMethod(participantId, paymentMethodId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("payment_method_owned_by_other")) {
+        throw new ForbiddenException(
+          "Payment method belongs to another participant",
+        );
+      }
+      throw error;
+    }
     await this.saveAccount({
       ...account,
       paymentMethodId,
@@ -694,27 +704,9 @@ export class PaymentsService {
     if (invoice.consumerId !== participantId) {
       throw new ForbiddenException("Invoice is not payable by this participant");
     }
-    const producerAccount = await this.hydrateAccount(invoice.producerId);
-    const producerStripeAccountId =
-      invoice.producerStripeAccountId ??
-      producerAccount?.stripeAccountId ??
-      undefined;
-    if (!producerStripeAccountId) {
-      throw new BadRequestException(
-        "Producer Connect account required for direct charge",
-      );
-    }
-    if (!invoice.stripeInvoiceId) {
-      throw new BadRequestException(
-        "Stripe invoice required for direct charge (REQ-014)",
-      );
-    }
-
     // INT-355 — replaying Pay on a settled invoice returns the original payment.
     const prior = this.store.findSucceededByInvoiceId(input.invoiceId);
     if (prior) {
-      // INT-368 / BR-11 — AC-06 may still show Open when the first
-      // PaymentStatusChanged never landed; re-announce so it converges.
       if (invoice.status !== "Paid") {
         await this.announcePaymentStatus({
           paymentId: prior.paymentId,
@@ -734,6 +726,39 @@ export class PaymentsService {
         method: prior.method,
         processingTimeMs: prior.processingTimeMs,
       };
+    }
+    // INT-340 — one payment, and only while the invoice is still payable.
+    if (
+      invoice.status !== "Open" &&
+      invoice.status !== "PartiallyPaid" &&
+      invoice.status !== "Overdue"
+    ) {
+      throw new BadRequestException(
+        `Invoice status ${invoice.status} is not payable`,
+      );
+    }
+    const producerAccount = await this.hydrateAccount(invoice.producerId);
+    const boundAccount = producerAccount?.stripeAccountId || undefined;
+    if (
+      invoice.producerStripeAccountId &&
+      boundAccount &&
+      invoice.producerStripeAccountId !== boundAccount
+    ) {
+      throw new BadRequestException(
+        "Producer Connect account does not match AC-07",
+      );
+    }
+    const producerStripeAccountId =
+      boundAccount ?? invoice.producerStripeAccountId ?? undefined;
+    if (!producerStripeAccountId) {
+      throw new BadRequestException(
+        "Producer Connect account required for direct charge",
+      );
+    }
+    if (!invoice.stripeInvoiceId) {
+      throw new BadRequestException(
+        "Stripe invoice required for direct charge (REQ-014)",
+      );
     }
 
     const started = Date.now();

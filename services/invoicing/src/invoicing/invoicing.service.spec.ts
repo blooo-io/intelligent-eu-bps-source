@@ -139,6 +139,32 @@ describe("InvoicingService", () => {
     expect(result).toBeNull();
   });
 
+  it("INT-340 — rejects an override that disagrees with the AC-07 account", async () => {
+    const payments: PaymentsClientPort = {
+      getProducerStripeAccountId: async () => "acct_real",
+      getPaymentAccount: async () => ({
+        stripeAccountId: "acct_real",
+        chargesEnabled: true,
+      }),
+      ensureConnectedCustomer: async () => "cus_real",
+    };
+    const guarded = new InvoicingService(
+      store,
+      new OutboxService(outboxStore),
+      stripe,
+      new MapReadiness(
+        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
+      ),
+      payments,
+      new NoopParticipantsResolver(),
+    );
+    await expect(
+      guarded.createFromSettlement(
+        settlement({ producerStripeAccountId: "acct_other" }),
+      ),
+    ).rejects.toThrow(/does not match AC-07/);
+  });
+
   it("uses producerStripeAccountId override when provided (INT-197 / UAT-028)", async () => {
     const invoice = await service.createFromSettlement(
       settlement({ producerStripeAccountId: "acct_override_live" }),

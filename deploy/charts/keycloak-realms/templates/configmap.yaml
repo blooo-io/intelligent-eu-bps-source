@@ -4,7 +4,7 @@ metadata:
   name: keycloak-realm-import
   labels:
     app.kubernetes.io/name: keycloak-realms
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 data:
   int-realm.json: |
 {{ .Files.Get "realms/int-realm.json" | indent 4 }}

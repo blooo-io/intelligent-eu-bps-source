@@ -11,7 +11,7 @@ metadata:
   name: {{ .Values.clusterName }}-backup-s3
   labels:
     app.kubernetes.io/name: cnpg-int-data
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: database-backup
 spec:
   refreshInterval: 1h
@@ -46,7 +46,7 @@ metadata:
   name: {{ .Values.clusterName }}-daily
   labels:
     app.kubernetes.io/name: cnpg-int-data
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: database-backup
 spec:
   schedule: {{ .Values.backup.schedule | quote }}

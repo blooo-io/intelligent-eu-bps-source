@@ -4,7 +4,7 @@ metadata:
   name: letsencrypt-staging
   labels:
     app.kubernetes.io/name: letsencrypt-issuer
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
@@ -23,7 +23,7 @@ metadata:
   name: letsencrypt-prod
   labels:
     app.kubernetes.io/name: letsencrypt-issuer
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory

@@ -1,10 +1,10 @@
 # INTELLIGENT — Billing & Payment Service
 
-[![CI](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/ci.yml?query=branch%3Adevelop)
-[![Docs](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/docs.yml/badge.svg)](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/docs.yml)
-[![e2e-dev](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/e2e-dev.yml/badge.svg)](https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/workflows/e2e-dev.yml)
+[![CI](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/ci.yml?query=branch%3Adevelop)
+[![Docs](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/docs.yml/badge.svg)](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/docs.yml)
+[![e2e-dev](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/e2e-dev.yml/badge.svg)](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/e2e-dev.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Docs site](https://img.shields.io/badge/docs-GitHub%20Pages-1a4d3e)](https://blooo-io.github.io/intelligent-eu-billing-and-payment/)
+[![Docs site](https://img.shields.io/badge/docs-GitHub%20Pages-1a4d3e)](https://blooo-io.github.io/intelligent-eu-bps-source/)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](docs/architecture/04-technical-architecture.md)
 [![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)](docs/architecture/04-technical-architecture.md)
@@ -29,7 +29,7 @@
 
 Billing and payment service of the Horizon Europe project **INTELLIGENT** ([GA 101160678](https://cordis.europa.eu/project/id/101160678)). It covers **Task T5.6** and **Deliverable D5.5**. The software is published under **Apache-2.0** so any organisation can run it on **their own** infrastructure.
 
-**Start here for adopters:** [Public documentation (GitHub Pages)](https://blooo-io.github.io/intelligent-eu-billing-and-payment/) — introduction, deploy-your-own, configuration, adapters, contribute. Source for that site: [`apps/site`](apps/site) (VitePress).
+**Start here for adopters:** [Public documentation (GitHub Pages)](https://blooo-io.github.io/intelligent-eu-bps-source/) — introduction, deploy-your-own, configuration, adapters, contribute. Source for that site: [`apps/site`](apps/site) (VitePress).
 
 The service turns energy trades settled on a local market into **peer-to-peer invoices and payments between community members**, then publishes results to a project data space (EWDS).
 
@@ -131,7 +131,7 @@ Sonar badges above mirror the Community Build project `blooo-io_intelligent-eu-b
 
 ## Working on this repository
 
-**Adopters / operators:** follow the [public docs](https://blooo-io.github.io/intelligent-eu-billing-and-payment/) ([source](apps/site)) — especially [Deploy on Kubernetes](apps/site/guide/deploy.md).
+**Adopters / operators:** follow the [public docs](https://blooo-io.github.io/intelligent-eu-bps-source/) ([source](apps/site)) — especially [Deploy on Kubernetes](apps/site/guide/deploy.md).
 
 **Contributors:** read [`CONTRIBUTING.md`](CONTRIBUTING.md) (open GitHub workflow first). Deep engineering rules: [`AGENTS.md`](AGENTS.md).
 
@@ -143,7 +143,7 @@ Upstream reference cluster notes (example DNS / GitOps) live under [`docs/releas
 
 | Need | Start here |
 |---|---|
-| **Public operator docs** | [GitHub Pages](https://blooo-io.github.io/intelligent-eu-billing-and-payment/) · [`apps/site`](apps/site) |
+| **Public operator docs** | [GitHub Pages](https://blooo-io.github.io/intelligent-eu-bps-source/) · [`apps/site`](apps/site) |
 | What / for whom | [Functional architecture](docs/architecture/01-functional-architecture.md) |
 | REQ / UAT / assumptions | [requirements.md](docs/requirements/requirements.md) · [items/](docs/requirements/items/) |
 | APIs & events | [`contracts/`](contracts/) · [API page](apps/site/reference/api.md) |

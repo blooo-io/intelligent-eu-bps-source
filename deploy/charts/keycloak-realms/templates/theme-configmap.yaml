@@ -5,7 +5,7 @@ metadata:
   name: keycloak-theme-intelligent
   labels:
     app.kubernetes.io/name: keycloak-theme-intelligent
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 data:
   theme.properties: |
 {{ .Files.Get "themes/intelligent/login/theme.properties" | indent 4 }}

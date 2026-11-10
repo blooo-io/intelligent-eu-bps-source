@@ -12,16 +12,16 @@ baseline: 04-technical-architecture.md v1.0 (validated 2026-10-07); 03
 
 > **View 5 of 5** (functional → logical → application → technical → **physical**, see [README](README.md)).
 > This view answers: **where and how the components of the technical view run**: hosting, environments, cluster topology, network exposure, storage, backups and operations.
-> Status: **validated (2026-10-08)**.
+> Status: **validated (2026-10-08)**. Deployed-state correction (2026-11-10, INT-374): §3 shows the running cluster. The cloud environment is `dev` (namespaces `int-*`). `demo` is not deployed. CNPG backups are not configured. The apps namespace runs 13 back-end modules (AC-03…AC-15), not 15. Prometheus retention on `dev` is 2 days.
 
 ## 1. Decisions framing this view
 
 | # | Decision | Source |
 |---|---|---|
 | PD-1 | **Hosting: Scaleway** (French provider, not subject to the US CLOUD Act). **Everything runs in the Amsterdam region (nl-ams)**: the managed Kubernetes cluster (**Kapsule**, since capacity is no longer available in Paris), block storage and Object Storage. The Netherlands is in the EU, so NFR-002 is met. **No multi-zone requirement for V1**: these are non-production environments. | 2026-10-08; NFR-002 |
-| PD-2 | **Environments for V1:** `local` (developer laptop, k3d), **`int`** (automatic deployment on every merge) and **`demo`** (stable version for partners and pilots). Both cloud environments run in **virtual mode with Stripe test**. There is no production environment before the first live community. | 2026-10-07; A32 |
+| PD-2 | **Environments for V1:** `local` (developer laptop, k3d + Tilt), **`dev`** (automatic deployment on every merge to `develop`; namespaces `int-apps` and `int-data`) and **`demo`** (stable version for partners and pilots, packaged in Git, **not deployed**). `dev` runs in **virtual mode with Stripe test**. There is no production environment before the first live community. | 2026-10-07; A32; naming and deploy state 2026-11-10 |
 | PD-3 | **One managed cluster for V1**, with one set of namespaces per environment, NetworkPolicies and resource quotas. Production will get its own cluster later. | 2026-10-07 |
-| PD-4 | **Backups:** CloudNativePG continuous backup (WAL archiving + daily base backup) to **Scaleway Object Storage in nl-ams** (same region, separate bucket per environment), with **point-in-time recovery**. Retention is 7 days in `int` and 30 days in `demo`. For non-production, the risk that a regional incident affects both the cluster and its backups is accepted. Production will add a second region. | 2026-10-08 |
+| PD-4 | **Backups (target):** CloudNativePG continuous backup (WAL archiving + daily base backup) to **Scaleway Object Storage in nl-ams** (same region, separate bucket per environment), with **point-in-time recovery**. Retention is 7 days on `dev` and 30 days on `demo`. For non-production, the risk that a regional incident affects both the cluster and its backups is accepted. Production will add a second region. **Not configured** on the deployed cluster: `backup.enabled: false` until the buckets and OpenBao paths exist (INT-358). §3 does not draw a backup path. | 2026-10-08; disabled state INT-358 |
 | PD-5 | **Domain:** all public hosts live under **`intelligent-eu-bp.blooo.dev`** (§4). | 2026-10-08 |
 
 ## 2. Provider selection criteria (PD-1 closed: Scaleway)
@@ -50,27 +50,19 @@ flowchart TB
         ING[ingress - APISIX Ingress Controller]
         OPS[argocd, cert-manager, external-secrets, cnpg-system]
         SEC[openbao]
-        IDP[keycloak - realm per env]
-        WF[temporal - namespace per env]
-        MSG[nats - account per env]
-        OBS[observability - OTel, Prometheus, Jaeger, VictoriaLogs, Perses]
+        IDP[keycloak - realm int]
+        WF[temporal - namespace dev]
+        MSG[nats - account dev]
+        OBS[observability - OTel, Prometheus retention 2d, Jaeger, VictoriaLogs, Perses]
       end
-      subgraph Int[int namespaces]
-        IAPP[int-apps - web app, 13 modules, workers, mocks]
-        IDATA[int-data - CNPG cluster, Debezium Server]
-      end
-      subgraph Demo[demo namespaces]
-        DAPP[demo-apps - web app, 13 modules, workers, mocks]
-        DDATA[demo-data - CNPG cluster, Debezium Server]
+      subgraph Dev[dev - namespaces int-apps and int-data]
+        IAPP[int-apps - web app, 13 modules AC-03 to AC-15, Mailpit]
+        IDATA[int-data - CNPG cluster, Debezium Server, backups off]
       end
     end
-    S3[(Scaleway Object Storage - backup buckets per env)]
   end
   LB((Scaleway load balancer)) --> ING
   ING --> IAPP
-  ING --> DAPP
-  IDATA -. backups .-> S3
-  DDATA -. backups .-> S3
 ```
 
 | Namespace | Content | Shared or per env |
@@ -78,14 +70,14 @@ flowchart TB
 | `ingress` | APISIX + Ingress Controller (routes per host) | Shared |
 | `argocd`, `cert-manager`, `external-secrets`, `cnpg-system` | Operators and GitOps | Shared |
 | `openbao` | OpenBao (paths per env and per module) | Shared |
-| `keycloak` | Keycloak, **one realm per environment** (`int`, `demo`); its database is in a CNPG cluster | Shared instance |
-| `temporal` | Temporal server, **one Temporal namespace per environment**; its database is in CNPG | Shared instance |
-| `nats` | NATS JetStream, **one account per environment** | Shared instance |
-| `observability` | OTel Collector, Prometheus, Jaeger, VictoriaLogs, Perses; data labelled by environment | Shared |
-| `int-apps` / `demo-apps` | AC-01 web app, AC-03…AC-13 modules, AC-14 Temporal workers, AC-15 mock suite | Per env |
-| `int-data` / `demo-data` | CNPG cluster (one database per module), Debezium Server | Per env |
+| `keycloak` | Keycloak, realm `int` for `dev`. A `demo` realm file is packaged and is not a deployed environment. Its database is in a CNPG cluster | Shared instance |
+| `temporal` | Temporal server, namespace for `dev`; its database is in CNPG | Shared instance |
+| `nats` | NATS JetStream, account for `dev` | Shared instance |
+| `observability` | OTel Collector, Prometheus, Jaeger, VictoriaLogs, Perses. Prometheus retention on `dev` is **2 days** / 5 GB (INT-331) | Shared |
+| `int-apps` | AC-01 web app and the **13 back-end modules** AC-03…AC-15 (NestJS modules, Temporal workers, mock suite), plus Mailpit. AC-02 is the gateway in `ingress` | `dev` |
+| `int-data` | CNPG cluster (one database per module), Debezium Server. Backups are **not configured** | `dev` |
 
-Shared platform services are isolated per environment with their native mechanisms (realm, Temporal namespace, NATS account, OpenBao path). The apps and their data are fully separated per environment.
+`demo-apps` and `demo-data` are packaged (`deploy/argocd/demo`, `deploy/envs/demo`) and **not deployed**. Shared platform services isolate `dev` with their native mechanisms (realm, Temporal namespace, NATS account, OpenBao path).
 
 ## 4. Network exposure
 
@@ -105,14 +97,14 @@ flowchart LR
   MODS -- egress HTTPS --> STRIPE
 ```
 
-Base domain: **`intelligent-eu-bp.blooo.dev`**. In the table, `<env>` is `int` or `demo`.
+Base domain: **`intelligent-eu-bp.blooo.dev`**. In the table, `<env>` is `dev` for the deployed environment. `demo` hosts are not served while `demo` is not deployed.
 
 | Public host | Target | Notes |
 |---|---|---|
 | `app.<env>.intelligent-eu-bp.blooo.dev` | AC-01 web app | Static front end |
 | `api.<env>.intelligent-eu-bp.blooo.dev` | APISIX → public API `/v1` | OIDC bearer required |
 | `api.<env>.intelligent-eu-bp.blooo.dev/webhooks/payment-provider` | AC-07 | Only unauthenticated route: Stripe signature verified, rate-limited. Registered as the webhook endpoint in each Stripe test account |
-| `auth.intelligent-eu-bp.blooo.dev` | Keycloak (realms `int`, `demo`) | Login pages and OIDC endpoints |
+| `auth.intelligent-eu-bp.blooo.dev` | Keycloak (realm `int` for `dev`) | Login pages and OIDC endpoints |
 | `docs.intelligent-eu-bp.blooo.dev` | Redocly API documentation, Prism mock for R2M | Public contract (D5.5 is PU) |
 | `sonar.intelligent-eu-bp.blooo.dev` | SonarQube Community Build (INT-292) | CI quality gate + UI; Sonar token/login (not Keycloak OIDC) |
 | `ops.intelligent-eu-bp.blooo.dev` | Argo CD, Perses, Jaeger (via APISIX) | Keycloak login, Blooo operators only |
@@ -127,11 +119,11 @@ DNS: in the `blooo.dev` zone, the records of `*.intelligent-eu-bp.blooo.dev` poi
 
 | Data | Storage | Backup | Recovery objective (V1) |
 |---|---|---|---|
-| Module databases (per env) | CNPG cluster: 1 primary + 1 replica in `demo`, 1 instance in `int`; encrypted block volumes | WAL archiving + daily base backup to Object Storage (nl-ams), PITR; 30 days (`demo`) / 7 days (`int`) | RPO ≈ 5 min, RTO ≈ 1 h (demo) |
-| Keycloak, Temporal databases | CNPG clusters in their namespaces | Same as above, 30 days | Same |
+| Module databases (`dev`) | CNPG cluster: 1 instance in `int-data`; encrypted block volume | **Not configured** (`backup.enabled: false`, INT-358). Target remains PD-4: WAL + daily base backup to Object Storage (nl-ams), PITR, 7 days on `dev` / 30 days on `demo` | Target RPO ≈ 5 min, RTO ≈ 1 h once backups are on |
+| Keycloak, Temporal databases | CNPG clusters in their namespaces | Same packaged path, not configured on the cluster | Same |
 | OpenBao | Integrated storage (Raft) on encrypted volumes | Daily Raft snapshot to Object Storage (nl-ams), 30 days; unseal keys held offline by two Blooo people | RTO ≈ 2 h |
 | NATS JetStream | Persistent volumes | No backup: events are rebuilt from the module outboxes or replayed | — |
-| Observability data | Persistent volumes | No backup; retention 15 days (logs, traces), 30 days (metrics) | — |
+| Observability data | Persistent volumes | No backup. Prometheus on `dev`: **2 days** / 5 GB (INT-331). VictoriaLogs retention: 1 month | — |
 | Configuration | Git (helmfile + Argo CD) | Git hosting | Re-deploy from Git |
 | Container images | GitHub Container Registry (images contain no data or secrets) | Rebuilt from Git tags | — |
 
@@ -147,16 +139,16 @@ A **restore test** is run before the first partner demo, then every quarter.
 | Block storage | ≈ 300 GB (databases, NATS, OpenBao, observability) |
 | Object storage | ≈ 100–200 GB (backups, nl-ams) |
 
-These figures are estimates and will be adjusted after the first load test on `int`.
+These figures are estimates and will be adjusted after the first load test on `dev`.
 
 ## 7. Operations
 
 | Topic | Design |
 |---|---|
-| Deployment | GitHub Actions builds, tests and pushes images. Argo CD syncs helmfile-rendered manifests: `int` follows `main`, `demo` follows release tags. |
+| Deployment | GitHub Actions builds, tests and pushes images. Argo CD syncs helmfile-rendered manifests: `dev` follows `develop`. `demo` follows a release tag and is not deployed. |
 | Cluster access | Scaleway IAM for cluster administration. Day-to-day work goes through Argo CD; `kubectl` access is limited to named Blooo operators. |
 | Secrets | OpenBao is the source of truth and ESO syncs secrets per namespace. Stripe test keys and the webhook secret differ per environment. |
-| Monitoring and alerts | Prometheus alert rules: workload health, job failures (`JobFailed`), intake anomalies, reconciliation discrepancies, Stripe webhook rejections, certificate expiry, backup failures, disk usage. **Alertmanager** (Apache-2.0, part of the Prometheus stack) sends the alerts to a **dedicated Blooo Slack channel** (name and webhook to be defined), with labels per environment (`int`, `demo`). |
+| Monitoring and alerts | Prometheus alert rules: workload health, job failures (`JobFailed`), intake anomalies, reconciliation discrepancies, Stripe webhook rejections, certificate expiry, backup failures, disk usage. **Alertmanager** (Apache-2.0, part of the Prometheus stack) sends the alerts to a **dedicated Blooo Slack channel** (name and webhook to be defined), with the `dev` environment label. Prometheus retention on `dev` is 2 days (INT-331). |
 | Updates | Monthly patching of the platform components through Argo CD; Dependabot for application dependencies; the Kapsule Kubernetes version follows Scaleway's support window. |
 | Data reset (demo) | Scripted reset of the `demo` data and Stripe test objects between demo campaigns. |
 
@@ -168,7 +160,7 @@ These figures are estimates and will be adjusted after the first load test on `i
 
 ## 9. Validation checklist
 - [ ] Hosting decision and selection criteria
-- [ ] Environments `local` / `int` / `demo`
+- [ ] Environments `local` / `dev` (`int-*`) / `demo` packaged, not deployed
 - [ ] One cluster with namespaces per environment; shared platform with per-env isolation
 - [ ] Network exposure (public hosts, private everything else)
 - [ ] Backups and recovery objectives

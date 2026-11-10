@@ -55,6 +55,15 @@ test("e2e suite includes INT-251 Stripe money-path journey", async () => {
   assert.match(text, /money-path-stripe\.spec\.ts/);
 });
 
+test("money-path journey pays only invoices the seed created this run (INT-368)", async () => {
+  const spec = await readFile(
+    new URL("../apps/web/e2e/journeys/money-path-stripe.spec.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(spec, /process\.env\.E2E_FRESH_INVOICE_IDS/);
+  assert.match(spec, /fresh\.has\(rowInvoiceId\)/);
+});
+
 test("e2e suite documents INT-211 live screen coverage", async () => {
   const text = await readFile(
     new URL("../docs/testing/ac01-e2e.md", import.meta.url),

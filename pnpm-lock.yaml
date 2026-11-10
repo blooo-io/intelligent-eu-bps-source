@@ -15,7 +15,7 @@ importers:
     devDependencies:
       '@asyncapi/cli':
         specifier: ^6.2.1
-        version: 6.2.1(@swc/core@1.16.18(@swc/helpers@0.5.23))(@types/babel__core@7.20.5)(@types/node@16.18.126)(encoding@0.1.13)
+        version: 6.2.1(@swc/core@1.16.18(@swc/helpers@0.5.24))(@types/babel__core@7.20.5)(@types/node@16.18.126)(encoding@0.1.13)
       '@redocly/cli':
         specifier: ^2.71.0
         version: 2.71.0
@@ -59,8 +59,8 @@ importers:
         specifier: ^1.6.3
         version: 1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2)
       vitepress-openapi:
-        specifier: 0.2.5
-        version: 0.2.5(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2))
+        specifier: 0.2.8
+        version: 0.2.8(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2))
       vitepress-plugin-mermaid:
         specifier: 2.0.17
         version: 2.0.17(mermaid@11.12.2)(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))
@@ -661,7 +661,7 @@ importers:
         version: 1.25.0(long@5.3.2)(protobufjs@8.8.1)
       '@temporalio/worker':
         specifier: ^1.25.0
-        version: 1.25.0(@swc/helpers@0.5.23)(lightningcss@1.33.0)(long@5.3.2)(protobufjs@8.8.1)
+        version: 1.25.0(@swc/helpers@0.5.24)(lightningcss@1.33.0)(long@5.3.2)(protobufjs@8.8.1)
       '@temporalio/workflow':
         specifier: ^1.25.0
         version: 1.25.0(long@5.3.2)(protobufjs@8.8.1)
@@ -2576,8 +2576,8 @@ packages:
   '@kwsites/promise-deferred@1.1.1':
     resolution: {integrity: sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==}
 
-  '@lucide/vue@1.61.0':
-    resolution: {integrity: sha512-XYclbwUQ6Mvf0UskBG9gJH91BdF3VK4Tt6Pv8PSntwPwNnf357PCQnma4TrzOEdwD49UYCtsTafpfytRIxm1cQ==}
+  '@lucide/vue@1.71.0':
+    resolution: {integrity: sha512-R64tQ5dJMvLjAOEIhF+vOunHm/wUI3VP6NhJEaigwpLVaAEL3O2251byH2IBEeBofLunvOiTGh4lkzDfIpgKcQ==}
     peerDependencies:
       vue: '>=3.0.1'
 
@@ -3760,8 +3760,8 @@ packages:
   '@swc/counter@0.1.3':
     resolution: {integrity: sha512-e2BR4lsJkkRlKZ/qCHPw9ZaSxc0MVUd7gtbtaB7aMvHeJVYe8sOB8DBZkP2DtISHGSku9sCK6T6cnY0CtXrOCQ==}
 
-  '@swc/helpers@0.5.23':
-    resolution: {integrity: sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw==}
+  '@swc/helpers@0.5.24':
+    resolution: {integrity: sha512-6tcXo4kA8HgGO7AVmawB57RYi/piBPYVHVcO6dXjX+SZw8GoHmi262sp4v2Ha2kNP9Cx84qei27yT+fjS1lxgg==}
 
   '@swc/types@0.1.28':
     resolution: {integrity: sha512-V6Mnml8v09QALx6K0elJ7o9K/MkVDtW3t6L+7Ou/JcWtb3xwId2AH4FeOceySd2JaO87IMw4+6vSZxLm34LPbw==}
@@ -3778,11 +3778,11 @@ packages:
     peerDependencies:
       react: ^18 || ^19
 
-  '@tanstack/virtual-core@3.19.7':
-    resolution: {integrity: sha512-gxy5SvH0mFRJ0YujtrflB/1HAu9Wn1KGvL0bjZfQkYVVMsIpQiwcf1mR06/ViN4NjllUb4HNCjqE9FGwgTvMCQ==}
+  '@tanstack/virtual-core@3.19.11':
+    resolution: {integrity: sha512-/5iHb0RHBvj8Di59FDs4ESNm45jls33aZAi4zccVXZjc/6ZvwQP6nzEYeT6weXjTf9E6/vrp2JhYWRyO+ZP13A==}
 
-  '@tanstack/vue-virtual@3.13.48':
-    resolution: {integrity: sha512-exH0/lELoCW9D6x8V1Uq61XY4zrN1AeDH4rDKUMTOJ93ndkeEVIY8zo366IBM13HSjhULpuWPdPhJ+ccidg58A==}
+  '@tanstack/vue-virtual@3.13.52':
+    resolution: {integrity: sha512-qTwG7HNr5o+FPd/u+T05N73A8howtkB9FgQI71VcBzx6J2KsYzlVugRz/0ji17kl26D8SAdKux1Wmk3yhTI1Kw==}
     peerDependencies:
       vue: ^2.7.0 || ^3.0.0
 
@@ -9102,8 +9102,8 @@ packages:
       yaml:
         optional: true
 
-  vitepress-openapi@0.2.5:
-    resolution: {integrity: sha512-524n7Ia+Gp4WJYm+PLdpbghAE5O28tYiOw2mw6wGI6KK7jCh4/BgzqpZnofIfCF2zP45B4fzI/lIad/X3CcSNw==}
+  vitepress-openapi@0.2.8:
+    resolution: {integrity: sha512-9el46owjPDjUOkyR5Ic4ODFLIfJADxVYVthMFdp+YB+dgwTA1w1svQf7nDyOLg6q5js3y9xnl3gr3xLAXtFPrw==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24.0.0}
     peerDependencies:
       vitepress: '>=1.0.0'
@@ -9677,14 +9677,14 @@ snapshots:
       js-yaml: 4.3.2
       lodash: 4.18.1
 
-  '@asyncapi/cli@6.2.1(@swc/core@1.16.18(@swc/helpers@0.5.23))(@types/babel__core@7.20.5)(@types/node@16.18.126)(encoding@0.1.13)':
+  '@asyncapi/cli@6.2.1(@swc/core@1.16.18(@swc/helpers@0.5.24))(@types/babel__core@7.20.5)(@types/node@16.18.126)(encoding@0.1.13)':
     dependencies:
       '@asyncapi/avro-schema-parser': 3.0.24(encoding@0.1.13)
       '@asyncapi/bundler': 1.0.1
       '@asyncapi/converter': 2.0.2(encoding@0.1.13)
       '@asyncapi/diff': 0.5.0
-      '@asyncapi/generator': 3.5.0(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.23))(@types/babel__core@7.20.5)(@types/node@16.18.126)(encoding@0.1.13)
-      '@asyncapi/modelina-cli': 5.10.1(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.23))(@types/node@16.18.126)(encoding@0.1.13)
+      '@asyncapi/generator': 3.5.0(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.24))(@types/babel__core@7.20.5)(@types/node@16.18.126)(encoding@0.1.13)
+      '@asyncapi/modelina-cli': 5.10.1(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.24))(@types/node@16.18.126)(encoding@0.1.13)
       '@asyncapi/openapi-schema-parser': 3.1.0(@asyncapi/parser@3.6.3(encoding@0.1.13))
       '@asyncapi/optimizer': 1.0.4(encoding@0.1.13)
       '@asyncapi/parser': 3.6.3(encoding@0.1.13)
@@ -9751,11 +9751,11 @@ snapshots:
       js-yaml: 4.3.2
       json2md: 1.13.0
 
-  '@asyncapi/generator-components@0.9.0(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.23))(@types/babel__core@7.20.5)(encoding@0.1.13)':
+  '@asyncapi/generator-components@0.9.0(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.24))(@types/babel__core@7.20.5)(encoding@0.1.13)':
     dependencies:
       '@asyncapi/generator-helpers': 1.1.0
       '@asyncapi/generator-react-sdk': 1.1.3(@types/babel__core@7.20.5)(encoding@0.1.13)
-      '@asyncapi/modelina': 5.10.1(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.23))(encoding@0.1.13)
+      '@asyncapi/modelina': 5.10.1(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.24))(encoding@0.1.13)
     transitivePeerDependencies:
       - '@asyncapi/raml-dt-schema-parser'
       - '@swc/core'
@@ -9788,9 +9788,9 @@ snapshots:
       - encoding
       - supports-color
 
-  '@asyncapi/generator@3.5.0(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.23))(@types/babel__core@7.20.5)(@types/node@16.18.126)(encoding@0.1.13)':
+  '@asyncapi/generator@3.5.0(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.24))(@types/babel__core@7.20.5)(@types/node@16.18.126)(encoding@0.1.13)':
     dependencies:
-      '@asyncapi/generator-components': 0.9.0(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.23))(@types/babel__core@7.20.5)(encoding@0.1.13)
+      '@asyncapi/generator-components': 0.9.0(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.24))(@types/babel__core@7.20.5)(encoding@0.1.13)
       '@asyncapi/generator-helpers': 1.1.0
       '@asyncapi/generator-hooks': 0.1.2
       '@asyncapi/generator-react-sdk': 1.1.3(@types/babel__core@7.20.5)(encoding@0.1.13)
@@ -9814,7 +9814,7 @@ snapshots:
       resolve-pkg: 2.0.0
       semver: 7.8.5
       simple-git: 3.36.0
-      ts-node: 10.9.2(@swc/core@1.16.18(@swc/helpers@0.5.23))(@types/node@16.18.126)(typescript@4.9.5)
+      ts-node: 10.9.2(@swc/core@1.16.18(@swc/helpers@0.5.24))(@types/node@16.18.126)(typescript@4.9.5)
       typescript: 4.9.5
     transitivePeerDependencies:
       - '@asyncapi/raml-dt-schema-parser'
@@ -9826,9 +9826,9 @@ snapshots:
       - encoding
       - supports-color
 
-  '@asyncapi/modelina-cli@5.10.1(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.23))(@types/node@16.18.126)(encoding@0.1.13)':
+  '@asyncapi/modelina-cli@5.10.1(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.24))(@types/node@16.18.126)(encoding@0.1.13)':
     dependencies:
-      '@asyncapi/modelina': 5.10.1(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.23))(encoding@0.1.13)
+      '@asyncapi/modelina': 5.10.1(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.24))(encoding@0.1.13)
       '@oclif/core': 3.27.0
       '@oclif/errors': 1.3.6
       '@oclif/plugin-autocomplete': 3.3.0
@@ -9846,7 +9846,7 @@ snapshots:
       - encoding
       - supports-color
 
-  '@asyncapi/modelina@5.10.1(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.23))(encoding@0.1.13)':
+  '@asyncapi/modelina@5.10.1(@asyncapi/raml-dt-schema-parser@4.0.24(encoding@0.1.13))(@swc/core@1.16.18(@swc/helpers@0.5.24))(encoding@0.1.13)':
     dependencies:
       '@apidevtools/json-schema-ref-parser': 11.9.3
       '@apidevtools/swagger-parser': 10.1.1(openapi-types@12.1.3)
@@ -9857,7 +9857,7 @@ snapshots:
       fast-xml-parser: 5.11.2
       js-yaml: 4.3.2
       openapi-types: 12.1.3
-      typescript-json-schema: 0.58.1(@swc/core@1.16.18(@swc/helpers@0.5.23))
+      typescript-json-schema: 0.58.1(@swc/core@1.16.18(@swc/helpers@0.5.24))
     transitivePeerDependencies:
       - '@asyncapi/raml-dt-schema-parser'
       - '@swc/core'
@@ -11590,11 +11590,11 @@ snapshots:
 
   '@internationalized/date@3.12.4':
     dependencies:
-      '@swc/helpers': 0.5.23
+      '@swc/helpers': 0.5.24
 
   '@internationalized/number@3.6.9':
     dependencies:
-      '@swc/helpers': 0.5.23
+      '@swc/helpers': 0.5.24
 
   '@isaacs/cliui@8.0.2':
     dependencies:
@@ -11794,7 +11794,7 @@ snapshots:
 
   '@kwsites/promise-deferred@1.1.1': {}
 
-  '@lucide/vue@1.61.0(vue@3.5.44(typescript@7.0.2))':
+  '@lucide/vue@1.71.0(vue@3.5.44(typescript@7.0.2))':
     dependencies:
       vue: 3.5.44(typescript@7.0.2)
 
@@ -13453,7 +13453,7 @@ snapshots:
   '@swc/core-win32-x64-msvc@1.16.18':
     optional: true
 
-  '@swc/core@1.16.18(@swc/helpers@0.5.23)':
+  '@swc/core@1.16.18(@swc/helpers@0.5.24)':
     dependencies:
       '@swc/counter': 0.1.3
       '@swc/types': 0.1.28
@@ -13470,13 +13470,11 @@ snapshots:
       '@swc/core-win32-arm64-msvc': 1.16.18
       '@swc/core-win32-ia32-msvc': 1.16.18
       '@swc/core-win32-x64-msvc': 1.16.18
-      '@swc/helpers': 0.5.23
+      '@swc/helpers': 0.5.24
 
   '@swc/counter@0.1.3': {}
 
-  '@swc/helpers@0.5.23':
-    dependencies:
-      tslib: 2.9.1
+  '@swc/helpers@0.5.24': {}
 
   '@swc/types@0.1.28':
     dependencies:
@@ -13493,11 +13491,11 @@ snapshots:
       '@tanstack/query-core': 5.104.3
       react: 19.3.1
 
-  '@tanstack/virtual-core@3.19.7': {}
+  '@tanstack/virtual-core@3.19.11': {}
 
-  '@tanstack/vue-virtual@3.13.48(vue@3.5.44(typescript@7.0.2))':
+  '@tanstack/vue-virtual@3.13.52(vue@3.5.44(typescript@7.0.2))':
     dependencies:
-      '@tanstack/virtual-core': 3.19.7
+      '@tanstack/virtual-core': 3.19.11
       vue: 3.5.44(typescript@7.0.2)
 
   '@temporalio/activity@1.25.0(long@5.3.2)(protobufjs@8.8.1)':
@@ -13546,10 +13544,10 @@ snapshots:
       long: 5.3.2
       protobufjs: 8.8.1
 
-  '@temporalio/worker@1.25.0(@swc/helpers@0.5.23)(lightningcss@1.33.0)(long@5.3.2)(protobufjs@8.8.1)':
+  '@temporalio/worker@1.25.0(@swc/helpers@0.5.24)(lightningcss@1.33.0)(long@5.3.2)(protobufjs@8.8.1)':
     dependencies:
       '@grpc/grpc-js': 1.14.6
-      '@swc/core': 1.16.18(@swc/helpers@0.5.23)
+      '@swc/core': 1.16.18(@swc/helpers@0.5.24)
       '@temporalio/activity': 1.25.0(long@5.3.2)(protobufjs@8.8.1)
       '@temporalio/client': 1.25.0(long@5.3.2)(protobufjs@8.8.1)
       '@temporalio/common': 1.25.0(long@5.3.2)(protobufjs@8.8.1)
@@ -13564,11 +13562,11 @@ snapshots:
       protobufjs: 8.8.1
       rxjs: 7.8.2
       source-map: 0.7.6
-      source-map-loader: 5.0.0(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0))
+      source-map-loader: 5.0.0(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0))
       supports-color: 8.1.1
-      swc-loader: 0.2.7(@swc/core@1.16.18(@swc/helpers@0.5.23))(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0))
+      swc-loader: 0.2.7(@swc/core@1.16.18(@swc/helpers@0.5.24))(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0))
       unionfs: 4.6.0
-      webpack: 5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0)
+      webpack: 5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0)
     transitivePeerDependencies:
       - '@minify-html/node'
       - '@napi-rs/image'
@@ -17157,15 +17155,15 @@ snapshots:
 
   minimist@1.2.8: {}
 
-  minimizer-webpack-plugin@5.13.1(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0)(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0)):
+  minimizer-webpack-plugin@5.13.1(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0)(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
-      schema-utils: 4.8.1(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0))
+      schema-utils: 4.8.1(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0))
       terser: 5.51.2
-      webpack: 5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0)
+      webpack: 5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0)
     optionalDependencies:
-      '@swc/core': 1.16.18(@swc/helpers@0.5.23)
+      '@swc/core': 1.16.18(@swc/helpers@0.5.24)
       lightningcss: 1.33.0
 
   minipass-collect@2.0.1:
@@ -18124,7 +18122,7 @@ snapshots:
       '@floating-ui/vue': 2.0.1(vue@3.5.44(typescript@7.0.2))
       '@internationalized/date': 3.12.4
       '@internationalized/number': 3.6.9
-      '@tanstack/vue-virtual': 3.13.48(vue@3.5.44(typescript@7.0.2))
+      '@tanstack/vue-virtual': 3.13.52(vue@3.5.44(typescript@7.0.2))
       '@vueuse/core': 14.4.0(vue@3.5.44(typescript@7.0.2))
       '@vueuse/shared': 14.4.0(vue@3.5.44(typescript@7.0.2))
       aria-hidden: 1.2.6
@@ -18305,14 +18303,14 @@ snapshots:
 
   scheduler@0.28.0: {}
 
-  schema-utils@4.8.1(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0)):
+  schema-utils@4.8.1(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0)):
     dependencies:
       '@types/json-schema': 7.0.15
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       ajv-keywords: 5.1.0(ajv@8.20.0)
     optionalDependencies:
-      webpack: 5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0)
+      webpack: 5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0)
 
   scroll-into-view-if-needed@3.1.0:
     dependencies:
@@ -18513,11 +18511,11 @@ snapshots:
 
   source-map-js@1.2.2: {}
 
-  source-map-loader@5.0.0(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0)):
+  source-map-loader@5.0.0(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0)):
     dependencies:
       iconv-lite: 0.6.3
       source-map-js: 1.2.2
-      webpack: 5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0)
+      webpack: 5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0)
 
   source-map-support@0.5.21:
     dependencies:
@@ -18713,11 +18711,11 @@ snapshots:
 
   supports-preserve-symlinks-flag@1.0.0: {}
 
-  swc-loader@0.2.7(@swc/core@1.16.18(@swc/helpers@0.5.23))(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0)):
+  swc-loader@0.2.7(@swc/core@1.16.18(@swc/helpers@0.5.24))(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0)):
     dependencies:
-      '@swc/core': 1.16.18(@swc/helpers@0.5.23)
+      '@swc/core': 1.16.18(@swc/helpers@0.5.24)
       '@swc/counter': 0.1.3
-      webpack: 5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0)
+      webpack: 5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0)
 
   symbol-tree@3.2.4: {}
 
@@ -18860,7 +18858,7 @@ snapshots:
 
   ts-dedent@2.3.0: {}
 
-  ts-node@10.9.2(@swc/core@1.16.18(@swc/helpers@0.5.23))(@types/node@16.18.126)(typescript@4.9.5):
+  ts-node@10.9.2(@swc/core@1.16.18(@swc/helpers@0.5.24))(@types/node@16.18.126)(typescript@4.9.5):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.13
@@ -18878,7 +18876,7 @@ snapshots:
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
     optionalDependencies:
-      '@swc/core': 1.16.18(@swc/helpers@0.5.23)
+      '@swc/core': 1.16.18(@swc/helpers@0.5.24)
 
   tslib@1.14.1: {}
 
@@ -18947,14 +18945,14 @@ snapshots:
       possible-typed-array-names: 1.1.0
       reflect.getprototypeof: 1.0.10
 
-  typescript-json-schema@0.58.1(@swc/core@1.16.18(@swc/helpers@0.5.23)):
+  typescript-json-schema@0.58.1(@swc/core@1.16.18(@swc/helpers@0.5.24)):
     dependencies:
       '@types/json-schema': 7.0.15
       '@types/node': 16.18.126
       glob: 7.2.3
       path-equal: 1.2.8
       safe-stable-stringify: 2.5.0
-      ts-node: 10.9.2(@swc/core@1.16.18(@swc/helpers@0.5.23))(@types/node@16.18.126)(typescript@4.9.5)
+      ts-node: 10.9.2(@swc/core@1.16.18(@swc/helpers@0.5.24))(@types/node@16.18.126)(typescript@4.9.5)
       typescript: 4.9.5
       yargs: 17.7.3
     transitivePeerDependencies:
@@ -19208,9 +19206,9 @@ snapshots:
       terser: 5.51.2
       yaml: 2.9.1
 
-  vitepress-openapi@0.2.5(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2)):
+  vitepress-openapi@0.2.8(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2)):
     dependencies:
-      '@lucide/vue': 1.61.0(vue@3.5.44(typescript@7.0.2))
+      '@lucide/vue': 1.71.0(vue@3.5.44(typescript@7.0.2))
       '@vueuse/core': 14.4.0(vue@3.5.44(typescript@7.0.2))
       class-variance-authority: 0.7.1
       clsx: 2.1.1
@@ -19421,7 +19419,7 @@ snapshots:
 
   webpack-sources@3.6.0: {}
 
-  webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0):
+  webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0):
     dependencies:
       '@types/estree': 1.0.9
       '@types/json-schema': 7.0.15
@@ -19435,8 +19433,8 @@ snapshots:
       events: 3.3.0
       graceful-fs: 4.2.11
       mime-db: 1.54.0
-      minimizer-webpack-plugin: 5.13.1(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0)(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0))
-      schema-utils: 4.8.1(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.23))(lightningcss@1.33.0))
+      minimizer-webpack-plugin: 5.13.1(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0)(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0))
+      schema-utils: 4.8.1(webpack@5.112.0(@swc/core@1.16.18(@swc/helpers@0.5.24))(lightningcss@1.33.0))
       tapable: 2.3.3
       watchpack: 2.6.3
       webpack-sources: 3.6.0

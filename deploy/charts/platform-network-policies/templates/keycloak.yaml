@@ -9,7 +9,7 @@ metadata:
   namespace: {{ .Values.keycloakNamespace | quote }}
   labels:
     app.kubernetes.io/name: platform-network-policies
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: keycloak
 spec:
   podSelector:
@@ -79,7 +79,7 @@ metadata:
   namespace: {{ .Values.keycloakNamespace | quote }}
   labels:
     app.kubernetes.io/name: platform-network-policies
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: keycloak-db
 spec:
   podSelector:

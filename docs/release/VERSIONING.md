@@ -48,10 +48,10 @@ To publish a GitHub Release for an **existing** tag (backfill), use workflow_dis
 You do not need Blooo’s Jira or cluster. Clone a release tag:
 
 ```bash
-git clone --branch v1.0.0 https://github.com/blooo-io/intelligent-eu-billing-and-payment.git
+git clone --branch v1.0.0 https://github.com/blooo-io/intelligent-eu-bps-source.git
 ```
 
-Or pin container images to `ghcr.io/blooo-io/intelligent-eu-billing-and-payment-<module>:v1.0.0` once that tag’s `release` workflow has completed.
+Or pin container images to `ghcr.io/blooo-io/intelligent-eu-bps-source/<module>:v1.0.0` once that tag’s `release` workflow has completed.
 
 ## Related
 

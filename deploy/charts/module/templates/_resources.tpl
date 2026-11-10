@@ -1,6 +1,6 @@
 {{- define "module.labels" -}}
 app.kubernetes.io/name: {{ .Values.name }}
-app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+app.kubernetes.io/part-of: intelligent-eu-bps-source
 app.kubernetes.io/component: {{ .Values.component }}
 {{- end -}}
 

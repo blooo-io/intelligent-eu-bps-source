@@ -1,4 +1,4 @@
 # INT-327 — labels must match kube-prometheus rule discovery.
 labels:
-  app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+  app.kubernetes.io/part-of: intelligent-eu-bps-source
   release: kube-prometheus

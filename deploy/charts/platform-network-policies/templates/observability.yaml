@@ -8,7 +8,7 @@ metadata:
   namespace: {{ .Values.observabilityNamespace | quote }}
   labels:
     app.kubernetes.io/name: platform-network-policies
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: otel-collector
 spec:
   podSelector:
@@ -64,7 +64,7 @@ metadata:
   namespace: {{ .Values.observabilityNamespace | quote }}
   labels:
     app.kubernetes.io/name: platform-network-policies
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: jaeger
 spec:
   podSelector:
@@ -106,7 +106,7 @@ metadata:
   namespace: {{ .Values.observabilityNamespace | quote }}
   labels:
     app.kubernetes.io/name: platform-network-policies
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: victoria-logs
 spec:
   podSelector:

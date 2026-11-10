@@ -8,7 +8,7 @@ metadata:
   name: {{ .Values.name }}-worker
   labels:
     app.kubernetes.io/name: {{ .Values.name }}-worker
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}-worker
 spec:
   replicas: {{ .Values.workerReplicaCount | default 1 }}
@@ -19,7 +19,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: {{ .Values.name }}-worker
-        app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+        app.kubernetes.io/part-of: intelligent-eu-bps-source
         app.kubernetes.io/component: {{ .Values.component }}-worker
     spec:
       automountServiceAccountToken: false

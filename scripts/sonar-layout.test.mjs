@@ -62,7 +62,7 @@ test("buildScannerArgs sets PR decoration on SonarCloud", () => {
       GITHUB_EVENT_PULL_REQUEST_NUMBER: "42",
       GITHUB_HEAD_REF: "feature/x",
       GITHUB_BASE_REF: "develop",
-      GITHUB_REPOSITORY: "blooo-io/intelligent-eu-billing-and-payment",
+      GITHUB_REPOSITORY: "blooo-io/intelligent-eu-bps-source",
     },
     "services/payments/coverage/lcov.info",
   );
@@ -80,7 +80,7 @@ test("buildScannerArgs sets PR decoration on SonarCloud", () => {
   assert.ok(args.includes("-Dsonar.pullrequest.provider=github"));
   assert.ok(
     args.includes(
-      "-Dsonar.pullrequest.github.repository=blooo-io/intelligent-eu-billing-and-payment",
+      "-Dsonar.pullrequest.github.repository=blooo-io/intelligent-eu-bps-source",
     ),
   );
 });
@@ -93,7 +93,7 @@ test("buildScannerArgs omits PR/branch props for Community Build host", () => {
       GITHUB_EVENT_PULL_REQUEST_NUMBER: "199",
       GITHUB_HEAD_REF: "feature/x",
       GITHUB_BASE_REF: "develop",
-      GITHUB_REPOSITORY: "blooo-io/intelligent-eu-billing-and-payment",
+      GITHUB_REPOSITORY: "blooo-io/intelligent-eu-bps-source",
     },
     "services/payments/coverage/lcov.info",
   );

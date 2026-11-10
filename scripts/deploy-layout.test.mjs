@@ -133,6 +133,21 @@ test("workloads are non-root with a read-only filesystem and no committed secret
   }
 });
 
+test("chart labels use the current repository name (INT-372)", async () => {
+  const files = await yamlFiles("deploy/charts");
+  assert.ok(files.length > 0);
+  for (const file of files) {
+    const text = await readFile(file, "utf8");
+    assert.equal(
+      text.includes("part-of: intelligent-eu-billing-and-payment"),
+      false,
+      file,
+    );
+  }
+  const shared = await readFile("deploy/charts/module/templates/_resources.tpl", "utf8");
+  assert.match(shared, /part-of: intelligent-eu-bps-source/);
+});
+
 test("docs-portal disables ExternalSecret (INT-249)", async () => {
   const values = await readFile("deploy/charts/docs-portal/values.yaml", "utf8");
   assert.match(values, /externalSecret:\s*false/);

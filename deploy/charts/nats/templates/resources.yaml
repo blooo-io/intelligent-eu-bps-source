@@ -4,7 +4,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 automountServiceAccountToken: false
 ---
@@ -14,7 +14,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 data:
   nats.conf: |
@@ -32,7 +32,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 spec:
   clusterIP: None
@@ -52,7 +52,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 spec:
   serviceName: {{ .Values.name }}
@@ -64,7 +64,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: {{ .Values.name }}
-        app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+        app.kubernetes.io/part-of: intelligent-eu-bps-source
         app.kubernetes.io/component: {{ .Values.component }}
     spec:
       serviceAccountName: {{ .Values.name }}
@@ -137,7 +137,7 @@ metadata:
   name: {{ .Values.config.accountsFromSecret }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 spec:
   refreshInterval: 1h
@@ -157,7 +157,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 spec:
   podSelector:

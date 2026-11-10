@@ -8,7 +8,7 @@ metadata:
   name: temporal-register-namespaces
   labels:
     app.kubernetes.io/name: temporal-namespaces
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: temporal-namespaces
   annotations:
     argocd.argoproj.io/hook: Sync
@@ -20,7 +20,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: temporal-namespaces
-        app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+        app.kubernetes.io/part-of: intelligent-eu-bps-source
         app.kubernetes.io/component: temporal-namespaces
     spec:
       restartPolicy: OnFailure

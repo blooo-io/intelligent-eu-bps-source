@@ -8,7 +8,7 @@ metadata:
   namespace: {{ .Values.temporalNamespace | quote }}
   labels:
     app.kubernetes.io/name: platform-network-policies
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: temporal
 spec:
   podSelector:
@@ -62,7 +62,7 @@ metadata:
   namespace: {{ .Values.temporalNamespace | quote }}
   labels:
     app.kubernetes.io/name: platform-network-policies
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: temporal-db
 spec:
   podSelector:

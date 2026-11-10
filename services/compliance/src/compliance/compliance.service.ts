@@ -106,7 +106,13 @@ export class ComplianceService {
    */
   getRequestForCaller(
     requestId: string,
-    caller: { sub: string; communityId: string; roles: string[] },
+    caller: {
+      sub: string;
+      communityId: string;
+      roles: string[];
+      /** Registry participant of a member, resolved from the IdP sub (INT-375). */
+      selfParticipantId?: string;
+    },
   ): {
     requestId: string;
     participantId: string;
@@ -147,7 +153,12 @@ export class ComplianceService {
 
   private callerMayRead(
     row: DataSubjectRequest,
-    caller: { sub: string; communityId: string; roles: string[] },
+    caller: {
+      sub: string;
+      communityId: string;
+      roles: string[];
+      selfParticipantId?: string;
+    },
   ): boolean {
     if (!caller.communityId || row.communityId !== caller.communityId) {
       return false;
@@ -156,7 +167,8 @@ export class ComplianceService {
       caller.roles.includes(role),
     );
     if (elevated) return true;
-    return row.participantId === caller.sub || row.actorId === caller.sub;
+    const self = caller.selfParticipantId ?? caller.sub;
+    return row.participantId === self || row.actorId === caller.sub;
   }
 
   getRequestDetail(requestId: string): DataSubjectRequest {

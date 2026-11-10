@@ -713,6 +713,18 @@ export class PaymentsService {
     // INT-355 — replaying Pay on a settled invoice returns the original payment.
     const prior = this.store.findSucceededByInvoiceId(input.invoiceId);
     if (prior) {
+      // INT-368 / BR-11 — AC-06 may still show Open when the first
+      // PaymentStatusChanged never landed; re-announce so it converges.
+      if (invoice.status !== "Paid") {
+        await this.announcePaymentStatus({
+          paymentId: prior.paymentId,
+          invoiceId: prior.invoiceId,
+          status: prior.status,
+          communityId: prior.communityId,
+          method: prior.method,
+          processingTimeMs: prior.processingTimeMs,
+        });
+      }
       return {
         paymentId: prior.paymentId,
         invoiceId: prior.invoiceId,
@@ -765,21 +777,14 @@ export class PaymentsService {
       method,
       processingTimeMs,
     });
-    await this.outbox.append({
-      aggregateType: "Payment",
-      aggregateId: paymentId,
-      type: "PaymentStatusChanged",
-      producer: PRODUCER,
+    await this.announcePaymentStatus({
+      paymentId,
+      invoiceId: input.invoiceId,
+      status: pspResult.status,
+      failureCategory: pspResult.failureCategory,
       communityId,
-      billingMode: "virtual",
-      data: {
-        paymentId,
-        invoiceId: input.invoiceId,
-        status: pspResult.status,
-        failureCategory: pspResult.failureCategory,
-        method,
-        processingTimeMs,
-      },
+      method,
+      processingTimeMs,
     });
     return {
       paymentId,
@@ -791,6 +796,33 @@ export class PaymentsService {
       failureCategory: pspResult.failureCategory,
       processingTimeMs,
     };
+  }
+
+  private async announcePaymentStatus(input: {
+    paymentId: string;
+    invoiceId: string;
+    status: string;
+    failureCategory?: string;
+    communityId: string;
+    method?: string;
+    processingTimeMs?: number;
+  }): Promise<void> {
+    await this.outbox.append({
+      aggregateType: "Payment",
+      aggregateId: input.paymentId,
+      type: "PaymentStatusChanged",
+      producer: PRODUCER,
+      communityId: input.communityId,
+      billingMode: "virtual",
+      data: {
+        paymentId: input.paymentId,
+        invoiceId: input.invoiceId,
+        status: input.status,
+        failureCategory: input.failureCategory,
+        method: input.method,
+        processingTimeMs: input.processingTimeMs,
+      },
+    });
   }
 
   private async handleAccountUpdatedWebhook(

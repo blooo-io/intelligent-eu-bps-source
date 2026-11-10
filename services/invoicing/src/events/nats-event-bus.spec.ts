@@ -9,7 +9,9 @@ vi.mock("nats", () => ({
   connect: (...args: unknown[]) => connect(...args),
 }));
 
-const { createEventBus, NatsEventBus } = await import("./nats-event-bus.js");
+const { createEventBus, NatsEventBus, NAK_REDELIVERY_DELAY_MS } = await import(
+  "./nats-event-bus.js"
+);
 
 function mockCoreNc(overrides: Record<string, unknown> = {}) {
   type Msg = { string: () => string };
@@ -171,7 +173,8 @@ describe("NatsEventBus JetStream (INT-223)", () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(handler).toHaveBeenCalledTimes(2);
     expect(ack).toHaveBeenCalled();
-    expect(nak).toHaveBeenCalled();
+    expect(nak).toHaveBeenCalledWith(NAK_REDELIVERY_DELAY_MS);
+    expect(NAK_REDELIVERY_DELAY_MS).toBeGreaterThan(0);
     expect(consumersAdd).toHaveBeenCalledWith(
       "DebeziumStream",
       expect.objectContaining({

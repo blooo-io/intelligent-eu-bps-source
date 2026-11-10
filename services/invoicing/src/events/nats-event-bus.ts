@@ -10,6 +10,9 @@ import {
 import type { EventBusPort, EventHandler } from "./event-bus.port.js";
 import { InMemoryEventBus } from "./in-memory-event-bus.js";
 
+/** INT-368 — space out redelivery of a failed message instead of a hot loop. */
+export const NAK_REDELIVERY_DELAY_MS = 5_000;
+
 /**
  * INT-223 — NATS JetStream (preferred) / core subscribe for SettlementCompleted.
  * Subject: `{prefix}.{eventType}` (default `intelligent.dev.SettlementCompleted`).
@@ -93,7 +96,7 @@ export class NatsEventBus implements EventBusPort {
           await this.dispatch(handler, msg.string());
           msg.ack();
         } catch {
-          msg.nak();
+          msg.nak(NAK_REDELIVERY_DELAY_MS);
         }
       }
     })().catch(() => {

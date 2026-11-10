@@ -24,6 +24,7 @@
  * Does **not** POST the operator invoice bridge — NATS is the primary path (INT-238).
  */
 import assert from "node:assert/strict";
+import { appendFileSync } from "node:fs";
 import { buildInternalServiceHeaders } from "./lib/service-jwt.mjs";
 
 const PAYMENTS_URL = (
@@ -290,6 +291,17 @@ async function main() {
       2,
     ),
   );
+  exportFreshInvoiceIds(invoices.map((i) => i.invoiceId));
+}
+
+/**
+ * INT-368 — the money-path journey pays only invoices this run created.
+ * Older Open rows may already be paid on Stripe and can never yield a new charge.
+ */
+function exportFreshInvoiceIds(invoiceIds) {
+  const envFile = process.env.GITHUB_ENV;
+  if (!envFile) return;
+  appendFileSync(envFile, `E2E_FRESH_INVOICE_IDS=${invoiceIds.join(",")}\n`);
 }
 
 try {

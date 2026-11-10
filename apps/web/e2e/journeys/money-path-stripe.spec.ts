@@ -12,6 +12,17 @@ import {
  * Uses S1 consumer (Horizon Energy), not hugo.petit — seed invoices from
  * stripe-fresh-billing-run land on participant 11111111-… (INT-236 / INT-238).
  */
+const INVOICE_DETAIL_PATH = /\/v1\/invoices\/([^/]+)$/;
+
+function freshInvoiceIds(): Set<string> {
+  return new Set(
+    (process.env.E2E_FRESH_INVOICE_IDS ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean),
+  );
+}
+
 test.describe("INT-251 Stripe money path", () => {
   // Sonar S1607 — skipped when E2E_SKIP_AUTH=1 (operator opt-out for local runs)
   test.skip(authSkipped(), "E2E_SKIP_AUTH=1");
@@ -35,10 +46,21 @@ test.describe("INT-251 Stripe money path", () => {
     const viewButtons = page.getByRole("button", { name: /^view$/i });
     await expect(viewButtons.first()).toBeVisible({ timeout: 20_000 });
 
+    // INT-368 — pay only invoices the seed created this run; an older Open row
+    // may already be paid on Stripe and can never yield a new charge.
+    const fresh = freshInvoiceIds();
     let invoiceId: string | null = null;
     const count = await viewButtons.count();
     for (let i = 0; i < count; i++) {
+      const detail = page.waitForResponse(
+        (res) =>
+          res.request().method() === "GET" &&
+          INVOICE_DETAIL_PATH.test(new URL(res.url()).pathname),
+        { timeout: 20_000 },
+      );
       await viewButtons.nth(i).click();
+      const rowInvoiceId = new URL((await detail).url()).pathname.match(INVOICE_DETAIL_PATH)?.[1];
+      if (fresh.size > 0 && (!rowInvoiceId || !fresh.has(rowInvoiceId))) continue;
       const status = page.locator("code").filter({ hasText: /Open|Paid|Draft/i });
       await expect(status.first()).toBeVisible({ timeout: 10_000 });
       const statusText = (await status.first().textContent()) ?? "";

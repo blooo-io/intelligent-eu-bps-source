@@ -312,4 +312,17 @@ describe("SettlementCompletedListener (INT-223)", () => {
       isNonRetryableInvoiceError(new Error("acct_test_poison")),
     ).toBe(true);
   });
+
+  it("INT-368 — a 404 from AC-05 GetPairSettlement is not retried", () => {
+    expect(
+      isNonRetryableInvoiceError(
+        new Error("settlement getPairSettlement cd9ec59e-5f6a failed with 404"),
+      ),
+    ).toBe(true);
+    expect(
+      isNonRetryableInvoiceError(
+        new Error("settlement getPairSettlement cd9ec59e-5f6a failed with 503"),
+      ),
+    ).toBe(false);
+  });
 });

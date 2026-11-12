@@ -16,6 +16,7 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ toJson .Values.config | sha256sum | quote }}
+        ddhub.intelligent/restart-generation: {{ .Values.restartGeneration | default "0" | quote }}
       labels:
         app.kubernetes.io/name: {{ .Values.name }}-scheduler
     spec:

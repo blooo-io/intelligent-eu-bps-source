@@ -6,6 +6,10 @@
 name: ddhub-client-gateway
 replicaCount: 1
 
+# Bump to roll both pods without a config change (e.g. after the wallet identity
+# key is uploaded: the login service only reads it at process start).
+restartGeneration: "2"
+
 image:
   repository: ewfcontainerregistry.azurecr.io/ddhub-client-gateway-backend
   tag: intelligent-canary

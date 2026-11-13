@@ -12,9 +12,22 @@ diagnosticCommands:
     - -e
     - >-
       const nats=(()=>{try{return require('/app/node_modules/nats')}catch(e){return require('nats')}})();
+      const out=(m)=>console.log('DIAG '+m);
       nats.connect({servers:process.env.NATS_URL,user:process.env.NATS_USER,pass:process.env.NATS_PASSWORD})
-      .then(c=>{console.log('CONNECT_OK '+c.getServer());return c.close()})
-      .catch(e=>console.log('CONNECT_ERR '+e.message+' user_len='+(process.env.NATS_USER||'').length+' pass_len='+(process.env.NATS_PASSWORD||'').length));
+      .then(async c=>{
+        out('CONNECT_OK');
+        try{
+          const jsm=await c.jetstreamManager();
+          out('JSM_OK');
+          const si=await jsm.streams.info(process.env.NATS_STREAM);
+          out('STREAM_OK '+si.config.name+' consumers='+si.state.consumer_count);
+          const names=[];
+          for await (const ci of jsm.consumers.list(process.env.NATS_STREAM)) names.push(ci.name);
+          out('CONSUMERS '+names.join(','));
+        }catch(e){out('JS_ERR '+e.message)}
+        await c.close();
+      })
+      .catch(e=>out('CONNECT_ERR '+e.message));
       setInterval(()=>{},1e9);
 image:
   # INT-178 — floating tag published by supply-chain (plus immutable :<sha>).

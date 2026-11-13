@@ -23,8 +23,9 @@ data:
     jetstream {
       store_dir: {{ .Values.config.jetstream.storeDir }}
     }
-    # INT-338 — account file is required. The pod does not start without it.
-    include "/etc/nats-accounts/auth.conf"
+    # INT-338 / INT-378 — NATS resolves include relative to this file's directory
+    # (/etc/nats). A leading slash is not absolute; it becomes /etc/nats/<path>.
+    include "auth.conf"
 ---
 apiVersion: v1
 kind: Service
@@ -101,9 +102,6 @@ spec:
             - name: config
               mountPath: /etc/nats
               readOnly: true
-            - name: accounts
-              mountPath: /etc/nats-accounts
-              readOnly: true
             - name: data
               mountPath: {{ .Values.config.jetstream.storeDir }}
             - name: tmp
@@ -119,16 +117,17 @@ spec:
               port: monitor
             initialDelaySeconds: 2
       volumes:
+        # INT-378 — config and auth.conf share /etc/nats so include "auth.conf" resolves.
         - name: config
-          configMap:
-            name: {{ .Values.name }}
-        - name: accounts
-          secret:
-            secretName: {{ .Values.config.accountsFromSecret }}
-            optional: false
-            items:
-              - key: auth.conf
-                path: auth.conf
+          projected:
+            sources:
+              - configMap:
+                  name: {{ .Values.name }}
+              - secret:
+                  name: {{ .Values.config.accountsFromSecret }}
+                  items:
+                    - key: auth.conf
+                      path: auth.conf
         - name: tmp
           emptyDir: {}
   volumeClaimTemplates:

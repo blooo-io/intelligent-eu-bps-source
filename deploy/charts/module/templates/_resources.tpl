@@ -60,7 +60,7 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
           {{- with index (.Values.diagnosticCommands | default dict) .Values.name }}
-          command: {{- toYaml . | nindent 12 }}
+          args: {{- toYaml . | nindent 12 }}
           {{- end }}
           ports:
             - name: http

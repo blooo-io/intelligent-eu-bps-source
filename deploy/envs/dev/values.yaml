@@ -9,7 +9,6 @@ mailpit:
 # of NATS_USER / NATS_PASSWORD (never values), then keeps the pod alive. Remove with INT-381.
 diagnosticCommands:
   publication:
-    - node
     - -e
     - >-
       const k=Object.keys(process.env).filter(x=>x.startsWith('NATS'));

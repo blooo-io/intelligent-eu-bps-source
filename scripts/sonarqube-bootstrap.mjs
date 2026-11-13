@@ -404,7 +404,6 @@ if (isDirectRun) {
         hostUrl: result.hostUrl,
         projectKey: result.projectKey,
         projectCreated: result.projectCreated,
-        adminPasswordChanged: result.adminPasswordChanged,
         tokenRotated: result.tokenRotated,
         tokenType: result.tokenType,
         qualityGate: result.qualityGate?.name,

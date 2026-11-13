@@ -8,9 +8,22 @@ import { PublicationService } from "../publication/publication.service.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
 
 /**
- * INT-271 — publish Invoice and Payment events to EWDS via AC-10 (REQ-048).
- * Thin AsyncAPI payloads are widened with V1 defaults until events carry full EWDS fields.
+ * INT-271 / INT-376 — publish Invoice and Payment events to EWDS via AC-10
+ * (REQ-048, NFR-004). The topic payload is built from the event. Missing
+ * identifiers are not replaced with another id, and an EUR invoice carries
+ * no exchange rate.
  */
+
+const EWDS_FAILURE = new Set([
+  "insufficient_funds",
+  "card_declined",
+  "authentication_required",
+  "mandate_invalid",
+  "provider_error",
+  "other",
+]);
+
+const EWDS_METHOD = new Set(["card", "sepa_debit", "bank_transfer"]);
 @Injectable()
 export class BillingEventsListener implements OnModuleInit {
   private readonly logger = new Logger(BillingEventsListener.name);
@@ -46,39 +59,36 @@ export class BillingEventsListener implements OnModuleInit {
     const total = Number(amounts.total ?? data.total ?? 0);
     const energy = Number(amounts.energy ?? 0);
     const vat = Number(amounts.vat ?? 0);
-    const now = new Date().toISOString();
+    const issuedAt = env.occurredAt || new Date().toISOString();
+    const currency = asString(data.currency, "EUR");
     await this.publication.onInvoiceIssued({
       invoiceId,
-      billingId: invoiceId,
+      // NFR-004 — billingId is the pair settlement, not a copy of invoiceId.
+      billingId: asString(data.settlementId),
       communityId: env.communityId,
       billingMode: env.billingMode,
-      settlementType: "periodic",
-      billingPeriodFrom: asString(data.periodFrom, now.slice(0, 10)),
-      billingPeriodUntil: asString(data.periodUntil, now.slice(0, 10)),
+      settlementType: asString(data.settlementType, "periodic"),
+      billingPeriodFrom: asString(data.billingPeriodFrom ?? data.periodFrom),
+      billingPeriodUntil: asString(data.billingPeriodUntil ?? data.periodUntil),
       invoiceStatus: asString(data.status, "Open"),
-      invoiceIssueDate: now.slice(0, 10),
+      invoiceIssueDate: issuedAt,
       invoiceIssuedTo: asString(data.recipientId ?? data.consumerId),
       invoiceIssuedBy: asString(data.issuerId ?? data.producerId),
       selfBilling: true,
-      invoiceDueDate: asString(data.dueDate, now.slice(0, 10)),
-      totalEnergyKWh: 0,
+      invoiceDueDate: asString(data.dueDate),
+      totalEnergyKWh: Math.abs(Number(data.totalEnergyKWh ?? 0)),
       totalAmount: total,
       outstandingAmount: total,
       energyAmount: energy,
       taxAmount: vat,
-      vatRate: 0,
-      carriedForwardAmount: 0,
-      currency: asString(data.currency, "EUR"),
-      exchangeRate: {
-        sourceCurrency: asString(data.currency, "EUR"),
-        rate: 1,
-        rateDate: now.slice(0, 10),
-        rateSource: "identity",
-      },
+      vatRate: Number(data.vatRate ?? 0),
+      carriedForwardAmount: Math.abs(Number(data.carriedForwardAmount ?? 0)),
+      currency,
+      exchangeRate: exchangeRateOf(currency, data.exchangeRate),
       tradeIds: Array.isArray(data.tradeIds) ? data.tradeIds.map(String) : [],
       paymentIds: [],
-      createdAt: now,
-      updatedAt: now,
+      createdAt: issuedAt,
+      updatedAt: issuedAt,
     });
   }
 
@@ -110,25 +120,29 @@ export class BillingEventsListener implements OnModuleInit {
     const paymentId = asString(data.paymentId);
     const invoiceId = asString(data.invoiceId);
     if (!paymentId || !invoiceId) return;
-    const now = new Date().toISOString();
+    const at = env.occurredAt || new Date().toISOString();
     const amount = Number(data.amount ?? 0);
+    const status = asString(data.status);
     await this.publication.onPaymentStatusChanged({
       paymentId,
       invoiceId,
       communityId: env.communityId,
       billingMode: env.billingMode,
-      payerId: asString(data.participantId),
-      payeeId: "",
-      paymentDate: now.slice(0, 10),
+      payerId: asString(data.payerId ?? data.participantId),
+      payeeId: asString(data.payeeId),
+      // The topic date is the success instant. A failed payment has none.
+      paymentDate: status === "succeeded" ? at : null,
       paymentAmount: amount,
       currency: asString(data.currency, "EUR"),
-      paymentMethod: asString(data.method, "card"),
+      paymentMethod: ewdsMethod(asString(data.method)),
       paymentProvider: "stripe",
-      paymentStatus: asString(data.status),
-      failureCategory:
+      paymentStatus: status,
+      failureCategory: ewdsFailure(
         typeof data.failureCategory === "string" ? data.failureCategory : null,
-      createdAt: now,
-      updatedAt: now,
+        status,
+      ),
+      createdAt: at,
+      updatedAt: at,
     });
   }
 
@@ -152,16 +166,68 @@ export class BillingEventsListener implements OnModuleInit {
 function asEnvelope(payload: unknown): {
   communityId: string;
   billingMode: "virtual" | "live";
+  occurredAt: string;
   data: Record<string, unknown>;
 } {
   const envelope = payload as {
     communityId?: string;
     billingMode?: string;
+    occurredAt?: string;
     data?: Record<string, unknown>;
   };
   return {
     communityId: asString(envelope.communityId),
     billingMode: envelope.billingMode === "live" ? "live" : "virtual",
+    occurredAt: asString(envelope.occurredAt),
     data: envelope.data ?? {},
   };
+}
+
+/** NFR-004 — billingPayment.paymentMethod. Anything else is omitted. */
+function ewdsMethod(method: string): string | null {
+  return EWDS_METHOD.has(method) ? method : null;
+}
+
+/**
+ * NFR-004 — billingPayment.failureCategory. Internal AC-07 categories
+ * (declined, invoice_not_payable, …) are folded onto the topic enum.
+ * A payment that did not fail carries no category.
+ */
+function ewdsFailure(category: string | null, status: string): string | null {
+  if (status !== "failed") return null;
+  if (category && EWDS_FAILURE.has(category)) return category;
+  if (category === "declined") return "card_declined";
+  if (category && /mandate|sepa_debit_not_shareable/.test(category)) {
+    return "mandate_invalid";
+  }
+  if (
+    category &&
+    /invoice_not_payable|amount_mismatch|payment_method_not_attached|provider/.test(
+      category,
+    )
+  ) {
+    return "provider_error";
+  }
+  return "other";
+}
+
+/**
+ * NFR-004 — null when the invoice is EUR. Otherwise the ECB rate from the
+ * settlement. Never a synthetic "identity" source.
+ */
+function exchangeRateOf(
+  currency: string,
+  value: unknown,
+): {
+  sourceCurrency: string;
+  rate: number;
+  rateDate: string;
+  rateSource: "ECB";
+} | null {
+  if (currency === "EUR" || !value || typeof value !== "object") return null;
+  const fx = value as { rate?: unknown; rateDate?: unknown };
+  const rate = Number(fx.rate);
+  const rateDate = asString(fx.rateDate);
+  if (!rateDate || !Number.isFinite(rate) || rate <= 0) return null;
+  return { sourceCurrency: "EUR", rate, rateDate, rateSource: "ECB" };
 }

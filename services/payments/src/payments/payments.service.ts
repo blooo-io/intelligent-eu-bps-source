@@ -735,6 +735,8 @@ export class PaymentsService {
           communityId: prior.communityId,
           method: prior.method,
           processingTimeMs: prior.processingTimeMs,
+          payerId: prior.participantId,
+          payeeId: prior.payeeId ?? invoice.producerId,
         });
       }
       return {
@@ -821,6 +823,7 @@ export class PaymentsService {
       communityId,
       method,
       processingTimeMs,
+      payeeId: invoice.producerId,
     });
     await this.announcePaymentStatus({
       paymentId,
@@ -830,6 +833,8 @@ export class PaymentsService {
       communityId,
       method,
       processingTimeMs,
+      payerId: participantId,
+      payeeId: invoice.producerId,
     });
     return {
       paymentId,
@@ -851,6 +856,8 @@ export class PaymentsService {
     communityId: string;
     method?: string;
     processingTimeMs?: number;
+    payerId: string;
+    payeeId: string;
   }): Promise<void> {
     await this.outbox.append({
       aggregateType: "Payment",
@@ -862,6 +869,8 @@ export class PaymentsService {
       data: {
         paymentId: input.paymentId,
         invoiceId: input.invoiceId,
+        payerId: input.payerId,
+        payeeId: input.payeeId,
         status: input.status,
         failureCategory: input.failureCategory,
         method: input.method,
@@ -919,6 +928,15 @@ export class PaymentsService {
         ? asString(payload?.failureCategory ?? row.failureCategory, "declined")
         : undefined;
     this.store.putPayment({ ...row, status, failureCategory });
+    // INT-376 — webhook rows created before payeeId was stored still name the producer.
+    let payeeId = row.payeeId;
+    if (!payeeId) {
+      try {
+        payeeId = (await this.invoices.getInvoice(row.invoiceId)).producerId;
+      } catch {
+        payeeId = undefined;
+      }
+    }
     await this.outbox.append({
       aggregateType: "Payment",
       aggregateId: row.paymentId,
@@ -929,6 +947,8 @@ export class PaymentsService {
       data: {
         paymentId: row.paymentId,
         invoiceId: row.invoiceId,
+        payerId: row.participantId,
+        ...(payeeId ? { payeeId } : {}),
         status,
         ...(failureCategory ? { failureCategory } : {}),
       },

@@ -67,6 +67,14 @@ components:
                   - invoiceId
                   - issuerId
                   - recipientId
+                  - settlementId
+                  - dueDate
+                  - billingPeriodFrom
+                  - billingPeriodUntil
+                  - settlementType
+                  - totalEnergyKWh
+                  - vatRate
+                  - carriedForwardAmount
                   - amounts
                   - currency
                   - tradeIds
@@ -82,6 +90,58 @@ components:
                     type: "string"
                     format: "uuid"
                     description: "Consumer participant id. Not a name."
+                  settlementId:
+                    type: "string"
+                    format: "uuid"
+                    description: >
+                      Pair settlement this invoice was issued from. AC-10
+                      publishes it as billingId (NFR-004). V1 has no separate
+                      Billing row; the settlement is that record.
+                  dueDate:
+                    type: "string"
+                    format: "date"
+                    description: "Payment due date (YYYY-MM-DD)."
+                  billingPeriodFrom:
+                    type: "string"
+                    format: "date-time"
+                    description: "Inclusive start of the billed period (UTC)."
+                  billingPeriodUntil:
+                    type: "string"
+                    format: "date-time"
+                    description: "Exclusive end of the billed period (UTC)."
+                  settlementType:
+                    type: "string"
+                    enum: ["periodic", "early", "final"]
+                  totalEnergyKWh:
+                    type: "string"
+                    description: "Absolute net energy of the pair, three decimals (BR-08)."
+                  vatRate:
+                    type: "number"
+                    minimum: 0
+                    maximum: 1
+                    description: "VAT fraction applied when the settlement was computed (BR-07)."
+                  carriedForwardAmount:
+                    type: "string"
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                    description: >
+                      Carry-forward brought into the invoice, oriented
+                      consumer to producer (BR-05). AC-10 publishes the
+                      absolute value; the topic field is unsigned.
+                  exchangeRate:
+                    description: >
+                      Null when the invoice currency is EUR (no conversion).
+                      Otherwise the ECB rate used by the settlement (BR-06).
+                    oneOf:
+                      - type: "null"
+                      - type: "object"
+                        additionalProperties: false
+                        required: [rate, rateDate]
+                        properties:
+                          rate:
+                            type: "string"
+                          rateDate:
+                            type: "string"
+                            format: "date"
                   amounts:
                     type: "object"
                     additionalProperties: false

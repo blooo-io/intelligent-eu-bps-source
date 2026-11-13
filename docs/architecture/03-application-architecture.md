@@ -288,9 +288,9 @@ Inbound integration endpoint, not part of the public API: `POST /webhooks/paymen
 | IntakeAnomalyDetected | AC-04 | AC-08, AC-09, AC-11 (operator alert) | type, marketId, details |
 | SettlementCompleted | AC-05 | AC-06, AC-09 | runId or earlySettlementId, pair settlements |
 | BillingRunCompleted | AC-05 | AC-08, AC-09 | runId, period, version, counts |
-| InvoiceIssued | AC-06 | AC-07, AC-08, AC-09, AC-10, AC-11 | invoiceId, issuer, recipient, amounts, currency, tradeIds |
+| InvoiceIssued | AC-06 | AC-07, AC-08, AC-09, AC-10, AC-11 | invoiceId, issuer, recipient, settlementId, period bounds, settlement type, amounts, energy, VAT rate, currency, tradeIds |
 | InvoiceStatusChanged | AC-06 | AC-08, AC-09, AC-10 | invoiceId, status, reason, outstanding |
-| PaymentStatusChanged | AC-07 | AC-06, AC-08, AC-09, AC-10, AC-11 | paymentId, invoiceId, status, failureCategory |
+| PaymentStatusChanged | AC-07 | AC-06, AC-08, AC-09, AC-10, AC-11 | paymentId, invoiceId, payerId, payeeId, status, failureCategory |
 | DiscrepancyDetected | AC-08 | AC-09, AC-11 (operator alert) | scope, expected, actual |
 | ErasureRequested | AC-12 | AC-03, AC-06, AC-07 | requestId, participantId |
 | ErasureCompleted | AC-03, AC-06, AC-07 | AC-12 | requestId, module, result |

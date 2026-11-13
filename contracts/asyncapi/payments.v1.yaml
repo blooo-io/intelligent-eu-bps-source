@@ -94,6 +94,8 @@ components:
                   - paymentId
                   - invoiceId
                   - status
+                  - payerId
+                  - payeeId
                 properties:
                   paymentId:
                     type: "string"
@@ -101,6 +103,14 @@ components:
                   invoiceId:
                     type: "string"
                     format: "uuid"
+                  payerId:
+                    type: "string"
+                    format: "uuid"
+                    description: "Consumer participant who pays. Not a name."
+                  payeeId:
+                    type: "string"
+                    format: "uuid"
+                    description: "Producer participant who is paid. Not a name."
                   status:
                     type: "string"
                     enum:
@@ -111,7 +121,12 @@ components:
                       - "refunded"
                   failureCategory:
                     type: "string"
-                    description: Cause of a failed payment (REQ-046 / KPI UE-3).
+                    description: >
+                      Cause of a failed payment (REQ-046 / KPI UE-3). AC-07
+                      keeps its internal categories. AC-10 maps them onto the
+                      billingPayment enum (card_declined, insufficient_funds,
+                      authentication_required, mandate_invalid, provider_error,
+                      other) before publication (NFR-004).
                   method:
                     type: "string"
                     description: Payment method used (REQ-046 / KPI TE-2).

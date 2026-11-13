@@ -62,6 +62,16 @@ export class HttpSettlementClient implements SettlementClientPort {
       rate: asString(body.rate, "1.0000"),
       communityId: asString(body.communityId),
       ...(typeof body.rateDate === "string" ? { rateDate: body.rateDate } : {}),
+      ...(typeof body.periodFrom === "string" ? { periodFrom: body.periodFrom } : {}),
+      ...(typeof body.periodUntil === "string"
+        ? { periodUntil: body.periodUntil }
+        : {}),
+      ...(body.settlementType === "periodic" ||
+      body.settlementType === "early" ||
+      body.settlementType === "final"
+        ? { settlementType: body.settlementType }
+        : {}),
+      ...(typeof body.vatRate === "number" ? { vatRate: body.vatRate } : {}),
       ...(typeof body.producerStripeAccountId === "string"
         ? { producerStripeAccountId: body.producerStripeAccountId }
         : {}),

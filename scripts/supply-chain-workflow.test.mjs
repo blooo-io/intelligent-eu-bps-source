@@ -19,6 +19,16 @@ test("INT-321 supply-chain can force a full image republish via workflow_dispatc
   assert.match(text, /IMAGE_FLOATING_TAG:\s*develop/);
 });
 
+test("INT-383 every .trivyignore advisory expires and the glibc entries are listed", async () => {
+  const text = await readFile(new URL("../.trivyignore", import.meta.url), "utf8");
+  const entries = text.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
+  for (const line of entries) {
+    assert.match(line, /^\S+ exp:\d{4}-\d{2}-\d{2}$/, `missing expiry: ${line}`);
+  }
+  assert.ok(entries.some((l) => l.startsWith("CVE-2026-100290 ")));
+  assert.ok(entries.some((l) => l.startsWith("CVE-2026-115819 ")));
+});
+
 test("INT-381 supply-chain runs are serialized and diff from the last successful run", async () => {
   const text = await readFile(
     new URL("../.github/workflows/supply-chain.yml", import.meta.url),

@@ -121,6 +121,24 @@ test("INT-329 merges Keycloak secrets without wiping Stripe keys", () => {
   assert.equal(merged.seeded, "true");
 });
 
+test("INT-377 keeps a real DDHub vault token and seeds the NATS account", () => {
+  const ddhub = mergePlaceholderFields(
+    { seeded: "true", vault_token: "real-token" },
+    DEV_PLACEHOLDER_FIELDS["platform/ddhub"],
+  );
+  assert.equal(ddhub.vault_token, "real-token");
+
+  const fresh = mergePlaceholderFields({}, DEV_PLACEHOLDER_FIELDS["platform/ddhub"]);
+  assert.equal(fresh.vault_token, "dev-only-replace-me");
+
+  const nats = mergePlaceholderFields(
+    { seeded: "true" },
+    DEV_PLACEHOLDER_FIELDS["platform/nats/accounts"],
+  );
+  assert.equal(nats.user, "dev");
+  assert.match(nats["auth.conf"], /^authorization \{/);
+});
+
 test("INT-329 apply path does not skip Stripe-protected KV paths", async () => {
   const source = await readFile(
     path.join(root, "scripts/openbao-seed-dev-placeholders.mjs"),

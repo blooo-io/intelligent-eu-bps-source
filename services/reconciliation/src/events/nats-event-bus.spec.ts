@@ -184,3 +184,25 @@ describe("NatsEventBus JetStream (INT-271)", () => {
     expect(consumeIter.stop).toHaveBeenCalled();
   });
 });
+
+describe("NatsEventBus shared connection (INT-382)", () => {
+  afterEach(() => {
+    connect.mockReset();
+  });
+
+  it("opens one connection for concurrent subscribers and retries after a failed connect", async () => {
+    const bus = new NatsEventBus("nats://127.0.0.1:4222", "intelligent.dev");
+    connect.mockRejectedValueOnce(new Error("broker down"));
+    await expect(bus.subscribe("A", vi.fn())).rejects.toThrow("broker down");
+
+    const nc = mockCoreNc();
+    connect.mockResolvedValue(nc);
+    await Promise.all([bus.subscribe("A", vi.fn()), bus.subscribe("B", vi.fn())]);
+    expect(connect).toHaveBeenCalledTimes(2);
+    expect(nc.subscribe).toHaveBeenCalledTimes(2);
+
+    await bus.close();
+    await bus.publish("A", { ok: true });
+    expect(connect).toHaveBeenCalledTimes(3);
+  });
+});

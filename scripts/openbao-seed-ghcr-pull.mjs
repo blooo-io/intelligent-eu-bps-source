@@ -103,7 +103,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       process.exit(1);
     }
     const username = process.env.GHCR_PULL_USERNAME || "x-access-token";
-    console.log(JSON.stringify(apply(username, token)));
+    const result = apply(username, token);
+    console.log(JSON.stringify({ path: result.path, status: "ok" }));
     process.exit(0);
   }
   console.error("usage: --check | --print | --apply");

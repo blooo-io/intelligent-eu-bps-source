@@ -52,8 +52,8 @@ describe("BillingEventsListener publication (INT-271)", () => {
         invoiceId: "inv-2",
         producerId: "prod",
         consumerId: "cons",
-        periodFrom: "2026-11-01",
-        periodUntil: "2026-11-28",
+        billingPeriodFrom: "2026-11-01T00:00:00.000Z",
+        billingPeriodUntil: "2026-12-01T00:00:00.000Z",
         dueDate: "2026-12-15",
         status: "Open",
       },
@@ -63,9 +63,11 @@ describe("BillingEventsListener publication (INT-271)", () => {
         billingMode: "live",
         invoiceIssuedBy: "prod",
         invoiceIssuedTo: "cons",
-        billingPeriodFrom: "2026-11-01",
+        billingPeriodFrom: "2026-11-01T00:00:00.000Z",
+        billingPeriodUntil: "2026-12-01T00:00:00.000Z",
         invoiceDueDate: "2026-12-15",
         tradeIds: [],
+        exchangeRate: null,
       }),
     );
   });
@@ -118,6 +120,63 @@ describe("BillingEventsListener publication (INT-271)", () => {
         paymentStatus: "failed",
         paymentMethod: "sepa_debit",
         failureCategory: "card_declined",
+        paymentDate: null,
+      }),
+    );
+  });
+
+  it("maps mandate, provider and unknown failures onto the topic enum", async () => {
+    const cases = [
+      ["sepa_debit_not_shareable", "mandate_invalid"],
+      ["invoice_not_payable", "provider_error"],
+      ["no_such_category", "other"],
+    ] as const;
+    for (const [raw, mapped] of cases) {
+      onPaymentStatusChanged.mockClear();
+      await bus.publish("PaymentStatusChanged", {
+        data: {
+          paymentId: "pay-x",
+          invoiceId: "inv-1",
+          status: "failed",
+          failureCategory: raw,
+        },
+      });
+      expect(onPaymentStatusChanged).toHaveBeenCalledWith(
+        expect.objectContaining({ failureCategory: mapped }),
+      );
+    }
+  });
+
+  it("omits the exchange rate for EUR and for a CHF rate that is not usable", async () => {
+    await bus.publish("InvoiceIssued", {
+      communityId: "c1",
+      occurredAt: "2026-12-01T06:00:00.000Z",
+      data: {
+        invoiceId: "inv-chf",
+        currency: "CHF",
+        exchangeRate: { rate: "0", rateDate: "2026-11-30" },
+        amounts: { energy: "1.00", vat: "0.00", total: "1.00" },
+      },
+    });
+    expect(onInvoiceIssued).toHaveBeenCalledWith(
+      expect.objectContaining({ currency: "CHF", exchangeRate: null }),
+    );
+  });
+
+  it("folds an internal declined category onto the topic enum", async () => {
+    await bus.publish("PaymentStatusChanged", {
+      data: {
+        paymentId: "pay-2",
+        invoiceId: "inv-1",
+        status: "failed",
+        failureCategory: "declined",
+        method: "crypto",
+      },
+    });
+    expect(onPaymentStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({
+        failureCategory: "card_declined",
+        paymentMethod: null,
       }),
     );
   });

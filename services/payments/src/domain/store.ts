@@ -10,6 +10,8 @@ export type PaymentRecord = {
   stripeInvoiceId?: string;
   failureCategory?: string;
   communityId: string;
+  /** INT-376 — producer participant paid by this attempt. */
+  payeeId?: string;
   /** Payment method label for KPI TE-2 (REQ-046). */
   method?: string;
   /** End-to-end processing time in ms (REQ-046 / KPI TE-2). */

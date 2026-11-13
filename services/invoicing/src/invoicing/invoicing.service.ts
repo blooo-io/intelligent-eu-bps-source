@@ -375,6 +375,20 @@ export class InvoicingService {
         },
         currency: settlement.currency,
         tradeIds: settlement.tradeIds,
+        settlementId: settlement.settlementId,
+        dueDate: due,
+        billingPeriodFrom: settlement.periodFrom,
+        billingPeriodUntil: settlement.periodUntil,
+        settlementType: settlement.settlementType ?? "periodic",
+        totalEnergyKWh: settlement.kWh,
+        vatRate: settlement.vatRate ?? 0,
+        carriedForwardAmount: settlement.carriedForwardIn ?? "0.00",
+        // NFR-004 — no conversion on an EUR invoice. A foreign currency
+        // carries the ECB rate the settlement already applied (BR-06).
+        exchangeRate:
+          settlement.currency === "EUR" || !settlement.rateDate
+            ? null
+            : { rate: settlement.rate, rateDate: settlement.rateDate },
       },
     });
 

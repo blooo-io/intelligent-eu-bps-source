@@ -33,6 +33,10 @@ describe("HttpSettlementClient (INT-223)", () => {
         currency: "EUR",
         rate: "1.0000",
         rateDate: "2026-11-30",
+        periodFrom: "2026-11-01T00:00:00.000Z",
+        periodUntil: "2026-12-01T00:00:00.000Z",
+        settlementType: "periodic",
+        vatRate: 0,
         producerStripeAccountId: "acct_x",
       }),
     })) as unknown as typeof fetch;
@@ -46,6 +50,9 @@ describe("HttpSettlementClient (INT-223)", () => {
     expect(pair.energyAmount).toBe("1.25");
     expect(pair.producerStripeAccountId).toBe("acct_x");
     expect(pair.rateDate).toBe("2026-11-30");
+    expect(pair.periodFrom).toBe("2026-11-01T00:00:00.000Z");
+    expect(pair.settlementType).toBe("periodic");
+    expect(pair.vatRate).toBe(0);
     expect(pair.lines).toEqual([
       expect.objectContaining({ tradeId: "t1", kWh: "10.000", amount: "2.00" }),
     ]);

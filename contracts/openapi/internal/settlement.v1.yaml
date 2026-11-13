@@ -186,6 +186,26 @@ components:
           $ref: '../components/schemas.yaml#/components/schemas/FxRate'
         rateDate:
           $ref: '../components/schemas.yaml#/components/schemas/RateDate'
+        period:
+          type: string
+          description: Billing period of the run (`YYYY-MM` or `YYYY-Qn`).
+          pattern: '^(\d{4}-(0[1-9]|1[0-2])|\d{4}-Q[1-4])$'
+        settlementType:
+          type: string
+          enum: [periodic, early, final]
+        periodFrom:
+          type: string
+          format: date-time
+          description: Inclusive start of the billing period (UTC).
+        periodUntil:
+          type: string
+          format: date-time
+          description: Exclusive end of the billing period (UTC).
+        vatRate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: VAT fraction applied when the settlement was computed (BR-07).
         carriedForwardIn:
           $ref: '../components/schemas.yaml#/components/schemas/Money'
         carriedForwardOut:

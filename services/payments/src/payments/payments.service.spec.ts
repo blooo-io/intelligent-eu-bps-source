@@ -826,8 +826,18 @@ describe("PaymentsService", () => {
       // INT-368 — AC-06 still reports Open, so the replay re-announces the payment.
       expect(events).toHaveLength(2);
       expect(events.map((e) => e.event.data)).toEqual([
-        expect.objectContaining({ paymentId: first.paymentId, status: "succeeded" }),
-        expect.objectContaining({ paymentId: first.paymentId, status: "succeeded" }),
+        expect.objectContaining({
+          paymentId: first.paymentId,
+          status: "succeeded",
+          payerId: CONSUMER,
+          payeeId: PRODUCER,
+        }),
+        expect.objectContaining({
+          paymentId: first.paymentId,
+          status: "succeeded",
+          payerId: CONSUMER,
+          payeeId: PRODUCER,
+        }),
       ]);
       expect(events[0]!.event.eventId).not.toBe(events[1]!.event.eventId);
     });

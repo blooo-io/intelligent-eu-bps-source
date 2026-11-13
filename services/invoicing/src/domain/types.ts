@@ -34,6 +34,14 @@ export type PairSettlementInput = {
   rate: string;
   /** BR-06 — date of the ECB reference rate (YYYY-MM-DD). */
   rateDate?: string;
+  /** INT-376 — inclusive period start from the billing run (UTC date-time). */
+  periodFrom?: string;
+  /** INT-376 — exclusive period end from the billing run (UTC date-time). */
+  periodUntil?: string;
+  /** INT-376 — periodic, early or final. */
+  settlementType?: "periodic" | "early" | "final";
+  /** BR-07 — VAT fraction used when the settlement was computed. */
+  vatRate?: number;
   communityId: string;
   /** INT-197 / UAT-028 — real Connect account when seeding against Stripe test. */
   producerStripeAccountId?: string;

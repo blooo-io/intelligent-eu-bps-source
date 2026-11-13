@@ -371,6 +371,7 @@ export class SettlementService {
         currency: this.context.currency,
         rate: formatRate(fxRate),
         rateDate,
+        vatRate: this.context.vatRate,
         carriedForwardIn: formatMoney(decision.carriedInOriented),
         carriedForwardOut: formatMoney(decision.carriedOutOriented),
         netAmount: toNumber(decision.invoiced),

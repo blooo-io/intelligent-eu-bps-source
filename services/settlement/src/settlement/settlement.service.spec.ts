@@ -49,6 +49,7 @@ describe("SettlementService", () => {
       expect(s.currency).toBe("EUR");
       expect(s.rate).toBe("1.0000");
       expect(s.vat).toBe("0.00");
+      expect(s.vatRate).toBe(0);
       expect(Number(s.energyAmount)).toBeGreaterThan(0);
     }
     const events = await outboxStore.list();

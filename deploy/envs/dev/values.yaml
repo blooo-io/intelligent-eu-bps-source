@@ -11,9 +11,10 @@ diagnosticCommands:
   publication:
     - -e
     - >-
-      const k=Object.keys(process.env).filter(x=>x.startsWith('NATS'));
-      console.log('NATS_VARS='+k.join(','));
-      console.log('NATS_USER_LEN='+(process.env.NATS_USER||'').length+' NATS_PASSWORD_LEN='+(process.env.NATS_PASSWORD||'').length);
+      const nats=(()=>{try{return require('/app/node_modules/nats')}catch(e){return require('nats')}})();
+      nats.connect({servers:process.env.NATS_URL,user:process.env.NATS_USER,pass:process.env.NATS_PASSWORD})
+      .then(c=>{console.log('CONNECT_OK '+c.getServer());return c.close()})
+      .catch(e=>console.log('CONNECT_ERR '+e.message+' user_len='+(process.env.NATS_USER||'').length+' pass_len='+(process.env.NATS_PASSWORD||'').length));
       setInterval(()=>{},1e9);
 image:
   # INT-178 — floating tag published by supply-chain (plus immutable :<sha>).

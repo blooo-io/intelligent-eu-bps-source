@@ -12,19 +12,27 @@ diagnosticCommands:
     - -e
     - >-
       const nats=(()=>{try{return require('/app/node_modules/nats')}catch(e){return require('nats')}})();
+      const {AckPolicy,DeliverPolicy}=nats;
       const out=(m)=>console.log('DIAG '+m);
+      const stream=process.env.NATS_STREAM;
+      const durable='diag-probe-int381';
       nats.connect({servers:process.env.NATS_URL,user:process.env.NATS_USER,pass:process.env.NATS_PASSWORD})
       .then(async c=>{
         out('CONNECT_OK');
+        const jsm=await c.jetstreamManager();
         try{
-          const jsm=await c.jetstreamManager();
-          out('JSM_OK');
-          const si=await jsm.streams.info(process.env.NATS_STREAM);
-          out('STREAM_OK '+si.config.name+' consumers='+si.state.consumer_count);
-          const names=[];
-          for await (const ci of jsm.consumers.list(process.env.NATS_STREAM)) names.push(ci.name);
-          out('CONSUMERS '+names.join(','));
-        }catch(e){out('JS_ERR '+e.message)}
+          await jsm.consumers.add(stream,{durable_name:durable,filter_subject:process.env.NATS_SUBJECT_PREFIX+'.diag.probe',ack_policy:AckPolicy.Explicit,deliver_policy:DeliverPolicy.All});
+          out('ADD_OK');
+        }catch(e){out('ADD_ERR '+e.message)}
+        try{
+          const js=c.jetstream();
+          const cons=await js.consumers.get(stream,durable);
+          out('GET_OK');
+          const msgs=await cons.consume();
+          out('CONSUME_OK');
+          await msgs.stop();
+        }catch(e){out('CONSUME_ERR '+e.message)}
+        try{await jsm.consumers.delete(stream,durable);out('DELETE_OK')}catch(e){out('DELETE_ERR '+e.message)}
         await c.close();
       })
       .catch(e=>out('CONNECT_ERR '+e.message));

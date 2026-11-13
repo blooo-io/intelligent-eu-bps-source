@@ -172,6 +172,6 @@ test("INT-381 — module chart supports a dev-only command override for diagnost
   const dev = await readFile("deploy/envs/dev/values.yaml", "utf8");
   assert.match(dev, /diagnosticCommands:\n  publication:/);
   assert.match(dev, /CONNECT_OK/);
-  assert.match(dev, /JS_ERR/);
+  assert.match(dev, /CONSUME_OK|CONSUME_ERR/);
   assert.equal(/console\.log\([^)]*NATS_PASSWORD\b(?!_)/.test(dev), false, "diagnostic must not print the password");
 });

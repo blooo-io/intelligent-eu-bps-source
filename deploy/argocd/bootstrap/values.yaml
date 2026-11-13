@@ -26,6 +26,14 @@ repoServer:
     limits:
       cpu: 500m
       memory: 512Mi
+  # INT-385 — the full health check runs every repo render; with a 1s timeout and
+  # 500m CPU the repo-server was killed by its liveness probe (exit 137) about
+  # every few minutes, so every Application went Unknown.
+  livenessProbe:
+    timeoutSeconds: 5
+    failureThreshold: 5
+  readinessProbe:
+    timeoutSeconds: 5
 
 controller:
   # INT-219 — 1Gi OOMKilled under ~40 Applications; raise before GitOps stalls.

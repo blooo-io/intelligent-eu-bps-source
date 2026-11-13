@@ -156,11 +156,17 @@ test("INT-315 / INT-328 — Kyverno engine + int-apps/demo-apps baseline policie
   assert.match(engine, /name: platform-kyverno/);
   assert.match(engine, /chart: kyverno/);
   assert.match(engine, /targetRevision: 3\.9\.2/);
+  assert.match(engine, /RespectIgnoreDifferences=true/);
+  assert.match(engine, /kind: CustomResourceDefinition/);
+  assert.match(engine, /\.spec\.conversion/);
   const policiesApp = await readFile(
     "deploy/argocd/platform/kyverno-policies.yaml",
     "utf8",
   );
   assert.match(policiesApp, /path: deploy\/charts\/kyverno-policies/);
+  assert.match(policiesApp, /RespectIgnoreDifferences=true/);
+  assert.match(policiesApp, /kind: ClusterPolicy/);
+  assert.match(policiesApp, /\.spec\.admission/);
   const values = await readFile(
     "deploy/charts/kyverno-policies/values.yaml",
     "utf8",

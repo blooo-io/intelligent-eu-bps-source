@@ -51,8 +51,20 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.equal(json.openapi?.startsWith("3."), true);
     assert.ok(json.paths);
     const urls = (json.servers || []).map((s) => s.url);
+    const hasExpectedServer = urls.some((rawUrl) => {
+      try {
+        const parsed = new URL(rawUrl);
+        return (
+          parsed.protocol === "https:" &&
+          parsed.hostname === "api.dev.intelligent-eu-bp.blooo.dev" &&
+          parsed.pathname === "/v1"
+        );
+      } catch {
+        return false;
+      }
+    });
     assert.ok(
-      urls.includes("https://api.dev.intelligent-eu-bp.blooo.dev/v1"),
+      hasExpectedServer,
       `expected sample gateway in servers, got ${JSON.stringify(urls)}`,
     );
     // Downloadable YAML stays contract-faithful (relative /v1 only).

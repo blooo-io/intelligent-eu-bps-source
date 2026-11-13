@@ -10,6 +10,11 @@ test("nats chart enables JetStream and exposes client port 4222", async () => {
   assert.match(values, /clientPort:\s*4222/);
   const chart = await readFile("deploy/charts/nats/Chart.yaml", "utf8");
   assert.match(chart, /^name: nats$/m);
+  // INT-378 — include is relative to /etc/nats; auth.conf is projected beside nats.conf.
+  const template = await readFile("deploy/charts/nats/templates/resources.yaml", "utf8");
+  assert.match(template, /include "auth\.conf"/);
+  assert.match(template, /projected:/);
+  assert.equal(/include "\/etc\/nats-accounts/.test(template), false);
 });
 
 test("nats Argo application lands in the shared nats namespace", async () => {

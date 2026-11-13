@@ -126,6 +126,31 @@ test("INT-313 — Temporal, SonarQube, observability NetworkPolicies", async () 
   assert.match(sonar, /app:\s*sonarqube/);
 });
 
+test("INT-380 — platform CNPG clusters admit the operator status probe", async () => {
+  const helpers = await readFile(
+    "deploy/charts/platform-network-policies/templates/_helpers.tpl",
+    "utf8",
+  );
+  assert.match(helpers, /define "platform-network-policies\.cnpgOperatorIngress"/);
+  const values = await readFile(
+    "deploy/charts/platform-network-policies/values.yaml",
+    "utf8",
+  );
+  assert.match(values, /cnpgOperatorNamespace:\s*cnpg-system/);
+  assert.match(values, /cnpgInstanceStatusPort:\s*8000/);
+  for (const file of ["keycloak.yaml", "temporal.yaml", "sonarqube.yaml"]) {
+    const text = await readFile(
+      `deploy/charts/platform-network-policies/templates/${file}`,
+      "utf8",
+    );
+    assert.match(
+      text,
+      /-cnpg[\s\S]*include "platform-network-policies\.cnpgOperatorIngress"/,
+      `${file} CNPG policy must admit the operator`,
+    );
+  }
+});
+
 test("INT-315 / INT-328 — Kyverno engine + int-apps/demo-apps baseline policies", async () => {
   const engine = await readFile("deploy/argocd/platform/kyverno.yaml", "utf8");
   assert.match(engine, /name: platform-kyverno/);

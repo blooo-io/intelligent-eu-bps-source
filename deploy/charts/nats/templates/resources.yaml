@@ -51,6 +51,11 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ .Values.name }}
+  annotations:
+    # INT-379 — OrderedReady never replaces an unready pod, so a crash-looping
+    # broker blocks its own fix. Argo recreates the StatefulSet instead; the
+    # volumeClaimTemplates PVCs are retained.
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
     app.kubernetes.io/part-of: intelligent-eu-bps-source

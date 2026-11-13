@@ -15,6 +15,11 @@ test("nats chart enables JetStream and exposes client port 4222", async () => {
   assert.match(template, /include "auth\.conf"/);
   assert.match(template, /projected:/);
   assert.equal(/include "\/etc\/nats-accounts/.test(template), false);
+  // INT-379 — Argo recreates the StatefulSet so an unready pod cannot block rollout.
+  assert.match(
+    template,
+    /kind: StatefulSet\nmetadata:\n  name: \{\{ \.Values\.name \}\}\n  annotations:[\s\S]*?argocd\.argoproj\.io\/sync-options: Force=true,Replace=true/,
+  );
 });
 
 test("nats Argo application lands in the shared nats namespace", async () => {

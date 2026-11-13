@@ -18,3 +18,15 @@ test("INT-321 supply-chain can force a full image republish via workflow_dispatc
   assert.match(text, /module-images\.mjs --build/);
   assert.match(text, /IMAGE_FLOATING_TAG:\s*develop/);
 });
+
+test("INT-381 supply-chain runs are serialized and diff from the last successful run", async () => {
+  const text = await readFile(
+    new URL("../.github/workflows/supply-chain.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(text, /concurrency:\n\s+group:\s*supply-chain-\$\{\{\s*github\.ref\s*\}\}\n\s+cancel-in-progress:\s*false/);
+  assert.match(text, /actions:\s*read/);
+  assert.match(text, /gh run list[\s\S]*--workflow supply-chain\.yml[\s\S]*--status success/);
+  assert.match(text, /IMAGE_DIFF_BASE:\s*\$\{\{\s*steps\.diff-base\.outputs\.base\s*\}\}/);
+  assert.doesNotMatch(text, /IMAGE_DIFF_BASE:\s*\$\{\{\s*github\.event\.before/);
+});

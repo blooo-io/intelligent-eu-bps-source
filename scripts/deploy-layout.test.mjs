@@ -168,10 +168,9 @@ async function yamlFiles(directory) {
 
 test("INT-381 — module chart supports a dev-only command override for diagnostics", async () => {
   const tpl = await readFile("deploy/charts/module/templates/_resources.tpl", "utf8");
-  assert.match(tpl, /\{\{- with \.Values\.command \}\}/);
-  const diag = await readFile("deploy/envs/dev/diagnostic-publication-nats.yaml", "utf8");
-  assert.match(diag, /NATS_PASSWORD_LEN/);
-  assert.equal(/\$\{?NATS_PASSWORD\}?(?!_LEN)/.test(diag.replace(/NATS_PASSWORD_LEN/g, "")), false);
-  const app = await readFile("deploy/argocd/dev/publication.yaml", "utf8");
-  assert.match(app, /diagnostic-publication-nats\.yaml/);
+  assert.match(tpl, /index \(\.Values\.diagnosticCommands/);
+  const dev = await readFile("deploy/envs/dev/values.yaml", "utf8");
+  assert.match(dev, /diagnosticCommands:\n  publication:/);
+  assert.match(dev, /NATS_PASSWORD_LEN/);
+  assert.equal(/\$\{?NATS_PASSWORD\}?(?!_LEN)/.test(dev.replace(/NATS_PASSWORD_LEN/g, "")), false);
 });

@@ -5,6 +5,16 @@ dataNamespace: int-data
 # ship at 1; charts without an image stay at 0.
 mailpit:
   enabled: true
+# INT-381 — temporary diagnostic, dev only. Logs NATS_* variable names and the lengths
+# of NATS_USER / NATS_PASSWORD (never values), then keeps the pod alive. Remove with INT-381.
+diagnosticCommands:
+  publication:
+    - sh
+    - -c
+    - >-
+      echo "NATS_VARS=$(env | cut -d= -f1 | grep '^NATS' | tr '\n' ' ')";
+      echo "NATS_USER_LEN=${#NATS_USER} NATS_PASSWORD_LEN=${#NATS_PASSWORD}";
+      sleep 3600
 image:
   # INT-178 — floating tag published by supply-chain (plus immutable :<sha>).
   # Branch protection blocks bot commits that would pin the SHA in Git.

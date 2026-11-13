@@ -241,6 +241,8 @@ export function mergePlaceholderFields(existing = {}, fieldArgs = ["seeded=true"
       current !== "dev-only-replace-me" &&
       (key === "admin_password" ||
         key === "analysis_token" ||
+        // INT-377 — the DDHub Client Gateway Vault token is real once INT-308 is bootstrapped.
+        key === "vault_token" ||
         key.startsWith("stripe_"))
     ) {
       continue;

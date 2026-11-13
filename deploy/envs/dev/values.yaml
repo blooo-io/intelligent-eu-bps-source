@@ -5,19 +5,6 @@ dataNamespace: int-data
 # ship at 1; charts without an image stay at 0.
 mailpit:
   enabled: true
-# INT-381 — temporary diagnostic, dev only. Starts the real publication service with
-# nats.connect wrapped to log option keys and lengths (never values). Remove with INT-381.
-diagnosticCommands:
-  publication:
-    - -e
-    - >-
-      const n=require('/app/node_modules/nats/lib/nats-base-client/nats.js').NatsConnectionImpl;
-      const o=n.connect.bind(n);
-      const out=(m)=>console.log('DIAG '+m);
-      out('ENV user='+(process.env.NATS_USER||'').length+' pass='+(process.env.NATS_PASSWORD||'').length);
-      n.connect=(opts)=>{const x=opts||{};out('CONNECT keys='+Object.keys(x).join(',')+' user='+String(x.user||'').length+' pass='+String(x.pass||'').length+' servers='+JSON.stringify(x.servers));return o(opts).then(c=>{out('CONNECTED');return c},e=>{out('CONNECT_REJECT '+e.code);throw e})};
-      process.on('uncaughtException',(e)=>{out('UNCAUGHT '+(e&&e.code)+' '+String(e&&e.stack||'').split('\n').slice(0,25).join(' | '));setTimeout(()=>process.exit(1),500)});
-      import('/app/dist/main.js').catch(e=>out('IMPORT_ERR '+e.message));
 image:
   # INT-178 — floating tag published by supply-chain (plus immutable :<sha>).
   # Branch protection blocks bot commits that would pin the SHA in Git.

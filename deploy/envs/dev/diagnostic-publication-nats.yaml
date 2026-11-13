@@ -1,0 +1,10 @@
+# INT-381 — temporary diagnostic for dev-publication only. Logs which NATS_* variables
+# the container sees (names and lengths, never values), then keeps the pod alive for
+# inspection. Remove this file and its valueFiles entry once INT-381 is resolved.
+command:
+  - sh
+  - -c
+  - >-
+    echo "NATS_VARS=$(env | cut -d= -f1 | grep '^NATS' | tr '\n' ' ')";
+    echo "NATS_USER_LEN=${#NATS_USER} NATS_PASSWORD_LEN=${#NATS_PASSWORD}";
+    sleep 3600

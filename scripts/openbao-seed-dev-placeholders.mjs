@@ -92,6 +92,13 @@ export const DEV_PLACEHOLDER_FIELDS = {
     "admin_password=dev-only-replace-me",
     "seeded=true",
   ],
+  // INT-338 — NATS account. Placeholder only; the broker refuses unauthenticated clients.
+  "platform/nats/accounts": [
+    "user=dev",
+    "password=dev-only-replace-me",
+    'auth.conf=authorization { user: dev, password: "dev-only-replace-me" }',
+    "seeded=true",
+  ],
   "platform/ddhub": [
     // INT-308 — CG Vault token only (DB password comes from CNPG/ESO generator).
     "vault_token=dev-only-replace-me",
@@ -234,6 +241,8 @@ export function mergePlaceholderFields(existing = {}, fieldArgs = ["seeded=true"
       current !== "dev-only-replace-me" &&
       (key === "admin_password" ||
         key === "analysis_token" ||
+        // INT-377 — the DDHub Client Gateway Vault token is real once INT-308 is bootstrapped.
+        key === "vault_token" ||
         key.startsWith("stripe_"))
     ) {
       continue;

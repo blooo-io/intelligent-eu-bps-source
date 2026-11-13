@@ -1,6 +1,6 @@
 {{- define "module.labels" -}}
 app.kubernetes.io/name: {{ .Values.name }}
-app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+app.kubernetes.io/part-of: intelligent-eu-bps-source
 app.kubernetes.io/component: {{ .Values.component }}
 {{- end -}}
 
@@ -69,6 +69,10 @@ spec:
             # INT-213 — DATABASE_URL from outbox-bootstrap Job (CNPG role → int-apps).
             - secretRef:
                 name: {{ .Values.name }}-database
+                optional: true
+            # INT-338 — NATS account user/password (NATS_USER / NATS_PASSWORD).
+            - secretRef:
+                name: nats-client
                 optional: true
           {{- with .Values.env }}
           env:
@@ -228,5 +232,32 @@ spec:
   dataFrom:
     - extract:
         key: {{ .Values.environment }}/{{ .Values.name }}
+{{- /* One owner per namespace — every module reads Secret nats-client. */ -}}
+{{- if eq .Values.name "invoicing" }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: nats-client
+  labels:
+    {{- include "module.labels" . | nindent 4 }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
+    name: nats-client
+    creationPolicy: Owner
+  data:
+    - secretKey: NATS_USER
+      remoteRef:
+        key: platform/nats/accounts
+        property: user
+    - secretKey: NATS_PASSWORD
+      remoteRef:
+        key: platform/nats/accounts
+        property: password
+{{- end }}
 {{- end }}
 {{- end -}}

@@ -31,6 +31,12 @@ describe("stripe-fresh-billing-run.mjs (INT-228 / INT-238)", () => {
     assert.match(src, /payment-accounts\/\$\{participantId\}/);
   });
 
+  it("exports the invoice ids it created for the money-path journey (INT-368)", () => {
+    assert.match(src, /exportFreshInvoiceIds\(invoices\.map\(\(i\) => i\.invoiceId\)\)/);
+    assert.match(src, /process\.env\.GITHUB_ENV/);
+    assert.match(src, /E2E_FRESH_INVOICE_IDS=\$\{invoiceIds\.join\(","\)\}/);
+  });
+
   it("mints service JWT for /internal when Keycloak is configured (INT-317)", () => {
     assert.match(src, /buildInternalServiceHeaders/);
     assert.match(src, /initServiceHeaders/);

@@ -9,7 +9,9 @@ vi.mock("nats", () => ({
   connect: (...args: unknown[]) => connect(...args),
 }));
 
-const { createEventBus, NatsEventBus } = await import("./nats-event-bus.js");
+const { createEventBus, NatsEventBus, NAK_REDELIVERY_DELAY_MS } = await import(
+  "./nats-event-bus.js"
+);
 
 function mockCoreNc(overrides: Record<string, unknown> = {}) {
   type Msg = { string: () => string };
@@ -171,7 +173,8 @@ describe("NatsEventBus JetStream (INT-223)", () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(handler).toHaveBeenCalledTimes(2);
     expect(ack).toHaveBeenCalled();
-    expect(nak).toHaveBeenCalled();
+    expect(nak).toHaveBeenCalledWith(NAK_REDELIVERY_DELAY_MS);
+    expect(NAK_REDELIVERY_DELAY_MS).toBeGreaterThan(0);
     expect(consumersAdd).toHaveBeenCalledWith(
       "DebeziumStream",
       expect.objectContaining({
@@ -182,5 +185,27 @@ describe("NatsEventBus JetStream (INT-223)", () => {
     await bus.publish("SettlementCompleted", { x: 1 });
     await bus.close();
     expect(consumeIter.stop).toHaveBeenCalled();
+  });
+});
+
+describe("NatsEventBus shared connection (INT-382)", () => {
+  afterEach(() => {
+    connect.mockReset();
+  });
+
+  it("opens one connection for concurrent subscribers and retries after a failed connect", async () => {
+    const bus = new NatsEventBus("nats://127.0.0.1:4222", "intelligent.dev");
+    connect.mockRejectedValueOnce(new Error("broker down"));
+    await expect(bus.subscribe("A", vi.fn())).rejects.toThrow("broker down");
+
+    const nc = mockCoreNc();
+    connect.mockResolvedValue(nc);
+    await Promise.all([bus.subscribe("A", vi.fn()), bus.subscribe("B", vi.fn())]);
+    expect(connect).toHaveBeenCalledTimes(2);
+    expect(nc.subscribe).toHaveBeenCalledTimes(2);
+
+    await bus.close();
+    await bus.publish("A", { ok: true });
+    expect(connect).toHaveBeenCalledTimes(3);
   });
 });

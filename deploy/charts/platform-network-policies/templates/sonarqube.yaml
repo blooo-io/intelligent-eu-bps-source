@@ -9,7 +9,7 @@ metadata:
   namespace: {{ .Values.sonarqubeNamespace | quote }}
   labels:
     app.kubernetes.io/name: platform-network-policies
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: sonarqube
 spec:
   podSelector:
@@ -62,7 +62,7 @@ metadata:
   namespace: {{ .Values.sonarqubeNamespace | quote }}
   labels:
     app.kubernetes.io/name: platform-network-policies
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: sonarqube-db
 spec:
   podSelector:
@@ -79,6 +79,7 @@ spec:
       ports:
         - port: {{ .Values.sonarqube.postgresPort }}
           protocol: TCP
+    {{- include "platform-network-policies.cnpgOperatorIngress" . | nindent 4 }}
   egress:
     - to:
         - namespaceSelector:

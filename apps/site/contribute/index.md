@@ -1,6 +1,6 @@
 # How to contribute
 
-Contributions are welcome under the [Apache License 2.0](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/LICENSE).
+Contributions are welcome under the [Apache License 2.0](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/LICENSE).
 
 ## Before you start
 

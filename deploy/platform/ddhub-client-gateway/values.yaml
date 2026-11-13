@@ -6,6 +6,10 @@
 name: ddhub-client-gateway
 replicaCount: 1
 
+# Bump to roll both pods without a config change (e.g. after the wallet identity
+# key is uploaded: the login service only reads it at process start).
+restartGeneration: "2"
+
 image:
   repository: ewfcontainerregistry.azurecr.io/ddhub-client-gateway-backend
   tag: intelligent-canary
@@ -71,7 +75,7 @@ config:
   OTEL_IGNORED_ROUTES: ""
   OTEL_SERVICE_NAME: ""
   OTEL_ENVIRONMENT: ""
-  MTLS_ENABLED: "false"
+  MTLS_ENABLED: "true"
   DID_REGISTRY_ADDRESS: "0xc15d5a57a8eb0e1dcbe5d88b8f9a82017e5cc4af"
   USER_AUTH_ENABLED: "false"
   FETCH_MESSAGES_CRON_ENABLED: "true"

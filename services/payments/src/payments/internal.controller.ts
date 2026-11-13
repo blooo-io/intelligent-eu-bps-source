@@ -19,6 +19,11 @@ export class InternalPaymentsController {
     @Inject(PaymentsService) private readonly payments: PaymentsService,
   ) {}
 
+  @Get("payments/:paymentId")
+  getPayment(@Param("paymentId") paymentId: string) {
+    return this.payments.getPaymentStatus(paymentId);
+  }
+
   @Get("payment-accounts/:participantId")
   getPaymentAccount(@Param("participantId") participantId: string) {
     return this.payments.getPaymentAccount(participantId);

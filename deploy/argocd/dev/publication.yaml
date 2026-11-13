@@ -12,6 +12,7 @@ spec:
     helm:
       valueFiles:
         - ../../envs/dev/values.yaml
+        - ../../envs/dev/diagnostic-publication-nats.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: int-apps

@@ -17,15 +17,24 @@ jobs:
         with:
           fetch-depth: 0
       - name: gitleaks (MIT), CLI in container, no licence key needed
+        # INT-341 — digest of zricethezav/gitleaks:v8.24.3 (org policy: no floating tags).
         run: |
-          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+          docker run --rm -v "$PWD:/repo" \
+            zricethezav/gitleaks@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055 \
             detect --source=/repo --redact --verbose
-      # INT-325 — Keycloak client secrets / UAT passwords must not live in GitOps packaging.
+      # INT-325 / INT-341 — policy script comes from the base ref, then scans this checkout.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
       - name: Forbid Keycloak secrets in realm JSON and module values
-        run: node --test scripts/forbid-keycloak-git-secrets.mjs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -n "$BASE_SHA" ]; then
+            git fetch origin "$BASE_SHA" --depth=1
+            git show "$BASE_SHA:scripts/forbid-keycloak-git-secrets.mjs" > scripts/forbid-keycloak-git-secrets.mjs
+          fi
+          node --test scripts/forbid-keycloak-git-secrets.mjs
 
   contracts:
     runs-on: ubuntu-latest
@@ -34,7 +43,7 @@ jobs:
         with:
           # INT-318 — need HEAD^ when github.event.before is all zeros.
           fetch-depth: 0
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
@@ -124,8 +133,10 @@ jobs:
         id: lcov
         run: node scripts/sonar-lcov-paths.mjs --github
 
+      # INT-341 — never pass SONAR_TOKEN into a pull-request checkout of this script.
       - name: Skip when SONAR_TOKEN is not configured
         id: gate
+        if: github.event_name == 'push'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
@@ -137,7 +148,7 @@ jobs:
           fi
 
       - name: SonarQube Scan (CLI)
-        if: steps.gate.outputs.configured == 'true'
+        if: github.event_name == 'push' && steps.gate.outputs.configured == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}

@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import { ModuleAuthGuard } from "@intelligent/module-template";
 import { SettlementService } from "./settlement.service.js";
+import { toPairSettlementBody } from "./pair-settlement.view.js";
 import type { BillingRunType } from "../domain/types.js";
 
 /** Internal API — contracts/openapi/internal/settlement.v1.yaml */
@@ -24,22 +25,7 @@ export class SettlementController {
   getPairSettlement(@Param("settlementId") settlementId: string) {
     const row = this.settlement.getPairSettlement(settlementId);
     const run = this.settlement.getBillingRun(row.runId);
-    return {
-      settlementId: row.settlementId,
-      runId: row.runId,
-      communityId: run.communityId,
-      consumerId: row.consumerId,
-      producerId: row.producerId,
-      tradeIds: row.tradeIds,
-      lines: row.lines,
-      kWh: row.kWh,
-      energyAmount: row.energyAmount,
-      vat: row.vat,
-      currency: row.currency,
-      rate: row.rate,
-      carriedForwardIn: row.carriedForwardIn,
-      carriedForwardOut: row.carriedForwardOut,
-    };
+    return toPairSettlementBody(row, run);
   }
 
   @Get("billing-runs/:runId")

@@ -21,7 +21,7 @@ metadata:
   name: tls-{{ .name }}
   labels:
     app.kubernetes.io/name: apisix-gateway
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 spec:
   secretName: tls-{{ .name }}
   issuerRef:
@@ -36,7 +36,7 @@ metadata:
   name: tls-{{ .name }}
   labels:
     app.kubernetes.io/name: apisix-gateway
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
   annotations:
     argocd.argoproj.io/sync-options: Replace=true
     intelligent.blooo.io/tls-issuer: {{ $.Values.tls.issuerRef.name | quote }}

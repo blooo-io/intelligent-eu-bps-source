@@ -4,7 +4,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 automountServiceAccountToken: false
 ---
@@ -14,7 +14,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 spec:
   selector:
@@ -33,7 +33,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 spec:
   replicas: {{ .Values.replicaCount }}
@@ -44,7 +44,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: {{ .Values.name }}
-        app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+        app.kubernetes.io/part-of: intelligent-eu-bps-source
         app.kubernetes.io/component: {{ .Values.component }}
     spec:
       serviceAccountName: {{ .Values.name }}

@@ -27,11 +27,17 @@ const settlement = (
   consumerId: "11111111-2222-4333-8444-555555555555",
   producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
   tradeIds: ["0xabc"],
-  kWh: "10.00",
+  kWh: "10.000",
   energyAmount: "2.00",
   vat: "0.00",
   currency: "EUR",
   rate: "1.0000",
+  rateDate: "2026-11-30",
+  periodFrom: "2026-11-01T00:00:00.000Z",
+  periodUntil: "2026-12-01T00:00:00.000Z",
+  settlementType: "periodic",
+  vatRate: 0,
+  carriedForwardIn: "0.00",
   communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
   ...over,
 });
@@ -76,7 +82,17 @@ describe("InvoicingService", () => {
     expect(stripe.created).toHaveLength(1);
 
     const events = await outboxStore.list();
-    expect(events.map((e) => e.event.type)).toContain("InvoiceIssued");
+    const issued = events.find((e) => e.event.type === "InvoiceIssued");
+    expect(issued?.event.data).toMatchObject({
+      settlementId: "s1111111-1111-4111-8111-111111111111",
+      billingPeriodFrom: "2026-11-01T00:00:00.000Z",
+      billingPeriodUntil: "2026-12-01T00:00:00.000Z",
+      settlementType: "periodic",
+      totalEnergyKWh: "10.000",
+      vatRate: 0,
+      carriedForwardAmount: "0.00",
+      exchangeRate: null,
+    });
   });
 
   it("holds invoicing until producer is ready (BR-09)", async () => {
@@ -137,6 +153,32 @@ describe("InvoicingService", () => {
       settlement({ energyAmount: "0.00" }),
     );
     expect(result).toBeNull();
+  });
+
+  it("INT-340 — rejects an override that disagrees with the AC-07 account", async () => {
+    const payments: PaymentsClientPort = {
+      getProducerStripeAccountId: async () => "acct_real",
+      getPaymentAccount: async () => ({
+        stripeAccountId: "acct_real",
+        chargesEnabled: true,
+      }),
+      ensureConnectedCustomer: async () => "cus_real",
+    };
+    const guarded = new InvoicingService(
+      store,
+      new OutboxService(outboxStore),
+      stripe,
+      new MapReadiness(
+        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
+      ),
+      payments,
+      new NoopParticipantsResolver(),
+    );
+    await expect(
+      guarded.createFromSettlement(
+        settlement({ producerStripeAccountId: "acct_other" }),
+      ),
+    ).rejects.toThrow(/does not match AC-07/);
   });
 
   it("uses producerStripeAccountId override when provided (INT-197 / UAT-028)", async () => {

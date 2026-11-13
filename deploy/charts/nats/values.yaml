@@ -13,6 +13,14 @@ config:
   # One NATS account per environment (int / demo). Credentials come from OpenBao
   # via ExternalSecret — no secret values in Git (NFR-005).
   accountsFromSecret: nats-accounts
+# INT-338 — producers (Debezium in *-data) and consumers (modules in *-apps).
+clientNamespaces:
+  - int-apps
+  - int-data
+  - demo-apps
+  - demo-data
+  - local-apps
+  - local-data
 service:
   clientPort: 4222
   monitorPort: 8222

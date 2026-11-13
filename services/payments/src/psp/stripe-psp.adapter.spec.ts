@@ -12,6 +12,7 @@ const {
   paymentMethodsList,
   paymentIntentsCreate,
   paymentIntentsUpdate,
+  chargesUpdate,
   refundsCreate,
   customersCreate,
   customersSearch,
@@ -42,6 +43,7 @@ const {
     paymentMethodsList: vi.fn(),
     paymentIntentsCreate: vi.fn(),
     paymentIntentsUpdate: vi.fn(),
+    chargesUpdate: vi.fn(),
     refundsCreate: vi.fn(),
     customersCreate: vi.fn(),
     customersSearch: vi.fn(),
@@ -70,6 +72,7 @@ vi.mock("stripe", () => {
         list: paymentMethodsList,
       },
       paymentIntents: { create: paymentIntentsCreate, update: paymentIntentsUpdate },
+      charges: { update: chargesUpdate },
       refunds: { create: refundsCreate },
       customers: { create: customersCreate, search: customersSearch },
       setupIntents: { create: setupIntentsCreate },
@@ -613,6 +616,7 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
           data: [{ is_default: true, payment: { type: "payment_intent", payment_intent: "pi_conn" } }],
         },
       });
+      paymentIntentsUpdate.mockResolvedValue({ id: "pi_conn", latest_charge: "ch_conn" });
       const adapter = new StripePspAdapter(creds);
       await expect(adapter.createPayment(payInput)).resolves.toEqual({
         stripePaymentId: "pi_conn",
@@ -637,6 +641,11 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
       expect(invoicesPay).toHaveBeenCalledWith(
         "in_1",
         { payment_method: "pm_clone", off_session: true, expand: ["payments"] },
+        { ...connect, idempotencyKey: "pay:inv-2" },
+      );
+      expect(chargesUpdate).toHaveBeenCalledWith(
+        "ch_conn",
+        { metadata: { invoiceId: "inv-2" } },
         connect,
       );
       // REQ-014 — no platform charge and no transfer_data destination.
@@ -671,6 +680,33 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
       );
       // No PaymentIntent exposed on the invoice: nothing to tag.
       expect(paymentIntentsUpdate).not.toHaveBeenCalled();
+    });
+
+    it("INT-367 tags the charge created when pay first exposes the PaymentIntent", async () => {
+      invoicesPay.mockResolvedValue({
+        id: "in_1",
+        status: "paid",
+        payments: {
+          data: [{ is_default: true, payment: { payment_intent: "pi_new" } }],
+        },
+      });
+      paymentIntentsUpdate.mockResolvedValue({ id: "pi_new", latest_charge: "ch_new" });
+      const adapter = new StripePspAdapter(creds);
+      await expect(adapter.createPayment(payInput)).resolves.toEqual({
+        stripePaymentId: "pi_new",
+        status: "succeeded",
+      });
+      expect(paymentIntentsUpdate).toHaveBeenCalledTimes(1);
+      expect(paymentIntentsUpdate).toHaveBeenCalledWith(
+        "pi_new",
+        { metadata: { invoiceId: "inv-2" } },
+        connect,
+      );
+      expect(chargesUpdate).toHaveBeenCalledWith(
+        "ch_new",
+        { metadata: { invoiceId: "inv-2" } },
+        connect,
+      );
     });
 
     it("returns succeeded without charging when the invoice is already paid", async () => {

@@ -13,6 +13,7 @@ import { InMemoryEventBus } from "./in-memory-event-bus.js";
 /** INT-275 — NATS JetStream / core subscribe for ErasureRequested. */
 export class NatsEventBus implements EventBusPort {
   private nc: NatsConnection | null = null;
+  private connecting: Promise<NatsConnection> | null = null;
   private readonly subs: Subscription[] = [];
   private readonly consumers: ConsumerMessages[] = [];
 
@@ -48,6 +49,7 @@ export class NatsEventBus implements EventBusPort {
       await this.nc.drain();
       this.nc = null;
     }
+    this.connecting = null;
   }
 
   private async bindJetStream(
@@ -99,9 +101,25 @@ export class NatsEventBus implements EventBusPort {
     await handler(payload);
   }
 
-  private async ensureConnected(): Promise<NatsConnection> {
-    this.nc ??= await connect({ servers: this.url });
-    return this.nc;
+  private ensureConnected(): Promise<NatsConnection> {
+    const user = process.env.NATS_USER;
+    const pass = process.env.NATS_PASSWORD;
+    // INT-382 — Nest runs onModuleInit hooks concurrently; every subscriber shares one connection.
+    this.connecting ??= connect({
+      // INT-338 — authenticate when the broker account is configured. CI leaves both unset.
+      servers: this.url,
+      ...(user ? { user, pass: pass ?? "" } : {}),
+    }).then(
+      (nc) => {
+        this.nc = nc;
+        return nc;
+      },
+      (err: unknown) => {
+        this.connecting = null;
+        throw err;
+      },
+    );
+    return this.connecting;
   }
 }
 

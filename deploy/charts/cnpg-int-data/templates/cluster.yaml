@@ -10,7 +10,7 @@ metadata:
   name: {{ .Values.clusterName }}-db-password
   labels:
     app.kubernetes.io/name: cnpg-int-data
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 spec:
   length: 32
   # ESO Password CRD expects integer counts, not booleans (INT-163).
@@ -27,7 +27,7 @@ metadata:
   name: {{ $secretName }}-db
   labels:
     app.kubernetes.io/name: cnpg-int-data
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     intelligent.eu/module: {{ .module | quote }}
 spec:
   refreshInterval: "0"
@@ -55,7 +55,7 @@ metadata:
   name: {{ .Values.clusterName }}
   labels:
     app.kubernetes.io/name: cnpg-int-data
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: database
 spec:
   instances: {{ .Values.instances }}
@@ -144,7 +144,7 @@ metadata:
   name: {{ .name | replace "_" "-" }}
   labels:
     app.kubernetes.io/name: cnpg-int-data
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: database
     intelligent.eu/module: {{ .module | quote }}
 spec:

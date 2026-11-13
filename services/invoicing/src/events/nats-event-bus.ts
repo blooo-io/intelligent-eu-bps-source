@@ -10,6 +10,9 @@ import {
 import type { EventBusPort, EventHandler } from "./event-bus.port.js";
 import { InMemoryEventBus } from "./in-memory-event-bus.js";
 
+/** INT-368 — space out redelivery of a failed message instead of a hot loop. */
+export const NAK_REDELIVERY_DELAY_MS = 5_000;
+
 /**
  * INT-223 — NATS JetStream (preferred) / core subscribe for SettlementCompleted.
  * Subject: `{prefix}.{eventType}` (default `intelligent.dev.SettlementCompleted`).
@@ -17,6 +20,7 @@ import { InMemoryEventBus } from "./in-memory-event-bus.js";
  */
 export class NatsEventBus implements EventBusPort {
   private nc: NatsConnection | null = null;
+  private connecting: Promise<NatsConnection> | null = null;
   private readonly subs: Subscription[] = [];
   private readonly consumers: ConsumerMessages[] = [];
 
@@ -63,6 +67,7 @@ export class NatsEventBus implements EventBusPort {
       await this.nc.drain();
       this.nc = null;
     }
+    this.connecting = null;
   }
 
   private async bindJetStream(
@@ -93,7 +98,7 @@ export class NatsEventBus implements EventBusPort {
           await this.dispatch(handler, msg.string());
           msg.ack();
         } catch {
-          msg.nak();
+          msg.nak(NAK_REDELIVERY_DELAY_MS);
         }
       }
     })().catch(() => {
@@ -111,9 +116,25 @@ export class NatsEventBus implements EventBusPort {
     await handler(payload);
   }
 
-  private async ensureConnected(): Promise<NatsConnection> {
-    this.nc ??= await connect({ servers: this.url });
-    return this.nc;
+  private ensureConnected(): Promise<NatsConnection> {
+    const user = process.env.NATS_USER;
+    const pass = process.env.NATS_PASSWORD;
+    // INT-382 — Nest runs onModuleInit hooks concurrently; every subscriber shares one connection.
+    this.connecting ??= connect({
+      // INT-338 — authenticate when the broker account is configured. CI leaves both unset.
+      servers: this.url,
+      ...(user ? { user, pass: pass ?? "" } : {}),
+    }).then(
+      (nc) => {
+        this.nc = nc;
+        return nc;
+      },
+      (err: unknown) => {
+        this.connecting = null;
+        throw err;
+      },
+    );
+    return this.connecting;
   }
 }
 

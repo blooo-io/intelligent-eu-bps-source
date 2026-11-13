@@ -31,6 +31,8 @@ test("ci workflow sonarqube job uses Scanner CLI wrapper after coverage", async 
   assert.match(text, /name:\s*sonarqube/);
   assert.match(text, /needs:\s*\[test\]/);
   assert.match(text, /node scripts\/sonar-scan\.mjs/);
+  assert.match(text, /github\.event_name == 'push'/);
+  assert.match(text, /gitleaks@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055/);
   assert.doesNotMatch(text, /SonarSource\/sonarqube-scan-action/);
   assert.match(text, /SONAR_TOKEN/);
   assert.match(text, /SONAR_HOST_URL/);
@@ -62,7 +64,7 @@ test("buildScannerArgs sets PR decoration on SonarCloud", () => {
       GITHUB_EVENT_PULL_REQUEST_NUMBER: "42",
       GITHUB_HEAD_REF: "feature/x",
       GITHUB_BASE_REF: "develop",
-      GITHUB_REPOSITORY: "blooo-io/intelligent-eu-billing-and-payment",
+      GITHUB_REPOSITORY: "blooo-io/intelligent-eu-bps-source",
     },
     "services/payments/coverage/lcov.info",
   );
@@ -80,7 +82,7 @@ test("buildScannerArgs sets PR decoration on SonarCloud", () => {
   assert.ok(args.includes("-Dsonar.pullrequest.provider=github"));
   assert.ok(
     args.includes(
-      "-Dsonar.pullrequest.github.repository=blooo-io/intelligent-eu-billing-and-payment",
+      "-Dsonar.pullrequest.github.repository=blooo-io/intelligent-eu-bps-source",
     ),
   );
 });
@@ -93,7 +95,7 @@ test("buildScannerArgs omits PR/branch props for Community Build host", () => {
       GITHUB_EVENT_PULL_REQUEST_NUMBER: "199",
       GITHUB_HEAD_REF: "feature/x",
       GITHUB_BASE_REF: "develop",
-      GITHUB_REPOSITORY: "blooo-io/intelligent-eu-billing-and-payment",
+      GITHUB_REPOSITORY: "blooo-io/intelligent-eu-bps-source",
     },
     "services/payments/coverage/lcov.info",
   );

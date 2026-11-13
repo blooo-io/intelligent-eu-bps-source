@@ -40,12 +40,13 @@ export type InvoiceProjection = {
   vatRate: number;
   carriedForwardAmount: number;
   currency: string;
+  /** Null when the invoice currency is EUR (NFR-004: no conversion). */
   exchangeRate: {
     sourceCurrency: string;
     rate: number;
     rateDate: string;
-    rateSource: string;
-  };
+    rateSource: "ECB";
+  } | null;
   tradeIds: string[];
   paymentIds: string[];
   createdAt: string;
@@ -59,10 +60,10 @@ export type PaymentProjection = {
   billingMode: "virtual" | "live";
   payerId: string;
   payeeId: string;
-  paymentDate: string;
+  paymentDate: string | null;
   paymentAmount: number;
   currency: string;
-  paymentMethod: string;
+  paymentMethod: string | null;
   paymentProvider: string;
   paymentStatus: string;
   failureCategory: string | null;

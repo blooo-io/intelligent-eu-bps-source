@@ -535,7 +535,17 @@ export class PaymentsService {
     if (!account) {
       throw new NotFoundException("Unknown participant");
     }
-    await this.psp.attachPaymentMethod(participantId, paymentMethodId);
+    try {
+      await this.psp.attachPaymentMethod(participantId, paymentMethodId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (message.includes("payment_method_owned_by_other")) {
+        throw new ForbiddenException(
+          "Payment method belongs to another participant",
+        );
+      }
+      throw error;
+    }
     await this.saveAccount({
       ...account,
       paymentMethodId,
@@ -655,6 +665,26 @@ export class PaymentsService {
     await this.emitAccountStatus(participantId);
   }
 
+  /**
+   * INT-338 / TP-7 — Stripe-backed payment row is the source AC-06 confirms
+   * before marking an invoice Paid. Unknown ids are not found.
+   */
+  getPaymentStatus(paymentId: string): {
+    paymentId: string;
+    invoiceId: string;
+    status: string;
+  } {
+    const row = this.store.getPayment(paymentId);
+    if (!row) {
+      throw new NotFoundException(`Unknown payment ${paymentId}`);
+    }
+    return {
+      paymentId: row.paymentId,
+      invoiceId: row.invoiceId,
+      status: row.status,
+    };
+  }
+
   async payInvoice(input: Parameters<PaymentsService["performPayInvoice"]>[0]) {
     return this.tx.run(() => this.performPayInvoice(input));
   }
@@ -694,25 +724,21 @@ export class PaymentsService {
     if (invoice.consumerId !== participantId) {
       throw new ForbiddenException("Invoice is not payable by this participant");
     }
-    const producerAccount = await this.hydrateAccount(invoice.producerId);
-    const producerStripeAccountId =
-      invoice.producerStripeAccountId ??
-      producerAccount?.stripeAccountId ??
-      undefined;
-    if (!producerStripeAccountId) {
-      throw new BadRequestException(
-        "Producer Connect account required for direct charge",
-      );
-    }
-    if (!invoice.stripeInvoiceId) {
-      throw new BadRequestException(
-        "Stripe invoice required for direct charge (REQ-014)",
-      );
-    }
-
     // INT-355 — replaying Pay on a settled invoice returns the original payment.
     const prior = this.store.findSucceededByInvoiceId(input.invoiceId);
     if (prior) {
+      if (invoice.status !== "Paid") {
+        await this.announcePaymentStatus({
+          paymentId: prior.paymentId,
+          invoiceId: prior.invoiceId,
+          status: prior.status,
+          communityId: prior.communityId,
+          method: prior.method,
+          processingTimeMs: prior.processingTimeMs,
+          payerId: prior.participantId,
+          payeeId: prior.payeeId ?? invoice.producerId,
+        });
+      }
       return {
         paymentId: prior.paymentId,
         invoiceId: prior.invoiceId,
@@ -722,6 +748,39 @@ export class PaymentsService {
         method: prior.method,
         processingTimeMs: prior.processingTimeMs,
       };
+    }
+    // INT-340 — one payment, and only while the invoice is still payable.
+    if (
+      invoice.status !== "Open" &&
+      invoice.status !== "PartiallyPaid" &&
+      invoice.status !== "Overdue"
+    ) {
+      throw new BadRequestException(
+        `Invoice status ${invoice.status} is not payable`,
+      );
+    }
+    const producerAccount = await this.hydrateAccount(invoice.producerId);
+    const boundAccount = producerAccount?.stripeAccountId || undefined;
+    if (
+      invoice.producerStripeAccountId &&
+      boundAccount &&
+      invoice.producerStripeAccountId !== boundAccount
+    ) {
+      throw new BadRequestException(
+        "Producer Connect account does not match AC-07",
+      );
+    }
+    const producerStripeAccountId =
+      boundAccount ?? invoice.producerStripeAccountId ?? undefined;
+    if (!producerStripeAccountId) {
+      throw new BadRequestException(
+        "Producer Connect account required for direct charge",
+      );
+    }
+    if (!invoice.stripeInvoiceId) {
+      throw new BadRequestException(
+        "Stripe invoice required for direct charge (REQ-014)",
+      );
     }
 
     const started = Date.now();
@@ -764,22 +823,18 @@ export class PaymentsService {
       communityId,
       method,
       processingTimeMs,
+      payeeId: invoice.producerId,
     });
-    await this.outbox.append({
-      aggregateType: "Payment",
-      aggregateId: paymentId,
-      type: "PaymentStatusChanged",
-      producer: PRODUCER,
+    await this.announcePaymentStatus({
+      paymentId,
+      invoiceId: input.invoiceId,
+      status: pspResult.status,
+      failureCategory: pspResult.failureCategory,
       communityId,
-      billingMode: "virtual",
-      data: {
-        paymentId,
-        invoiceId: input.invoiceId,
-        status: pspResult.status,
-        failureCategory: pspResult.failureCategory,
-        method,
-        processingTimeMs,
-      },
+      method,
+      processingTimeMs,
+      payerId: participantId,
+      payeeId: invoice.producerId,
     });
     return {
       paymentId,
@@ -791,6 +846,37 @@ export class PaymentsService {
       failureCategory: pspResult.failureCategory,
       processingTimeMs,
     };
+  }
+
+  private async announcePaymentStatus(input: {
+    paymentId: string;
+    invoiceId: string;
+    status: string;
+    failureCategory?: string;
+    communityId: string;
+    method?: string;
+    processingTimeMs?: number;
+    payerId: string;
+    payeeId: string;
+  }): Promise<void> {
+    await this.outbox.append({
+      aggregateType: "Payment",
+      aggregateId: input.paymentId,
+      type: "PaymentStatusChanged",
+      producer: PRODUCER,
+      communityId: input.communityId,
+      billingMode: "virtual",
+      data: {
+        paymentId: input.paymentId,
+        invoiceId: input.invoiceId,
+        payerId: input.payerId,
+        payeeId: input.payeeId,
+        status: input.status,
+        failureCategory: input.failureCategory,
+        method: input.method,
+        processingTimeMs: input.processingTimeMs,
+      },
+    });
   }
 
   private async handleAccountUpdatedWebhook(
@@ -842,6 +928,15 @@ export class PaymentsService {
         ? asString(payload?.failureCategory ?? row.failureCategory, "declined")
         : undefined;
     this.store.putPayment({ ...row, status, failureCategory });
+    // INT-376 — webhook rows created before payeeId was stored still name the producer.
+    let payeeId = row.payeeId;
+    if (!payeeId) {
+      try {
+        payeeId = (await this.invoices.getInvoice(row.invoiceId)).producerId;
+      } catch {
+        payeeId = undefined;
+      }
+    }
     await this.outbox.append({
       aggregateType: "Payment",
       aggregateId: row.paymentId,
@@ -852,6 +947,8 @@ export class PaymentsService {
       data: {
         paymentId: row.paymentId,
         invoiceId: row.invoiceId,
+        payerId: row.participantId,
+        ...(payeeId ? { payeeId } : {}),
         status,
         ...(failureCategory ? { failureCategory } : {}),
       },

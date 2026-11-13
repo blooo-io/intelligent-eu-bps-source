@@ -34,6 +34,26 @@ describe("IdempotentConsumer (NFR-006 / UAT-038)", () => {
     expect(second).toEqual({ status: "processed" });
   });
 
+  it("INT-339 — only one of two concurrent deliveries runs the handler", async () => {
+    const consumer = new IdempotentConsumer(new InMemoryProcessedEventsStore());
+    let running = 0;
+    const handler = vi.fn(async () => {
+      running += 1;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      running -= 1;
+    });
+    const results = await Promise.all([
+      consumer.handle("evt-race", {}, handler),
+      consumer.handle("evt-race", {}, handler),
+    ]);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(running).toBe(0);
+    expect(results.map((result) => result.status).sort()).toEqual([
+      "duplicate",
+      "processed",
+    ]);
+  });
+
   it("wraps non-Error throws as Error for a clear failure state", async () => {
     const consumer = new IdempotentConsumer(new InMemoryProcessedEventsStore());
     const result = await consumer.handle("evt-3", {}, async () => {

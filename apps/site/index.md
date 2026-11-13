@@ -13,7 +13,7 @@ hero:
       link: /guide/deploy
     - theme: alt
       text: View on GitHub
-      link: https://github.com/blooo-io/intelligent-eu-billing-and-payment
+      link: https://github.com/blooo-io/intelligent-eu-bps-source
 features:
   - title: Producer is the bank
     details: One self-billing invoice per consumer→producer pair, netting, carry-forward threshold, and direct payment to the producer via Stripe Connect.

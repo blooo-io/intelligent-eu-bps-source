@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -26,6 +27,10 @@ import {
   type PspErasePort,
 } from "../psp/psp-erase.port.js";
 import type { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
+import {
+  PARTICIPANT_COMMUNITY,
+  type ParticipantCommunityPort,
+} from "../ports/participant-community.port.js";
 
 const PRODUCER = "AC-12";
 
@@ -41,6 +46,8 @@ export class ComplianceService {
     @Inject(IdempotentConsumer) private readonly consumer: IdempotentConsumer,
     @Inject(IDP_PORT) private readonly idp: IdpPort,
     @Inject(PSP_ERASE_PORT) private readonly psp: PspErasePort,
+    @Inject(PARTICIPANT_COMMUNITY)
+    private readonly directory: ParticipantCommunityPort,
   ) {}
 
   resetStore(): void {
@@ -90,6 +97,78 @@ export class ComplianceService {
       type: row.type,
       status: row.status,
     };
+  }
+
+  /**
+   * Public read (REQ-013 / REQ-049). A member sees a request they opened or
+   * that names them, in their community. A manager, operator or DPO sees a
+   * request in their community. Anything else is hidden.
+   */
+  getRequestForCaller(
+    requestId: string,
+    caller: {
+      sub: string;
+      communityId: string;
+      roles: string[];
+      /** Registry participant of a member, resolved from the IdP sub (INT-375). */
+      selfParticipantId?: string;
+    },
+  ): {
+    requestId: string;
+    participantId: string;
+    type: DataSubjectRequestType;
+    status: string;
+  } {
+    const row = this.store.getRequest(requestId);
+    if (!row || !this.callerMayRead(row, caller)) {
+      throw new NotFoundException(`Unknown request ${requestId}`);
+    }
+    return {
+      requestId: row.requestId,
+      participantId: row.participantId,
+      type: row.type,
+      status: row.status,
+    };
+  }
+
+  /**
+   * Manager or DPO naming another participant (REQ-013). The target must
+   * belong to the caller community. AC-03 is authoritative; the local
+   * personal-data projection is the fallback when the directory is unset.
+   */
+  async assertParticipantInCommunity(
+    participantId: string,
+    communityId: string,
+  ): Promise<void> {
+    if (!communityId) {
+      throw new ForbiddenException("Missing community scope");
+    }
+    const fromDirectory = await this.directory.communityOf(participantId);
+    const personal = this.store.getPersonal(participantId)?.communityId;
+    const target = fromDirectory ?? personal;
+    if (!target || target !== communityId) {
+      throw new NotFoundException(`Unknown participant ${participantId}`);
+    }
+  }
+
+  private callerMayRead(
+    row: DataSubjectRequest,
+    caller: {
+      sub: string;
+      communityId: string;
+      roles: string[];
+      selfParticipantId?: string;
+    },
+  ): boolean {
+    if (!caller.communityId || row.communityId !== caller.communityId) {
+      return false;
+    }
+    const elevated = ["manager", "dpo", "operator"].some((role) =>
+      caller.roles.includes(role),
+    );
+    if (elevated) return true;
+    const self = caller.selfParticipantId ?? caller.sub;
+    return row.participantId === self || row.actorId === caller.sub;
   }
 
   getRequestDetail(requestId: string): DataSubjectRequest {

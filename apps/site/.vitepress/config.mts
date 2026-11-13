@@ -6,11 +6,16 @@ import spec from "../public/openapi/public.v1.json" with { type: "json" };
 /**
  * Docs site for open-source adopters (INT-299 … INT-302).
  * Private GitHub Pages uses a unique host at site root → base "/".
- * When the repo is public, set DOCS_BASE=/intelligent-eu-billing-and-payment/
+ * When the repo is public, set DOCS_BASE=/intelligent-eu-bps-source/
  * so assets resolve under https://<org>.github.io/<repo>/.
  * OpenAPI UI: vitepress-openapi (Vue pages under /api/).
  */
 const base = (process.env.DOCS_BASE || "/").replace(/\/?$/, "/") || "/";
+
+// INT-370 — VitePress leaves non-HTML nav and sidebar links unprefixed.
+// The raw contract must already include `base`, or GitHub Pages resolves it
+// at the host root (404) instead of under /<repo>/.
+const rawOpenApi = `${base}openapi/public.v1.yaml`;
 
 const openapiSidebar = useSidebar({
   spec,
@@ -37,7 +42,7 @@ export default withMermaid({
       {
         name: "homepage",
         content:
-          "https://github.com/blooo-io/intelligent-eu-billing-and-payment",
+          "https://github.com/blooo-io/intelligent-eu-bps-source",
       },
     ],
   ],
@@ -57,12 +62,12 @@ export default withMermaid({
         items: [
           { text: "API overview", link: "/api/" },
           { text: "API & events (notes)", link: "/reference/api" },
-          { text: "public.v1.yaml", link: "/openapi/public.v1.yaml" },
+          { text: "public.v1.yaml", link: rawOpenApi },
         ],
       },
       {
         text: "GitHub",
-        link: "https://github.com/blooo-io/intelligent-eu-billing-and-payment",
+        link: "https://github.com/blooo-io/intelligent-eu-bps-source",
       },
     ],
     sidebar: {
@@ -103,7 +108,7 @@ export default withMermaid({
           items: [
             { text: "Overview", link: "/api/" },
             { text: "Narrative notes", link: "/reference/api" },
-            { text: "Raw OpenAPI YAML", link: "/openapi/public.v1.yaml" },
+            { text: "Raw OpenAPI YAML", link: rawOpenApi },
           ],
         },
         ...openapiSidebar
@@ -130,7 +135,7 @@ export default withMermaid({
     socialLinks: [
       {
         icon: "github",
-        link: "https://github.com/blooo-io/intelligent-eu-billing-and-payment",
+        link: "https://github.com/blooo-io/intelligent-eu-bps-source",
       },
     ],
     footer: {
@@ -141,7 +146,7 @@ export default withMermaid({
     search: { provider: "local" },
     editLink: {
       pattern:
-        "https://github.com/blooo-io/intelligent-eu-billing-and-payment/edit/develop/apps/site/:path",
+        "https://github.com/blooo-io/intelligent-eu-bps-source/edit/develop/apps/site/:path",
       text: "Edit this page",
     },
   },

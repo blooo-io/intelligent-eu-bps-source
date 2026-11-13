@@ -44,6 +44,8 @@ export type PairSettlementRecord = {
   rate: string;
   /** BR-06 — date of the ECB reference rate applied. */
   rateDate: string;
+  /** BR-07 — VAT fraction applied when this settlement was computed. */
+  vatRate?: number;
   carriedForwardIn: string;
   carriedForwardOut: string;
   /** Net before threshold decision, community currency. */

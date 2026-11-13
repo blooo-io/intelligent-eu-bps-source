@@ -23,6 +23,7 @@ const TEST_SECRET = "whsec_test_intelligent";
 export class MockPspAdapter implements PspPort {
   readonly accounts = new Map<string, string>();
   readonly methods = new Map<string, string>();
+  private readonly methodOwners = new Map<string, string>();
   readonly payments: PspPaymentResult[] = [];
   readonly dueByAccount = new Map<string, string[]>();
   readonly tokens: string[] = [];
@@ -143,6 +144,11 @@ export class MockPspAdapter implements PspPort {
     participantId: string,
     paymentMethodId: string,
   ): Promise<PaymentMethodRef> {
+    const owner = this.methodOwners.get(paymentMethodId);
+    if (owner && owner !== participantId) {
+      throw new Error("payment_method_owned_by_other");
+    }
+    this.methodOwners.set(paymentMethodId, participantId);
     this.methods.set(participantId, paymentMethodId);
     return { paymentMethodId };
   }

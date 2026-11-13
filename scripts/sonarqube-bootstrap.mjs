@@ -99,8 +99,8 @@ export function buildGithubSyncCommands({
 } = {}) {
   return [
     `# Sync CI credentials (operator machine with repo admin + OpenBao access):`,
-    `gh variable set SONAR_HOST_URL --repo blooo-io/intelligent-eu-billing-and-payment --body '${hostUrl}'`,
-    `gh secret set SONAR_TOKEN --repo blooo-io/intelligent-eu-billing-and-payment --body "${tokenPlaceholder}"`,
+    `gh variable set SONAR_HOST_URL --repo blooo-io/intelligent-eu-bps-source --body '${hostUrl}'`,
+    `gh secret set SONAR_TOKEN --repo blooo-io/intelligent-eu-bps-source --body "${tokenPlaceholder}"`,
   ].join("\n");
 }
 

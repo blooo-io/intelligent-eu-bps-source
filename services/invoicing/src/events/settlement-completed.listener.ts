@@ -82,10 +82,13 @@ export function isNonRetryableInvoiceError(error: Error): boolean {
   ) {
     return false;
   }
+  // INT-368 — AC-05 commits the settlement with the outbox row, so a 404 on
+  // GetPairSettlement never heals by redelivery.
   return (
     msg.includes("does not have access to account") ||
     msg.includes("acct_test_") ||
-    msg.includes("no such account")
+    msg.includes("no such account") ||
+    /getpairsettlement \S+ failed with 404/.test(msg)
   );
 }
 

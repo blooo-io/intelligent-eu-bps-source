@@ -8,7 +8,7 @@ metadata:
   name: payment-webhook
   labels:
     app.kubernetes.io/name: apisix-gateway
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 spec:
   ingressClassName: {{ .Values.ingressClassName | quote }}
   http:
@@ -41,7 +41,7 @@ metadata:
   name: public-api
   labels:
     app.kubernetes.io/name: apisix-gateway
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 spec:
   ingressClassName: {{ .Values.ingressClassName | quote }}
   http:
@@ -192,7 +192,7 @@ metadata:
   name: auth-idp
   labels:
     app.kubernetes.io/name: apisix-gateway
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 spec:
   ingressClassName: {{ .Values.ingressClassName | quote }}
   http:
@@ -225,7 +225,7 @@ metadata:
   name: web-app
   labels:
     app.kubernetes.io/name: apisix-gateway
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 spec:
   ingressClassName: {{ .Values.ingressClassName | quote }}
   http:
@@ -248,7 +248,7 @@ metadata:
   name: docs-portal
   labels:
     app.kubernetes.io/name: apisix-gateway
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 spec:
   ingressClassName: {{ .Values.ingressClassName | quote }}
   http:
@@ -273,7 +273,7 @@ metadata:
   name: sonarqube
   labels:
     app.kubernetes.io/name: apisix-gateway
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
 spec:
   ingressClassName: {{ .Values.ingressClassName | quote }}
   http:

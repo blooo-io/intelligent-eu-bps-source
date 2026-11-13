@@ -142,6 +142,15 @@ export class ParticipantsService {
     return { participantId, email };
   }
 
+  /** REQ-013 / REQ-049 — community of a participant for AC-12 DSR bind. */
+  getParticipantCommunity(participantId: string): {
+    participantId: string;
+    communityId: string;
+  } {
+    const row = this.requireParticipant(participantId);
+    return { participantId: row.participantId, communityId: row.communityId };
+  }
+
   checkReadiness(participantId: string): ReadinessResult {
     const row = this.requireParticipant(participantId);
     const status = deriveReadiness(row);

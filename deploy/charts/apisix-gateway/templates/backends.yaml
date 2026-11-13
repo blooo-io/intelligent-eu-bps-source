@@ -9,7 +9,7 @@ metadata:
   name: {{ .name }}
   labels:
     app.kubernetes.io/name: apisix-gateway
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: gateway-backend
     intelligent.eu/module: {{ .name | quote }}
 spec:
@@ -28,7 +28,7 @@ metadata:
   name: keycloak
   labels:
     app.kubernetes.io/name: apisix-gateway
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: gateway-backend
 spec:
   type: ExternalName
@@ -46,7 +46,7 @@ metadata:
   name: sonarqube
   labels:
     app.kubernetes.io/name: apisix-gateway
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: gateway-backend
 spec:
   type: ExternalName

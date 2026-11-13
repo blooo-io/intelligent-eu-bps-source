@@ -70,7 +70,7 @@ Use whatever promotion model you prefer (dev → staging → prod). The referenc
 
 ## Reference deployment (optional)
 
-The upstream project maintains a **sample** GitOps deployment (Argo CD, specific DNS zone, OpenBao paths). That is documented in the repository under [`docs/release/deployment.md`](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/docs/release/deployment.md) and [`deploy/README.md`](https://github.com/blooo-io/intelligent-eu-billing-and-payment/blob/develop/deploy/README.md). Treat hostnames, cloud accounts and internal processes there as **examples**, not requirements for your installation.
+The upstream project maintains a **sample** GitOps deployment (Argo CD, specific DNS zone, OpenBao paths). That is documented in the repository under [`docs/release/deployment.md`](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/docs/release/deployment.md) and [`deploy/README.md`](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/deploy/README.md). Treat hostnames, cloud accounts and internal processes there as **examples**, not requirements for your installation.
 
 ## Next
 

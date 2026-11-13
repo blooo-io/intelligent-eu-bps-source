@@ -1,5 +1,6 @@
 import type { AuthProvider } from "@refinedev/core";
 import type { OidcFacade } from "./oidc";
+import { clearPrivacySession } from "./privacy-session";
 import {
   DEFAULT_ROLE_CLAIM,
   communityIdFromClaims,
@@ -21,6 +22,7 @@ export function createAuthProvider(
       return { success: true };
     },
     logout: async () => {
+      clearPrivacySession();
       await oidc.logout();
       // Land on the public sign-in screen, not on Authenticated `/` (INT-181).
       return { success: true, redirectTo: "/login" };

@@ -10,7 +10,11 @@ import type { AuthenticatedRequest, AuthClaims } from "./auth.types.js";
 export type AuthGuardOptions = {
   /** Roles allowed to call the route (Keycloak realm/client roles). */
   roles: string[];
-  /** When true, the token communityId must match the :communityId route param. */
+  /**
+   * When true, the token communityId must match the community on the request
+   * (REQ-049). The id is the `:communityId` route param, or the `communityId`
+   * query when the route has no such param (periodic summary).
+   */
   requireCommunityScope?: boolean;
 };
 
@@ -24,7 +28,10 @@ export class ModuleAuthGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<
-      AuthenticatedRequest & { params?: Record<string, string> }
+      AuthenticatedRequest & {
+        params?: Record<string, string>;
+        query?: Record<string, string | string[] | undefined>;
+      }
     >();
     const user = request.user;
     if (!user) {
@@ -32,10 +39,25 @@ export class ModuleAuthGuard implements CanActivate {
     }
     assertHasRole(user, this.options.roles);
     if (this.options.requireCommunityScope) {
-      assertCommunityScope(user, request.params?.communityId);
+      assertCommunityScope(user, communityIdFromRequest(request));
     }
     return true;
   }
+}
+
+/** REQ-049 — route param wins; query covers selectors such as reports/summary. */
+export function communityIdFromRequest(request: {
+  params?: Record<string, string | undefined>;
+  query?: Record<string, string | string[] | undefined>;
+}): string | undefined {
+  const fromParams = request.params?.communityId;
+  if (fromParams) return fromParams;
+  const raw = request.query?.communityId;
+  if (typeof raw === "string" && raw) return raw;
+  if (Array.isArray(raw)) {
+    return raw.find((value) => value.length > 0);
+  }
+  return undefined;
 }
 
 export function assertHasRole(user: AuthClaims, roles: string[]): void {

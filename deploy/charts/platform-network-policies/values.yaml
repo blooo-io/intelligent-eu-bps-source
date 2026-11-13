@@ -8,6 +8,9 @@ ddhubNamespace: ddhub
 temporalNamespace: temporal
 sonarqubeNamespace: sonarqube
 observabilityNamespace: observability
+# INT-380 — CNPG operator → instance manager status.
+cnpgOperatorNamespace: cnpg-system
+cnpgInstanceStatusPort: 8000
 
 keycloak:
   # HTTP/OIDC from APISIX + Admin IdP from modules (participants keycloakEgress).

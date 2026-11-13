@@ -17,9 +17,9 @@
   },
   "dependencies": {
     "@intelligent/module-template": "workspace:*",
-    "@nestjs/common": "^12.2.0",
-    "@nestjs/core": "^12.2.0",
-    "@nestjs/platform-express": "^12.2.0",
+    "@nestjs/common": "^12.4.0",
+    "@nestjs/core": "^12.4.0",
+    "@nestjs/platform-express": "^12.4.0",
     "@temporalio/activity": "^1.25.0",
     "@temporalio/client": "^1.25.0",
     "@temporalio/worker": "^1.25.0",
@@ -32,7 +32,7 @@
     "@types/express": "^5.0.3",
     "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^3.2.4",
-    "typescript": "^5.9.2",
+    "typescript": "^7.0.2",
     "vitest": "^3.2.4"
   },
   "engines": {

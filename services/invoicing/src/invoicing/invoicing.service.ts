@@ -79,19 +79,29 @@ export class InvoicingService {
   private async resolveProducerStripeAccount(
     settlement: PairSettlementInput,
   ): Promise<string> {
-    if (settlement.producerStripeAccountId) {
-      return settlement.producerStripeAccountId;
-    }
     const fromPayments = await this.payments.getPaymentAccount(
       settlement.producerId,
     );
+    // INT-340 — an operator override is kept only when it matches AC-07, or when
+    // AC-07 has no Connect id yet (UAT-028 seed before provisioning).
     if (fromPayments?.stripeAccountId) {
       if (fromPayments.chargesEnabled === false) {
         throw new BadRequestException(
           "producer charges_enabled not ready (retry until KYC completes)",
         );
       }
+      if (
+        settlement.producerStripeAccountId &&
+        settlement.producerStripeAccountId !== fromPayments.stripeAccountId
+      ) {
+        throw new BadRequestException(
+          "producer Connect account does not match AC-07",
+        );
+      }
       return fromPayments.stripeAccountId;
+    }
+    if (settlement.producerStripeAccountId) {
+      return settlement.producerStripeAccountId;
     }
     const fromFixture = this.connectAccounts.get(settlement.producerId);
     if (fromFixture) {
@@ -365,6 +375,20 @@ export class InvoicingService {
         },
         currency: settlement.currency,
         tradeIds: settlement.tradeIds,
+        settlementId: settlement.settlementId,
+        dueDate: due,
+        billingPeriodFrom: settlement.periodFrom,
+        billingPeriodUntil: settlement.periodUntil,
+        settlementType: settlement.settlementType ?? "periodic",
+        totalEnergyKWh: settlement.kWh,
+        vatRate: settlement.vatRate ?? 0,
+        carriedForwardAmount: settlement.carriedForwardIn ?? "0.00",
+        // NFR-004 — no conversion on an EUR invoice. A foreign currency
+        // carries the ECB rate the settlement already applied (BR-06).
+        exchangeRate:
+          settlement.currency === "EUR" || !settlement.rateDate
+            ? null
+            : { rate: settlement.rate, rateDate: settlement.rateDate },
       },
     });
 
@@ -400,14 +424,25 @@ export class InvoicingService {
    */
   async setInvoiceStatus(
     invoiceId: string,
-    input: { status: InvoiceStatus; reason: string; actorId: string },
+    input: {
+      status: InvoiceStatus;
+      reason: string;
+      actorId: string;
+      /** REQ-049 — when set, another community's invoice is hidden. */
+      communityId?: string;
+    },
   ): Promise<Record<string, unknown>> {
     return this.tx.run(() => this.performSetInvoiceStatus(invoiceId, input));
   }
 
   private async performSetInvoiceStatus(
     invoiceId: string,
-    input: { status: InvoiceStatus; reason: string; actorId: string },
+    input: {
+      status: InvoiceStatus;
+      reason: string;
+      actorId: string;
+      communityId?: string;
+    },
   ): Promise<Record<string, unknown>> {
     if (!input.reason?.trim()) {
       throw new BadRequestException("reason is required");
@@ -417,6 +452,13 @@ export class InvoicingService {
     }
     const row = this.store.get(invoiceId);
     if (!row) throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    // REQ-049 / UAT-060 — manager acts only inside their community.
+    if (
+      input.communityId !== undefined &&
+      row.communityId !== input.communityId
+    ) {
+      throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    }
 
     const next = await this.applyStatus(row, {
       status: input.status,

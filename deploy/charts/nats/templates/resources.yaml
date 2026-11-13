@@ -4,7 +4,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 automountServiceAccountToken: false
 ---
@@ -14,7 +14,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 data:
   nats.conf: |
@@ -23,8 +23,9 @@ data:
     jetstream {
       store_dir: {{ .Values.config.jetstream.storeDir }}
     }
-    # Account resolution: mount OpenBao-synced credentials when present.
-    # Until ExternalSecret is bound (INT-133), JetStream runs with the default account.
+    # INT-338 / INT-378 — NATS resolves include relative to this file's directory
+    # (/etc/nats). A leading slash is not absolute; it becomes /etc/nats/<path>.
+    include "auth.conf"
 ---
 apiVersion: v1
 kind: Service
@@ -32,7 +33,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 spec:
   clusterIP: None
@@ -50,9 +51,14 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ .Values.name }}
+  annotations:
+    # INT-379 — OrderedReady never replaces an unready pod, so a crash-looping
+    # broker blocks its own fix. Argo recreates the StatefulSet instead; the
+    # volumeClaimTemplates PVCs are retained.
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 spec:
   serviceName: {{ .Values.name }}
@@ -64,7 +70,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: {{ .Values.name }}
-        app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+        app.kubernetes.io/part-of: intelligent-eu-bps-source
         app.kubernetes.io/component: {{ .Values.component }}
     spec:
       serviceAccountName: {{ .Values.name }}
@@ -116,9 +122,17 @@ spec:
               port: monitor
             initialDelaySeconds: 2
       volumes:
+        # INT-378 — config and auth.conf share /etc/nats so include "auth.conf" resolves.
         - name: config
-          configMap:
-            name: {{ .Values.name }}
+          projected:
+            sources:
+              - configMap:
+                  name: {{ .Values.name }}
+              - secret:
+                  name: {{ .Values.config.accountsFromSecret }}
+                  items:
+                    - key: auth.conf
+                      path: auth.conf
         - name: tmp
           emptyDir: {}
   volumeClaimTemplates:
@@ -137,7 +151,7 @@ metadata:
   name: {{ .Values.config.accountsFromSecret }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 spec:
   refreshInterval: 1h
@@ -157,7 +171,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: {{ .Values.component }}
 spec:
   podSelector:
@@ -168,7 +182,11 @@ spec:
     - Egress
   ingress:
     - from:
-        - namespaceSelector: {}
+        {{- range .Values.clientNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . }}
+        {{- end }}
       ports:
         - port: {{ .Values.service.clientPort }}
           protocol: TCP

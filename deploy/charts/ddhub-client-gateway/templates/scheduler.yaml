@@ -5,7 +5,7 @@ metadata:
   name: {{ .Values.name }}-scheduler
   labels:
     app.kubernetes.io/name: {{ .Values.name }}-scheduler
-    app.kubernetes.io/part-of: intelligent-eu-billing-and-payment
+    app.kubernetes.io/part-of: intelligent-eu-bps-source
     app.kubernetes.io/component: ewds-client-gateway
 spec:
   replicas: 1
@@ -14,6 +14,9 @@ spec:
       app.kubernetes.io/name: {{ .Values.name }}-scheduler
   template:
     metadata:
+      annotations:
+        checksum/config: {{ toJson .Values.config | sha256sum | quote }}
+        ddhub.intelligent/restart-generation: {{ .Values.restartGeneration | default "0" | quote }}
       labels:
         app.kubernetes.io/name: {{ .Values.name }}-scheduler
     spec:

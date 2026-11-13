@@ -420,7 +420,7 @@ export interface paths {
         put?: never;
         /**
          * Start a billing run
-         * @description A manager or operator starts a run for the community (REQ-006). The period is YYYY-MM or YYYY-Qn; a periodic run without a period closes the last elapsed period of the community calendar.
+         * @description A manager or operator starts a run for the community (REQ-006). The token community must be this community (REQ-049 / UAT-060); another community receives 403. The period is YYYY-MM or YYYY-Qn; a periodic run without a period closes the last elapsed period of the community calendar.
          */
         post: operations["startBillingRun"];
         delete?: never;
@@ -438,7 +438,7 @@ export interface paths {
         };
         /**
          * Read a billing run
-         * @description Status of one billing run (REQ-006).
+         * @description Status of one billing run (REQ-006). Returns 404 when the run is not in the caller's community (REQ-049 / UAT-060).
          */
         get: operations["getBillingRun"];
         put?: never;
@@ -458,7 +458,7 @@ export interface paths {
         };
         /**
          * Payment overview of a community
-         * @description Manager view of payments in the community (REQ-018). Lists use the provider read cache (TD-6).
+         * @description Manager view of payments in the community (REQ-018). The token community must be this community (REQ-049 / UAT-060). Lists use the provider read cache (TD-6).
          */
         get: operations["getPaymentsOverview"];
         put?: never;
@@ -478,7 +478,7 @@ export interface paths {
         };
         /**
          * Member history
-         * @description Invoices and payments of one participant (REQ-031).
+         * @description Invoices and payments of one participant (REQ-031). A member reads only their own participant. A manager or operator reads a participant of their own community. Another community returns 404 (REQ-049 / UAT-060).
          */
         get: operations["getParticipantHistory"];
         put?: never;
@@ -498,7 +498,7 @@ export interface paths {
         };
         /**
          * Periodic summary
-         * @description Summary of one community and period (REQ-032).
+         * @description Summary of one community and period (REQ-032). The token community must match communityId (REQ-049 / UAT-060).
          */
         get: operations["getPeriodicSummary"];
         put?: never;
@@ -580,7 +580,7 @@ export interface paths {
         put?: never;
         /**
          * Request an export or an erasure
-         * @description The member or the DPO opens an export or erasure request (REQ-013).
+         * @description The member opens an export or erasure for themselves; the token subject is used and a body participantId is ignored (REQ-013). A community manager or the DPO may name another participant of their own community. A peer or another community is rejected (REQ-049).
          */
         post: operations["createDataSubjectRequest"];
         delete?: never;
@@ -598,7 +598,7 @@ export interface paths {
         };
         /**
          * Read a data-subject request
-         * @description Status of one export or erasure request (REQ-013).
+         * @description Status of one export or erasure request (REQ-013). A member reads a request they opened or that names them. A manager, operator or DPO reads a request in their own community. Another community returns 404 (REQ-049).
          */
         get: operations["getDataSubjectRequest"];
         put?: never;

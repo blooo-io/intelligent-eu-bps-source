@@ -53,6 +53,25 @@ describe("PaymentsService", () => {
     );
   });
 
+  it("INT-338 — getPaymentStatus returns the stored row and 404s otherwise", () => {
+    store.putPayment({
+      paymentId: "pay-1",
+      invoiceId: "inv-1",
+      participantId: CONSUMER,
+      amount: "10.00",
+      currency: "EUR",
+      status: "succeeded",
+      stripePaymentId: "pi_1",
+      communityId: COMMUNITY,
+    });
+    expect(service.getPaymentStatus("pay-1")).toEqual({
+      paymentId: "pay-1",
+      invoiceId: "inv-1",
+      status: "succeeded",
+    });
+    expect(() => service.getPaymentStatus("missing")).toThrow(/Unknown payment/);
+  });
+
   it("provisions a fresh producer Connect account each run (INT-228)", async () => {
     const first = await service.provisionPaymentAccount({
       participantId: PRODUCER,
@@ -456,6 +475,50 @@ describe("PaymentsService", () => {
     expect(summary.dashboardUrl).toContain(summary.stripeAccountId!);
   });
 
+  it("INT-340 — a payment method cannot be attached to a second participant", async () => {
+    const other = "22222222-3333-4444-8555-666666666666";
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.ensureParticipant({
+      participantId: other,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await expect(service.attachPaymentMethod(other, "pm_card_visa")).rejects.toThrow(
+      /another participant/,
+    );
+  });
+
+  it("INT-340 — a void invoice is not payable", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    invoices.put({
+      invoiceId: "inv-void",
+      stripeInvoiceId: "in_void",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Void",
+      total: "2.00",
+      producerStripeAccountId: "acct_test_producer",
+    });
+    await expect(
+      service.payInvoice({
+        invoiceId: "inv-void",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      }),
+    ).rejects.toThrow(/not payable/);
+  });
+
   it("pays an invoice to the producer account (REQ-014, BR-12)", async () => {
     await service.ensureParticipant({
       participantId: CONSUMER,
@@ -757,6 +820,42 @@ describe("PaymentsService", () => {
       });
       expect(again.paymentId).toBe(first.paymentId);
       expect(psp.paymentInputs).toHaveLength(1);
+      const events = (await outboxStore.list()).filter(
+        (e) => e.event.type === "PaymentStatusChanged",
+      );
+      // INT-368 — AC-06 still reports Open, so the replay re-announces the payment.
+      expect(events).toHaveLength(2);
+      expect(events.map((e) => e.event.data)).toEqual([
+        expect.objectContaining({
+          paymentId: first.paymentId,
+          status: "succeeded",
+          payerId: CONSUMER,
+          payeeId: PRODUCER,
+        }),
+        expect.objectContaining({
+          paymentId: first.paymentId,
+          status: "succeeded",
+          payerId: CONSUMER,
+          payeeId: PRODUCER,
+        }),
+      ]);
+      expect(events[0]!.event.eventId).not.toBe(events[1]!.event.eventId);
+    });
+
+    it("INT-368 does not re-announce a replay once AC-06 shows the invoice Paid", async () => {
+      putInvoice("inv-dc-paid", "acct_p1");
+      const first = await service.payInvoice({
+        invoiceId: "inv-dc-paid",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      });
+      putInvoice("inv-dc-paid", "acct_p1", { status: "Paid" });
+      const again = await service.payInvoice({
+        invoiceId: "inv-dc-paid",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      });
+      expect(again.paymentId).toBe(first.paymentId);
       const events = (await outboxStore.list()).filter(
         (e) => e.event.type === "PaymentStatusChanged",
       );

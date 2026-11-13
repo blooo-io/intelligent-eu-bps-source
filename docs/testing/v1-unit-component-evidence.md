@@ -13,7 +13,7 @@ This note consolidates one green `develop` run. It does not replace the live gat
 | Field | Value |
 |---|---|
 | Commit | `426819c20bbcf013fda1931b5d69e2089891d3fd` (`develop`, INT-149) |
-| Workflow run | https://github.com/blooo-io/intelligent-eu-billing-and-payment/actions/runs/39051194204 |
+| Workflow run | https://github.com/blooo-io/intelligent-eu-bps-source/actions/runs/39051194204 |
 | Job | `test` — success |
 | Artifact | `coverage` (retained on the run) |
 | Thresholds | `config/coverage-thresholds.json` — 80 / 80 / 80 / 80 |

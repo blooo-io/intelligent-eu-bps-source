@@ -63,8 +63,30 @@ test("cahier markdown tables convert without leaving raw separators", async () =
     "camille.rousseau@example.invalid",
     "GET /v1/reconciliation/discrepancies",
     "GET /v1/jobs",
+    "p0-hugo-moreau-06-api.png",
+    "p1-lea-martin-08-api.png",
+    "p2-thomas-bernard-05-api.png",
+    "p3-claire-dubois-03-api.png",
+    "p4-marie-leroy-07-api.png",
+    "p5-paul-nguyen-04-api.png",
   ]) {
     assert.ok(md.includes(marker), marker);
+  }
+});
+
+test("INT-399 — demo capture visits /api for every persona", async () => {
+  const src = await readFile("scripts/capture-demo-workbook.mjs", "utf8");
+  assert.match(src, /shell-api-link/);
+  for (const id of [
+    "p0-hugo-moreau",
+    "p1-lea-martin",
+    "p2-thomas-bernard",
+    "p3-claire-dubois",
+    "p4-marie-leroy",
+    "p5-paul-nguyen",
+  ]) {
+    const block = src.slice(src.indexOf(id), src.indexOf(id) + 500);
+    assert.match(block, /"\/api"/, id);
   }
 });
 

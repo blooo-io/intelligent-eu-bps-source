@@ -5,7 +5,7 @@
 **IdP :** Keycloak realm `int` (thème Volt INT-332)  
 **Mot de passe (tous) :** `Intelligent-UAT-2026!`  
 **Communauté démo :** **Horizon Energy**  
-**Tickets :** INT-282 … INT-285 · refresh captures INT-333 · appels API INT-398  
+**Tickets :** INT-282 … INT-285 · refresh captures INT-333 · appels API INT-398 · captures API INT-399  
 
 
 > Ouvrir en aperçu Markdown (GitHub / IDE) pour voir les captures.  
@@ -40,7 +40,7 @@ Ce n’est **pas** un bug si Léa ou Hugo voient Invoices / Balances sans menu.
 Chaque scénario se joue de deux façons, avec les mêmes données.
 
 1. **Formulaire** — les écrans déjà décrits. Les captures ne changent pas.
-2. **API** — une fois connecté avec le persona du scénario, ouvrir https://app.dev.intelligent-eu-bp.blooo.dev/api (lien **API** dans l’en-tête) et coller le JSON, ou envoyer la requête sur `https://api.dev.intelligent-eu-bp.blooo.dev` avec le jeton de cette session.
+2. **API** — le lien **API** est dans l’en-tête de chaque écran connecté (captures ci-dessous). Il ouvre https://app.dev.intelligent-eu-bp.blooo.dev/api. Coller le JSON, ou envoyer la requête sur `https://api.dev.intelligent-eu-bp.blooo.dev` avec le jeton de cette session.
 
 Il n’y a pas d’opération de login. La connexion Keycloak (§1) fournit le jeton. Un **403** veut dire que ce persona n’a pas le droit d’appeler cette opération. Les numéros de carte et le jeton Stripe `ct_…` / `pm_…` ne sont pas des champs du contrat : la carte reste dans le composant Stripe, l’API reçoit l’identifiant que Stripe renvoie.
 
@@ -146,6 +146,10 @@ La connexion reste sur le formulaire Keycloak. Ensuite, `GET /v1/me` confirme le
 
 ### Appel API — Hugo (`hugo.moreau`)
 
+![Hugo — API](assets/demo-workbook/p0-hugo-moreau-06-api.png)
+
+Le lien **API** est dans l’en-tête, y compris sans sider. Les captures formulaire §2.2–2.6 restent celles du seed Invited (Hugo a déjà le profil et les CGU sur le cluster).
+
 Même ordre que le wizard. `GET /v1/terms/current` renvoie la version à accepter (`termsVersion` = `v1.0.0`).
 
 `PUT /v1/me/profile` — 200
@@ -244,6 +248,8 @@ Ne pas refaire le profil/CGU — ce n’est pas le parcours onboarding.
 
 ### Appel API — Léa (`lea.martin`)
 
+![Léa — API](assets/demo-workbook/p1-lea-martin-08-api.png)
+
 `GET /v1/me` — 200. Le seed a déjà le profil et les CGU : `readiness` = `TermsAccepted`, `participantId` = `11111111-2222-4333-8444-555555555555`. Ne pas renvoyer le profil ni les CGU.
 
 `POST /v1/me/payment-account/onboarding` — pas de corps, 200. Puis, avec le `pm_…` de la carte test :
@@ -335,6 +341,8 @@ Ready → **sider visible**.
 
 ### Appel API — Thomas (`thomas.bernard`)
 
+![Thomas — API](assets/demo-workbook/p2-thomas-bernard-05-api.png)
+
 `GET /v1/me` — 200, `participantId` = `66666666-7777-4888-9999-aaaaaaaaaaaa`.
 
 Le formulaire historique est le composant Stripe (INT-362). L’appel qui l’ouvre :
@@ -397,6 +405,8 @@ Même KYC avec Claire / Dubois / `claire.dubois@example.invalid` / `+33600000002
 - [ ] KYC Claire OK  
 
 ### Appel API — Claire (`claire.dubois`)
+
+![Claire — API](assets/demo-workbook/p3-claire-dubois-03-api.png)
 
 Même séquence que Thomas. `participantId` = `bbbbbbbb-cccc-4ddd-8eee-ffffffffffff`.
 
@@ -486,6 +496,8 @@ Titre Home = **Community pulse** (pas seulement « Home »).
 ![Marie — Reports](assets/demo-workbook/p4-marie-leroy-06-reports.png)
 
 ### Appel API — Marie (`marie.leroy`)
+
+![Marie — API](assets/demo-workbook/p4-marie-leroy-07-api.png)
 
 `GET /v1/me` — 200, `participantId` = `dddddddd-eeee-4fff-8000-111111111111`, rôle IdP `manager`.
 
@@ -616,6 +628,8 @@ et `"selfBillingMandate": false`, `termsVersion` = `v1.0.0`.
 
 ### Appel API — Paul (`paul.nguyen`)
 
+![Paul — API](assets/demo-workbook/p5-paul-nguyen-04-api.png)
+
 Session opérateur. Un membre qui envoie ces appels reçoit 403.
 
 `GET /v1/reconciliation/discrepancies?communityId=c0ffee00-1234-4abc-8def-0123456789ab` — 200.
@@ -673,6 +687,6 @@ Session opérateur. Un membre qui envoie ces appels reçoit 403.
 |---|---|
 | [`README.md`](./README.md) | Index |
 | [`assets/demo-workbook/`](./assets/demo-workbook/) | PNG |
-| `scripts/capture-demo-workbook.mjs` | Recapture (`wait` anti-spinner) — INT-333 |
+| `scripts/capture-demo-workbook.mjs` | Recapture (`wait` anti-spinner, lien API) — INT-333 / INT-399 |
 | `scripts/export-cahier-pdf.mjs` | Régénération PDF A4 — INT-333 |
 | [`manual-s1-portal-journey.md`](./manual-s1-portal-journey.md) | Parcours argent (texte) |

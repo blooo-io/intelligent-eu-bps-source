@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   Body,
   Controller,
   Get,
@@ -17,6 +18,7 @@ import {
 } from "@intelligent/module-template";
 import type { InvoiceStatus } from "../domain/types.js";
 import { UAT_INLINE_PDF } from "../domain/uat-seed.js";
+import { loadStripeInvoicePdf } from "./invoice-pdf.js";
 import { InvoicingService } from "./invoicing.service.js";
 
 /**
@@ -68,8 +70,20 @@ export class PublicInvoicingController {
       );
       return res.status(200).send(UAT_INLINE_PDF);
     }
-    // REQ-039 — provider hosts the PDF; redirect to Stripe hosted URL.
-    return res.redirect(302, url);
+    // REQ-039 / ANO-008 — return the PDF bytes. A 302 to Stripe fails the
+    // browser fetch the reference UI uses (cross-origin redirect).
+    try {
+      const bytes = await loadStripeInvoicePdf(url);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="invoice-${invoiceId}.pdf"`,
+      );
+      res.setHeader("Cache-Control", "private, no-store");
+      return res.status(200).send(bytes);
+    } catch {
+      throw new BadGatewayException("Invoice document could not be loaded");
+    }
   }
 
   @Post("invoices/:id/status")

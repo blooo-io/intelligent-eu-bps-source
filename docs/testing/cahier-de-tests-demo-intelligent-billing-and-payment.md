@@ -310,6 +310,8 @@ camille.rousseau@example.invalid,actor-camille-demo,meter-camille-demo,consumer
 | meterId | `meter-camille-demo` (unique) |
 | role | `consumer` (ou `producer` / `prosumer`) |
 
+Le CSV n’a pas de colonne nom. REQ-008 : le membre saisit le nom de facturation dans le portail. Le champ **Name** est vide à la première connexion (ANO-012). Ce n’est pas un défaut d’invitation.
+
 ### Étapes
 
 | # | Action | Attendu | Pass |
@@ -319,7 +321,7 @@ camille.rousseau@example.invalid,actor-camille-demo,meter-camille-demo,consumer
 | C.3 | Ouvrir Mailpit | Mail Keycloak (VERIFY_EMAIL / UPDATE_PASSWORD) vers l’e-mail CSV | [ ] |
 | C.4 | Suivre le lien → définir mot de passe | Compte utilisable | [ ] |
 | C.5 | Login app avec le nouvel e-mail | Home Invited / wizard (pas de sider — INT-254) | [ ] |
-| C.6 | Profil → CGU → carte test | Ready + sider (comme parcours A) | [ ] |
+| C.6 | Profil : saisir le **Name** (vide), l’adresse et l’e-mail, puis CGU → carte test | Ready + sider (comme parcours A). Le nom n’est pas prérempli | [ ] |
 
 **Points de contrôle IdP (INT-285)** — après invite, le user Keycloak doit avoir :
 
@@ -338,10 +340,9 @@ camille.rousseau@example.invalid,actor-camille-demo,meter-camille-demo,consumer
 
 ![Paul — Operator desk](assets/demo-workbook/p5-paul-nguyen-02-operator.png)
 
-- [ ] Menu **Operator desk** ; jobs / anomalies visibles (pas spinner)  
-- [ ] Membre Horizon Energy **ne voit pas** ce menu  
-
-![Paul — Reports](assets/demo-workbook/p5-paul-nguyen-03-reports.png)
+- [ ] Menu **Operator desk** seulement (INT-254). Pas de **My history** : cet écran est réservé au membre (Léa, §3.8). ANO-009  
+- [ ] Jobs / anomalies visibles (pas spinner)  
+- [ ] Membre Horizon Energy **ne voit pas** Operator desk
 
 ---
 

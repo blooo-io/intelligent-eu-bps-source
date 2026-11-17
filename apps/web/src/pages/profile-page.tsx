@@ -18,10 +18,12 @@ export function ProfilePage({
   config,
   oidc,
   embedded = false,
+  onSaved,
 }: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
   embedded?: boolean;
+  onSaved?: () => void;
 }>) {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,6 +72,7 @@ export function ProfilePage({
       setMe((prev) => (prev ? { ...prev, profile: updated } : prev));
       form.setFieldsValue(updated);
       setSaved(true);
+      onSaved?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -93,6 +96,12 @@ export function ProfilePage({
             These details appear on your invoices. Your community manager handles
             community membership and meter attribution separately.
           </Paragraph>
+          {embedded && !me.profile.name.trim() ? (
+            <Paragraph>
+              The invitation does not include a name. Type the billing name
+              here (REQ-008).
+            </Paragraph>
+          ) : null}
           <Form
             form={form}
             layout="vertical"

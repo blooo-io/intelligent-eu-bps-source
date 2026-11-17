@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button, Card, Typography } from "antd";
 import { Link, useNavigate } from "react-router";
 import type { WebConfig } from "../api/config";
@@ -29,6 +30,11 @@ export function OnboardingWizardStepPanel({
   onAfterGate,
 }: Readonly<OnboardingWizardStepPanelProps>) {
   const navigate = useNavigate();
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const profileGate = profileSaved || (me !== null && me.readiness !== "Invited");
+  const termsGate =
+    termsAccepted || me?.readiness === "TermsAccepted" || me?.readiness === "Ready";
 
   if (me?.readiness === "Ready" && current === "payment") {
     return (
@@ -44,8 +50,18 @@ export function OnboardingWizardStepPanel({
   if (current === "profile" && me?.readiness !== "Ready") {
     return (
       <div>
-        <ProfilePage config={config} oidc={oidc} embedded />
-        <Button type="primary" style={{ marginTop: 16 }} onClick={onAfterGate}>
+        <ProfilePage
+          config={config}
+          oidc={oidc}
+          embedded
+          onSaved={() => setProfileSaved(true)}
+        />
+        <Button
+          type="primary"
+          style={{ marginTop: 16 }}
+          disabled={!profileGate}
+          onClick={onAfterGate}
+        >
           Continue to terms
         </Button>
       </div>
@@ -55,8 +71,18 @@ export function OnboardingWizardStepPanel({
   if (current === "terms" && me?.readiness !== "Ready") {
     return (
       <div>
-        <TermsPage config={config} oidc={oidc} embedded />
-        <Button type="primary" style={{ marginTop: 16 }} onClick={onAfterGate}>
+        <TermsPage
+          config={config}
+          oidc={oidc}
+          embedded
+          onAccepted={() => setTermsAccepted(true)}
+        />
+        <Button
+          type="primary"
+          style={{ marginTop: 16 }}
+          disabled={!termsGate}
+          onClick={onAfterGate}
+        >
           Continue to payment setup
         </Button>
       </div>

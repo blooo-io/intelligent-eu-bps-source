@@ -91,7 +91,12 @@ export function PaymentSetupBody({
         ) : null}
 
         {session?.status === "complete" ? (
-          <PaymentSetupCompleteAlert session={session} />
+          <PaymentSetupCompleteAlert
+            session={session}
+            setupIncomplete={setupIncomplete}
+            loading={loading}
+            onRetry={onStart}
+          />
         ) : null}
 
         {session?.mode === "embedded" &&

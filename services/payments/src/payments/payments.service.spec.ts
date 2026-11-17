@@ -1125,6 +1125,58 @@ describe("PaymentsService", () => {
     expect(resolver.resolveByIdpSub).toHaveBeenCalledWith(idpSub);
   });
 
+  it("INT-395 — pays an invoice that names the consumer by IdP sub", async () => {
+    const idpSub = "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f";
+    const resolver = {
+      resolveByIdpSub: vi.fn(async () => ({
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      })),
+    };
+    service = new PaymentsService(
+      store,
+      new OutboxService(outboxStore),
+      psp,
+      invoices,
+      new NoopParticipantsNotifier(),
+      accountsStore,
+      resolver,
+      pspErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      new InMemoryConnectedCustomersStore(),
+    );
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    invoices.put({
+      invoiceId: "inv-idp-consumer",
+      stripeInvoiceId: "in_inv-idp-consumer",
+      producerId: PRODUCER,
+      consumerId: idpSub,
+      currency: "EUR",
+      status: "Paid",
+      total: "22.00",
+      producerStripeAccountId: "acct_idp_consumer",
+    });
+    await expect(
+      service.payInvoice({
+        invoiceId: "inv-idp-consumer",
+        participantId: idpSub,
+        communityId: COMMUNITY,
+      }),
+    ).rejects.toThrow(/Paid is not payable/);
+    await expect(
+      service.payInvoice({
+        invoiceId: "inv-idp-consumer",
+        participantId: "someone-else",
+        communityId: COMMUNITY,
+      }),
+    ).rejects.toThrow(/not payable by this participant/);
+  });
+
   it("INT-251 — IdP resolve wins over a durable row keyed by the IdP sub", async () => {
     const idpSub = "c1a55e01-0001-4000-8000-000000000001";
     const resolver = {

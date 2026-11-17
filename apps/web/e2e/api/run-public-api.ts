@@ -79,6 +79,8 @@ export async function runPublicApiCoverage(input: {
   }
 
   const me = json<Json>(await call("getMe", member, {}));
+  const communityId = String(me.communityId ?? "");
+  const participantId = String(me.participantId ?? "");
   const profile = asRecord(me.profile);
   await call("putMyProfile", member, {}, {
     name: String(profile.name ?? ""),
@@ -110,12 +112,14 @@ export async function runPublicApiCoverage(input: {
     ) {
       failures.push(`getInvoiceDocument content-type ${document.contentType}`);
     }
-    const payable = pickPayable(invoices) ?? invoice;
-    await call("payInvoice", member, { id: payable.invoiceId });
+    // Never pay a seller-side invoice: that is a 403, not coverage.
+    const payable = pickPayable(invoices, participantId);
+    if (!payable) {
+      failures.push("payInvoice skipped: the member has no buyer-side invoice");
+    } else {
+      await call("payInvoice", member, { id: payable.invoiceId });
+    }
   }
-
-  const communityId = String(me.communityId ?? "");
-  const participantId = String(me.participantId ?? "");
   const settings = json<Json>(
     await call("getCommunitySettings", manager, { id: communityId }),
   );
@@ -310,19 +314,28 @@ function pickInvoice(invoices: Json[]): { invoiceId: string; status: string } | 
   };
 }
 
-function pickPayable(invoices: Json[]): { invoiceId: string } | undefined {
+/**
+ * An Open buyer-side invoice (201), else any buyer-side invoice (400 not
+ * payable). The consumer may be named by IdP sub, so match on the producer.
+ * Seeded money-path invoices are left for the UI money-path test.
+ */
+function pickPayable(
+  invoices: Json[],
+  participantId: string,
+): { invoiceId: string } | undefined {
   const fresh = new Set(
     (process.env.E2E_FRESH_INVOICE_IDS ?? "")
       .split(",")
       .map((id) => id.trim())
       .filter(Boolean),
   );
-  const row = invoices.find(
+  const owed = invoices.filter(
     (item) =>
-      item.status === "Open" &&
       typeof item.invoiceId === "string" &&
+      item.producerId !== participantId &&
       !fresh.has(item.invoiceId),
   );
+  const row = owed.find((item) => item.status === "Open") ?? owed[0];
   if (!row || typeof row.invoiceId !== "string") return undefined;
   return { invoiceId: row.invoiceId };
 }

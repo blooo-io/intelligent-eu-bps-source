@@ -36,5 +36,6 @@ spec:
       jqPathExpressions:
         - .spec.conversion
         - .status
-        # INT-396 — chart 3.9.2 renders `labels: {}` on policies.kyverno.io CRDs; the API stores none.
-        - .metadata.labels | select(. == {})
+        # INT-396 — chart 3.9.2 renders `labels: {}` on policies.kyverno.io CRDs; the API stores none,
+        # so the label Argo tracks them by never sticks. Scoped to that CRD group only.
+        - select(.metadata.name | endswith(".policies.kyverno.io")) | .metadata.labels

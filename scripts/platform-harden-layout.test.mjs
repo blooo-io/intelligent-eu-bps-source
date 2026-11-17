@@ -159,6 +159,12 @@ test("INT-315 / INT-328 — Kyverno engine + int-apps/demo-apps baseline policie
   assert.match(engine, /RespectIgnoreDifferences=true/);
   assert.match(engine, /kind: CustomResourceDefinition/);
   assert.match(engine, /\.spec\.conversion/);
+  // INT-396 — labels are ignored on policies.kyverno.io CRDs only, not every CRD.
+  assert.match(
+    engine,
+    /select\(\.metadata\.name \| endswith\("\.policies\.kyverno\.io"\)\) \| \.metadata\.labels/,
+  );
+  assert.doesNotMatch(engine, /^\s*- \.metadata\.labels\s*$/m);
   const policiesApp = await readFile(
     "deploy/argocd/platform/kyverno-policies.yaml",
     "utf8",

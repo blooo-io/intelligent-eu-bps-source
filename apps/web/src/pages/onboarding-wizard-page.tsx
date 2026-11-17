@@ -7,11 +7,7 @@ import { PageFrame } from "../layout/page-frame";
 import { readinessLabel } from "../layout/readiness-label";
 import { wizardStepItems } from "./onboarding-wizard-step-model";
 import { OnboardingWizardStepPanel } from "./onboarding-wizard-steps";
-import {
-  STEP_KEYS,
-  stepIndex,
-  useOnboardingWizard,
-} from "./use-onboarding-wizard";
+import { stepIndex, useOnboardingWizard } from "./use-onboarding-wizard";
 
 const { Paragraph } = Typography;
 
@@ -26,7 +22,7 @@ export function OnboardingWizardPage({
   config: WebConfig;
   oidc: OidcFacade;
 }>) {
-  const { me, error, loading, current, stepNumber, go, afterGate } =
+  const { me, error, loading, current, stepNumber, afterGate } =
     useOnboardingWizard(config, oidc);
 
   const items = useMemo(() => wizardStepItems(me, current), [current, me]);
@@ -34,7 +30,7 @@ export function OnboardingWizardPage({
   return (
     <PageFrame
       title={`Get ready — step ${stepNumber} of 3`}
-      description="Full-screen setup. No sider, one CTA, then money screens unlock."
+      description="Complete your profile, accept the terms, then save a payment method."
       loading={loading}
     >
       {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}
@@ -43,7 +39,6 @@ export function OnboardingWizardPage({
         <Steps
           current={stepIndex(current)}
           items={items}
-          onChange={(i) => go(STEP_KEYS[i]!)}
           className="ge-onboarding-steps"
           style={{ marginBottom: 12 }}
         />

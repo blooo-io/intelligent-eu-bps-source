@@ -24,10 +24,12 @@ export function TermsPage({
   config,
   oidc,
   embedded = false,
+  onAccepted,
 }: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
   embedded?: boolean;
+  onAccepted?: () => void;
 }>) {
   const [terms, setTerms] = useState<Terms | null>(null);
   const [mandate, setMandate] = useState(false);
@@ -69,6 +71,7 @@ export function TermsPage({
         selfBillingMandate: mandate,
       });
       setAcceptance(result);
+      onAccepted?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Acceptance failed");
     } finally {
@@ -94,8 +97,8 @@ export function TermsPage({
         />
       )}
 
-      {terms && !acceptance && (
-        <Card>
+      {terms ? (
+        <Card style={{ marginBottom: 16 }}>
           <Paragraph type="secondary">
             Version <Text code>{terms.termsVersion}</Text>
           </Paragraph>
@@ -111,6 +114,11 @@ export function TermsPage({
           >
             {terms.text}
           </Paragraph>
+        </Card>
+      ) : null}
+
+      {terms && !acceptance && (
+        <Card>
           <Checkbox
             checked={mandate}
             onChange={(e) => setMandate(e.target.checked)}

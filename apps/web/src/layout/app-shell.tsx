@@ -166,7 +166,7 @@ export function AppShell({
         />
         <Content
           style={
-            setupChrome
+            setupChrome && !location.pathname.startsWith("/api")
               ? {
                   padding: "24px 20px",
                   maxWidth: 880,

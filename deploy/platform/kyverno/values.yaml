@@ -46,9 +46,12 @@ reportsController:
     limits:
       memory: 512Mi
 
-# INT-396 — the kyverno-api subchart renders `labels: {}` on the policies.kyverno.io
-# CRDs, so they never carried labels and Argo reported platform-kyverno OutOfSync.
+# INT-396 — the kyverno-api subchart renders `labels: {}` and `annotations: {}` on the
+# policies.kyverno.io CRDs. The API server drops empty maps, so Argo kept reporting
+# platform-kyverno OutOfSync. Both maps must stay non-empty.
 kyverno-api:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
   labels:
     app.kubernetes.io/component: crds
     app.kubernetes.io/part-of: platform-kyverno-crds

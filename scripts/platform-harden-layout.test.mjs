@@ -163,7 +163,8 @@ test("INT-315 / INT-328 — Kyverno engine + int-apps/demo-apps baseline policie
   // RespectIgnoreDifferences would stop Argo from writing them.
   assert.doesNotMatch(engine, /\.metadata\.labels/);
   const kyvernoValues = await readFile("deploy/platform/kyverno/values.yaml", "utf8");
-  assert.match(kyvernoValues, /^kyverno-api:\n  labels:\n    app\.kubernetes\.io\/component: crds/m);
+  assert.match(kyvernoValues, /^kyverno-api:\n  annotations:\n    controller-gen\.kubebuilder\.io\/version: v0\.20\.0/m);
+  assert.match(kyvernoValues, /^  labels:\n    app\.kubernetes\.io\/component: crds/m);
   const policiesApp = await readFile(
     "deploy/argocd/platform/kyverno-policies.yaml",
     "utf8",

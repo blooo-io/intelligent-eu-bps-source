@@ -36,3 +36,5 @@ spec:
       jqPathExpressions:
         - .spec.conversion
         - .status
+        # INT-396 — chart 3.9.2 renders `labels: {}` on policies.kyverno.io CRDs; the API stores none.
+        - .metadata.labels | select(. == {})

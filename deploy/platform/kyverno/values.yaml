@@ -45,3 +45,11 @@ reportsController:
       memory: 128Mi
     limits:
       memory: 512Mi
+
+# INT-396 — the kyverno-api subchart renders `labels: {}` on the policies.kyverno.io
+# CRDs, so they never carried labels and Argo reported platform-kyverno OutOfSync.
+kyverno-api:
+  labels:
+    app.kubernetes.io/component: crds
+    app.kubernetes.io/part-of: platform-kyverno-crds
+    app.kubernetes.io/managed-by: Helm

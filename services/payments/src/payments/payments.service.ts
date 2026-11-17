@@ -762,7 +762,11 @@ export class PaymentsService {
     } catch {
       throw new NotFoundException(`Unknown invoice ${input.invoiceId}`);
     }
-    if (invoice.consumerId !== participantId) {
+    // INT-236 / INT-395 — invoices may name the consumer by registry id or IdP sub.
+    if (
+      invoice.consumerId !== participantId &&
+      invoice.consumerId !== input.participantId
+    ) {
       throw new ForbiddenException("Invoice is not payable by this participant");
     }
     // INT-355 — replaying Pay on a settled invoice returns the original payment.

@@ -18,7 +18,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
-    "test:e2e:dev": "E2E_BASE_URL=https://app.dev.intelligent-eu-bp.blooo.dev playwright test"
+    "test:e2e:dev": "E2E_BASE_URL=https://app.dev.intelligent-eu-bp.blooo.dev playwright test",
+    "test:e2e:api": "playwright test e2e/api-public.spec.ts"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",

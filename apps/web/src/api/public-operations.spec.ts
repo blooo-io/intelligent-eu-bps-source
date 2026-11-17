@@ -32,9 +32,11 @@ describe("PUBLIC_OPERATIONS (INT-387 / REQ-052)", () => {
   it("reports a missing required path or query param", () => {
     const invoice = operationById("getInvoice")!;
     expect(buildOperationPath(invoice, {})).toEqual({ error: "Missing id" });
-    expect(buildOperationPath(invoice, { id: "inv 1" }).path).toBe(
-      "/v1/invoices/inv%201",
-    );
+    const encoded = buildOperationPath(invoice, { id: "inv 1" });
+    if ("error" in encoded) {
+      throw new Error(encoded.error);
+    }
+    expect(encoded.path).toBe("/v1/invoices/inv%201");
     const summary = operationById("getPeriodicSummary")!;
     expect(buildOperationPath(summary, { communityId: "c" })).toEqual({
       error: "Missing period",

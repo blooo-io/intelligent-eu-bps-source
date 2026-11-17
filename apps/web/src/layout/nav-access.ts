@@ -11,7 +11,7 @@ import { isSellerRole } from "./role-home";
  * Member Money order: Home → Balances → Invoices → My history.
  */
 
-export type NavGroup = "Money" | "Account" | "Community" | "Billing" | "Ops";
+export type NavGroup = "Money" | "Account" | "Community" | "Billing" | "Ops" | "API";
 
 export type NavItemDef = {
   key: string;
@@ -140,6 +140,14 @@ export const NAV_CATALOG: readonly NavItemDef[] = [
     group: "Money",
     roles: ["member"],
     minMemberReadiness: "TermsAccepted",
+  },
+  {
+    // INT-387 — every public operation, for every signed-in role (REQ-052).
+    key: "/api",
+    label: "API",
+    to: "/api",
+    group: "API",
+    roles: ["member", "manager", "operator"],
   },
   {
     key: "/operator",
@@ -305,7 +313,14 @@ export function labeledNavItems(
 export function navItemsByGroup(
   items: readonly NavItemDef[],
 ): Array<{ group: NavGroup; items: NavItemDef[] }> {
-  const order: NavGroup[] = ["Money", "Account", "Community", "Billing", "Ops"];
+  const order: NavGroup[] = [
+    "Money",
+    "Account",
+    "Community",
+    "Billing",
+    "Ops",
+    "API",
+  ];
   const byGroup = new Map<NavGroup, NavItemDef[]>();
   for (const item of items) {
     const list = byGroup.get(item.group) ?? [];

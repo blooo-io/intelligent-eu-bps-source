@@ -19,6 +19,7 @@ describe("visibleNavItems (INT-243 / INT-250 / INT-252)", () => {
   it("gates balances/invoices until TermsAccepted", () => {
     const invited = visibleNavItems(["member"], "Invited").map((i) => i.key);
     expect(invited).toContain("/onboarding");
+    expect(invited).toContain("/api");
     expect(invited).not.toContain("/balances");
     expect(invited).not.toContain("/invoices");
 
@@ -83,6 +84,7 @@ describe("visibleNavItems (INT-243 / INT-250 / INT-252)", () => {
   it("shows operator screen only for operators", () => {
     const keys = visibleNavItems(["operator"]).map((i) => i.key);
     expect(keys).toContain("/operator");
+    expect(keys).toContain("/api");
     expect(keys).toContain("/");
     expect(keys).not.toContain("/billing-runs");
   });
@@ -103,6 +105,7 @@ describe("visibleNavItems (INT-243 / INT-250 / INT-252)", () => {
       "Account",
       "Community",
       "Billing",
+      "API",
     ]);
     const billing = groups.find((g) => g.group === "Billing")!.items.map((i) => i.key);
     expect(billing).toEqual([

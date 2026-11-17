@@ -193,6 +193,25 @@ test("letsencrypt production issuer enabled after staging smoke (INT-173)", asyn
   assert.match(tpl, /ingressClassName/);
 });
 
+test("app CSP allows Stripe.js and Connect (INT-388 / ANO-005)", async () => {
+  const stripe =
+    /script-src 'self' https:\/\/js\.stripe\.com https:\/\/\*\.js\.stripe\.com https:\/\/connect-js\.stripe\.com/;
+  const connect =
+    /connect-src[\s\S]*https:\/\/api\.stripe\.com[\s\S]*https:\/\/m\.stripe\.network/;
+  const frame =
+    /frame-src https:\/\/js\.stripe\.com https:\/\/\*\.js\.stripe\.com https:\/\/hooks\.stripe\.com https:\/\/connect-js\.stripe\.com/;
+  const dev = await readFile("deploy/charts/apisix-gateway/values.yaml", "utf8");
+  const demo = await readFile("deploy/envs/demo/apisix-gateway-values.yaml", "utf8");
+  for (const text of [dev, demo]) {
+    assert.match(text, stripe);
+    assert.match(text, connect);
+    assert.match(text, frame);
+    assert.match(text, /img-src 'self' data: https:\/\/\*\.stripe\.com/);
+  }
+  assert.match(dev, /https:\/\/api\.dev\.intelligent-eu-bp\.blooo\.dev/);
+  assert.match(demo, /https:\/\/api\.demo\.intelligent-eu-bp\.blooo\.dev/);
+});
+
 test("platform README documents gateway routes (INT-114 / INT-173 / INT-174)", async () => {
   const text = await readFile("deploy/platform/README.md", "utf8");
   assert.match(text, /INT-114/);

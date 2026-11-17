@@ -317,4 +317,116 @@ describe("invoicing HTTP (INT-106)", () => {
     expect(denied.status).toBe(404);
     expect(service.getInvoice(created!.invoiceId).status).toBe("Open");
   });
+
+  it("GET invoice document returns PDF bytes (INT-389 / REQ-039 / ANO-008)", async () => {
+    const consumerId = "11111111-2222-4333-8444-555555555555";
+    const created = await service.createFromSettlement({
+      settlementId: "s7777777-7777-4777-8777-777777777777",
+      runId: "r7777777-7777-4777-8777-777777777777",
+      consumerId,
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0xpdf"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    const realFetch = globalThis.fetch.bind(globalThis);
+    const pdf = Buffer.from("%PDF-1.1\n%%EOF\n");
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.startsWith("https://invoice.stripe.com/")) {
+        return new Response(pdf, {
+          status: 200,
+          headers: { "content-type": "application/pdf" },
+        });
+      }
+      return realFetch(input, init);
+    }) as typeof fetch;
+    try {
+      const res = await fetch(
+        `${base}/v1/invoices/${created!.invoiceId}/document`,
+        {
+          headers: {
+            "x-intelligent-roles": "member",
+            "x-intelligent-sub": consumerId,
+          },
+          redirect: "manual",
+        },
+      );
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("application/pdf");
+      const body = Buffer.from(await res.arrayBuffer());
+      expect(body.subarray(0, 5).toString("utf8")).toBe("%PDF-");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("GET invoice document reports a Stripe failure (INT-389)", async () => {
+    const consumerId = "11111111-2222-4333-8444-555555555555";
+    const created = await service.createFromSettlement({
+      settlementId: "s8888888-8888-4888-8888-888888888888",
+      runId: "r8888888-8888-4888-8888-888888888888",
+      consumerId,
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0xpdf-fail"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    const realFetch = globalThis.fetch.bind(globalThis);
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.startsWith("https://invoice.stripe.com/")) {
+        return new Response(null, { status: 502 });
+      }
+      return realFetch(input, init);
+    }) as typeof fetch;
+    try {
+      const res = await fetch(
+        `${base}/v1/invoices/${created!.invoiceId}/document`,
+        {
+          headers: {
+            "x-intelligent-roles": "member",
+            "x-intelligent-sub": consumerId,
+          },
+        },
+      );
+      expect(res.status).toBe(502);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("GET seeded invoice document is an inline PDF (INT-218)", async () => {
+    const res = await fetch(
+      `${base}/v1/invoices/c0a1b2c3-d4e5-4f60-8a70-b8c9d0e1f203/document`,
+      {
+        headers: {
+          "x-intelligent-roles": "member",
+          "x-intelligent-sub": "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f",
+        },
+      },
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/pdf");
+    const body = Buffer.from(await res.arrayBuffer());
+    expect(body.subarray(0, 5).toString("utf8")).toBe("%PDF-");
+  });
 });

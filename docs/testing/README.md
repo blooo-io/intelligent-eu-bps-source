@@ -7,7 +7,7 @@
 → [`cahier-de-tests-demo-intelligent-billing-and-payment.md`](./cahier-de-tests-demo-intelligent-billing-and-payment.md)  
 → PDF : [`cahier-de-tests-demo-intelligent-billing-and-payment.pdf`](./cahier-de-tests-demo-intelligent-billing-and-payment.pdf)
 
-Contient **tous les personas Horizon Energy** (Hugo Moreau onboarding Invited, Léa argent, Thomas/Claire KYC, Marie, Paul), le **parcours C Invite CSV** (REQ-008 / Mailpit), les données à saisir, les cases Pass/Fail, **tous les écrans en capture** (`assets/demo-workbook/`), et pour chaque scénario l’appel API direct avec le JSON déjà rempli (INT-398). Captures rafraîchies INT-333 (login IdP Volt INT-332) : `node scripts/capture-demo-workbook.mjs` puis `node scripts/export-cahier-pdf.mjs`.
+Contient **tous les personas Horizon Energy** (Hugo Moreau onboarding Invited, Léa argent, Thomas/Claire KYC, Marie, Paul), le **parcours C Invite CSV** (REQ-008 / Mailpit), les données à saisir, les cases Pass/Fail, **tous les écrans en capture** (`assets/demo-workbook/`), et pour chaque scénario l’appel API direct avec le JSON déjà rempli (INT-398). Captures rafraîchies INT-399 : chaque écran connecté montre le lien **API**, et chaque persona a une capture de `/api`. `node scripts/capture-demo-workbook.mjs` puis `node scripts/export-cahier-pdf.mjs`.
 
 | Document | Usage |
 |---|---|

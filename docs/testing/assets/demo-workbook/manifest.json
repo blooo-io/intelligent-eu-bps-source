@@ -1,6 +1,6 @@
 {
   "baseUrl": "https://app.dev.intelligent-eu-bp.blooo.dev",
-  "capturedAt": "2026-10-27T19:45:29.780Z",
+  "capturedAt": "2026-11-17T18:47:50.874Z",
   "manifest": [
     {
       "step": "00",
@@ -35,6 +35,12 @@
       "file": "p0-hugo-moreau-05-payment-setup.png",
       "user": "hugo.moreau",
       "route": "/payment-setup"
+    },
+    {
+      "step": "p0-hugo-moreau-06-api.png",
+      "file": "p0-hugo-moreau-06-api.png",
+      "user": "hugo.moreau",
+      "route": "/api"
     },
     {
       "step": "p1-lea-martin-01",
@@ -78,6 +84,12 @@
       "route": "/reports"
     },
     {
+      "step": "p1-lea-martin-08-api.png",
+      "file": "p1-lea-martin-08-api.png",
+      "user": "lea.martin",
+      "route": "/api"
+    },
+    {
       "step": "p2-thomas-bernard-01",
       "file": "p2-thomas-bernard-01-home.png",
       "user": "thomas.bernard"
@@ -101,6 +113,12 @@
       "route": "/reports"
     },
     {
+      "step": "p2-thomas-bernard-05-api.png",
+      "file": "p2-thomas-bernard-05-api.png",
+      "user": "thomas.bernard",
+      "route": "/api"
+    },
+    {
       "step": "p3-claire-dubois-01",
       "file": "p3-claire-dubois-01-home.png",
       "user": "claire.dubois"
@@ -110,6 +128,12 @@
       "file": "p3-claire-dubois-02-payment-setup.png",
       "user": "claire.dubois",
       "route": "/payment-setup"
+    },
+    {
+      "step": "p3-claire-dubois-03-api.png",
+      "file": "p3-claire-dubois-03-api.png",
+      "user": "claire.dubois",
+      "route": "/api"
     },
     {
       "step": "p4-marie-leroy-01",
@@ -147,6 +171,12 @@
       "route": "/reports"
     },
     {
+      "step": "p4-marie-leroy-07-api.png",
+      "file": "p4-marie-leroy-07-api.png",
+      "user": "marie.leroy",
+      "route": "/api"
+    },
+    {
       "step": "p5-paul-nguyen-01",
       "file": "p5-paul-nguyen-01-home.png",
       "user": "paul.nguyen"
@@ -162,6 +192,12 @@
       "file": "p5-paul-nguyen-03-reports.png",
       "user": "paul.nguyen",
       "route": "/reports"
+    },
+    {
+      "step": "p5-paul-nguyen-04-api.png",
+      "file": "p5-paul-nguyen-04-api.png",
+      "user": "paul.nguyen",
+      "route": "/api"
     }
   ]
 }

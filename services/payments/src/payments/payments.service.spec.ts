@@ -372,7 +372,7 @@ describe("PaymentsService", () => {
     );
   });
 
-  it("startOnboarding still completes when Ready notify fails (INT-255)", async () => {
+  it("startOnboarding fails when Ready notify fails and a card is saved (INT-390 / ANO-006)", async () => {
     await service.ensureParticipant({
       participantId: CONSUMER,
       communityId: COMMUNITY,
@@ -402,8 +402,9 @@ describe("PaymentsService", () => {
         communityId: COMMUNITY,
         role: "consumer",
       }),
-    ).resolves.toEqual({ mode: "elements", status: "complete" });
+    ).rejects.toThrow(/failed with 503/);
     expect(failing.applyPaymentAccountStatus).toHaveBeenCalled();
+    expect(store.getAccount(CONSUMER)?.paymentMethodId).toBe("pm_card_visa");
   });
 
   it("getMyPaymentAccount returns brand/last4 for Ready consumer (INT-255)", async () => {

@@ -8,6 +8,8 @@ export type ParticipantsNotifierPort = {
     participantId: string;
     ready: boolean;
     reason?: string;
+    /** INT-228 ignores an unknown participant. ANO-006 fails a member card sync. */
+    notFound?: "ignore" | "fail";
   }): Promise<void>;
 };
 
@@ -48,7 +50,13 @@ export class HttpParticipantsNotifier implements ParticipantsNotifierPort {
     });
     // INT-228 — fixture / not-yet-registered producers (S1 UUIDs) return 404;
     // Connect provision must still succeed so Stripe remains the source of truth.
+    // ANO-006 — a member who already has a card must not ignore that 404.
     if (res.status === 404) {
+      if (input.notFound === "fail") {
+        throw new Error(
+          `participants payment-account-status failed with 404`,
+        );
+      }
       return;
     }
     if (!res.ok) {

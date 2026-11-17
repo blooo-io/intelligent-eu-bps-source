@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   Inject,
@@ -438,13 +439,14 @@ export class PaymentsService {
     account: AccountRecord,
   ): Promise<OnboardingSession> {
     if (account.paymentMethodId) {
-      // INT-255 — durable PM may already exist while AC-03 readiness lags;
-      // re-notify so Ready chrome stays aligned with Stripe master (TP-7).
-      // Best-effort: never fail Start when the PM is already on file.
+      // INT-255 / ANO-006 — a saved card must update AC-03. Swallowing the
+      // notify left the member on TermsAccepted with no next step.
       try {
-        await this.emitAccountStatus(participantId);
-      } catch {
-        // Participants notify may 5xx during rollout; session is still complete.
+        await this.emitAccountStatus(participantId, { notFound: "fail" });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "payment account status notify failed";
+        throw new BadGatewayException(message);
       }
       return { mode: "elements", status: "complete" };
     }
@@ -550,7 +552,7 @@ export class PaymentsService {
       ...account,
       paymentMethodId,
     });
-    await this.emitAccountStatus(participantId);
+    await this.emitAccountStatus(participantId, { notFound: "fail" });
     return { mode: "elements", status: "complete" };
   }
 
@@ -1012,7 +1014,10 @@ export class PaymentsService {
     return account.kycStatus === "verified";
   }
 
-  private async emitAccountStatus(participantId: string): Promise<void> {
+  private async emitAccountStatus(
+    participantId: string,
+    options?: { notFound?: "ignore" | "fail" },
+  ): Promise<void> {
     const account = this.store.getAccount(participantId);
     if (!account) {
       return;
@@ -1032,10 +1037,12 @@ export class PaymentsService {
       },
     });
     // INT-193 — sync notify AC-03 until NATS consumer is wired.
+    // INT-228 — unknown fixture producers stay ignore; a member card must fail.
     await this.participants.applyPaymentAccountStatus({
       participantId,
       ready,
       reason: ready ? undefined : "payment_account",
+      notFound: options?.notFound,
     });
   }
 

@@ -380,8 +380,15 @@ export class PaymentsService {
     communityId: string;
     role: ProvisionRole;
   }): Promise<OnboardingSession> {
-    await this.ensureParticipant(input);
-    const account = this.store.getAccount(input.participantId)!;
+    // INT-230 / INT-394 — JWT sub is the IdP id; AC-03 is keyed by participantId.
+    const caller = await this.resolveCallerParticipantId(input.participantId);
+    const participantId = caller.participantId;
+    await this.ensureParticipant({
+      participantId,
+      communityId: caller.communityId ?? input.communityId,
+      role: input.role,
+    });
+    const account = this.store.getAccount(participantId)!;
 
     // INT-269 — producer: Connect only. Prosumer: Connect first, then Elements.
     if (input.role === "producer") {
@@ -394,13 +401,13 @@ export class PaymentsService {
       }
       // INT-362 — Connect done (possibly just now): continue to the card step.
       return this.startConsumerElementsOnboarding(
-        input.participantId,
-        this.store.getAccount(input.participantId)!,
+        participantId,
+        this.store.getAccount(participantId)!,
       );
     }
 
     // INT-193 — consumer SetupIntent for in-wizard Payment Element.
-    return this.startConsumerElementsOnboarding(input.participantId, account);
+    return this.startConsumerElementsOnboarding(participantId, account);
   }
 
   /**
@@ -468,6 +475,12 @@ export class PaymentsService {
     if (input.role === "consumer") {
       throw new BadRequestException("Consumers use payment-method link onboarding");
     }
+    const caller = await this.resolveCallerParticipantId(input.participantId);
+    input = {
+      ...input,
+      participantId: caller.participantId,
+      communityId: caller.communityId ?? input.communityId,
+    };
     await this.ensureParticipant(input);
     const account = this.store.getAccount(input.participantId)!;
     let stripeAccountId = account.stripeAccountId;
@@ -529,6 +542,25 @@ export class PaymentsService {
     return session;
   }
 
+  /**
+   * INT-394 — public card save. Resolve the IdP subject before the account
+   * row is created, so Ready is notified on the registry participant.
+   */
+  async attachCallerPaymentMethod(input: {
+    participantId: string;
+    communityId: string;
+    role: ProvisionRole;
+    paymentMethodId: string;
+  }): Promise<OnboardingSession> {
+    const caller = await this.resolveCallerParticipantId(input.participantId);
+    await this.ensureParticipant({
+      participantId: caller.participantId,
+      communityId: caller.communityId ?? input.communityId,
+      role: input.role,
+    });
+    return this.attachPaymentMethod(caller.participantId, input.paymentMethodId);
+  }
+
   async attachPaymentMethod(
     participantId: string,
     paymentMethodId: string,
@@ -552,7 +584,13 @@ export class PaymentsService {
       ...account,
       paymentMethodId,
     });
-    await this.emitAccountStatus(participantId, { notFound: "fail" });
+    try {
+      await this.emitAccountStatus(participantId, { notFound: "fail" });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "payment account status notify failed";
+      throw new BadGatewayException(message);
+    }
     return { mode: "elements", status: "complete" };
   }
 
@@ -632,7 +670,8 @@ export class PaymentsService {
     stripeAccountId?: string;
     dashboardUrl?: string;
   }> {
-    const row = await this.loadStoredAccount(participantId);
+    const caller = await this.resolveCallerParticipantId(participantId);
+    const row = await this.loadStoredAccount(caller.participantId);
     if (!row) {
       return { status: "none" };
     }

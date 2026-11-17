@@ -2,6 +2,7 @@
  * INT-107 — P-PSP Stripe test mode (BR-12, REQ-014, REQ-040, REQ-051, NFR-015).
  */
 import "reflect-metadata";
+import { BadGatewayException } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   IdempotentConsumer,
@@ -996,6 +997,87 @@ describe("PaymentsService", () => {
     });
     expect(payment.status).toBe("succeeded");
     expect(payment.amount).toBe("3.00");
+  });
+
+  it("INT-394 — card save and Start notify the registry participant, not the IdP sub", async () => {
+    const idpSub = "d4e5f6a7-1111-4222-8333-444455556666";
+    const notifier = {
+      applyPaymentAccountStatus: vi.fn(async () => undefined),
+    };
+    const resolver = {
+      resolveByIdpSub: vi.fn(async (sub: string) =>
+        sub === idpSub
+          ? { participantId: CONSUMER, communityId: COMMUNITY }
+          : null,
+      ),
+    };
+    service = new PaymentsService(
+      store,
+      new OutboxService(outboxStore),
+      psp,
+      invoices,
+      notifier,
+      accountsStore,
+      resolver,
+      pspErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      new InMemoryConnectedCustomersStore(),
+    );
+    const session = await service.attachCallerPaymentMethod({
+      participantId: idpSub,
+      communityId: COMMUNITY,
+      role: "consumer",
+      paymentMethodId: "pm_card_visa",
+    });
+    expect(session).toEqual({ mode: "elements", status: "complete" });
+    expect(notifier.applyPaymentAccountStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        participantId: CONSUMER,
+        ready: true,
+        notFound: "fail",
+      }),
+    );
+    expect(store.getAccount(idpSub)).toBeUndefined();
+    expect(store.getAccount(CONSUMER)?.paymentMethodId).toBe("pm_card_visa");
+    await expect(service.getMyPaymentAccount(idpSub)).resolves.toMatchObject({
+      status: "complete",
+      last4: "4242",
+    });
+    const again = await service.startOnboarding({
+      participantId: idpSub,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    expect(again).toEqual({ mode: "elements", status: "complete" });
+  });
+
+  it("INT-394 — attach fails closed when Ready notify fails", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    const failing = {
+      applyPaymentAccountStatus: vi.fn(async () => {
+        throw new Error("participants payment-account-status failed with 404");
+      }),
+    };
+    const svc = new PaymentsService(
+      store,
+      new OutboxService(outboxStore),
+      psp,
+      invoices,
+      failing,
+      accountsStore,
+      new NoopParticipantsResolver(),
+      pspErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      new InMemoryConnectedCustomersStore(),
+    );
+    await expect(
+      svc.attachPaymentMethod(CONSUMER, "pm_card_visa"),
+    ).rejects.toBeInstanceOf(BadGatewayException);
+    expect(store.getAccount(CONSUMER)?.paymentMethodId).toBe("pm_card_visa");
   });
 
   it("INT-230 — payInvoice resolves IdP sub to participantId", async () => {

@@ -128,7 +128,7 @@ test.describe("AC-01 member screens and buttons", () => {
     await expect(
       page
         .getByRole("button", {
-          name: /save profile|continue to terms|accept terms|continue to payment setup|save card and finish|continue to stripe connect|start payment setup|add a payment method/i,
+          name: /save profile|continue to terms|accept terms|continue to payment setup|save card and finish|continue to stripe connect|start payment setup|add a payment method|go to invoices/i,
         })
         .first(),
     ).toBeVisible({ timeout: 15_000 });

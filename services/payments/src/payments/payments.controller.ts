@@ -76,12 +76,12 @@ export class PaymentsController {
     if (!body?.paymentMethodId) {
       throw new BadRequestException("paymentMethodId is required");
     }
-    await this.payments.ensureParticipant({
+    return this.payments.attachCallerPaymentMethod({
       participantId: user.sub,
       communityId: user.communityId,
       role: roleOf(user.roles),
+      paymentMethodId: body.paymentMethodId,
     });
-    return this.payments.attachPaymentMethod(user.sub, body.paymentMethodId);
   }
 
   @Post("v1/invoices/:invoiceId/payments")

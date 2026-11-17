@@ -192,7 +192,7 @@ jobs:
           KEYCLOAK_SERVICE_CLIENT_SECRET=dev-module-service-replace-me \
             node scripts/stripe-fresh-billing-run.mjs
 
-      - name: Run AC-01 E2E against deployed stack (screens + buttons, INT-211 / INT-251)
+      - name: Run AC-01 E2E against deployed stack (screens + public API coverage, INT-211 / INT-251 / INT-394)
         # INT-194 / INT-211 — three UAT IdP roles; omit E2E_SKIP_AUTH so auth suites run.
         # INT-251 — STRIPE_SECRET_KEY from previous step for Charge assertion.
         env:
@@ -207,3 +207,12 @@ jobs:
           E2E_S1_CONSUMER_USER: lea.martin
           E2E_S1_CONSUMER_PASSWORD: Intelligent-UAT-2026!
         run: pnpm --filter @intelligent/web test:e2e
+
+      - name: Upload public API e2e coverage (INT-394)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: api-e2e-coverage
+          path: apps/web/test-results/api-e2e-coverage.json
+          if-no-files-found: warn
+          retention-days: 14

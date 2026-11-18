@@ -28,6 +28,8 @@ test("INT-411 supply-chain runs after CI success on develop", async () => {
   assert.match(text, /workflows:\s*\[["']ci["']\]/);
   assert.match(text, /head_branch == 'develop'/);
   assert.match(text, /conclusion == 'success'/);
+  assert.match(text, /head_repository\.full_name == github\.repository/);
+  assert.doesNotMatch(text, /ref:\s*\$\{\{\s*steps\.tip\.outputs\.sha/);
   assert.doesNotMatch(text, /on:\s*\n\s*push:\s*\n\s*branches:\s*\[[^\]]*develop/);
 });
 
@@ -74,6 +76,11 @@ test("INT-411 stable-release cuts SemVer tag after supply-chain when untagged", 
   assert.match(text, /workflows:\s*\[["']supply-chain["']\]/);
   assert.match(text, /conclusion == 'success'/);
   assert.match(text, /head_branch == 'develop'/);
+  assert.match(text, /head_repository\.full_name == github\.repository/);
+  // Privileged workflow_run: never pass head_sha to actions/checkout ref=.
+  assert.match(text, /ref:\s*develop/);
+  assert.doesNotMatch(text, /ref:\s*\$\{\{\s*github\.event\.workflow_run\.head_sha/);
+  assert.match(text, /merge-base --is-ancestor/);
   assert.match(text, /--workflow ci\.yml/);
   assert.match(text, /git tag -a/);
   assert.match(text, /git push origin "refs\/tags\/\$\{TAG\}"/);

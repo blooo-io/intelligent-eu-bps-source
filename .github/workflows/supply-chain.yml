@@ -48,6 +48,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'develop' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
        !contains(github.event.workflow_run.head_commit.message || '', '[skip ci]'))
     runs-on: ubuntu-latest
     steps:
@@ -60,11 +61,24 @@ jobs:
           else
             echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
           fi
+      # Trusted branch first (CodeQL: no workflow_run.head_sha as checkout ref).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # Need history so IMAGE_DIFF_BASE is reachable.
           fetch-depth: 0
-          ref: ${{ steps.tip.outputs.sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'develop' }}
+      - name: Detach at CI SHA when it is on origin/develop
+        if: github.event_name == 'workflow_run'
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/develop:refs/remotes/origin/develop"
+          tip="$(git rev-parse refs/remotes/origin/develop)"
+          if [ "$SHA" != "$tip" ] && ! git merge-base --is-ancestor "$SHA" refs/remotes/origin/develop; then
+            echo "::error::SHA $SHA is not on origin/develop — refusing checkout."
+            exit 1
+          fi
+          git checkout --detach "$SHA"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc

@@ -1,12 +1,16 @@
-# INT-176 / INT-99 / INT-177 / INT-178 / INT-183 — Trivy + module images after
-# merge to develop. Not on pull_request. Failures fail this workflow (no
-# continue-on-error).
+# INT-176 / INT-99 / INT-177 / INT-178 / INT-183 / INT-411 — Trivy + module
+# images after CI is green on develop. Not on pull_request. Failures fail this
+# workflow (no continue-on-error).
+#
+# INT-411: triggered by workflow_run of `ci` (success) so images only build for
+# a tip that already passed the full test suite. Manual workflow_dispatch still
+# allows a full republish.
 #
 # Images are pushed as :<sha> (provenance) and :develop (floating tag for Argo).
 # develop branch protection blocks bot commits, so we do not pin the SHA in Git.
 #
 # INT-183: only rebuild images whose module trees (or shared inputs) changed
-# between github.event.before and github.sha. Docs/deploy/contracts-only pushes
+# between IMAGE_DIFF_BASE and IMAGE_DIFF_HEAD. Docs/deploy/contracts-only tips
 # skip the image build; lockfile / packages / config still rebuild all.
 # INT-318: when before is 000…0, module-images.mjs falls back to HEAD^ so a
 # scripts-only tip does not rebuild and push every module image.
@@ -18,8 +22,9 @@
 name: supply-chain
 
 on:
-  push:
-    branches: [develop]
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       force_all_images:
@@ -34,19 +39,46 @@ permissions:
   actions: read
 
 concurrency:
-  group: supply-chain-${{ github.ref }}
+  group: supply-chain-develop
   cancel-in-progress: false
 
 jobs:
   supply-chain:
-    # head_commit is null on workflow_dispatch — treat missing message as allow.
-    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip ci]') }}
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'develop' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       !contains(github.event.workflow_run.head_commit.message || '', '[skip ci]'))
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve tip SHA
+        id: tip
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+      # Trusted branch first (CodeQL: no workflow_run.head_sha as checkout ref).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # Need the previous develop tip so IMAGE_DIFF_BASE is reachable.
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'develop' }}
+      - name: Detach at CI SHA when it is on origin/develop
+        if: github.event_name == 'workflow_run'
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/develop:refs/remotes/origin/develop"
+          tip="$(git rev-parse refs/remotes/origin/develop)"
+          if [ "$SHA" != "$tip" ] && ! git merge-base --is-ancestor "$SHA" refs/remotes/origin/develop; then
+            echo "::error::SHA $SHA is not on origin/develop — refusing checkout."
+            exit 1
+          fi
+          git checkout --detach "$SHA"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
@@ -59,19 +91,18 @@ jobs:
         id: diff-base
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EVENT_BEFORE: ${{ github.event.before }}
         run: |
           last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow supply-chain.yml \
             --branch develop --status success --limit 1 --json headSha --jq '.[0].headSha // ""')
-          echo "base=${last:-$EVENT_BEFORE}" >> "$GITHUB_OUTPUT"
+          echo "base=${last}" >> "$GITHUB_OUTPUT"
       - name: Build, scan and push changed module images
         env:
           IMAGE_PUSH: "true"
           IMAGE_FLOATING_TAG: develop
-          # Push events stay selective (INT-183). Manual dispatch with
+          # workflow_run stays selective (INT-183). Manual dispatch with
           # force_all_images=true clears IMAGE_CHANGED_ONLY for a full republish.
           IMAGE_CHANGED_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.force_all_images && 'false' || 'true' }}
           IMAGE_DIFF_BASE: ${{ steps.diff-base.outputs.base }}
-          IMAGE_DIFF_HEAD: ${{ github.sha }}
+          IMAGE_DIFF_HEAD: ${{ steps.tip.outputs.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/module-images.mjs --build

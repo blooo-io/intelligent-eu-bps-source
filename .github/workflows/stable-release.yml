@@ -1,0 +1,98 @@
+# INT-411 — after supply-chain succeeds on develop, cut the SemVer tag when
+# package.json version is not tagged yet. That tag push triggers `release`
+# (GitHub Release + GHCR :vX.Y.Z). Version bumps still land via PR (INT-305);
+# this workflow automates the tag cut once the tip is stable.
+#
+# Chain: push develop → ci → supply-chain → stable-release → release
+#
+# Security: do not pass workflow_run.head_sha to actions/checkout `ref` (CodeQL
+# privileged workflow_run / untrusted-checkout). Checkout trusted `develop`,
+# then detach only if the SHA is already on origin/develop (same repository).
+name: stable-release
+
+on:
+  workflow_run:
+    workflows: ["supply-chain"]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: stable-release-develop
+  cancel-in-progress: false
+
+jobs:
+  cut-tag:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'develop' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout develop (trusted ref)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: develop
+
+      - name: Detach at supply-chain SHA on origin/develop
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/develop:refs/remotes/origin/develop"
+          tip="$(git rev-parse refs/remotes/origin/develop)"
+          if [ "$SHA" != "$tip" ] && ! git merge-base --is-ancestor "$SHA" refs/remotes/origin/develop; then
+            echo "::error::SHA $SHA is not on origin/develop — refusing privileged checkout."
+            exit 1
+          fi
+          git checkout --detach "$SHA"
+          echo "Detached at $(git rev-parse HEAD) (supply-chain tip on develop)."
+
+      - name: Require CI green for the same SHA
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          # supply-chain already gates on CI via workflow_run; re-check so a
+          # manual supply-chain dispatch cannot cut a tag without CI.
+          runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml \
+            --commit "$SHA" --json conclusion,status --limit 5)"
+          ok="$(echo "$runs" | jq -r '[.[] | select(.conclusion=="success")] | length')"
+          if [ "$ok" -lt 1 ]; then
+            echo "::error::No successful ci run for $SHA — refusing to cut a release tag."
+            echo "$runs"
+            exit 1
+          fi
+          echo "CI green for $SHA ($ok successful run(s))."
+
+      - name: Cut annotated tag when package version is untagged
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          case "$VERSION" in
+            *.*.*) ;;
+            *)
+              echo "::error::Invalid package.json version: $VERSION"
+              exit 1
+              ;;
+          esac
+          TAG="v${VERSION}"
+          if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists locally — nothing to do."
+            exit 0
+          fi
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q .; then
+            echo "Tag ${TAG} already exists on origin — nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release ${TAG}"
+          git push origin "refs/tags/${TAG}"
+          echo "Pushed annotated tag ${TAG} — workflow release will publish."

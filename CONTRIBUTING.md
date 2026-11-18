@@ -45,12 +45,13 @@ The following applies to the **originating delivery team** that tracks work in J
 - Commits include the Jira key, e.g. `feat(invoicing): INT-123 issue invoice per consumer-producer pair`.
 - Do not add a coding-assistant co-author trailer (stripped by `.githooks/commit-msg`, rejected in CI).
 - Pull requests: title includes `INT-123`; use the PR template; request `blooo-io/github-admin` when available; squash-merge into `develop`.
-- **Dependabot (INT-322 / INT-410):** GitHub **Allow auto-merge** is on for this repo. Workflow `dependabot-automerge` queues squash auto-merge on Dependabot PRs targeting `develop`; merge still waits for required CI. Agents may still squash-merge green Dependabot PRs (oldest-ready first) if auto-merge did not fire. Do not force-merge red ones. After a batch of dependency merges, cut a **PATCH** SemVer release (`docs/release/VERSIONING.md`).
+- **Dependabot (INT-322 / INT-410):** GitHub **Allow auto-merge** is on. Workflow `dependabot-automerge` queues squash auto-merge on Dependabot PRs to `develop` (still waits for required CI). Agents may squash-merge green Dependabot PRs (oldest-ready first) if auto-merge did not fire. Do not force-merge red ones.
+- **Stable release chain (INT-411):** on `develop`, `ci` → `supply-chain` → `stable-release` (cuts `vX.Y.Z` when `package.json` version is untagged) → `release`. After a dependency batch, open a **PATCH** version-bump PR (`docs/release/VERSIONING.md`); the tag is cut automatically once the tip is green.
 
 ### Releases (git tags)
 
-- Public releases are **annotated SemVer tags** `vMAJOR.MINOR.PATCH` matching root `package.json` `version` (see `docs/release/VERSIONING.md`, INT-305).
-- After bumping the version on `develop`, cut the tag with `node scripts/cut-release.mjs --push`. The `release` workflow publishes a GitHub Release and GHCR images tagged `:vX.Y.Z`.
+- Public releases are **annotated SemVer tags** `vMAJOR.MINOR.PATCH` matching root `package.json` `version` (see `docs/release/VERSIONING.md`, INT-305 / INT-411).
+- After bumping the version on `develop`, **`stable-release`** cuts the tag when ci + supply-chain are green. Fallback: `node scripts/cut-release.mjs --push`. The `release` workflow publishes a GitHub Release and GHCR images tagged `:vX.Y.Z`.
 - Never move an existing tag; ship a new version instead.
 
 ### Reference deployment

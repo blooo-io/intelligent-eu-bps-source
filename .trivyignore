@@ -14,3 +14,10 @@ CVE-2026-115819 exp:2026-12-02
 CVE-2026-107493 exp:2026-12-02
 CVE-2026-124709 exp:2026-12-02
 CVE-2026-35190 exp:2026-12-02
+
+# INT-411 — libc6 2.41-12+deb13u4 charset conversion CVEs (UNKNOWN, no Fixed
+# Version). Blocking apps-docs-portal image scan on supply-chain.
+# Remove when distroless / Debian ship a fixed glibc.
+CVE-2026-121757 exp:2026-12-18
+CVE-2026-121758 exp:2026-12-18
+CVE-2026-124024 exp:2026-12-18

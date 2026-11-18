@@ -25,9 +25,17 @@ Contract-first still applies: a breaking contract change is a **MAJOR** (or a ne
 
 ## Release train (maintainers)
 
+GitHub Actions chain on `develop` (INT-411):
+
+```text
+push develop → ci (tests) → supply-chain (Trivy + :develop images)
+                          → stable-release (annotated tag if package.json version is untagged)
+                          → release (GitHub Release + GHCR :vX.Y.Z)
+```
+
 1. Land the change on `develop` with CI green (and `e2e-dev` green when behaviour is user-facing).
 2. Open a small PR that sets root `package.json` `version` to the next SemVer and updates [`RELEASE-NOTES.md`](RELEASE-NOTES.md) (and freeze/consistency notes if the partner package changes).
-3. After that PR merges, cut the tag from the tip of `develop`:
+3. After that PR merges, wait for **ci** then **supply-chain**. Workflow **`stable-release`** cuts the annotated tag `vX.Y.Z` when it is still missing (no manual `cut-release` required). Fallback if you need to cut by hand:
 
    ```bash
    git fetch origin develop

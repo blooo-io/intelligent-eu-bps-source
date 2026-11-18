@@ -19,10 +19,11 @@ export type StripeListResponse = {
   data: StripeCharge[];
 };
 
+/** Env slice used by money-path assertions (INT-251); keep Node-free for app tsc. */
+export type StripeSecretEnv = { STRIPE_SECRET_KEY?: string };
+
 /** Fail CI when the money assertion cannot talk to Stripe. */
-export function requireStripeSecretKey(
-  env: NodeJS.ProcessEnv = process.env,
-): string {
+export function requireStripeSecretKey(env: StripeSecretEnv): string {
   const key = (env.STRIPE_SECRET_KEY ?? "").trim();
   if (!key.startsWith("sk_test_")) {
     throw new Error(

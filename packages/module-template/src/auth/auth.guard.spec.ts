@@ -115,6 +115,24 @@ describe("ModuleAuthGuard (REQ-010)", () => {
     expect(guard.canActivate(context as never)).toBe(true);
   });
 
+  // INT-412 — empty repeated query values fall through to missing scope.
+  it("rejects an all-empty communityId query array when scope is required", () => {
+    const guard = new ModuleAuthGuard({
+      roles: ["manager"],
+      requireCommunityScope: true,
+    });
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          user: { ...member, roles: ["manager"] },
+          params: {},
+          query: { communityId: ["", ""] },
+        }),
+      }),
+    };
+    expect(() => guard.canActivate(context as never)).toThrow(ForbiddenException);
+  });
+
   it("allows a member in their own community", () => {
     const guard = new ModuleAuthGuard({
       roles: ["member"],

@@ -57,16 +57,43 @@ test("Dependabot updates npm and GitHub Actions", async () => {
   // INT-410 — enough concurrent PRs to drain the advisory backlog.
   assert.match(text, /open-pull-requests-limit:\s*15/);
   assert.match(text, /interval:\s*"daily"/);
+  // INT-412 — hold breaking majors until coverage/docs are ready.
+  assert.match(text, /dependency-name:\s*"vitest"/);
+  assert.match(text, /dependency-name:\s*"@vitejs\/plugin-react"/);
+  assert.match(text, /dependency-name:\s*"vitepress-openapi"/);
+  assert.match(text, /versions:\s*\[[^\]]*>?=0\.2\.13/);
 });
 
-test("INT-410 Dependabot auto-merge workflow queues squash when CI is green", async () => {
+test("INT-410/INT-412 Dependabot auto-merge squash-merges only after CI success", async () => {
   const text = await readFile(
     new URL("../.github/workflows/dependabot-automerge.yml", import.meta.url),
     "utf8",
   );
+  assert.match(text, /workflow_run:/);
+  assert.match(text, /workflows:\s*\[["']ci["']\]/);
+  assert.match(text, /conclusion == 'success'/);
+  assert.match(text, /event == 'pull_request'/);
   assert.match(text, /dependabot\[bot\]/);
-  assert.match(text, /gh pr merge --auto --squash/);
-  assert.match(text, /base\.ref == 'develop'/);
+  assert.match(text, /gh pr merge --squash --delete-branch/);
+  assert.equal(text.includes("gh pr merge --auto"), false);
+});
+
+test("INT-412 web app tsconfig excludes Vitest specs from production tsc", async () => {
+  const text = await readFile(
+    new URL("../apps/web/tsconfig.app.json", import.meta.url),
+    "utf8",
+  );
+  assert.match(text, /"types":\s*\["vite\/client"\]/);
+  assert.match(text, /src\/\*\*\/\*\.spec\.ts/);
+  assert.equal(text.includes("vitest/globals"), false);
+});
+
+test("INT-412 pnpm overrides pin vitest 3.2.7 for the coverage gate", async () => {
+  const pkg = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(pkg.pnpm.overrides.vitest, "3.2.7");
+  assert.equal(pkg.pnpm.overrides["@vitest/coverage-v8"], "3.2.7");
 });
 
 test("Trivy forbids the excluded licence families", async () => {

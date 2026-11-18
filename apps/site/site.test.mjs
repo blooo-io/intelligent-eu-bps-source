@@ -168,6 +168,7 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
       "utf8",
     );
     assert.match(theme, /persistAuth:\s*false/);
+    // INT-408 — pin: 0.2.14+ breaks vitepress build (`useData` export) on 1.6.x (INT-412).
     assert.match(
       readFileSync(path.join(root, "package.json"), "utf8"),
       /"vitepress-openapi":\s*"0\.2\.12"/,

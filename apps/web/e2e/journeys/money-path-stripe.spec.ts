@@ -31,7 +31,7 @@ test.describe("INT-251 Stripe money path", () => {
     page,
   }) => {
     test.setTimeout(180_000);
-    const stripeKey = requireStripeSecretKey();
+    const stripeKey = requireStripeSecretKey(process.env);
     const createdAfter = Math.floor(Date.now() / 1000) - 5;
 
     await loginAs(page, "s1-consumer");

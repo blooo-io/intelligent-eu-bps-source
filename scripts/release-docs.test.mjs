@@ -28,7 +28,7 @@ test("D5.5 release docs point at architecture, contracts and licence (INT-93/94/
   await access("contracts/openapi/public.v1.yaml");
 });
 
-test("INT-92 / INT-359 source release note matches package version 1.1.2", async () => {
+test("INT-92 / INT-359 source release note matches package version", async () => {
   const index = await readFile("docs/release/README.md", "utf8");
   const source = await readFile("docs/release/SOURCE-RELEASE.md", "utf8");
   const notes = await readFile("docs/release/RELEASE-NOTES.md", "utf8");
@@ -43,7 +43,13 @@ test("INT-92 / INT-359 source release note matches package version 1.1.2", async
   assert.match(source, /never pushed/);
   assert.match(notes, /OpenBao/);
   assert.match(notes, /GPL-3\.0/);
-  assert.equal(pkg.version, "1.1.2");
+  // INT-412 — keep notes aligned with root package.json on every patch bump.
+  assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
+  assert.equal(pkg.version, "1.1.3");
+  assert.ok(
+    notes.includes(`\`v${pkg.version}\``),
+    `RELEASE-NOTES.md must cite v${pkg.version}`,
+  );
 });
 
 test("INT-305 versioning note is linked from the release index", async () => {

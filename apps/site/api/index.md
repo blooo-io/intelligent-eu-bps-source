@@ -21,7 +21,9 @@ The helper and the IdP are rate-limited (gateway + Keycloak brute-force detectio
 
 ### In-page helper
 
-Enter your IdP username and password, then paste the token into **Try it out → Authorization**.
+Enter your IdP username and password, then **Copy Authorization value** into
+**Try it out → Authorization**. The copied value includes the `Bearer ` prefix —
+the playground sends that field as-is (INT-406).
 
 <ApiTokenHelper />
 

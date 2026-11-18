@@ -20,6 +20,7 @@
 - AC-01: app `tsc` no longer typechecks Vitest specs; money-path Stripe helpers stay Node-free (INT-412).
 - Hold `vitepress-openapi` at 0.2.12 (0.2.14+ breaks the docs SSR build) and pin vitest / `@vitest/coverage-v8` at 3.2.7 (vitest 5 drops branch coverage below 80% across modules) (INT-412).
 - Dependabot auto-merge only squash-merges after a successful `ci` run on the PR (INT-412).
+- `stable-release` dispatches `release` after cutting the tag (`GITHUB_TOKEN` tag pushes do not start workflows) (INT-412).
 
 ## Changes since v1.1.1
 

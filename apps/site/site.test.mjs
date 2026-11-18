@@ -23,6 +23,8 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(theme, /useOpenapi/);
     assert.match(theme, /vitepress-openapi\/client/);
     assert.match(theme, /allowCustomServer/);
+    // INT-403 — token helper for /api/.
+    assert.match(theme, /ApiTokenHelper/);
   });
 
   it("architecture page keeps a mermaid fence for client render", () => {
@@ -127,5 +129,14 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(hosting, /https:\/\/intelligent\.docs\.blooo\.dev\//);
     assert.match(hosting, /package-pages\.mjs/);
     assert.ok(existsSync(path.join(root, "scripts/package-pages.mjs")));
+  });
+
+  it("API page documents password-grant token flow (INT-403)", () => {
+    const api = readFileSync(path.join(root, "api/index.md"), "utf8");
+    assert.match(api, /<ApiTokenHelper\s*\/>/);
+    assert.match(api, /grant_type=password/);
+    assert.match(api, /client_id=docs/);
+    assert.match(api, /hugo\.petit/);
+    assert.ok(existsSync(path.join(root, ".vitepress/theme/ApiTokenHelper.vue")));
   });
 });

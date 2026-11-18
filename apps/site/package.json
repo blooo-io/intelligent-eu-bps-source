@@ -9,8 +9,9 @@
     "openapi:prepare": "node ./scripts/build-openapi.mjs",
     "dev": "node ./scripts/build-openapi.mjs && vitepress dev",
     "build": "node ./scripts/build-openapi.mjs && vitepress build",
+    "pages:package": "node ./scripts/package-pages.mjs",
     "preview": "vitepress preview",
-    "test": "node ./scripts/build-openapi.mjs && node --test site.test.mjs"
+    "test": "node ./scripts/build-openapi.mjs && node --test site.test.mjs scripts/package-pages.test.mjs"
   },
   "devDependencies": {
     "mermaid": "11.12.2",

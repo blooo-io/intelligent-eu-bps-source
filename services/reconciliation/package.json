@@ -25,7 +25,7 @@
     "nats": "^2.29.3"
   },
   "devDependencies": {
-    "@types/express": "^5.0.3",
+    "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^3.2.4",
     "typescript": "^7.0.2",

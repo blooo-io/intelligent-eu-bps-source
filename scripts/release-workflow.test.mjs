@@ -30,4 +30,7 @@ test("INT-305 VERSIONING.md documents SemVer and cut-release", async () => {
   assert.match(text, /cut-release\.mjs/);
   assert.match(text, /immutable/i);
   assert.match(text, /IMAGE_FLOATING_TAG|:vX\.Y\.Z|ghcr\.io/);
+  // INT-411 — automated chain after CI + supply-chain.
+  assert.match(text, /stable-release/);
+  assert.match(text, /INT-411/);
 });

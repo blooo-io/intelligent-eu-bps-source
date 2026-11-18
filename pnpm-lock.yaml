@@ -59,8 +59,8 @@ importers:
         specifier: ^1.6.3
         version: 1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.33)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2)
       vitepress-openapi:
-        specifier: 0.2.12
-        version: 0.2.12(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.33)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2))
+        specifier: 0.2.14
+        version: 0.2.14(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.33)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2))
       vitepress-plugin-mermaid:
         specifier: 2.0.17
         version: 2.0.17(mermaid@12.3.0)(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.33)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))
@@ -2512,8 +2512,8 @@ packages:
   '@kwsites/promise-deferred@1.1.1':
     resolution: {integrity: sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==}
 
-  '@lucide/vue@1.71.0':
-    resolution: {integrity: sha512-R64tQ5dJMvLjAOEIhF+vOunHm/wUI3VP6NhJEaigwpLVaAEL3O2251byH2IBEeBofLunvOiTGh4lkzDfIpgKcQ==}
+  '@lucide/vue@1.75.0':
+    resolution: {integrity: sha512-aO44J4WzSE7+xsPa0L0SQ3Db8jYm+8piJdy95Is4UTpqBV4Krd5XKsivCBLPUSHd6pPZsJ+ou5C5V6KNtfxRFQ==}
     peerDependencies:
       vue: '>=3.0.1'
 
@@ -8951,12 +8951,15 @@ packages:
       yaml:
         optional: true
 
-  vitepress-openapi@0.2.12:
-    resolution: {integrity: sha512-0d2WqTDrZhe3fVCXh7oe4ODNqIzmfjEb+++iVcHkIzaB/1PebF42xIpsRZxEQ6rYH37wCPmayBX5vaeuOhZipA==}
+  vitepress-openapi@0.2.14:
+    resolution: {integrity: sha512-B4PNWBi3+i21mM8nAu5JpIddbyWmMdssjnrQ0FKrQqt+UlLeGpQ7+nf0nWV0xfgK4JXnfATiGFvYNTyp8iZhWg==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24.0.0}
     peerDependencies:
       vitepress: '>=1.0.0'
       vue: ^3.0.0
+    peerDependenciesMeta:
+      vitepress:
+        optional: true
 
   vitepress-plugin-mermaid@2.0.17:
     resolution: {integrity: sha512-IUzYpwf61GC6k0XzfmAmNrLvMi9TRrVRMsUyCA8KNXhg/mQ1VqWnO0/tBVPiX5UoKF1mDUwqn5QV4qAJl6JnUg==}
@@ -11468,7 +11471,7 @@ snapshots:
 
   '@kwsites/promise-deferred@1.1.1': {}
 
-  '@lucide/vue@1.71.0(vue@3.5.44(typescript@7.0.2))':
+  '@lucide/vue@1.75.0(vue@3.5.44(typescript@7.0.2))':
     dependencies:
       vue: 3.5.44(typescript@7.0.2)
 
@@ -18740,16 +18743,17 @@ snapshots:
       terser: 5.51.2
       yaml: 2.9.1
 
-  vitepress-openapi@0.2.12(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.33)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2)):
+  vitepress-openapi@0.2.14(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.33)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2)):
     dependencies:
-      '@lucide/vue': 1.71.0(vue@3.5.44(typescript@7.0.2))
+      '@lucide/vue': 1.75.0(vue@3.5.44(typescript@7.0.2))
       '@vueuse/core': 14.4.0(vue@3.5.44(typescript@7.0.2))
       class-variance-authority: 0.7.1
       clsx: 2.1.1
       markdown-it-link-attributes: 4.0.1
       reka-ui: 2.11.0(vue@3.5.44(typescript@7.0.2))
-      vitepress: 1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.33)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2)
       vue: 3.5.44(typescript@7.0.2)
+    optionalDependencies:
+      vitepress: 1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.33)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2)
 
   vitepress-plugin-mermaid@2.0.17(mermaid@12.3.0)(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.33)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2)):
     dependencies:

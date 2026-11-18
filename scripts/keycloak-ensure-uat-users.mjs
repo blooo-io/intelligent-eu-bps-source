@@ -158,6 +158,20 @@ export const APISIX_GATEWAY_CLIENT = {
     process.env.KEYCLOAK_APISIX_GATEWAY_CLIENT_SECRET || "dev-only-replace-me",
 };
 
+/**
+ * INT-403 — public docs playground client (password grant only).
+ * Used by intelligent.docs.blooo.dev/api Try it out — not the web PKCE client.
+ */
+export const DOCS_CLIENT = {
+  clientId: "docs",
+  name: "Public docs API playground (password grant, INT-403)",
+  webOrigins: [
+    "https://intelligent.docs.blooo.dev",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ],
+};
+
 export async function loadRealmUatUsers(realmPath = REALM_PATH) {
   const realm = JSON.parse(await readFile(realmPath, "utf8"));
   const users = realm.users ?? [];
@@ -861,6 +875,90 @@ export async function ensureApisixGatewayClient(
   return { realm: realmName, clientId, internalId };
 }
 
+/**
+ * INT-403 — upsert the public `docs` client (password grant + docs CORS origins).
+ * Realm ConfigMap import does not re-apply clients on an already-initialised realm.
+ */
+export async function ensureDocsClient(baseUrl, token, realmName = "int") {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...proxyHeaders(baseUrl),
+  };
+  const realmBase = `${baseUrl.replace(/\/$/, "")}/admin/realms/${realmName}`;
+  const { clientId, name, webOrigins } = DOCS_CLIENT;
+  const communityMapper = {
+    name: "community_id",
+    protocol: "openid-connect",
+    protocolMapper: "oidc-usermodel-attribute-mapper",
+    consentRequired: false,
+    config: {
+      "user.attribute": "community_id",
+      "claim.name": "community_id",
+      "jsonType.label": "String",
+      "id.token.claim": "true",
+      "access.token.claim": "true",
+      "userinfo.token.claim": "true",
+    },
+  };
+  const desired = {
+    clientId,
+    name,
+    enabled: true,
+    publicClient: true,
+    bearerOnly: false,
+    standardFlowEnabled: false,
+    directAccessGrantsEnabled: true,
+    redirectUris: [],
+    webOrigins,
+    protocol: "openid-connect",
+    protocolMappers: [communityMapper],
+  };
+
+  const search = await fetch(
+    `${realmBase}/clients?clientId=${encodeURIComponent(clientId)}`,
+    { headers },
+  );
+  if (!search.ok) {
+    throw new Error(`list client ${clientId}: ${search.status}`);
+  }
+  const found = await search.json();
+  if (found[0]?.id) {
+    const put = await fetch(`${realmBase}/clients/${found[0].id}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        ...found[0],
+        ...desired,
+        id: found[0].id,
+      }),
+    });
+    if (!put.ok) {
+      throw new Error(`update client ${clientId}: ${put.status}`);
+    }
+    return { realm: realmName, clientId, internalId: found[0].id };
+  }
+
+  const create = await fetch(`${realmBase}/clients`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(desired),
+  });
+  if (create.status !== 201) {
+    throw new Error(`create client ${clientId}: ${create.status}`);
+  }
+  const again = await fetch(
+    `${realmBase}/clients?clientId=${encodeURIComponent(clientId)}`,
+    { headers },
+  );
+  const created = (await again.json())[0];
+  if (!created?.id) {
+    throw new Error(`client ${clientId} missing after create`);
+  }
+  return { realm: realmName, clientId, internalId: created.id };
+}
+
 export async function ensureUatUsers(options = {}) {
   const baseUrl = options.baseUrl ?? process.env.KEYCLOAK_URL;
   const password =
@@ -887,8 +985,10 @@ export async function ensureUatUsers(options = {}) {
   const adminClient = await ensureParticipantsAdminClient(baseUrl, token);
   const moduleService = await ensureModuleServiceClient(baseUrl, token, "int");
   const apisixGateway = await ensureApisixGatewayClient(baseUrl, token, "int");
+  const docsClient = await ensureDocsClient(baseUrl, token, "int");
   let moduleServiceDemo = null;
   let apisixGatewayDemo = null;
+  let docsClientDemo = null;
   try {
     moduleServiceDemo = await ensureModuleServiceClient(baseUrl, token, "demo");
   } catch {
@@ -896,6 +996,11 @@ export async function ensureUatUsers(options = {}) {
   }
   try {
     apisixGatewayDemo = await ensureApisixGatewayClient(baseUrl, token, "demo");
+  } catch {
+    // optional
+  }
+  try {
+    docsClientDemo = await ensureDocsClient(baseUrl, token, "demo");
   } catch {
     // optional
   }
@@ -915,6 +1020,8 @@ export async function ensureUatUsers(options = {}) {
     moduleServiceDemo,
     apisixGateway,
     apisixGatewayDemo,
+    docsClient,
+    docsClientDemo,
   };
 }
 

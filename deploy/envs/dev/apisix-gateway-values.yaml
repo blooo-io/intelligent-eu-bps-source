@@ -7,8 +7,9 @@ hosts:
   docs: docs.intelligent-eu-bp.blooo.dev
   sonar: sonar.intelligent-eu-bp.blooo.dev
 # INT-187 — SPA origin for CORS (comma-separated).
+# INT-405 — include public docs host so Scalar Try it out can call api.dev.
 cors:
-  allowOrigins: "https://app.dev.intelligent-eu-bp.blooo.dev,http://localhost:5173"
+  allowOrigins: "https://app.dev.intelligent-eu-bp.blooo.dev,https://intelligent.docs.blooo.dev,http://localhost:5173"
 oidc:
   realm: int
   discoveryHost: auth.intelligent-eu-bp.blooo.dev

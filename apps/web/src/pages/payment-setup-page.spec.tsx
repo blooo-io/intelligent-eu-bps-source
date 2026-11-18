@@ -175,6 +175,80 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / INT-254 / UAT-063)", (
     expect(screen.queryByTestId("stripe-account-onboarding")).not.toBeInTheDocument();
   });
 
+  it("does not paint the consumer title before marketRole is known (ANO-007)", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    let release: (value: unknown) => void = () => undefined;
+    const pending = new Promise((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((url: string) => {
+        if (String(url).endsWith("/v1/me")) return pending;
+        return Promise.resolve({ ok: false, status: 500 });
+      }),
+    );
+    render(
+      <MemoryRouter>
+        <PaymentSetupPage config={config} oidc={oidc} openUrl={vi.fn()} />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByRole("heading", { name: /add a payment method/i }),
+    ).not.toBeInTheDocument();
+    release({ ok: true, json: async () => meBody("producer") });
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /open stripe connect/i }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("offers a retry when the card is saved but readiness is not Ready (ANO-006)", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).endsWith("/v1/me")) {
+          return { ok: true, json: async () => meBody("consumer") };
+        }
+        return {
+          ok: true,
+          json: async () => ({ mode: "elements", status: "complete" }),
+        };
+      }),
+    );
+    render(
+      <MemoryRouter>
+        <PaymentSetupPage config={config} oidc={oidc} openUrl={vi.fn()} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /save card and finish/i }),
+      ).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save card and finish/i }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /retry readiness/i }),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: /^home$/i })).toHaveAttribute("href", "/");
+  });
+
   it("shows an error when onboarding fails", async () => {
     const oidc: OidcFacade = {
       login: vi.fn(),

@@ -1,4 +1,5 @@
 import { Alert, Button, Typography } from "antd";
+import { Link } from "react-router";
 import type { WebConfig } from "../api/config";
 import type { OnboardingSession } from "../api/payment";
 import type { LoadStripeSetupFn } from "../api/stripe-setup-element";
@@ -50,18 +51,38 @@ export function PaymentSetupElementsPanel({
 
 export function PaymentSetupCompleteAlert({
   session,
-}: Readonly<{ session: OnboardingSession }>) {
+  setupIncomplete = false,
+  loading = false,
+  onRetry,
+}: Readonly<{
+  session: OnboardingSession;
+  setupIncomplete?: boolean;
+  loading?: boolean;
+  onRetry?: () => void;
+}>) {
   return (
-    <Alert
-      type="success"
-      showIcon
-      message="Payment account ready"
-      description={
-        session.stripeAccountId
-          ? `Connect account ${session.stripeAccountId} is complete.`
-          : "Onboarding complete."
-      }
-    />
+    <>
+      <Alert
+        type="success"
+        showIcon
+        message="Payment account ready"
+        description={
+          session.stripeAccountId
+            ? `Connect account ${session.stripeAccountId} is complete.`
+            : "Onboarding complete."
+        }
+      />
+      {setupIncomplete ? (
+        <div style={{ marginTop: 16 }}>
+          <Button type="primary" loading={loading} onClick={onRetry}>
+            Retry readiness
+          </Button>
+          <Link to="/" style={{ marginLeft: 12 }}>
+            Home
+          </Link>
+        </div>
+      ) : null}
+    </>
   );
 }
 

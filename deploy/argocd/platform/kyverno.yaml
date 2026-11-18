@@ -28,3 +28,11 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      # INT-384 — Kyverno writes spec.conversion. Do not let selfHeal strip it.
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jqPathExpressions:
+        - .spec.conversion
+        - .status

@@ -18,6 +18,11 @@ test.describe("REQ payment setup", () => {
     await expect(page.getByText(/failed with (4|5)\d\d/i)).toHaveCount(0);
     // REQ-015 / NFR-007 — Stripe fiat path; no crypto wallet CTA.
     await expect(page.getByText(/wallet|crypto|metamask/i)).toHaveCount(0);
+    const readyCard = page.getByTestId("payment-method-ready");
+    if (await readyCard.isVisible().catch(() => false)) {
+      await expect(readyCard).toContainText(/····|\d{4}/);
+      return;
+    }
     await expect(
       page.getByRole("button", {
         name: /save card and finish|continue to stripe connect|start payment setup/i,

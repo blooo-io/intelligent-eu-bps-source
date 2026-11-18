@@ -3,12 +3,16 @@ import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/
  * INT-193 — notify AC-03 of payment-account readiness (sync until NATS).
  */
 
+export type PaymentAccountStatusNotice = {
+  participantId: string;
+  ready: boolean;
+  reason?: string;
+  /** INT-228 ignores an unknown participant. ANO-006 fails a member card sync. */
+  notFound?: "ignore" | "fail";
+};
+
 export type ParticipantsNotifierPort = {
-  applyPaymentAccountStatus(input: {
-    participantId: string;
-    ready: boolean;
-    reason?: string;
-  }): Promise<void>;
+  applyPaymentAccountStatus(input: PaymentAccountStatusNotice): Promise<void>;
 };
 
 export const PARTICIPANTS_NOTIFIER = Symbol("PARTICIPANTS_NOTIFIER");
@@ -28,11 +32,7 @@ export class HttpParticipantsNotifier implements ParticipantsNotifierPort {
     private readonly auth: ServiceAuthSource = null,
   ) {}
 
-  async applyPaymentAccountStatus(input: {
-    participantId: string;
-    ready: boolean;
-    reason?: string;
-  }): Promise<void> {
+  async applyPaymentAccountStatus(input: PaymentAccountStatusNotice): Promise<void> {
     const url = `${this.baseUrl.replace(/\/$/, "")}/internal/v1/participants/${input.participantId}/payment-account-status`;
     const res = await this.fetchImpl(url, {
       method: "POST",
@@ -48,7 +48,13 @@ export class HttpParticipantsNotifier implements ParticipantsNotifierPort {
     });
     // INT-228 — fixture / not-yet-registered producers (S1 UUIDs) return 404;
     // Connect provision must still succeed so Stripe remains the source of truth.
+    // ANO-006 — a member who already has a card must not ignore that 404.
     if (res.status === 404) {
+      if (input.notFound === "fail") {
+        throw new Error(
+          `participants payment-account-status failed with 404`,
+        );
+      }
       return;
     }
     if (!res.ok) {

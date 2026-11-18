@@ -8,6 +8,7 @@ export function usePaymentSetupMe(config: WebConfig, oidc: OidcFacade) {
   const [marketRole, setMarketRole] = useState<ParticipantRole | null>(null);
   const [readiness, setReadiness] = useState<string | null>(null);
   const [account, setAccount] = useState<MePaymentAccount | null>(null);
+  const [roleLoaded, setRoleLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,6 +30,8 @@ export function usePaymentSetupMe(config: WebConfig, oidc: OidcFacade) {
         }
       } catch {
         // Session mode still reveals consumer vs producer after Start.
+      } finally {
+        if (!cancelled) setRoleLoaded(true);
       }
     })();
     return () => {
@@ -36,5 +39,5 @@ export function usePaymentSetupMe(config: WebConfig, oidc: OidcFacade) {
     };
   }, [config.apiBaseUrl, oidc]);
 
-  return { marketRole, readiness, account, setAccount };
+  return { marketRole, readiness, account, setAccount, roleLoaded };
 }

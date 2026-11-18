@@ -54,6 +54,9 @@ test("Dependabot updates npm and GitHub Actions", async () => {
   assert.match(text, /groups:\s*\n\s*nestjs:/);
   assert.match(text, /patterns:\s*\n\s*-\s*"@nestjs\/\*"/);
   assert.match(text, /groups:[\s\S]*react:[\s\S]*-\s*"react-dom"/);
+  // INT-410 — enough concurrent PRs to drain the advisory backlog.
+  assert.match(text, /open-pull-requests-limit:\s*15/);
+  assert.match(text, /interval:\s*"daily"/);
 });
 
 test("Trivy forbids the excluded licence families", async () => {

@@ -2,6 +2,7 @@ import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
 import type { LoadConnectFn } from "../api/stripe-connect-onboarding";
 import type { LoadStripeSetupFn } from "../api/stripe-setup-element";
+import { Spin } from "antd";
 import { PageFrame } from "../layout/page-frame";
 import { PaymentSetupBody } from "./payment-setup-body";
 import {
@@ -41,6 +42,13 @@ export function PaymentSetupPage({
     openUrl,
     onComplete,
   });
+
+  // ANO-007 — marketRole is unknown until GET /v1/me. Do not paint the
+  // consumer payment copy in that gap.
+  if (!setup.roleLoaded) {
+    if (embedded) return <Spin />;
+    return <PageFrame title="Payment setup" loading />;
+  }
 
   const pageTitle = paymentSetupPageTitle(
     setup.asProsumer,

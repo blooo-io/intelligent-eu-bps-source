@@ -42,7 +42,7 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^5.0.3",
+    "@vitejs/plugin-react": "^6.3.0",
     "@vitest/coverage-v8": "^5.1.0",
     "jsdom": "^31.0.1",
     "typescript": "^7.0.2",

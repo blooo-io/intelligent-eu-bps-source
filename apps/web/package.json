@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "Apache-2.0",
-  "description": "AC-01 reference web app — Refine portal (INT-137 / INT-115, TD-5)",
+  "description": "AC-01 reference web app \u2014 Refine portal (INT-137 / INT-115, TD-5)",
   "type": "module",
   "files": [
     "dist",

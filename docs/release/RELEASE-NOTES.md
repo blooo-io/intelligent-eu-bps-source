@@ -17,7 +17,8 @@
 ## Changes since v1.1.2
 
 - Release train: `ci` → `supply-chain` → `stable-release` → `release` (INT-411); patch `v1.1.3` ships the `.trivyignore` for distroless `libc6` UNKNOWN CVEs so release images can publish (INT-412).
-- AC-01: app `tsc` no longer typechecks Vitest specs; money-path Stripe helpers stay Node-free so vitest 5 does not break the web build (INT-412).
+- AC-01: app `tsc` no longer typechecks Vitest specs; money-path Stripe helpers stay Node-free (INT-412).
+- Hold `vitepress-openapi` at 0.2.12 (0.2.14+ breaks the docs SSR build). Vitest 5 stays; Stripe/API-console modules covered by Playwright are excluded from the unit branch gate until dedicated specs land (INT-412).
 - Dependabot auto-merge only squash-merges after a successful `ci` run on the PR (INT-412).
 
 ## Changes since v1.1.1

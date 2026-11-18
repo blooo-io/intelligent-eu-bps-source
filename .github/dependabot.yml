@@ -18,6 +18,11 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+    # INT-412 — vitepress-openapi ≥0.2.14 breaks the docs build against
+    # vitepress 1.6 (`useData` export missing during SSR).
+    ignore:
+      - dependency-name: "vitepress-openapi"
+        versions: [">=0.2.13"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

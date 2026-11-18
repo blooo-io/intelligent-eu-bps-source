@@ -57,6 +57,9 @@ test("Dependabot updates npm and GitHub Actions", async () => {
   // INT-410 — enough concurrent PRs to drain the advisory backlog.
   assert.match(text, /open-pull-requests-limit:\s*15/);
   assert.match(text, /interval:\s*"daily"/);
+  // INT-412 — hold vitepress-openapi until docs SSR is compatible.
+  assert.match(text, /dependency-name:\s*"vitepress-openapi"/);
+  assert.match(text, /versions:\s*\[[^\]]*>?=0\.2\.13/);
 });
 
 test("INT-410/INT-412 Dependabot auto-merge squash-merges only after CI success", async () => {
@@ -81,6 +84,17 @@ test("INT-412 web app tsconfig excludes Vitest specs from production tsc", async
   assert.match(text, /"types":\s*\["vite\/client"\]/);
   assert.match(text, /src\/\*\*\/\*\.spec\.ts/);
   assert.equal(text.includes("vitest/globals"), false);
+});
+
+test("INT-412 web coverage excludes Playwright-covered Stripe/API console modules", async () => {
+  const text = await readFile(
+    new URL("../apps/web/vitest.config.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(text, /stripe-money-assert\.ts/);
+  assert.match(text, /stripe-setup-element\.ts/);
+  assert.match(text, /api-console-page\.tsx/);
+  assert.match(text, /INT-412/);
 });
 
 test("Trivy forbids the excluded licence families", async () => {

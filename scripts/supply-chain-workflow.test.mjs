@@ -67,7 +67,7 @@ test("INT-381 supply-chain runs are serialized and diff from the last successful
   assert.doesNotMatch(text, /IMAGE_DIFF_BASE:\s*\$\{\{\s*github\.event\.before/);
 });
 
-test("INT-411 stable-release cuts SemVer tag after supply-chain when untagged", async () => {
+test("INT-411/INT-412 stable-release cuts SemVer tag and dispatches release", async () => {
   const text = await readFile(
     new URL("../.github/workflows/stable-release.yml", import.meta.url),
     "utf8",
@@ -85,4 +85,9 @@ test("INT-411 stable-release cuts SemVer tag after supply-chain when untagged", 
   assert.match(text, /git tag -a/);
   assert.match(text, /git push origin "refs\/tags\/\$\{TAG\}"/);
   assert.match(text, /package\.json/);
+  // INT-412 — GITHUB_TOKEN tag push cannot start release; dispatch instead.
+  assert.match(text, /actions:\s*write/);
+  assert.match(text, /gh workflow run release\.yml/);
+  assert.match(text, /publish_images=true/);
+  assert.match(text, /steps\.cut\.outputs\.pushed == 'true'/);
 });

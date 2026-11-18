@@ -37,7 +37,7 @@ A new patch release needs a **version bump** on `develop`. If `package.json` sti
 
 1. Land the change on `develop` with CI green (and `e2e-dev` green when behaviour is user-facing).
 2. Open a small PR that sets root `package.json` `version` to the next SemVer and updates [`RELEASE-NOTES.md`](RELEASE-NOTES.md) (and freeze/consistency notes if the partner package changes).
-3. After that PR merges, wait for **ci** then **supply-chain**. Workflow **`stable-release`** cuts the annotated tag `vX.Y.Z` when it is still missing (no manual `cut-release` required). Fallback if you need to cut by hand:
+3. After that PR merges, wait for **ci** then **supply-chain**. Workflow **`stable-release`** cuts the annotated tag `vX.Y.Z` when it is still missing and **dispatches `release`** (a `GITHUB_TOKEN` tag push alone does not start workflows — INT-412). Fallback if you need to cut by hand:
 
    ```bash
    git fetch origin develop

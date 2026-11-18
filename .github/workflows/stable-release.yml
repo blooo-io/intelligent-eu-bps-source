@@ -1,7 +1,10 @@
-# INT-411 — after supply-chain succeeds on develop, cut the SemVer tag when
-# package.json version is not tagged yet. That tag push triggers `release`
-# (GitHub Release + GHCR :vX.Y.Z). Version bumps still land via PR (INT-305);
-# this workflow automates the tag cut once the tip is stable.
+# INT-411 / INT-412 — after supply-chain succeeds on develop, cut the SemVer
+# tag when package.json version is not tagged yet, then dispatch `release`
+# (GitHub Release + GHCR :vX.Y.Z).
+#
+# IMPORTANT: a tag push made with GITHUB_TOKEN does not create new workflow
+# runs (GitHub security). So after pushing the tag we must `gh workflow run
+# release.yml` (workflow_dispatch is the documented exception).
 #
 # Chain: push develop → ci → supply-chain → stable-release → release
 #
@@ -17,7 +20,7 @@ on:
 
 permissions:
   contents: write
-  actions: read
+  actions: write
 
 concurrency:
   group: stable-release-develop
@@ -70,6 +73,7 @@ jobs:
           echo "CI green for $SHA ($ok successful run(s))."
 
       - name: Cut annotated tag when package version is untagged
+        id: cut
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -83,16 +87,34 @@ jobs:
               ;;
           esac
           TAG="v${VERSION}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
             echo "Tag ${TAG} already exists locally — nothing to do."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q .; then
             echo "Tag ${TAG} already exists on origin — nothing to do."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "$TAG" -m "Release ${TAG}"
           git push origin "refs/tags/${TAG}"
-          echo "Pushed annotated tag ${TAG} — workflow release will publish."
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+          echo "Pushed annotated tag ${TAG}."
+
+      # INT-412 — GITHUB_TOKEN tag pushes do not trigger `on: push` workflows.
+      - name: Dispatch release (GitHub Release + images)
+        if: steps.cut.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.cut.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" \
+            --ref "$TAG" \
+            -f "tag=$TAG" \
+            -f "publish_images=true"
+          echo "Dispatched release.yml for $TAG (publish_images=true)."

@@ -1,25 +1,51 @@
-# INT-410 — when repo Allow auto-merge is on, queue Dependabot PRs to
-# squash-merge once required develop checks are green. Does not bypass CI.
+# INT-410 / INT-412 — squash-merge Dependabot PRs only after `ci` succeeds on
+# that PR. Do not queue `--auto` on open/synchronize: when `test` is not a
+# required status check, GitHub can merge a red Dependabot PR and break develop
+# (seen with vitest 5 / INT-412).
 name: dependabot-automerge
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
 
 permissions:
   contents: write
   pull-requests: write
+  actions: read
 
 jobs:
-  enable-auto-merge:
+  squash-merge:
     if: >
-      github.event.pull_request.user.login == 'dependabot[bot]' &&
-      github.event.pull_request.draft == false &&
-      github.event.pull_request.base.ref == 'develop'
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Enable squash auto-merge
+      - name: Squash-merge Dependabot PR when CI is green
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-        run: gh pr merge --auto --squash "$PR_URL"
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+        run: |
+          set -euo pipefail
+          if [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then
+            echo "Skipping fork head ($HEAD_REPO)."
+            exit 0
+          fi
+          # Resolve the PR that produced this successful CI run.
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+            --jq '[.[] | select(.base.ref=="develop" and .user.login=="dependabot[bot]" and .draft==false and .state=="open")] | .[0]')"
+          if [ -z "$pr_json" ] || [ "$pr_json" = "null" ]; then
+            echo "No open Dependabot PR to develop for $HEAD_SHA — nothing to merge."
+            exit 0
+          fi
+          pr_url="$(echo "$pr_json" | jq -r .html_url)"
+          pr_head="$(echo "$pr_json" | jq -r .head.sha)"
+          if [ "$pr_head" != "$HEAD_SHA" ]; then
+            echo "PR head moved ($pr_head != $HEAD_SHA) — skip stale CI success."
+            exit 0
+          fi
+          echo "Squash-merging $pr_url (ci run $RUN_ID on $HEAD_BRANCH@$HEAD_SHA)."
+          gh pr merge --squash --delete-branch "$pr_url"

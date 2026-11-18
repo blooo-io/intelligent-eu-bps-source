@@ -59,14 +59,28 @@ test("Dependabot updates npm and GitHub Actions", async () => {
   assert.match(text, /interval:\s*"daily"/);
 });
 
-test("INT-410 Dependabot auto-merge workflow queues squash when CI is green", async () => {
+test("INT-410/INT-412 Dependabot auto-merge squash-merges only after CI success", async () => {
   const text = await readFile(
     new URL("../.github/workflows/dependabot-automerge.yml", import.meta.url),
     "utf8",
   );
+  assert.match(text, /workflow_run:/);
+  assert.match(text, /workflows:\s*\[["']ci["']\]/);
+  assert.match(text, /conclusion == 'success'/);
+  assert.match(text, /event == 'pull_request'/);
   assert.match(text, /dependabot\[bot\]/);
-  assert.match(text, /gh pr merge --auto --squash/);
-  assert.match(text, /base\.ref == 'develop'/);
+  assert.match(text, /gh pr merge --squash --delete-branch/);
+  assert.equal(text.includes("gh pr merge --auto"), false);
+});
+
+test("INT-412 web app tsconfig excludes Vitest specs from production tsc", async () => {
+  const text = await readFile(
+    new URL("../apps/web/tsconfig.app.json", import.meta.url),
+    "utf8",
+  );
+  assert.match(text, /"types":\s*\["vite\/client"\]/);
+  assert.match(text, /src\/\*\*\/\*\.spec\.ts/);
+  assert.equal(text.includes("vitest/globals"), false);
 });
 
 test("Trivy forbids the excluded licence families", async () => {

@@ -25,13 +25,15 @@ Contract-first still applies: a breaking contract change is a **MAJOR** (or a ne
 
 ## Release train (maintainers)
 
-GitHub Actions chain on `develop` (INT-411):
+GitHub Actions chain on `develop` (INT-411 / INT-412):
 
 ```text
 push develop → ci (tests) → supply-chain (Trivy + :develop images)
                           → stable-release (annotated tag if package.json version is untagged)
                           → release (GitHub Release + GHCR :vX.Y.Z)
 ```
+
+A new patch release needs a **version bump** on `develop`. If `package.json` still matches an existing tag (e.g. `1.1.2` / `v1.1.2`), `stable-release` correctly no-ops — bump first.
 
 1. Land the change on `develop` with CI green (and `e2e-dev` green when behaviour is user-facing).
 2. Open a small PR that sets root `package.json` `version` to the next SemVer and updates [`RELEASE-NOTES.md`](RELEASE-NOTES.md) (and freeze/consistency notes if the partner package changes).

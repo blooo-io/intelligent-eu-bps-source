@@ -45,8 +45,11 @@ test("INT-92 / INT-359 source release note matches package version", async () =>
   assert.match(notes, /GPL-3\.0/);
   // INT-412 — keep notes aligned with root package.json on every patch bump.
   assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
-  assert.match(notes, new RegExp(`\`v${pkg.version.replace(/\./g, "\\.")}\``));
   assert.equal(pkg.version, "1.1.3");
+  assert.ok(
+    notes.includes(`\`v${pkg.version}\``),
+    `RELEASE-NOTES.md must cite v${pkg.version}`,
+  );
 });
 
 test("INT-305 versioning note is linked from the release index", async () => {

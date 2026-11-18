@@ -103,6 +103,8 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(values, /cors:/);
   assert.match(values, /allowOrigins:/);
   assert.match(values, /app\.dev\.intelligent-eu-bp\.blooo\.dev/);
+  // INT-405 — Scalar Try it out on intelligent.docs.blooo.dev → api.dev.
+  assert.match(values, /intelligent\.docs\.blooo\.dev/);
   // INT-327 — /v1 catalogue rate defaults (webhook already has its own block).
   assert.match(values, /api:\s*\n\s*rate:\s*\n\s*rate:\s*\d+/);
   assert.match(values, /webhook:\s*\n[\s\S]*rate:\s*\n\s*rate:\s*\d+/);
@@ -172,6 +174,8 @@ test("gateway TLS templates gate Certificate and ApisixTls (INT-168)", async () 
   assert.match(dev, /tls:\s*\n\s*enabled:\s*true/);
   assert.match(dev, /letsencrypt-prod/);
   assert.match(dev, /reloadGeneration:/);
+  // INT-405 — docs host must be an explicit CORS origin (credentials mode).
+  assert.match(dev, /allowOrigins:.*intelligent\.docs\.blooo\.dev/);
 });
 
 test("letsencrypt production issuer enabled after staging smoke (INT-173)", async () => {

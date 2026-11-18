@@ -131,12 +131,25 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.ok(existsSync(path.join(root, "scripts/package-pages.mjs")));
   });
 
-  it("API page documents password-grant token flow (INT-403)", () => {
+  it("API page documents password-grant token flow without publishing credentials (INT-403 / INT-404)", () => {
     const api = readFileSync(path.join(root, "api/index.md"), "utf8");
     assert.match(api, /<ApiTokenHelper\s*\/>/);
     assert.match(api, /grant_type=password/);
     assert.match(api, /client_id=docs/);
-    assert.match(api, /hugo\.petit/);
-    assert.ok(existsSync(path.join(root, ".vitepress/theme/ApiTokenHelper.vue")));
+    assert.match(api, /username=<username>/);
+    assert.match(api, /password=<password>/);
+    // INT-404 — no UAT passwords or fixture usernames on the public docs page.
+    assert.doesNotMatch(api, /Intelligent-UAT-2026!/);
+    assert.doesNotMatch(api, /hugo\.petit/);
+    assert.doesNotMatch(api, /sofia\.garcia/);
+    assert.doesNotMatch(api, /paul\.nguyen/);
+    const helper = readFileSync(
+      path.join(root, ".vitepress/theme/ApiTokenHelper.vue"),
+      "utf8",
+    );
+    assert.match(helper, /username = ref\(""\)/);
+    assert.match(helper, /password = ref\(""\)/);
+    assert.match(helper, /maxFailures/);
+    assert.match(helper, /armCooldown/);
   });
 });

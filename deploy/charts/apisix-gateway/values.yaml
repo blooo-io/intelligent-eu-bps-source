@@ -92,6 +92,12 @@ api:
     rate: 50
     burst: 100
 
+# INT-404 — rate-limit Keycloak token endpoint (password grant / docs helper).
+auth:
+  tokenRate:
+    rate: 5
+    burst: 10
+
 webhook:
   # POST /webhooks/payment-provider — only unauthenticated public route (NFR-015).
   path: /webhooks/payment-provider

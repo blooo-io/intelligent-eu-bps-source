@@ -10,7 +10,7 @@ The interactive reference lives under **[/api/](/api/)** — VitePress pages dri
 
 Playground default server for Try it out: `https://api.dev.intelligent-eu-bp.blooo.dev/v1` (OIDC bearer). Override the list at build time with `DOCS_API_SERVERS` (JSON), or type a custom URL in the UI.
 
-**Token:** on [/api/](/api/) use the username/password helper (Keycloak client `docs`, INT-403), or the same password grant via curl — see that page for UAT users.
+**Token:** on [/api/](/api/) use the username/password helper (Keycloak client `docs`, INT-403 / INT-404), or the same password grant via curl with your own credentials (the docs page does not publish passwords).
 
 ::: tip Standalone portal
 `apps/docs-portal` (Redocly) remains available if you want a separate API-only deploy. The docs site no longer embeds Redoc; vitepress-openapi is the in-site explorer.

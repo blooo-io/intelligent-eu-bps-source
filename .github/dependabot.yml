@@ -1,10 +1,13 @@
 version: 2
+# INT-410 — raise open PR limits so advisory backlog can drain; keep Nest/React
+# grouped (INT-323). Agents still squash-merge green Dependabot PRs (INT-322)
+# until org auto-merge is enabled on the repository.
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: "daily"
+    open-pull-requests-limit: 15
     groups:
       nestjs:
         patterns:
@@ -19,4 +22,4 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10

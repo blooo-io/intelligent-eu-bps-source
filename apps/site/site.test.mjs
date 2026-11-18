@@ -151,5 +151,9 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(helper, /password = ref\(""\)/);
     assert.match(helper, /maxFailures/);
     assert.match(helper, /armCooldown/);
+    // INT-406 — playground http bearer needs the full Authorization header value.
+    assert.match(helper, /Bearer \$\{json\.access_token\}/);
+    assert.match(helper, /--oa-authorization-bearerAuth/);
+    assert.match(api, /INT-406/);
   });
 });

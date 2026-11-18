@@ -1,9 +1,13 @@
 <script setup lang="ts">
 /**
- * INT-403 / INT-404 — username/password → Keycloak access_token for Try it out.
+ * INT-403 / INT-404 / INT-406 — username/password → Keycloak access_token for Try it out.
  * Empty form (no credentials). Client-side cooldown complements Keycloak brute-force
  * and APISIX limit-req on the token path.
+ *
+ * INT-406 — vitepress-openapi `http` bearer schemes send the Authorization field
+ * value as-is (no automatic `Bearer ` prefix). Expose and copy the full header value.
  */
+const PLAYGROUND_BEARER_STORAGE_KEY = "--oa-authorization-bearerAuth";
 import { computed, ref } from "vue";
 
 const props = withDefaults(
@@ -113,7 +117,15 @@ async function fetchToken() {
       return;
     }
     failures.value = 0;
-    accessToken.value = json.access_token;
+    // Full Authorization header value (INT-406) — playground does not prefix Bearer.
+    const headerValue = `Bearer ${json.access_token}`;
+    accessToken.value = headerValue;
+    try {
+      // vueuse useStorage string serializer stores the raw value (no JSON quotes).
+      localStorage.setItem(PLAYGROUND_BEARER_STORAGE_KEY, headerValue);
+    } catch {
+      // Private mode / blocked storage — Copy still works.
+    }
     // Clear password from the DOM after a successful mint.
     password.value = "";
   } catch (err) {
@@ -138,9 +150,10 @@ async function copyToken() {
 <template>
   <div class="api-token-helper" data-testid="api-token-helper">
     <p class="hint">
-      Sample IdP only (V1 / UAT). Paste the token into <strong>Try it out →
-      Authorization</strong> as <code>Bearer &lt;token&gt;</code>. Credentials are
-      not stored on this site.
+      Sample IdP only (V1 / UAT). <strong>Copy</strong> then paste into
+      <strong>Try it out → Authorization</strong> — the value already includes
+      <code>Bearer …</code> (required by the playground). Credentials are not
+      stored on this site.
     </p>
     <div class="row">
       <label>
@@ -180,7 +193,7 @@ async function copyToken() {
         data-testid="api-token-value"
       />
       <button type="button" data-testid="api-token-copy" @click="copyToken">
-        {{ copied ? "Copied" : "Copy token" }}
+        {{ copied ? "Copied" : "Copy Authorization value" }}
       </button>
     </div>
   </div>

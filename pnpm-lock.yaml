@@ -59,8 +59,8 @@ importers:
         specifier: ^1.6.3
         version: 1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2)
       vitepress-openapi:
-        specifier: 0.2.8
-        version: 0.2.8(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2))
+        specifier: 0.2.12
+        version: 0.2.12(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2))
       vitepress-plugin-mermaid:
         specifier: 2.0.17
         version: 2.0.17(mermaid@11.12.2)(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))
@@ -8678,6 +8678,7 @@ packages:
 
   tldts-core@7.4.20:
     resolution: {integrity: sha512-C630TWXZCZmLq0F2bW4QqwnaaxCQ/svpAqvJwnC4JvgEM5ohhBnGsEzTLSOXcN+xjz+kEaHS5uoWIw2klnqd0A==}
+    deprecated: Partial release, see https://github.com/remusao/tldts/issues/2735. Use >=7.4.22.
 
   tldts@7.4.18:
     resolution: {integrity: sha512-somxA8xKAUzlAxl0TX/jMSYIbRNFIVGnI96pVGJPeMc5BsHmfVXn6mOJT6U++ELnl04eGfzpfcEuZe8WiASkXg==}
@@ -9105,8 +9106,8 @@ packages:
       yaml:
         optional: true
 
-  vitepress-openapi@0.2.8:
-    resolution: {integrity: sha512-9el46owjPDjUOkyR5Ic4ODFLIfJADxVYVthMFdp+YB+dgwTA1w1svQf7nDyOLg6q5js3y9xnl3gr3xLAXtFPrw==}
+  vitepress-openapi@0.2.12:
+    resolution: {integrity: sha512-0d2WqTDrZhe3fVCXh7oe4ODNqIzmfjEb+++iVcHkIzaB/1PebF42xIpsRZxEQ6rYH37wCPmayBX5vaeuOhZipA==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24.0.0}
     peerDependencies:
       vitepress: '>=1.0.0'
@@ -19211,7 +19212,7 @@ snapshots:
       terser: 5.51.2
       yaml: 2.9.1
 
-  vitepress-openapi@0.2.8(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2)):
+  vitepress-openapi@0.2.12(vitepress@1.6.4(@algolia/client-search@5.60.0)(@types/node@26.6.6)(change-case@5.4.4)(jwt-decode@4.0.0)(lightningcss@1.33.0)(postcss@8.5.31)(react@17.0.2)(search-insights@2.17.3)(terser@5.51.2)(typescript@7.0.2))(vue@3.5.44(typescript@7.0.2)):
     dependencies:
       '@lucide/vue': 1.71.0(vue@3.5.44(typescript@7.0.2))
       '@vueuse/core': 14.4.0(vue@3.5.44(typescript@7.0.2))

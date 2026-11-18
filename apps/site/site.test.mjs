@@ -23,6 +23,8 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(theme, /useOpenapi/);
     assert.match(theme, /vitepress-openapi\/client/);
     assert.match(theme, /allowCustomServer/);
+    // INT-407 — plain-string auth so Try it out rebuilds Authorization.
+    assert.match(theme, /persistAuth:\s*false/);
     // INT-403 — token helper for /api/.
     assert.match(theme, /ApiTokenHelper/);
   });
@@ -151,9 +153,17 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(helper, /password = ref\(""\)/);
     assert.match(helper, /maxFailures/);
     assert.match(helper, /armCooldown/);
-    // INT-406 — playground http bearer needs the full Authorization header value.
+    // INT-406 / INT-407 — helper exposes a Bearer-prefixed value for Try it out.
     assert.match(helper, /Bearer \$\{json\.access_token\}/);
-    assert.match(helper, /--oa-authorization-bearerAuth/);
-    assert.match(api, /INT-406/);
+    assert.match(api, /INT-407/);
+    const theme = readFileSync(
+      path.join(root, ".vitepress/theme/index.ts"),
+      "utf8",
+    );
+    assert.match(theme, /persistAuth:\s*false/);
+    assert.match(
+      readFileSync(path.join(root, "package.json"), "utf8"),
+      /"vitepress-openapi":\s*"0\.2\.12"/,
+    );
   });
 });

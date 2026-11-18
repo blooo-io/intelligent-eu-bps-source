@@ -13,9 +13,10 @@ hosts:
   sonar: sonar.intelligent-eu-bp.blooo.dev
 
 # INT-187 — browser SPA on the app host calls the api host (TD-8 CORS).
+# INT-405 — public docs (intelligent.docs.blooo.dev) Try it out → api.dev.
 # Comma-separated origins; must be explicit when allow_credential is true.
 cors:
-  allowOrigins: "https://app.dev.intelligent-eu-bp.blooo.dev,http://localhost:5173"
+  allowOrigins: "https://app.dev.intelligent-eu-bp.blooo.dev,https://intelligent.docs.blooo.dev,http://localhost:5173"
   allowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD"
   allowHeaders: "Authorization,Content-Type,Accept,Origin"
   exposeHeaders: "Content-Type"

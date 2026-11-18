@@ -59,6 +59,12 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
       urls.includes("https://api.dev.intelligent-eu-bp.blooo.dev/v1"),
       `expected sample gateway in servers, got ${JSON.stringify(urls)}`,
     );
+    // INT-408 — security scheme must be inlined (no external file $ref) or Try it
+    // out never attaches Authorization.
+    const bearer = json.components?.securitySchemes?.bearerAuth;
+    assert.equal(bearer?.type, "http", JSON.stringify(bearer));
+    assert.equal(bearer?.scheme, "bearer");
+    assert.equal(bearer?.$ref, undefined);
     // Downloadable YAML stays contract-faithful (relative /v1 only).
     const yaml = readFileSync(
       path.join(root, "public/openapi/public.v1.yaml"),
@@ -156,6 +162,7 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     // INT-406 / INT-407 — helper exposes a Bearer-prefixed value for Try it out.
     assert.match(helper, /Bearer \$\{json\.access_token\}/);
     assert.match(api, /INT-407/);
+    assert.match(api, /INT-408/);
     const theme = readFileSync(
       path.join(root, ".vitepress/theme/index.ts"),
       "utf8",

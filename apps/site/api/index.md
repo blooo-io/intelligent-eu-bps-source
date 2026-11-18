@@ -23,8 +23,8 @@ The helper and the IdP are rate-limited (gateway + Keycloak brute-force detectio
 
 Enter your IdP username and password, then **Copy Authorization value** into
 **Try it out → Authorization**. After paste, the curl sample under Samples must
-show `-H 'Authorization: Bearer …'` (INT-407). If it does not, the playground
-is not using the token yet — re-paste and wait a moment before Try it out.
+show `-H 'Authorization: Bearer …'` (INT-407 / INT-408). If it does not, the
+playground is not using the token yet — re-paste and wait a moment before Try it out.
 
 <ApiTokenHelper />
 

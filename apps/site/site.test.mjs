@@ -122,9 +122,9 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(hosting, /vitepress-openapi/);
   });
 
-  it("documents Blooo canonical URL under docs.blooo.dev path (INT-401)", () => {
+  it("documents Blooo canonical URL on intelligent.docs.blooo.dev (INT-401)", () => {
     const hosting = readFileSync(path.join(root, "guide/docs-hosting.md"), "utf8");
-    assert.match(hosting, /https:\/\/docs\.blooo\.dev\/intelligent-eu-bps-source\//);
+    assert.match(hosting, /https:\/\/intelligent\.docs\.blooo\.dev\//);
     assert.match(hosting, /package-pages\.mjs/);
     assert.ok(existsSync(path.join(root, "scripts/package-pages.mjs")));
   });

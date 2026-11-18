@@ -1,19 +1,18 @@
 #!/usr/bin/env node
 /**
- * INT-401 — Nest the VitePress dist so GitHub Pages + custom domain
- * serves assets under the same path prefix as DOCS_BASE.
+ * INT-401 — Prepare the VitePress dist for GitHub Pages + custom domain.
  *
- * Project Pages without a custom domain already mount the artifact at
- * /<repo>/. With a custom domain (docs.blooo.dev), Pages mounts the
- * artifact at the domain root — so a build with
- * DOCS_BASE=/intelligent-eu-bps-source/ must ship files under that
- * folder inside the artifact, or CSS/JS 404.
+ * Blooo canonical host is a dedicated subdomain at the site root:
+ *   https://intelligent.docs.blooo.dev/   (DOCS_BASE=/)
  *
- * Output layout (default):
- *   .vitepress/pages-dist/
- *     CNAME                          ← custom domain (optional)
- *     index.html                     ← redirect to DOCS_BASE
- *     intelligent-eu-bps-source/     ← VitePress build
+ * Custom domains mount the Pages artifact at `/`. With DOCS_BASE=/ the
+ * VitePress output already matches that layout — we only copy it and
+ * optionally write a root `CNAME`.
+ *
+ * If DOCS_BASE is a non-root path (adopter / legacy), nest the build under
+ * that prefix and add a root redirect so HTML asset URLs resolve.
+ *
+ * Output: apps/site/.vitepress/pages-dist/
  */
 import {
   cpSync,
@@ -30,7 +29,7 @@ const siteRoot = path.resolve(here, "..");
 const distDir = path.join(siteRoot, ".vitepress", "dist");
 const outDir = path.join(siteRoot, ".vitepress", "pages-dist");
 
-/** Strip slashes → folder name under the Pages artifact root. */
+/** Strip slashes → folder name under the Pages artifact root ("" = root). */
 export function pathPrefixFromBase(docsBase) {
   const raw = (docsBase ?? "/").trim() || "/";
   return raw.replace(/^\/+|\/+$/g, "");
@@ -54,25 +53,23 @@ export function packagePages(opts = {}) {
   if (!existsSync(source)) {
     throw new Error(`VitePress dist missing at ${source}; run build first`);
   }
-  if (!prefix) {
-    throw new Error(
-      "DOCS_BASE must be a non-root path (e.g. /intelligent-eu-bps-source/) when packaging for docs.blooo.dev",
-    );
-  }
 
   rmSync(dest, { recursive: true, force: true });
   mkdirSync(dest, { recursive: true });
 
-  // Nest the whole VitePress output under the path prefix.
-  const nested = path.join(dest, prefix);
-  mkdirSync(path.dirname(nested), { recursive: true });
-  cpSync(source, nested, { recursive: true });
+  if (!prefix) {
+    // Dedicated subdomain (intelligent.docs.blooo.dev): serve at domain root.
+    cpSync(source, dest, { recursive: true });
+  } else {
+    // Path-prefixed hosting: nest so /<prefix>/assets matches DOCS_BASE.
+    const nested = path.join(dest, prefix);
+    mkdirSync(path.dirname(nested), { recursive: true });
+    cpSync(source, nested, { recursive: true });
 
-  // Root bounce so https://docs.blooo.dev/ lands on the docs prefix.
-  const href = `/${prefix}/`;
-  writeFileSync(
-    path.join(dest, "index.html"),
-    `<!DOCTYPE html>
+    const href = `/${prefix}/`;
+    writeFileSync(
+      path.join(dest, "index.html"),
+      `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -86,9 +83,10 @@ export function packagePages(opts = {}) {
   </body>
 </html>
 `,
-  );
+    );
+  }
 
-  // GitHub Pages custom-domain marker at the artifact root (not under prefix).
+  // GitHub Pages custom-domain marker at the artifact root.
   if (customDomain) {
     writeFileSync(path.join(dest, "CNAME"), `${customDomain}\n`);
   }
@@ -102,8 +100,9 @@ const isMain =
   import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 if (isMain) {
   const result = packagePages();
+  const where = result.prefix ? `prefix=/${result.prefix}/` : "prefix=/";
   console.log(
-    `Packaged Pages artifact → ${result.outDir} (prefix=/${result.prefix}/` +
+    `Packaged Pages artifact → ${result.outDir} (${where}` +
       (result.customDomain ? `, CNAME=${result.customDomain}` : "") +
       ")",
   );

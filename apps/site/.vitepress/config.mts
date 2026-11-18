@@ -5,9 +5,8 @@ import spec from "../public/openapi/public.v1.json" with { type: "json" };
 
 /**
  * Docs site for open-source adopters (INT-299 … INT-302, INT-401).
- * Blooo canonical host: https://docs.blooo.dev/intelligent-eu-bps-source/
- * Set DOCS_BASE=/intelligent-eu-bps-source/ and run pages:package so the
- * Pages artifact nests under that prefix (custom domains mount at /).
+ * Blooo canonical host: https://intelligent.docs.blooo.dev/ (DOCS_BASE=/).
+ * Run pages:package to ship the Pages artifact + CNAME for the custom domain.
  * OpenAPI UI: vitepress-openapi (Vue pages under /api/).
  */
 const base = (process.env.DOCS_BASE || "/").replace(/\/?$/, "/") || "/";

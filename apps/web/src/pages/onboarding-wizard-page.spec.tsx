@@ -180,20 +180,12 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
   it(
     "Continue to terms reloads readiness via afterGate (INT-194)",
     async () => {
-      const fetchMock = vi
-        .fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () =>
-            meFixture("Invited", { name: "", address: "", email: "" }),
-        })
-        // ProfilePage + terms/current noise may call more; then afterGate reload.
-        .mockResolvedValue({
-          ok: true,
-          json: async () => meFixture("ProfileCompleted"),
-        });
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => meFixture("ProfileCompleted"),
+      });
       vi.stubGlobal("fetch", fetchMock);
-      renderWizard();
+      renderWizard("/onboarding?step=profile");
       await waitFor(
         () => {
           expect(
@@ -222,7 +214,7 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
         "fetch",
         vi.fn().mockResolvedValue({
           ok: true,
-          json: async () => meFixture("ProfileCompleted"),
+          json: async () => meFixture("TermsAccepted"),
         }),
       );
       renderWizard("/onboarding?step=terms");
@@ -240,7 +232,7 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
       await waitFor(
         () => {
           expect(
-            screen.getByText(/Profile saved — accept the terms/i),
+            screen.getByRole("button", { name: /save card and finish/i }),
           ).toBeInTheDocument();
         },
         { timeout: 10_000 },
@@ -249,6 +241,25 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
     slow,
   );
 
+  it("disables Continue until the current gate is done (ANO-001 / ANO-010)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () =>
+          meFixture("Invited", { name: "", address: "", email: "" }),
+      }),
+    );
+    renderWizard();
+    const profileContinue = await screen.findByRole("button", {
+      name: /continue to terms/i,
+    });
+    expect(profileContinue).toBeDisabled();
+    await waitFor(() => {
+      expect(screen.getByText(/invitation does not include a name/i)).toBeInTheDocument();
+    });
+  });
+
   it(
     "afterGate surfaces refresh errors",
     async () => {
@@ -256,12 +267,11 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
         .fn()
         .mockResolvedValueOnce({
           ok: true,
-          json: async () =>
-            meFixture("Invited", { name: "", address: "", email: "" }),
+          json: async () => meFixture("ProfileCompleted"),
         })
         .mockResolvedValue({ ok: false, status: 503 });
       vi.stubGlobal("fetch", fetchMock);
-      renderWizard();
+      renderWizard("/onboarding?step=profile");
       await waitFor(
         () => {
           expect(

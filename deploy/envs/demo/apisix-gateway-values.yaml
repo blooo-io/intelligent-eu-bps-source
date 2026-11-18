@@ -11,7 +11,8 @@ cors:
 # INT-289 — SPA connect-src for demo API host.
 securityHeaders:
   csp:
-    app: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.demo.intelligent-eu-bp.blooo.dev https://auth.intelligent-eu-bp.blooo.dev https://js.stripe.com; frame-src https://js.stripe.com https://hooks.stripe.com"
+    # INT-388 — same Stripe.js hosts as dev; demo API origin only.
+    app: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: https://*.stripe.com; style-src 'self' 'unsafe-inline'; script-src 'self' https://js.stripe.com https://*.js.stripe.com https://connect-js.stripe.com; connect-src 'self' https://api.demo.intelligent-eu-bp.blooo.dev https://auth.intelligent-eu-bp.blooo.dev https://api.stripe.com https://js.stripe.com https://*.js.stripe.com https://connect-js.stripe.com https://r.stripe.com https://q.stripe.com https://m.stripe.network; frame-src https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com https://connect-js.stripe.com"
 oidc:
   realm: demo
   discoveryHost: auth.intelligent-eu-bp.blooo.dev

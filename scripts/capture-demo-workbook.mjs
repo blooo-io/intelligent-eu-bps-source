@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * INT-282 / INT-285 — capture demo workbook screenshots against app.dev.
+ * INT-282 / INT-285 / INT-399 — capture demo workbook screenshots against app.dev.
+ * Every persona ends on /api so the booklet shows the header link and the console.
  *
  * Usage:
  *   E2E_BASE_URL=https://app.dev.intelligent-eu-bp.blooo.dev \
@@ -28,7 +29,7 @@ const PERSONAS = [
   {
     id: "p0-hugo-moreau",
     user: "hugo.moreau",
-    routes: ["/", "/onboarding", "/profile", "/terms", "/payment-setup"],
+    routes: ["/", "/onboarding", "/profile", "/terms", "/payment-setup", "/api"],
   },
   {
     id: "p1-lea-martin",
@@ -41,17 +42,18 @@ const PERSONAS = [
       "/invoices",
       "/privacy",
       "/reports",
+      "/api",
     ],
   },
   {
     id: "p2-thomas-bernard",
     user: "thomas.bernard",
-    routes: ["/", "/payment-setup", "/invoices", "/reports"],
+    routes: ["/", "/payment-setup", "/invoices", "/reports", "/api"],
   },
   {
     id: "p3-claire-dubois",
     user: "claire.dubois",
-    routes: ["/", "/payment-setup"],
+    routes: ["/", "/payment-setup", "/api"],
   },
   {
     id: "p4-marie-leroy",
@@ -63,12 +65,13 @@ const PERSONAS = [
       "/billing-runs",
       "/payments-overview",
       "/reports",
+      "/api",
     ],
   },
   {
     id: "p5-paul-nguyen",
     user: "paul.nguyen",
-    routes: ["/", "/operator", "/reports"],
+    routes: ["/", "/operator", "/reports", "/api"],
   },
 ];
 
@@ -126,6 +129,14 @@ async function login(page, user) {
 
 async function shot(page, file) {
   await waitContent(page);
+  // INT-399 — authenticated screens must show the header API link.
+  const apiLink = page.getByTestId("shell-api-link");
+  if ((await apiLink.count()) > 0) {
+    await apiLink.first().waitFor({ state: "visible", timeout: 15_000 });
+  }
+  if (page.url().includes("/api")) {
+    await page.getByTestId("api-operation").waitFor({ state: "visible", timeout: 20_000 });
+  }
   await page.screenshot({
     path: path.join(outDir, file),
     fullPage: true,

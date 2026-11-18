@@ -79,6 +79,7 @@ spec:
       ports:
         - port: {{ .Values.temporal.postgresPort }}
           protocol: TCP
+    {{- include "platform-network-policies.cnpgOperatorIngress" . | nindent 4 }}
   egress:
     - to:
         - namespaceSelector:

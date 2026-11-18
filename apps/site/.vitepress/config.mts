@@ -4,10 +4,9 @@ import { useSidebar } from "vitepress-openapi";
 import spec from "../public/openapi/public.v1.json" with { type: "json" };
 
 /**
- * Docs site for open-source adopters (INT-299 … INT-302).
- * Private GitHub Pages uses a unique host at site root → base "/".
- * When the repo is public, set DOCS_BASE=/intelligent-eu-bps-source/
- * so assets resolve under https://<org>.github.io/<repo>/.
+ * Docs site for open-source adopters (INT-299 … INT-302, INT-401).
+ * Blooo canonical host: https://intelligent.docs.blooo.dev/ (DOCS_BASE=/).
+ * Run pages:package to ship the Pages artifact + CNAME for the custom domain.
  * OpenAPI UI: vitepress-openapi (Vue pages under /api/).
  */
 const base = (process.env.DOCS_BASE || "/").replace(/\/?$/, "/") || "/";

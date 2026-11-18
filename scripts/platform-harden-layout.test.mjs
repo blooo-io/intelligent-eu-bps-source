@@ -126,16 +126,53 @@ test("INT-313 — Temporal, SonarQube, observability NetworkPolicies", async () 
   assert.match(sonar, /app:\s*sonarqube/);
 });
 
+test("INT-380 — platform CNPG clusters admit the operator status probe", async () => {
+  const helpers = await readFile(
+    "deploy/charts/platform-network-policies/templates/_helpers.tpl",
+    "utf8",
+  );
+  assert.match(helpers, /define "platform-network-policies\.cnpgOperatorIngress"/);
+  const values = await readFile(
+    "deploy/charts/platform-network-policies/values.yaml",
+    "utf8",
+  );
+  assert.match(values, /cnpgOperatorNamespace:\s*cnpg-system/);
+  assert.match(values, /cnpgInstanceStatusPort:\s*8000/);
+  for (const file of ["keycloak.yaml", "temporal.yaml", "sonarqube.yaml"]) {
+    const text = await readFile(
+      `deploy/charts/platform-network-policies/templates/${file}`,
+      "utf8",
+    );
+    assert.match(
+      text,
+      /-cnpg[\s\S]*include "platform-network-policies\.cnpgOperatorIngress"/,
+      `${file} CNPG policy must admit the operator`,
+    );
+  }
+});
+
 test("INT-315 / INT-328 — Kyverno engine + int-apps/demo-apps baseline policies", async () => {
   const engine = await readFile("deploy/argocd/platform/kyverno.yaml", "utf8");
   assert.match(engine, /name: platform-kyverno/);
   assert.match(engine, /chart: kyverno/);
   assert.match(engine, /targetRevision: 3\.9\.2/);
+  assert.match(engine, /RespectIgnoreDifferences=true/);
+  assert.match(engine, /kind: CustomResourceDefinition/);
+  assert.match(engine, /\.spec\.conversion/);
+  // INT-396 — labels are rendered, not ignored: an ignore with
+  // RespectIgnoreDifferences would stop Argo from writing them.
+  assert.doesNotMatch(engine, /\.metadata\.labels/);
+  const kyvernoValues = await readFile("deploy/platform/kyverno/values.yaml", "utf8");
+  assert.match(kyvernoValues, /^kyverno-api:\n  annotations:\n    controller-gen\.kubebuilder\.io\/version: v0\.20\.0/m);
+  assert.match(kyvernoValues, /^  labels:\n    app\.kubernetes\.io\/component: crds/m);
   const policiesApp = await readFile(
     "deploy/argocd/platform/kyverno-policies.yaml",
     "utf8",
   );
   assert.match(policiesApp, /path: deploy\/charts\/kyverno-policies/);
+  assert.match(policiesApp, /RespectIgnoreDifferences=true/);
+  assert.match(policiesApp, /kind: ClusterPolicy/);
+  assert.match(policiesApp, /\.spec\.admission/);
   const values = await readFile(
     "deploy/charts/kyverno-policies/values.yaml",
     "utf8",

@@ -29,6 +29,10 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(routes, /limit-req/);
   assert.match(routes, /apisix-gateway\.oidcPlugin/);
   assert.match(routes, /auth-idp/);
+  // INT-404 — token endpoint rate-limited ahead of the catch-all auth route.
+  assert.match(routes, /keycloak-token/);
+  assert.match(routes, /openid-connect\/token/);
+  assert.match(routes, /Values\.auth\.tokenRate\.rate/);
   assert.match(routes, /web-app/);
   // INT-218 — AC-09 paths must not fall through to participants /v1/communities/*.
   assert.match(routes, /communities\/\*\/payments-overview/);
@@ -99,9 +103,13 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(values, /cors:/);
   assert.match(values, /allowOrigins:/);
   assert.match(values, /app\.dev\.intelligent-eu-bp\.blooo\.dev/);
+  // INT-405 — Scalar Try it out on intelligent.docs.blooo.dev → api.dev.
+  assert.match(values, /intelligent\.docs\.blooo\.dev/);
   // INT-327 — /v1 catalogue rate defaults (webhook already has its own block).
   assert.match(values, /api:\s*\n\s*rate:\s*\n\s*rate:\s*\d+/);
   assert.match(values, /webhook:\s*\n[\s\S]*rate:\s*\n\s*rate:\s*\d+/);
+  // INT-404 — token endpoint rate defaults.
+  assert.match(values, /auth:\s*\n\s*tokenRate:\s*\n\s*rate:\s*\d+/);
 });
 
 test("role claim path is configuration on gateway, modules and web (NFR-013 / INT-357)", async () => {
@@ -166,6 +174,8 @@ test("gateway TLS templates gate Certificate and ApisixTls (INT-168)", async () 
   assert.match(dev, /tls:\s*\n\s*enabled:\s*true/);
   assert.match(dev, /letsencrypt-prod/);
   assert.match(dev, /reloadGeneration:/);
+  // INT-405 — docs host must be an explicit CORS origin (credentials mode).
+  assert.match(dev, /allowOrigins:.*intelligent\.docs\.blooo\.dev/);
 });
 
 test("letsencrypt production issuer enabled after staging smoke (INT-173)", async () => {
@@ -191,6 +201,25 @@ test("letsencrypt production issuer enabled after staging smoke (INT-173)", asyn
   assert.match(tpl, /letsencrypt-prod/);
   assert.match(tpl, /acme-v02\.api\.letsencrypt\.org/);
   assert.match(tpl, /ingressClassName/);
+});
+
+test("app CSP allows Stripe.js and Connect (INT-388 / ANO-005)", async () => {
+  const stripe =
+    /script-src 'self' https:\/\/js\.stripe\.com https:\/\/\*\.js\.stripe\.com https:\/\/connect-js\.stripe\.com/;
+  const connect =
+    /connect-src[\s\S]*https:\/\/api\.stripe\.com[\s\S]*https:\/\/m\.stripe\.network/;
+  const frame =
+    /frame-src https:\/\/js\.stripe\.com https:\/\/\*\.js\.stripe\.com https:\/\/hooks\.stripe\.com https:\/\/connect-js\.stripe\.com/;
+  const dev = await readFile("deploy/charts/apisix-gateway/values.yaml", "utf8");
+  const demo = await readFile("deploy/envs/demo/apisix-gateway-values.yaml", "utf8");
+  for (const text of [dev, demo]) {
+    assert.match(text, stripe);
+    assert.match(text, connect);
+    assert.match(text, frame);
+    assert.match(text, /img-src 'self' data: https:\/\/\*\.stripe\.com/);
+  }
+  assert.match(dev, /https:\/\/api\.dev\.intelligent-eu-bp\.blooo\.dev/);
+  assert.match(demo, /https:\/\/api\.demo\.intelligent-eu-bp\.blooo\.dev/);
 });
 
 test("platform README documents gateway routes (INT-114 / INT-173 / INT-174)", async () => {

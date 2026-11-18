@@ -99,6 +99,19 @@ export function mdToHtml(md) {
       continue;
     }
 
+    if (line.startsWith("```")) {
+      closeLists();
+      const buf = [];
+      i += 1;
+      while (i < lines.length && !lines[i].startsWith("```")) {
+        buf.push(escapeHtml(lines[i]));
+        i += 1;
+      }
+      if (i < lines.length && lines[i].startsWith("```")) i += 1;
+      html.push(`<pre><code>${buf.join("\n")}</code></pre>`);
+      continue;
+    }
+
     if (line.startsWith("> ")) {
       closeLists();
       const quote = [];
@@ -199,6 +212,15 @@ export async function exportCahierPdf() {
       border-left: 3px solid #c8f542;
     }
     code { font-size: 0.9em; }
+    pre {
+      background: #f3f6f2;
+      border: 1px solid #d5ddd6;
+      padding: 8pt 10pt;
+      font-size: 8.5pt;
+      line-height: 1.35;
+      white-space: pre-wrap;
+      page-break-inside: avoid;
+    }
     hr { border: none; border-top: 1px solid #d5ddd6; margin: 16pt 0; }
   </style>
 </head>

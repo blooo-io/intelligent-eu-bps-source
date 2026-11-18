@@ -13,9 +13,10 @@ hosts:
   sonar: sonar.intelligent-eu-bp.blooo.dev
 
 # INT-187 — browser SPA on the app host calls the api host (TD-8 CORS).
+# INT-405 — public docs (intelligent.docs.blooo.dev) Try it out → api.dev.
 # Comma-separated origins; must be explicit when allow_credential is true.
 cors:
-  allowOrigins: "https://app.dev.intelligent-eu-bp.blooo.dev,http://localhost:5173"
+  allowOrigins: "https://app.dev.intelligent-eu-bp.blooo.dev,https://intelligent.docs.blooo.dev,http://localhost:5173"
   allowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD"
   allowHeaders: "Authorization,Content-Type,Accept,Origin"
   exposeHeaders: "Content-Type"
@@ -30,7 +31,8 @@ securityHeaders:
   referrerPolicy: strict-origin-when-cross-origin
   csp:
     api: "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
-    app: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.dev.intelligent-eu-bp.blooo.dev https://auth.intelligent-eu-bp.blooo.dev https://js.stripe.com; frame-src https://js.stripe.com https://hooks.stripe.com"
+    # INT-388 — Stripe.js and Connect embedded components (ANO-005 / ANO-014).
+    app: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: https://*.stripe.com; style-src 'self' 'unsafe-inline'; script-src 'self' https://js.stripe.com https://*.js.stripe.com https://connect-js.stripe.com; connect-src 'self' https://api.dev.intelligent-eu-bp.blooo.dev https://auth.intelligent-eu-bp.blooo.dev https://api.stripe.com https://js.stripe.com https://*.js.stripe.com https://connect-js.stripe.com https://r.stripe.com https://q.stripe.com https://m.stripe.network; frame-src https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com https://connect-js.stripe.com"
     docs: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'"
     auth: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'"
 
@@ -90,6 +92,12 @@ api:
   rate:
     rate: 50
     burst: 100
+
+# INT-404 — rate-limit Keycloak token endpoint (password grant / docs helper).
+auth:
+  tokenRate:
+    rate: 5
+    burst: 10
 
 webhook:
   # POST /webhooks/payment-provider — only unauthenticated public route (NFR-015).

@@ -1,4 +1,5 @@
 import { Button, Layout, Space, Tag, Typography, theme } from "antd";
+import { Link } from "react-router";
 import { brand } from "../theme";
 
 const { Header } = Layout;
@@ -69,6 +70,9 @@ export function AppShellHeaderBar({
               </Tag>
             ))}
           </span>
+          <Link to="/api" data-testid="shell-api-link" style={{ color: "#D7E0DA" }}>
+            API
+          </Link>
           <Button size="small" onClick={onLogout}>
             Sign out
           </Button>
@@ -97,9 +101,14 @@ export function AppShellHeaderBar({
           </Text>
         ) : null}
       </Space>
-      <Button size="small" onClick={onLogout}>
-        Sign out
-      </Button>
+      <Space size={12}>
+        <Link to="/api" data-testid="shell-api-link">
+          API
+        </Link>
+        <Button size="small" onClick={onLogout}>
+          Sign out
+        </Button>
+      </Space>
     </>
   );
 

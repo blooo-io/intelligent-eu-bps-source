@@ -56,6 +56,10 @@ Confirmed set: [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76).
 
 **Totals after INT-204:** **62 Pass**, **0 Not Run**, **0 Blocked**, **0 Fail** (62 in-scope; UAT-044 / UAT-047 out).
 
+## INT-386 (2026-11-14)
+
+UAT-036 stays Pass. The Pass covers the base ontology class mapping only. Billing EWDS extensions that are not in ontology v1.0.0 stay open with EWAG; see the 2026-11-14 run note on UAT-036. Counts above are unchanged.
+
 ## Commands / probes
 
 ```bash

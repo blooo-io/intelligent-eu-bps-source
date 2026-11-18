@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   Inject,
@@ -379,8 +380,15 @@ export class PaymentsService {
     communityId: string;
     role: ProvisionRole;
   }): Promise<OnboardingSession> {
-    await this.ensureParticipant(input);
-    const account = this.store.getAccount(input.participantId)!;
+    // INT-230 / INT-394 — JWT sub is the IdP id; AC-03 is keyed by participantId.
+    const caller = await this.resolveCallerParticipantId(input.participantId);
+    const participantId = caller.participantId;
+    await this.ensureParticipant({
+      participantId,
+      communityId: caller.communityId ?? input.communityId,
+      role: input.role,
+    });
+    const account = this.store.getAccount(participantId)!;
 
     // INT-269 — producer: Connect only. Prosumer: Connect first, then Elements.
     if (input.role === "producer") {
@@ -393,13 +401,13 @@ export class PaymentsService {
       }
       // INT-362 — Connect done (possibly just now): continue to the card step.
       return this.startConsumerElementsOnboarding(
-        input.participantId,
-        this.store.getAccount(input.participantId)!,
+        participantId,
+        this.store.getAccount(participantId)!,
       );
     }
 
     // INT-193 — consumer SetupIntent for in-wizard Payment Element.
-    return this.startConsumerElementsOnboarding(input.participantId, account);
+    return this.startConsumerElementsOnboarding(participantId, account);
   }
 
   /**
@@ -438,13 +446,14 @@ export class PaymentsService {
     account: AccountRecord,
   ): Promise<OnboardingSession> {
     if (account.paymentMethodId) {
-      // INT-255 — durable PM may already exist while AC-03 readiness lags;
-      // re-notify so Ready chrome stays aligned with Stripe master (TP-7).
-      // Best-effort: never fail Start when the PM is already on file.
+      // INT-255 / ANO-006 — a saved card must update AC-03. Swallowing the
+      // notify left the member on TermsAccepted with no next step.
       try {
-        await this.emitAccountStatus(participantId);
-      } catch {
-        // Participants notify may 5xx during rollout; session is still complete.
+        await this.emitAccountStatus(participantId, { notFound: "fail" });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "payment account status notify failed";
+        throw new BadGatewayException(message);
       }
       return { mode: "elements", status: "complete" };
     }
@@ -466,6 +475,12 @@ export class PaymentsService {
     if (input.role === "consumer") {
       throw new BadRequestException("Consumers use payment-method link onboarding");
     }
+    const caller = await this.resolveCallerParticipantId(input.participantId);
+    input = {
+      ...input,
+      participantId: caller.participantId,
+      communityId: caller.communityId ?? input.communityId,
+    };
     await this.ensureParticipant(input);
     const account = this.store.getAccount(input.participantId)!;
     let stripeAccountId = account.stripeAccountId;
@@ -527,6 +542,25 @@ export class PaymentsService {
     return session;
   }
 
+  /**
+   * INT-394 — public card save. Resolve the IdP subject before the account
+   * row is created, so Ready is notified on the registry participant.
+   */
+  async attachCallerPaymentMethod(input: {
+    participantId: string;
+    communityId: string;
+    role: ProvisionRole;
+    paymentMethodId: string;
+  }): Promise<OnboardingSession> {
+    const caller = await this.resolveCallerParticipantId(input.participantId);
+    await this.ensureParticipant({
+      participantId: caller.participantId,
+      communityId: caller.communityId ?? input.communityId,
+      role: input.role,
+    });
+    return this.attachPaymentMethod(caller.participantId, input.paymentMethodId);
+  }
+
   async attachPaymentMethod(
     participantId: string,
     paymentMethodId: string,
@@ -550,7 +584,13 @@ export class PaymentsService {
       ...account,
       paymentMethodId,
     });
-    await this.emitAccountStatus(participantId);
+    try {
+      await this.emitAccountStatus(participantId, { notFound: "fail" });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "payment account status notify failed";
+      throw new BadGatewayException(message);
+    }
     return { mode: "elements", status: "complete" };
   }
 
@@ -630,7 +670,8 @@ export class PaymentsService {
     stripeAccountId?: string;
     dashboardUrl?: string;
   }> {
-    const row = await this.loadStoredAccount(participantId);
+    const caller = await this.resolveCallerParticipantId(participantId);
+    const row = await this.loadStoredAccount(caller.participantId);
     if (!row) {
       return { status: "none" };
     }
@@ -721,7 +762,11 @@ export class PaymentsService {
     } catch {
       throw new NotFoundException(`Unknown invoice ${input.invoiceId}`);
     }
-    if (invoice.consumerId !== participantId) {
+    // INT-236 / INT-395 — invoices may name the consumer by registry id or IdP sub.
+    if (
+      invoice.consumerId !== participantId &&
+      invoice.consumerId !== input.participantId
+    ) {
       throw new ForbiddenException("Invoice is not payable by this participant");
     }
     // INT-355 — replaying Pay on a settled invoice returns the original payment.
@@ -1012,7 +1057,10 @@ export class PaymentsService {
     return account.kycStatus === "verified";
   }
 
-  private async emitAccountStatus(participantId: string): Promise<void> {
+  private async emitAccountStatus(
+    participantId: string,
+    options?: { notFound?: "ignore" | "fail" },
+  ): Promise<void> {
     const account = this.store.getAccount(participantId);
     if (!account) {
       return;
@@ -1032,10 +1080,12 @@ export class PaymentsService {
       },
     });
     // INT-193 — sync notify AC-03 until NATS consumer is wired.
+    // INT-228 — unknown fixture producers stay ignore; a member card must fail.
     await this.participants.applyPaymentAccountStatus({
       participantId,
       ready,
       reason: ready ? undefined : "payment_account",
+      notFound: options?.notFound,
     });
   }
 

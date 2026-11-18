@@ -1,7 +1,7 @@
 # V1 release notes (INT-95)
 
 **Deliverable:** D5.5 — Billing & Payment Service V1  
-**Source tag:** `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
+**Source tag:** `v1.1.2` (INT-409), after `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
 **Project:** Horizon Europe INTELLIGENT (GA 101160678), Task T5.6, led by Blooo  
 **Licence:** Apache License 2.0 — see [`LICENSE`](../../LICENSE) and [`NOTICE`](../../NOTICE)
 
@@ -13,6 +13,28 @@
 - GitOps deploy to Scaleway `k8s-intelligent-eu-dev` (`dev` / `int`) and packaging for `demo`.
 - OpenAPI / AsyncAPI contracts; EWDS invoice/payment schema validation via mocks.
 - Observability (OpenTelemetry), secrets via OpenBao + External Secrets, Keycloak OIDC, APISIX gateway.
+
+## Changes since v1.1.1
+
+- Public docs host on `intelligent.docs.blooo.dev` with password-grant token helper for Try it out (INT-401, INT-403, INT-404).
+- APISIX CORS allows the docs origin so the playground can call the sample gateway (INT-405).
+- Docs OpenAPI prepare bundles external `$ref`s and pins vitepress-openapi so Try it out attaches `Authorization: Bearer …` (INT-406…INT-408).
+- CI: suppress Trivy UNKNOWN findings for `libssl3t64` (INT-402).
+
+## Changes since v1.1.0
+
+- Demo booklet: each Horizon Energy scenario keeps the form walkthrough and adds the same steps as a direct `/v1` call, with the JSON filled from the demo data (INT-398).
+- Screenshots: every signed-in screen shows the header API link, and each persona has a capture of the `/api` console. PDF regenerated (INT-399).
+
+## Changes since v1.0.1
+
+
+- Reference web app: an API console at `/api` lists every public operation for any signed-in role, and is linked from the header (INT-387).
+- Invoices: the PDF is returned as bytes, not a Stripe redirect (INT-389). Payment readiness and onboarding unblocked on the manual screens (INT-390, INT-391).
+- Payments: a member pays an invoice that names them by IdP subject (INT-395). Start fails closed when a saved card cannot sync to Ready (INT-390).
+- Gateway: Stripe.js is allowed in the app Content-Security-Policy (INT-388).
+- Test: an authenticated public API e2e suite runs on the deployed stack and fails unless every public operation is covered (INT-394).
+- Platform: Argo CD reports `platform-kyverno` Synced, with labels and annotations rendered on the Kyverno policy CRDs (INT-396). NATS, CNPG and Kyverno fixes from INT-377 to INT-384.
 
 ## Known limitations (V1)
 

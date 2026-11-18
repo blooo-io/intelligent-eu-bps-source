@@ -120,11 +120,18 @@ test.describe("AC-01 member screens and buttons", () => {
     await expect(page.getByText("Billing identity")).toBeVisible();
     await expect(page.getByText("Accept & self-billing")).toBeVisible();
     await expect(page.getByText(/^(Pay|Payouts)$/i).first()).toBeVisible();
-    // Step click navigates within wizard.
+    // The step indicator is not clickable (INT-391 / ANO-003): it must not change the step.
+    const heading = page.getByRole("heading", { name: /get ready — step \d of 3/i });
+    const headingBefore = await heading.textContent();
     await page.getByText("Billing identity").click();
-    await expect(page.getByRole("button", { name: /save profile|continue to terms/i }).first()).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(heading).toHaveText(headingBefore ?? /get ready — step \d of 3/i);
+    await expect(
+      page
+        .getByRole("button", {
+          name: /save profile|continue to terms|accept terms|continue to payment setup|save card and finish|continue to stripe connect|start payment setup|add a payment method|go to invoices/i,
+        })
+        .first(),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("Balances page loads (empty or Settle now)", async ({ page }) => {

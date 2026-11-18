@@ -196,6 +196,37 @@ metadata:
 spec:
   ingressClassName: {{ .Values.ingressClassName | quote }}
   http:
+    # INT-404 — stricter limit on the OIDC token endpoint (docs password grant).
+    - name: keycloak-token
+      priority: 20
+      match:
+        hosts:
+          - {{ .Values.hosts.auth | quote }}
+        paths:
+          - /realms/int/protocol/openid-connect/token
+          - /realms/demo/protocol/openid-connect/token
+      backends:
+        - serviceName: keycloak
+          servicePort: {{ .Values.backends.keycloak.port }}
+      plugins:
+        - name: limit-req
+          enable: true
+          config:
+            rate: {{ .Values.auth.tokenRate.rate }}
+            burst: {{ .Values.auth.tokenRate.burst }}
+            rejected_code: 429
+            key_type: var
+            key: remote_addr
+{{ include "apisix-gateway.securityHeadersPlugin" (dict "Values" .Values "csp" .Values.securityHeaders.csp.auth) | nindent 8 }}
+        - name: proxy-rewrite
+          enable: true
+          config:
+            headers:
+              set:
+                Forwarded: {{ printf "proto=https;host=%s;port=443" .Values.hosts.auth | quote }}
+                X-Forwarded-Proto: https
+                X-Forwarded-Port: "443"
+                X-Forwarded-Host: {{ .Values.hosts.auth | quote }}
     - name: keycloak
       priority: 10
       match:

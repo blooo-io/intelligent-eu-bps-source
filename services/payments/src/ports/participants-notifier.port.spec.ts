@@ -61,4 +61,20 @@ describe("ParticipantsNotifierPort (INT-193)", () => {
       http.applyPaymentAccountStatus({ participantId: "fixture-p", ready: true }),
     ).resolves.toBeUndefined();
   });
+
+  it("HttpParticipantsNotifier fails a 404 when the caller asked (INT-390)", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    const http = new HttpParticipantsNotifier(
+      "http://participants:8080",
+      fetchImpl as unknown as typeof fetch,
+      "tok",
+    );
+    await expect(
+      http.applyPaymentAccountStatus({
+        participantId: "p1",
+        ready: true,
+        notFound: "fail",
+      }),
+    ).rejects.toThrow(/failed with 404/);
+  });
 });

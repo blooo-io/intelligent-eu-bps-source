@@ -24,7 +24,7 @@ export function usePaymentSetup({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<OnboardingSession | null>(null);
-  const { marketRole, readiness, account, setAccount } = usePaymentSetupMe(
+  const { marketRole, readiness, account, setAccount, roleLoaded } = usePaymentSetupMe(
     config,
     oidc,
   );
@@ -79,6 +79,7 @@ export function usePaymentSetup({
     error,
     session,
     account,
+    roleLoaded,
     asProsumer,
     asProducer,
     setupIncomplete,

@@ -23,6 +23,10 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(theme, /useOpenapi/);
     assert.match(theme, /vitepress-openapi\/client/);
     assert.match(theme, /allowCustomServer/);
+    // INT-407 — plain-string auth so Try it out rebuilds Authorization.
+    assert.match(theme, /persistAuth:\s*false/);
+    // INT-403 — token helper for /api/.
+    assert.match(theme, /ApiTokenHelper/);
   });
 
   it("architecture page keeps a mermaid fence for client render", () => {
@@ -67,6 +71,12 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
       hasExpectedServer,
       `expected sample gateway in servers, got ${JSON.stringify(urls)}`,
     );
+    // INT-408 — security scheme must be inlined (no external file $ref) or Try it
+    // out never attaches Authorization.
+    const bearer = json.components?.securitySchemes?.bearerAuth;
+    assert.equal(bearer?.type, "http", JSON.stringify(bearer));
+    assert.equal(bearer?.scheme, "bearer");
+    assert.equal(bearer?.$ref, undefined);
     // Downloadable YAML stays contract-faithful (relative /v1 only).
     const yaml = readFileSync(
       path.join(root, "public/openapi/public.v1.yaml"),
@@ -132,5 +142,47 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(hosting, /Custom domain/i);
     assert.match(hosting, /pages\.github\.io/);
     assert.match(hosting, /vitepress-openapi/);
+  });
+
+  it("documents Blooo canonical URL on intelligent.docs.blooo.dev (INT-401)", () => {
+    const hosting = readFileSync(path.join(root, "guide/docs-hosting.md"), "utf8");
+    assert.match(hosting, /https:\/\/intelligent\.docs\.blooo\.dev\//);
+    assert.match(hosting, /package-pages\.mjs/);
+    assert.ok(existsSync(path.join(root, "scripts/package-pages.mjs")));
+  });
+
+  it("API page documents password-grant token flow without publishing credentials (INT-403 / INT-404)", () => {
+    const api = readFileSync(path.join(root, "api/index.md"), "utf8");
+    assert.match(api, /<ApiTokenHelper\s*\/>/);
+    assert.match(api, /grant_type=password/);
+    assert.match(api, /client_id=docs/);
+    assert.match(api, /username=<username>/);
+    assert.match(api, /password=<password>/);
+    // INT-404 — no UAT passwords or fixture usernames on the public docs page.
+    assert.doesNotMatch(api, /Intelligent-UAT-2026!/);
+    assert.doesNotMatch(api, /hugo\.petit/);
+    assert.doesNotMatch(api, /sofia\.garcia/);
+    assert.doesNotMatch(api, /paul\.nguyen/);
+    const helper = readFileSync(
+      path.join(root, ".vitepress/theme/ApiTokenHelper.vue"),
+      "utf8",
+    );
+    assert.match(helper, /username = ref\(""\)/);
+    assert.match(helper, /password = ref\(""\)/);
+    assert.match(helper, /maxFailures/);
+    assert.match(helper, /armCooldown/);
+    // INT-406 / INT-407 — helper exposes a Bearer-prefixed value for Try it out.
+    assert.match(helper, /Bearer \$\{json\.access_token\}/);
+    assert.match(api, /INT-407/);
+    assert.match(api, /INT-408/);
+    const theme = readFileSync(
+      path.join(root, ".vitepress/theme/index.ts"),
+      "utf8",
+    );
+    assert.match(theme, /persistAuth:\s*false/);
+    assert.match(
+      readFileSync(path.join(root, "package.json"), "utf8"),
+      /"vitepress-openapi":\s*"0\.2\.12"/,
+    );
   });
 });

@@ -1,37 +1,55 @@
 # Docs hosting & URL
 
-The VitePress site (including the embedded Redoc API) is published with the `docs` GitHub Actions workflow.
+The VitePress site (including the embedded OpenAPI UI) is published with the `docs` GitHub Actions workflow.
+
+## Upstream URL (Blooo)
+
+Canonical public URL:
+
+`https://intelligent.docs.blooo.dev/`
+
+- Custom domain: `intelligent.docs.blooo.dev` (CNAME → `blooo-io.github.io`, DNS only).
+- Path: site root (`DOCS_BASE=/` in `.github/workflows/docs.yml`).
+- Packaging (INT-401): `scripts/package-pages.mjs` copies the VitePress dist into the Pages artifact and writes a root `CNAME`.
+
+### DNS (Cloudflare)
+
+On the `blooo.dev` zone, add:
+
+| Type | Name | Content | Proxy |
+|---|---|---|---|
+| CNAME | `intelligent.docs` | `blooo-io.github.io` | DNS only |
+
+In the GitHub repo: **Settings → Pages → Custom domain** = `intelligent.docs.blooo.dev`, then **Enforce HTTPS** once the certificate is issued.
 
 ## Default private URL
 
-While the repository is **private**, GitHub Pages assigns a random host such as:
+While the repository is **private**, GitHub Pages may also expose a random host such as:
 
 `https://<random>.pages.github.io/`
 
 That prefix is **not configurable**. Collaborators with repo access open it after GitHub login.
 
-## Friendlier URL options
+## Friendlier URL options (adopters)
 
-### 1. Custom domain (recommended while the repo stays private)
+### 1. Custom domain at the site root (recommended)
 
-1. Choose a hostname you control, e.g. `billing-docs.example.org` or `docs.your-energy-community.eu`.
-2. In the repo: **Settings → Pages → Custom domain** — enter that hostname and follow GitHub’s DNS instructions (usually a `CNAME` to `<org>.github.io` or the Pages target GitHub shows).
-3. Optionally add a `CNAME` file under `apps/site/public/CNAME` containing only that hostname so it ships with every build (adopters fork and replace with their own).
+1. Choose a hostname you control, e.g. `docs.your-energy-community.eu`.
+2. In the repo: **Settings → Pages → Custom domain** — enter that hostname and follow GitHub’s DNS instructions (usually a `CNAME` to `<org>.github.io`).
+3. Keep `DOCS_BASE=/` and set `DOCS_CUSTOM_DOMAIN` in the workflow so `pages:package` writes your `CNAME`.
 4. Enable **Enforce HTTPS** once the certificate is ready.
 
-After DNS propagates, use your domain instead of `*.pages.github.io`. The private-access model (login with repo rights) still applies until the site or repo is public.
+### 2. Public project Pages URL (no custom domain)
 
-### 2. Public project Pages URL
+If you rely only on GitHub’s project URL:
 
-If the repository (or Pages visibility) becomes **public**, GitHub serves:
+`https://<org>.github.io/<repo>/`
 
-`https://<org>.github.io/intelligent-eu-bps-source/`
-
-Then set `DOCS_BASE=/intelligent-eu-bps-source/` in `.github/workflows/docs.yml` so asset paths match that prefix.
+Set `DOCS_BASE=/<repo>/` so asset paths match that prefix. With a path base, `pages:package` nests the build under that folder when you also use a custom domain.
 
 ### 3. Host elsewhere
 
-Build with `pnpm --filter @intelligent/site build` and publish `apps/site/.vitepress/dist` to any static host (Netlify, Cloudflare Pages, S3, …) under a path of your choice. Set `DOCS_BASE` to that path (or `/` for a dedicated subdomain).
+Build with `pnpm --filter @intelligent/site build` and publish `apps/site/.vitepress/dist` (or the packaged `pages-dist`) to any static host under a path of your choice. Set `DOCS_BASE` to that path (or `/` for a dedicated subdomain).
 
 ## What this site includes
 
@@ -41,4 +59,3 @@ Build with `pnpm --filter @intelligent/site build` and publish `apps/site/.vitep
 | `/api/` | Interactive OpenAPI ([vitepress-openapi](https://vitepress-openapi.vercel.app/), from `public.v1.yaml`) |
 | `/api/operations/<operationId>` | One page per operation |
 | `/openapi/public.v1.yaml` | Raw public contract |
-

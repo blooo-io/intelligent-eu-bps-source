@@ -22,6 +22,7 @@ import { BillingRunsPage } from "./pages/billing-runs-page";
 import { PaymentsOverviewPage } from "./pages/payments-overview-page";
 import { ReportsPage } from "./pages/reports-page";
 import { OperatorPage } from "./pages/operator-page";
+import { ApiConsolePage } from "./pages/api-console-page";
 import { AppShell } from "./layout/app-shell";
 import { appTheme } from "./theme";
 
@@ -91,6 +92,7 @@ export function App({
                   />
                   <Route path="reports" element={<ReportsPage config={config} oidc={oidc} />} />
                   <Route path="operator" element={<OperatorPage config={config} oidc={oidc} />} />
+                  <Route path="api" element={<ApiConsolePage config={config} oidc={oidc} />} />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

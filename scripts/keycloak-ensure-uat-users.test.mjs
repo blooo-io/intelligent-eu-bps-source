@@ -79,6 +79,28 @@ test("ensure script packs module-service client + sslRequired none (INT-314)", a
   assert.match(source, /KEYCLOAK_MODULE_SERVICE_CLIENT_SECRET/);
 });
 
+test("ensure script upserts docs password-grant client (INT-403)", async () => {
+  const source = await readFile(
+    new URL("./keycloak-ensure-uat-users.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /DOCS_CLIENT/);
+  assert.match(source, /ensureDocsClient/);
+  assert.match(source, /directAccessGrantsEnabled:\s*true/);
+  assert.match(source, /intelligent\.docs\.blooo\.dev/);
+});
+
+test("ensure script enables realm brute-force detection (INT-404)", async () => {
+  const source = await readFile(
+    new URL("./keycloak-ensure-uat-users.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /REALM_BRUTE_FORCE/);
+  assert.match(source, /ensureRealmBruteForce/);
+  assert.match(source, /bruteForceProtected:\s*true/);
+  assert.match(source, /failureFactor:\s*5/);
+});
+
 test("ensure script sets Volt loginTheme on int/demo (INT-332)", async () => {
   const source = await readFile(
     new URL("./keycloak-ensure-uat-users.mjs", import.meta.url),

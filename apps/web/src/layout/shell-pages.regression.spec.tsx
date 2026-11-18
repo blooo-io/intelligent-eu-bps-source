@@ -17,6 +17,7 @@ describe("shell page regression (INT-187)", () => {
   it("lists the expected protected pages", () => {
     expect(protectedPages.sort()).toEqual(
       [
+        "api-console-page.tsx",
         "balances-page.tsx",
         "billing-runs-page.tsx",
         "community-settings-page.tsx",

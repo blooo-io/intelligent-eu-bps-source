@@ -22,3 +22,14 @@ spec:
     syncOptions:
       - CreateNamespace=false
       - ServerSideApply=true
+      # INT-384 — Kyverno defaults these fields and fills status.autogen.
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: kyverno.io
+      kind: ClusterPolicy
+      jqPathExpressions:
+        - .status
+        - .spec.admission
+        - .spec.emitWarning
+        - .spec.rules[].skipBackgroundRequests
+        - .spec.rules[].validate.allowExistingViolations

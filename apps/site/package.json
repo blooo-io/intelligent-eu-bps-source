@@ -9,13 +9,14 @@
     "openapi:prepare": "node ./scripts/build-openapi.mjs",
     "dev": "node ./scripts/build-openapi.mjs && vitepress dev",
     "build": "node ./scripts/build-openapi.mjs && vitepress build",
+    "pages:package": "node ./scripts/package-pages.mjs",
     "preview": "vitepress preview",
-    "test": "node ./scripts/build-openapi.mjs && node --test site.test.mjs"
+    "test": "node ./scripts/build-openapi.mjs && node --test site.test.mjs scripts/package-pages.test.mjs"
   },
   "devDependencies": {
-    "mermaid": "11.12.2",
+    "mermaid": "12.3.0",
     "vitepress": "^1.6.3",
-    "vitepress-openapi": "0.2.8",
+    "vitepress-openapi": "0.2.12",
     "vitepress-plugin-mermaid": "2.0.17",
     "yaml": "2.8.1"
   },

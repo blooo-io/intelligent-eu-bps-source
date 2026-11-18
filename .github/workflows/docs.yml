@@ -1,4 +1,5 @@
-# INT-299 — build the VitePress public docs and publish to GitHub Pages.
+# INT-299 / INT-401 — build the VitePress public docs and publish to GitHub Pages.
+# Canonical Blooo URL: https://intelligent.docs.blooo.dev/
 name: docs
 
 on:
@@ -38,16 +39,22 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Test docs package
         run: pnpm --filter @intelligent/site test
-      # Public repository: GitHub Pages serves the site at https://<org>.github.io/<repo>/.
+      # Dedicated subdomain serves the site at / (INT-401).
       - name: Build VitePress site
         env:
-          DOCS_BASE: /intelligent-eu-bps-source/
+          DOCS_BASE: /
         run: pnpm --filter @intelligent/site build
+      - name: Package Pages artifact (CNAME)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          DOCS_BASE: /
+          DOCS_CUSTOM_DOMAIN: intelligent.docs.blooo.dev
+        run: pnpm --filter @intelligent/site pages:package
       - name: Upload Pages artifact
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
-          path: apps/site/.vitepress/dist
+          path: apps/site/.vitepress/pages-dist
 
   deploy:
     if: github.ref == 'refs/heads/develop' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')

@@ -12,6 +12,9 @@
 # scripts-only tip does not rebuild and push every module image.
 # INT-321: workflow_dispatch + force_all_images republishes every module to the
 # current GHCR path (needed after a chart image.repository rename).
+# INT-381: runs are serialized. An older run that finished last used to push a
+# stale :develop over a newer build. The image diff starts at the last
+# successful run, so a pending run superseded in the queue drops no module.
 name: supply-chain
 
 on:
@@ -28,6 +31,11 @@ on:
 permissions:
   contents: read
   packages: write
+  actions: read
+
+concurrency:
+  group: supply-chain-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   supply-chain:
@@ -47,6 +55,15 @@ jobs:
           docker run --rm -v "$PWD:/work" -w /work \
             ghcr.io/aquasecurity/trivy:0.75.0 \
             fs --config /work/trivy.yaml --exit-code 1 /work
+      - name: Resolve image diff base
+        id: diff-base
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_BEFORE: ${{ github.event.before }}
+        run: |
+          last=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow supply-chain.yml \
+            --branch develop --status success --limit 1 --json headSha --jq '.[0].headSha // ""')
+          echo "base=${last:-$EVENT_BEFORE}" >> "$GITHUB_OUTPUT"
       - name: Build, scan and push changed module images
         env:
           IMAGE_PUSH: "true"
@@ -54,7 +71,7 @@ jobs:
           # Push events stay selective (INT-183). Manual dispatch with
           # force_all_images=true clears IMAGE_CHANGED_ONLY for a full republish.
           IMAGE_CHANGED_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.force_all_images && 'false' || 'true' }}
-          IMAGE_DIFF_BASE: ${{ github.event.before }}
+          IMAGE_DIFF_BASE: ${{ steps.diff-base.outputs.base }}
           IMAGE_DIFF_HEAD: ${{ github.sha }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/module-images.mjs --build

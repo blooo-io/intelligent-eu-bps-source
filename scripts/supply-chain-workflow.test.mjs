@@ -19,14 +19,19 @@ test("INT-321 supply-chain can force a full image republish via workflow_dispatc
   assert.match(text, /IMAGE_FLOATING_TAG:\s*develop/);
 });
 
-test("INT-383 every .trivyignore advisory expires and the glibc entries are listed", async () => {
+test("INT-383/INT-402 every .trivyignore advisory expires and known entries are listed", async () => {
   const text = await readFile(new URL("../.trivyignore", import.meta.url), "utf8");
   const entries = text.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
   for (const line of entries) {
     assert.match(line, /^\S+ exp:\d{4}-\d{2}-\d{2}$/, `missing expiry: ${line}`);
   }
+  // INT-383 — glibc UNKNOWN on distroless debian13.
   assert.ok(entries.some((l) => l.startsWith("CVE-2026-100290 ")));
   assert.ok(entries.some((l) => l.startsWith("CVE-2026-115819 ")));
+  // INT-402 — libssl3t64 UNKNOWN blocking apps-docs-portal image scan.
+  assert.ok(entries.some((l) => l.startsWith("CVE-2026-107493 ")));
+  assert.ok(entries.some((l) => l.startsWith("CVE-2026-124709 ")));
+  assert.ok(entries.some((l) => l.startsWith("CVE-2026-35190 ")));
 });
 
 test("INT-381 supply-chain runs are serialized and diff from the last successful run", async () => {

@@ -20,7 +20,7 @@
     "@asyncapi/cli": "^6.3.0",
     "@redocly/cli": "^2.78.0",
     "@stoplight/prism-cli": "^5.14.2",
-    "@stoplight/spectral-cli": "^6.15.0",
+    "@stoplight/spectral-cli": "^6.17.1",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "openapi-typescript": "7"

@@ -23,8 +23,8 @@ importers:
         specifier: ^5.14.2
         version: 5.16.0(encoding@0.1.13)
       '@stoplight/spectral-cli':
-        specifier: ^6.15.0
-        version: 6.17.0(encoding@0.1.13)
+        specifier: ^6.17.1
+        version: 6.17.1(encoding@0.1.13)
       ajv:
         specifier: ^8.17.1
         version: 8.20.0
@@ -3522,14 +3522,10 @@ packages:
     engines: {node: ^16.20 || ^18.18 || >= 20.17}
     hasBin: true
 
-  '@stoplight/spectral-cli@6.17.0':
-    resolution: {integrity: sha512-9OTHNYqfF99hjHsh5aCjNHRZgocJBaHa6uaQTBUOsgAA19jaLaT8xB6/SBGC+GA7Wpzu4t9MMIOXPLj0ZbL5UA==}
+  '@stoplight/spectral-cli@6.17.1':
+    resolution: {integrity: sha512-/eeJ8z4nh7TbYfO0qwJC+y/Z6fHisMs3obbsUa9YW52skfUcAo0O9gLctIcQ6DBs04Rk94ErPDlI/7vOO0TbRw==}
     engines: {node: ^22.0 || >= 24.0}
     hasBin: true
-
-  '@stoplight/spectral-core@1.24.0':
-    resolution: {integrity: sha512-abKt++GFFaqwKiGTfPZ5O3nIv8s+1V7J5awCjWPBtCXn7ZKTEPzEF8tBYsM3ne+RMrQ8ORkHzKFu9QZhenmkPw==}
-    engines: {node: ^16.20 || ^18.18 || >= 20.17}
 
   '@stoplight/spectral-core@1.24.1':
     resolution: {integrity: sha512-Q1i41CoYtzdRoxGkVH0arhv9jSNkByU/TbJ77CHMXvtgbLCTUMVCbB6W9IEIu+NndESki1tnJzt59SPifB9NWQ==}
@@ -3541,10 +3537,6 @@ packages:
 
   '@stoplight/spectral-formatters@1.6.0':
     resolution: {integrity: sha512-8hOgl10NLr5tzV7zyTJPVM7B0JR+Rdtunk5ZQypBw/c4i6d37T+WqgSHMqUl4O2Bk78nMdTWmg4+LBCJYkJAhA==}
-    engines: {node: ^16.20 || ^18.18 || >= 20.17}
-
-  '@stoplight/spectral-functions@1.11.0':
-    resolution: {integrity: sha512-HFlFhI+q13GqG8pphY4nNGYq9+5L14dhR9xLqx+/H2/FmAouHTfNaqE4SygIhSmtMxfNDJ8G4qnjxiQRv1kPWA==}
     engines: {node: ^16.20 || ^18.18 || >= 20.17}
 
   '@stoplight/spectral-functions@1.11.1':
@@ -3565,10 +3557,6 @@ packages:
 
   '@stoplight/spectral-ruleset-migrator@1.13.0':
     resolution: {integrity: sha512-L8gH/3NDXw9dKZXZdb2ob9Kn5e0vklJ6ud7cXc+Lx9OpCACOu6RA0QU4KZw5LZYzrcr8Tev23S+7z1xpyax1HA==}
-    engines: {node: ^16.20 || ^18.18 || >= 20.17}
-
-  '@stoplight/spectral-rulesets@1.23.0':
-    resolution: {integrity: sha512-svAajFVBpHScoAAjPcgf0dgC5afkQ+psvjjH/NYBDq/U0QLrn2QvmfRVJiqO0UetMed3Aiu87BvXyFGQA9j54Q==}
     engines: {node: ^16.20 || ^18.18 || >= 20.17}
 
   '@stoplight/spectral-rulesets@1.23.1':
@@ -6180,10 +6168,6 @@ packages:
     resolution: {integrity: sha512-1BC0BVFhS/p0qtw6enp8e+8OD0UrK0oFLztSjNzhcKA3WDuJxxAPXzPuPtKkjEY9UUoEWlX/8fgKeu2S8i9JTA==}
     engines: {node: '>= 0.4'}
 
-  is-core-module@2.17.0:
-    resolution: {integrity: sha512-J/vG0zBCbIKOQFfufSwyXdMrsohyJIUNkrnmo6WZGzoM7tr/lsbfW5b2BvisL6zsyMzK9UxV9L6c7AoFbyXHOA==}
-    engines: {node: '>= 0.4'}
-
   is-core-module@2.18.0:
     resolution: {integrity: sha512-qyax9fgaKOEC4qK8WZn7Q4IcoZC9RC1O1fFxRcRTq/oMMkWT/uXpqpXa12kzWR409zAt1drYN9N9BO26UmBCmw==}
     engines: {node: '>= 0.4'}
@@ -7932,11 +7916,6 @@ packages:
   resolve-pkg@2.0.0:
     resolution: {integrity: sha512-+1lzwXehGCXSeryaISr6WujZzowloigEofRB+dj75y9RRa/obVcYgbHJd53tdYw8pvZj8GojXaaENws8Ktw/hQ==}
     engines: {node: '>=8'}
-
-  resolve@1.22.13:
-    resolution: {integrity: sha512-Dj/cW9zBV2aRj6XzCxuGIs3ESZKv02jixne3q6jFZYZ3/Tg09gHHviSMDL4kObh9pqSahdRHEnDoaP2gn8YLhA==}
-    engines: {node: '>= 0.4'}
-    hasBin: true
 
   resolve@1.22.14:
     resolution: {integrity: sha512-1ZjYvR9sbkiwC5+9QHetqW5HmA2pHRMaoupD01t2HlYnV/vydC2zPwLixhsMieSWVZt0JJRg5LVIk0Ow1D/TrA==}
@@ -12295,7 +12274,7 @@ snapshots:
       glob: 7.2.3
       is-reference: 1.2.1
       magic-string: 0.25.9
-      resolve: 1.22.13
+      resolve: 1.22.14
       rollup: 2.80.0
 
   '@rollup/pluginutils@3.1.0(rollup@2.80.0)':
@@ -12650,7 +12629,7 @@ snapshots:
       fp-ts: 2.16.11
       lodash: 4.18.1
       pino: 6.14.0
-      tslib: 2.9.1
+      tslib: 2.8.1
 
   '@stoplight/prism-http-server@5.16.0(encoding@0.1.13)':
     dependencies:
@@ -12665,7 +12644,7 @@ snapshots:
       micri: 4.5.1
       node-fetch: 2.7.0(encoding@0.1.13)
       parse-prefer-header: 1.0.0
-      tslib: 2.9.1
+      tslib: 2.8.1
       type-is: 1.6.18
     transitivePeerDependencies:
       - encoding
@@ -12700,7 +12679,7 @@ snapshots:
       parse-multipart-data: 1.5.0
       pino: 6.14.0
       seedrandom: 3.0.5
-      tslib: 2.9.1
+      tslib: 2.8.1
       type-is: 1.6.18
       uri-template-lite: 22.9.0
       whatwg-mimetype: 3.0.0
@@ -12733,18 +12712,18 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@stoplight/spectral-cli@6.17.0(encoding@0.1.13)':
+  '@stoplight/spectral-cli@6.17.1(encoding@0.1.13)':
     dependencies:
       '@scarf/scarf': 1.4.0
       '@stoplight/json': 3.21.7
       '@stoplight/path': 1.3.2
-      '@stoplight/spectral-core': 1.24.0(encoding@0.1.13)
+      '@stoplight/spectral-core': 1.24.1(encoding@0.1.13)
       '@stoplight/spectral-formatters': 1.6.0(encoding@0.1.13)
       '@stoplight/spectral-parsers': 1.0.5
       '@stoplight/spectral-ref-resolver': 1.0.5(encoding@0.1.13)
       '@stoplight/spectral-ruleset-bundler': 1.8.0(encoding@0.1.13)
       '@stoplight/spectral-ruleset-migrator': 1.13.0(encoding@0.1.13)
-      '@stoplight/spectral-rulesets': 1.23.0(encoding@0.1.13)
+      '@stoplight/spectral-rulesets': 1.23.1(encoding@0.1.13)
       '@stoplight/spectral-runtime': 1.1.6(encoding@0.1.13)
       '@stoplight/types': 13.20.0
       chalk: 4.1.2
@@ -12753,35 +12732,8 @@ snapshots:
       lodash: 4.18.1
       pony-cause: 1.1.1
       stacktracey: 2.2.0
-      tslib: 2.8.1
-      yargs: 17.7.3
-    transitivePeerDependencies:
-      - encoding
-
-  '@stoplight/spectral-core@1.24.0(encoding@0.1.13)':
-    dependencies:
-      '@scarf/scarf': 1.4.0
-      '@stoplight/better-ajv-errors': 1.0.3(ajv@8.20.0)
-      '@stoplight/json': 3.21.7
-      '@stoplight/path': 1.3.2
-      '@stoplight/spectral-parsers': 1.0.5
-      '@stoplight/spectral-ref-resolver': 1.0.5(encoding@0.1.13)
-      '@stoplight/spectral-runtime': 1.1.6(encoding@0.1.13)
-      '@stoplight/types': 13.6.0
-      '@types/es-aggregate-error': 1.0.6
-      '@types/json-schema': 7.0.15
-      ajv: 8.20.0
-      ajv-errors: 3.0.0(ajv@8.20.0)
-      ajv-formats: 2.1.1(ajv@8.20.0)
-      es-aggregate-error: 1.0.14
-      expr-eval-fork: 3.0.3
-      jsonpath-plus: 10.4.0
-      lodash: 4.18.1
-      lodash.topath: 4.5.2
-      minimatch: 3.1.5
-      nimma: 0.2.3
-      pony-cause: 1.1.1
       tslib: 2.9.1
+      yargs: 17.7.3
     transitivePeerDependencies:
       - encoding
 
@@ -12825,7 +12777,7 @@ snapshots:
   '@stoplight/spectral-formatters@1.6.0(encoding@0.1.13)':
     dependencies:
       '@stoplight/path': 1.3.2
-      '@stoplight/spectral-core': 1.24.0(encoding@0.1.13)
+      '@stoplight/spectral-core': 1.24.1(encoding@0.1.13)
       '@stoplight/spectral-runtime': 1.1.6(encoding@0.1.13)
       '@stoplight/types': 13.20.0
       '@types/markdown-escape': 1.1.3
@@ -12836,23 +12788,6 @@ snapshots:
       node-sarif-builder: 2.0.3
       strip-ansi: 6.0.1
       text-table: 0.2.0
-      tslib: 2.9.1
-    transitivePeerDependencies:
-      - encoding
-
-  '@stoplight/spectral-functions@1.11.0(encoding@0.1.13)':
-    dependencies:
-      '@scarf/scarf': 1.4.0
-      '@stoplight/better-ajv-errors': 1.0.3(ajv@8.20.0)
-      '@stoplight/json': 3.21.7
-      '@stoplight/spectral-core': 1.24.1(encoding@0.1.13)
-      '@stoplight/spectral-formats': 1.9.0(encoding@0.1.13)
-      '@stoplight/spectral-runtime': 1.1.6(encoding@0.1.13)
-      ajv: 8.20.0
-      ajv-draft-04: 1.0.0(ajv@8.20.0)
-      ajv-errors: 3.0.0(ajv@8.20.0)
-      ajv-formats: 2.1.1(ajv@8.20.0)
-      lodash: 4.18.1
       tslib: 2.9.1
     transitivePeerDependencies:
       - encoding
@@ -12895,13 +12830,13 @@ snapshots:
     dependencies:
       '@rollup/plugin-commonjs': 22.0.2(rollup@2.80.0)
       '@stoplight/path': 1.3.2
-      '@stoplight/spectral-core': 1.24.0(encoding@0.1.13)
+      '@stoplight/spectral-core': 1.24.1(encoding@0.1.13)
       '@stoplight/spectral-formats': 1.9.0(encoding@0.1.13)
-      '@stoplight/spectral-functions': 1.11.0(encoding@0.1.13)
+      '@stoplight/spectral-functions': 1.11.1(encoding@0.1.13)
       '@stoplight/spectral-parsers': 1.0.5
       '@stoplight/spectral-ref-resolver': 1.0.5(encoding@0.1.13)
       '@stoplight/spectral-ruleset-migrator': 1.13.0(encoding@0.1.13)
-      '@stoplight/spectral-rulesets': 1.23.0(encoding@0.1.13)
+      '@stoplight/spectral-rulesets': 1.23.1(encoding@0.1.13)
       '@stoplight/spectral-runtime': 1.1.6(encoding@0.1.13)
       '@stoplight/types': 13.20.0
       '@types/node': 26.6.6
@@ -12917,7 +12852,7 @@ snapshots:
       '@stoplight/json': 3.21.7
       '@stoplight/ordered-object-literal': 1.0.5
       '@stoplight/path': 1.3.2
-      '@stoplight/spectral-functions': 1.11.0(encoding@0.1.13)
+      '@stoplight/spectral-functions': 1.11.1(encoding@0.1.13)
       '@stoplight/spectral-runtime': 1.1.6(encoding@0.1.13)
       '@stoplight/types': 13.20.0
       '@stoplight/yaml': 4.2.3
@@ -12928,27 +12863,6 @@ snapshots:
       reserved: 0.1.2
       tslib: 2.9.1
       validate-npm-package-name: 3.0.0
-    transitivePeerDependencies:
-      - encoding
-
-  '@stoplight/spectral-rulesets@1.23.0(encoding@0.1.13)':
-    dependencies:
-      '@asyncapi/specs': 6.11.1
-      '@scarf/scarf': 1.4.0
-      '@stoplight/better-ajv-errors': 1.0.3(ajv@8.20.0)
-      '@stoplight/json': 3.21.7
-      '@stoplight/spectral-core': 1.24.0(encoding@0.1.13)
-      '@stoplight/spectral-formats': 1.9.0(encoding@0.1.13)
-      '@stoplight/spectral-functions': 1.11.0(encoding@0.1.13)
-      '@stoplight/spectral-runtime': 1.1.6(encoding@0.1.13)
-      '@stoplight/types': 13.20.0
-      '@types/json-schema': 7.0.15
-      ajv: 8.20.0
-      ajv-formats: 2.1.1(ajv@8.20.0)
-      json-schema-traverse: 1.0.0
-      leven: 3.1.0
-      lodash: 4.18.1
-      tslib: 2.9.1
     transitivePeerDependencies:
       - encoding
 
@@ -15924,10 +15838,6 @@ snapshots:
 
   is-callable@1.2.7: {}
 
-  is-core-module@2.17.0:
-    dependencies:
-      hasown: 2.0.4
-
   is-core-module@2.18.0:
     dependencies:
       hasown: 2.0.4
@@ -17560,13 +17470,6 @@ snapshots:
   resolve-pkg@2.0.0:
     dependencies:
       resolve-from: 5.0.0
-
-  resolve@1.22.13:
-    dependencies:
-      es-errors: 1.3.0
-      is-core-module: 2.17.0
-      path-parse: 1.0.7
-      supports-preserve-symlinks-flag: 1.0.0
 
   resolve@1.22.14:
     dependencies:

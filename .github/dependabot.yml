@@ -18,9 +18,15 @@ updates:
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
-    # INT-412 — vitepress-openapi ≥0.2.14 breaks the docs build against
-    # vitepress 1.6 (`useData` export missing during SSR).
+    # INT-412 — vitest 5 drops branch coverage below 80% across modules;
+    # vitepress-openapi ≥0.2.14 breaks docs SSR (`useData`).
     ignore:
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitest/coverage-v8"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitejs/plugin-react"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "vitepress-openapi"
         versions: [">=0.2.13"]
   - package-ecosystem: "github-actions"

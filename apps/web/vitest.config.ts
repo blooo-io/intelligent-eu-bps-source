@@ -23,14 +23,6 @@ export default defineConfig({
         "src/test/**",
         "src/vite-env.d.ts",
         "server/main.ts",
-        // INT-412 — vitest 5 / v8 branch accounting is stricter than 3.x; these
-        // modules stay green via Playwright (INT-251 money path, INT-394 API
-        // console). Restore to the unit gate when dedicated specs land.
-        "src/api/stripe-money-assert.ts",
-        "src/api/stripe-setup-element.ts",
-        "src/components/consumer-payment-element.tsx",
-        "src/pages/api-console-page.tsx",
-        "src/pages/payment-setup-ready-cards.tsx",
       ],
     },
   },

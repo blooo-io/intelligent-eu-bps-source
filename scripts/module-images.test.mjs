@@ -57,7 +57,9 @@ test("Dependabot updates npm and GitHub Actions", async () => {
   // INT-410 — enough concurrent PRs to drain the advisory backlog.
   assert.match(text, /open-pull-requests-limit:\s*15/);
   assert.match(text, /interval:\s*"daily"/);
-  // INT-412 — hold vitepress-openapi until docs SSR is compatible.
+  // INT-412 — hold breaking majors until coverage/docs are ready.
+  assert.match(text, /dependency-name:\s*"vitest"/);
+  assert.match(text, /dependency-name:\s*"@vitejs\/plugin-react"/);
   assert.match(text, /dependency-name:\s*"vitepress-openapi"/);
   assert.match(text, /versions:\s*\[[^\]]*>?=0\.2\.13/);
 });
@@ -86,15 +88,12 @@ test("INT-412 web app tsconfig excludes Vitest specs from production tsc", async
   assert.equal(text.includes("vitest/globals"), false);
 });
 
-test("INT-412 web coverage excludes Playwright-covered Stripe/API console modules", async () => {
-  const text = await readFile(
-    new URL("../apps/web/vitest.config.ts", import.meta.url),
-    "utf8",
+test("INT-412 pnpm overrides pin vitest 3.2.7 for the coverage gate", async () => {
+  const pkg = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
   );
-  assert.match(text, /stripe-money-assert\.ts/);
-  assert.match(text, /stripe-setup-element\.ts/);
-  assert.match(text, /api-console-page\.tsx/);
-  assert.match(text, /INT-412/);
+  assert.equal(pkg.pnpm.overrides.vitest, "3.2.7");
+  assert.equal(pkg.pnpm.overrides["@vitest/coverage-v8"], "3.2.7");
 });
 
 test("Trivy forbids the excluded licence families", async () => {

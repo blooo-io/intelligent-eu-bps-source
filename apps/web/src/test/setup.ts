@@ -1,4 +1,10 @@
+import React from "react";
 import "@testing-library/jest-dom/vitest";
+
+// INT-412 — vitest 3 + classic JSX in some deps still expects a global React
+// (react-router MemoryRouter in specs). Keep the automatic runtime for app
+// code; expose React for those paths.
+globalThis.React = React;
 
 // Ant Design 6 measures layout with ResizeObserver, which jsdom does not provide.
 class ResizeObserverStub {

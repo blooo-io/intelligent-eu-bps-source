@@ -29,6 +29,9 @@ test("Keycloak realms Argo app and ConfigMap chart (INT-169)", async () => {
   assert.match(intRealm, /"clientId": "docs"/);
   assert.match(intRealm, /"directAccessGrantsEnabled": true/);
   assert.match(intRealm, /intelligent\.docs\.blooo\.dev/);
+  // INT-404 — realm brute-force detection for password grant / login spray.
+  assert.match(intRealm, /"bruteForceProtected": true/);
+  assert.match(intRealm, /"failureFactor": 5/);
   // INT-325 — no client secrets / UAT passwords in Git realm JSON.
   assert.equal(/"secret"\s*:/.test(intRealm), false);
   assert.equal(/Intelligent-UAT-2026!/.test(intRealm), false);

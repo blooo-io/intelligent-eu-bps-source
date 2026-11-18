@@ -29,6 +29,10 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(routes, /limit-req/);
   assert.match(routes, /apisix-gateway\.oidcPlugin/);
   assert.match(routes, /auth-idp/);
+  // INT-404 — token endpoint rate-limited ahead of the catch-all auth route.
+  assert.match(routes, /keycloak-token/);
+  assert.match(routes, /openid-connect\/token/);
+  assert.match(routes, /Values\.auth\.tokenRate\.rate/);
   assert.match(routes, /web-app/);
   // INT-218 — AC-09 paths must not fall through to participants /v1/communities/*.
   assert.match(routes, /communities\/\*\/payments-overview/);
@@ -102,6 +106,8 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   // INT-327 — /v1 catalogue rate defaults (webhook already has its own block).
   assert.match(values, /api:\s*\n\s*rate:\s*\n\s*rate:\s*\d+/);
   assert.match(values, /webhook:\s*\n[\s\S]*rate:\s*\n\s*rate:\s*\d+/);
+  // INT-404 — token endpoint rate defaults.
+  assert.match(values, /auth:\s*\n\s*tokenRate:\s*\n\s*rate:\s*\d+/);
 });
 
 test("role claim path is configuration on gateway, modules and web (NFR-013 / INT-357)", async () => {

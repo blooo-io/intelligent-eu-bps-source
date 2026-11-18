@@ -607,6 +607,52 @@ export async function ensureRealmSslRequired(
   return { realm: realmName, sslRequired, updated: true };
 }
 
+/** INT-404 — Keycloak brute-force settings applied to live realms. */
+export const REALM_BRUTE_FORCE = {
+  bruteForceProtected: true,
+  permanentLockout: false,
+  maxFailureWaitSeconds: 900,
+  minimumQuickLoginWaitSeconds: 60,
+  waitIncrementSeconds: 60,
+  quickLoginCheckMilliSeconds: 1000,
+  maxDeltaTimeSeconds: 43200,
+  failureFactor: 5,
+};
+
+/**
+ * INT-404 — enable / refresh realm brute-force detection (docs password grant).
+ * ConfigMap import does not re-apply these flags on an already-initialised realm.
+ */
+export async function ensureRealmBruteForce(baseUrl, token, realmName) {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...proxyHeaders(baseUrl),
+  };
+  const realmUrl = `${baseUrl.replace(/\/$/, "")}/admin/realms/${realmName}`;
+  const get = await fetch(realmUrl, { headers });
+  if (!get.ok) {
+    throw new Error(`get realm ${realmName}: ${get.status}`);
+  }
+  const realm = await get.json();
+  const already = Object.entries(REALM_BRUTE_FORCE).every(
+    ([key, value]) => realm[key] === value,
+  );
+  if (already) {
+    return { realm: realmName, updated: false };
+  }
+  const put = await fetch(realmUrl, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ ...realm, ...REALM_BRUTE_FORCE }),
+  });
+  if (!put.ok) {
+    throw new Error(`put realm ${realmName} bruteForce: ${put.status}`);
+  }
+  return { realm: realmName, updated: true };
+}
+
 /**
  * INT-332 — Volt login theme + brand title on existing realms (ConfigMap
  * import does not re-apply after first boot; see deploy/platform/README.md).
@@ -974,6 +1020,13 @@ export async function ensureUatUsers(options = {}) {
   } catch {
     // demo realm may be absent on some environments
   }
+  const bruteInt = await ensureRealmBruteForce(baseUrl, token, "int");
+  let bruteDemo = null;
+  try {
+    bruteDemo = await ensureRealmBruteForce(baseUrl, token, "demo");
+  } catch {
+    // demo realm may be absent on some environments
+  }
   const themeInt = await ensureRealmLoginTheme(baseUrl, token, "int");
   let themeDemo = null;
   try {
@@ -1014,6 +1067,8 @@ export async function ensureUatUsers(options = {}) {
     smtp,
     sslInt,
     sslDemo,
+    bruteInt,
+    bruteDemo,
     themeInt,
     themeDemo,
     moduleService,

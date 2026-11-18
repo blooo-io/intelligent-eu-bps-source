@@ -59,6 +59,16 @@ test("Dependabot updates npm and GitHub Actions", async () => {
   assert.match(text, /interval:\s*"daily"/);
 });
 
+test("INT-410 Dependabot auto-merge workflow queues squash when CI is green", async () => {
+  const text = await readFile(
+    new URL("../.github/workflows/dependabot-automerge.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(text, /dependabot\[bot\]/);
+  assert.match(text, /gh pr merge --auto --squash/);
+  assert.match(text, /base\.ref == 'develop'/);
+});
+
 test("Trivy forbids the excluded licence families", async () => {
   const text = await readFile(new URL("../trivy.yaml", import.meta.url), "utf8");
   for (const id of ["GPL-2.0", "GPL-3.0", "LGPL-3.0", "AGPL-3.0", "SSPL-1.0", "BUSL-1.1"]) {

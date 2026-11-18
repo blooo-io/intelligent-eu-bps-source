@@ -45,7 +45,7 @@ The following applies to the **originating delivery team** that tracks work in J
 - Commits include the Jira key, e.g. `feat(invoicing): INT-123 issue invoice per consumer-producer pair`.
 - Do not add a coding-assistant co-author trailer (stripped by `.githooks/commit-msg`, rejected in CI).
 - Pull requests: title includes `INT-123`; use the PR template; request `blooo-io/github-admin` when available; squash-merge into `develop`.
-- **Dependabot (INT-322 / INT-410):** squash-merge Dependabot PRs as soon as required CI is green and the PR is mergeable (oldest-ready first; rebase siblings after each merge). Do not leave green dependency bumps open; do not force-merge red ones. Prefer GitHub **Allow auto-merge** (org setting) once enabled so Dependabot PRs merge themselves when required checks pass. After a batch of dependency merges, cut a **PATCH** SemVer release (`docs/release/VERSIONING.md`) so adopters get a tagged, CI-proven tree.
+- **Dependabot (INT-322 / INT-410):** GitHub **Allow auto-merge** is on for this repo. Workflow `dependabot-automerge` queues squash auto-merge on Dependabot PRs targeting `develop`; merge still waits for required CI. Agents may still squash-merge green Dependabot PRs (oldest-ready first) if auto-merge did not fire. Do not force-merge red ones. After a batch of dependency merges, cut a **PATCH** SemVer release (`docs/release/VERSIONING.md`).
 
 ### Releases (git tags)
 

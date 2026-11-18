@@ -120,4 +120,49 @@ describe("RecordingTransaction (INT-356)", () => {
     ).rejects.toThrow("disk full");
     expect(memory.state).toBe("initial");
   });
+
+  // INT-412 — vitest 5 branch gate: empty work skips BEGIN; nested run stays in-memory.
+  it("skips the database when the work stages nothing", async () => {
+    const memory = store();
+    const outbox = new OutboxService(new InMemoryOutboxStore());
+    const query = vi.fn(async () => ({ rows: [] }));
+    const tx = new RecordingTransaction(
+      memory,
+      outbox,
+      async () => ({ query, release: () => undefined }),
+      async () => undefined,
+    );
+    await expect(tx.run(async () => "noop")).resolves.toBe("noop");
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("passthrough when a nested run is already inside a transaction", async () => {
+    const memory = store();
+    const outbox = new OutboxService(new InMemoryOutboxStore());
+    const query = vi.fn(async () => ({ rows: [] }));
+    const tx = new RecordingTransaction(
+      memory,
+      outbox,
+      async () => ({ query, release: () => undefined }),
+      async (_sql, writes) => {
+        await query("APPLY", writes);
+      },
+    );
+    await tx.run(async () => {
+      memory.writes.push("outer");
+      await outbox.append({
+        aggregateType: "BillingRun",
+        aggregateId: "run-2",
+        type: "SettlementCompleted",
+        producer: "AC-05",
+        communityId: "com",
+        billingMode: "virtual",
+        data: { runId: "run-2" },
+      });
+      // Nested call hits `this.active` and must not open a second transaction.
+      await expect(tx.run(async () => "nested")).resolves.toBe("nested");
+    });
+    const begins = query.mock.calls.filter((call) => call[0] === "BEGIN");
+    expect(begins).toHaveLength(1);
+  });
 });

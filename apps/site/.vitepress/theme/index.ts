@@ -19,8 +19,9 @@ export default {
         },
         // INT-407 — persistAuth stores vueuse Refs; deep-watch then misses token
         // edits so Try it out / curl samples ship without Authorization. Keep
-        // plain-string auth values so the request rebuilds on input. Upgrade
-        // to vitepress-openapi ≥0.2.10 also prefixes `Bearer` for http schemes.
+        // plain-string auth values so the request rebuilds on input.
+        // vitepress-openapi 0.2.12 prefixes `Bearer` for http schemes; ≥0.2.13
+        // needs a newer VitePress (`useData` export) than our 1.6.x pin.
         storage: {
           persistAuth: false,
         },

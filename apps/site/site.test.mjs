@@ -163,7 +163,7 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(theme, /persistAuth:\s*false/);
     assert.match(
       readFileSync(path.join(root, "package.json"), "utf8"),
-      /"vitepress-openapi":\s*"0\.2\.16"/,
+      /"vitepress-openapi":\s*"0\.2\.12"/,
     );
   });
 });

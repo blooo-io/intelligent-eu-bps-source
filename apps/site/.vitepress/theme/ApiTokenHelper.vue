@@ -1,13 +1,12 @@
 <script setup lang="ts">
 /**
- * INT-403 / INT-404 / INT-406 — username/password → Keycloak access_token for Try it out.
+ * INT-403 / INT-404 / INT-406 / INT-407 — username/password → access_token for Try it out.
  * Empty form (no credentials). Client-side cooldown complements Keycloak brute-force
  * and APISIX limit-req on the token path.
  *
- * INT-406 — vitepress-openapi `http` bearer schemes send the Authorization field
- * value as-is (no automatic `Bearer ` prefix). Expose and copy the full header value.
+ * Copy `Bearer <token>` (or the raw JWT). vitepress-openapi ≥0.2.10 prefixes Bearer
+ * when missing and leaves an existing prefix alone (INT-406 / INT-407).
  */
-const PLAYGROUND_BEARER_STORAGE_KEY = "--oa-authorization-bearerAuth";
 import { computed, ref } from "vue";
 
 const props = withDefaults(
@@ -117,15 +116,8 @@ async function fetchToken() {
       return;
     }
     failures.value = 0;
-    // Full Authorization header value (INT-406) — playground does not prefix Bearer.
-    const headerValue = `Bearer ${json.access_token}`;
-    accessToken.value = headerValue;
-    try {
-      // vueuse useStorage string serializer stores the raw value (no JSON quotes).
-      localStorage.setItem(PLAYGROUND_BEARER_STORAGE_KEY, headerValue);
-    } catch {
-      // Private mode / blocked storage — Copy still works.
-    }
+    // Prefer an already-prefixed value so older playgrounds and curl samples match.
+    accessToken.value = `Bearer ${json.access_token}`;
     // Clear password from the DOM after a successful mint.
     password.value = "";
   } catch (err) {
@@ -151,9 +143,9 @@ async function copyToken() {
   <div class="api-token-helper" data-testid="api-token-helper">
     <p class="hint">
       Sample IdP only (V1 / UAT). <strong>Copy</strong> then paste into
-      <strong>Try it out → Authorization</strong> — the value already includes
-      <code>Bearer …</code> (required by the playground). Credentials are not
-      stored on this site.
+      <strong>Try it out → Authorization</strong>. Confirm the curl sample shows
+      <code>-H 'Authorization: Bearer …'</code> before clicking Try it out.
+      Credentials are not stored on this site.
     </p>
     <div class="row">
       <label>

@@ -17,6 +17,13 @@ export default {
         server: {
           allowCustomServer: true,
         },
+        // INT-407 — persistAuth stores vueuse Refs; deep-watch then misses token
+        // edits so Try it out / curl samples ship without Authorization. Keep
+        // plain-string auth values so the request rebuilds on input. Upgrade
+        // to vitepress-openapi ≥0.2.10 also prefixes `Bearer` for http schemes.
+        storage: {
+          persistAuth: false,
+        },
       },
     });
     app.component("ApiTokenHelper", ApiTokenHelper);

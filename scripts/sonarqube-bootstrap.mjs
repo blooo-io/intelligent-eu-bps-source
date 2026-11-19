@@ -404,7 +404,7 @@ if (isDirectRun) {
         hostUrl: result.hostUrl,
         projectKey: result.projectKey,
         projectCreated: result.projectCreated,
-        adminPasswordChanged: result.adminPasswordChanged,
+        // INT-419 / CodeQL — do not log password-related state (even a boolean).
         tokenRotated: result.tokenRotated,
         tokenType: result.tokenType,
         qualityGate: result.qualityGate?.name,

@@ -67,8 +67,21 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.equal(json.openapi?.startsWith("3."), true);
     assert.ok(json.paths);
     const urls = (json.servers || []).map((s) => s.url);
+    // INT-419 / CodeQL — compare URL components, not a raw substring/includes on the host.
+    const hasExpectedServer = urls.some((rawUrl) => {
+      try {
+        const parsed = new URL(rawUrl);
+        return (
+          parsed.protocol === "https:" &&
+          parsed.hostname === "api.dev.intelligent-eu-bp.blooo.dev" &&
+          parsed.pathname === "/v1"
+        );
+      } catch {
+        return false;
+      }
+    });
     assert.ok(
-      urls.includes("https://api.dev.intelligent-eu-bp.blooo.dev/v1"),
+      hasExpectedServer,
       `expected sample gateway in servers, got ${JSON.stringify(urls)}`,
     );
     // INT-408 — security scheme must be inlined (no external file $ref) or Try it

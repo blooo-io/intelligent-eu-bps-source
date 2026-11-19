@@ -8,12 +8,13 @@ DSA-6572-1 exp:2026-12-02
 CVE-2026-100290 exp:2026-12-02
 CVE-2026-115819 exp:2026-12-02
 
-# INT-402 — libssl3t64 3.5.7-1~deb13u3 in distroless nodejs22-debian13.
+# INT-402 / INT-415 — libssl3t64 3.5.7-1~deb13u3 in distroless nodejs22-debian13.
 # Severity UNKNOWN, no Fixed Version yet (Trivy gate includes UNKNOWN).
 # Remove when distroless / Debian ship a fixed openssl.
 CVE-2026-107493 exp:2026-12-02
 CVE-2026-124709 exp:2026-12-02
 CVE-2026-35190 exp:2026-12-02
+CVE-2026-95690 exp:2026-12-19
 
 # INT-411 — libc6 2.41-12+deb13u4 charset conversion CVEs (UNKNOWN, no Fixed
 # Version). Blocking apps-docs-portal image scan on supply-chain.

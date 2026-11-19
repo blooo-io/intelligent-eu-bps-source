@@ -88,7 +88,10 @@ function withBanner(markdown) {
     const end = markdown.indexOf("\n---", 3);
     if (end !== -1) {
       const after = end + "\n---".length;
-      return `${markdown.slice(0, after)}\n${BANNER}${markdown.slice(after).replace(/^\n/, "\n")}`;
+      // Drop the blank line that usually follows frontmatter; BANNER already
+      // supplies surrounding newlines.
+      const rest = markdown.slice(after).replace(/^\n+/, "");
+      return `${markdown.slice(0, after)}\n${BANNER}${rest}`;
     }
   }
   return `${BANNER}\n${markdown}`;

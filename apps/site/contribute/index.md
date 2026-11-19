@@ -4,7 +4,7 @@ Contributions are welcome under the [Apache License 2.0](https://github.com/bloo
 
 ## Before you start
 
-1. Read the [introduction](/guide/introduction) and [architecture](/reference/architecture) overview.
+1. Read the [introduction](/guide/introduction) and the [architecture views](/architecture/).
 2. Search existing issues and pull requests on GitHub.
 3. For API or event changes, edit files under `contracts/` **first**.
 

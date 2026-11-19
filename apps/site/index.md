@@ -9,6 +9,9 @@ hero:
       text: Get started
       link: /guide/introduction
     - theme: alt
+      text: Architecture
+      link: /architecture/
+    - theme: alt
       text: Deploy your own instance
       link: /guide/deploy
     - theme: alt
@@ -17,6 +20,8 @@ hero:
 features:
   - title: Producer is the bank
     details: One self-billing invoice per consumer→producer pair, netting, carry-forward threshold, and direct payment to the producer via Stripe Connect.
+  - title: Full architecture on this site
+    details: Functional, logical, application, technical and physical views — with Mermaid diagrams — published from the validated docs, no repository checkout required.
   - title: Contract-first APIs
     details: OpenAPI 3.1 and AsyncAPI 3 live in the repository. Validate, mock and generate clients before you write code.
   - title: Bring your own platform
@@ -24,4 +29,3 @@ features:
   - title: Permissive licences
     details: Apache-2.0 project code. Runtime dependencies are MIT or Apache-2.0 only (TP-2).
 ---
-

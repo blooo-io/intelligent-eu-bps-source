@@ -67,4 +67,71 @@ describe("stripe-setup-element (INT-193)", () => {
       ),
     ).resolves.toBe("pm_obj");
   });
+
+  it("rejects when Stripe.js does not load", async () => {
+    await expect(
+      mountSetupPaymentElement({
+        publishableKey: "pk_test_x",
+        clientSecret: "seti_secret",
+        container: document.createElement("div"),
+        loadStripeFn: vi.fn().mockResolvedValue(null),
+      }),
+    ).rejects.toThrow(/failed to load/i);
+  });
+
+  it("propagates confirm errors from the mounted element", async () => {
+    const unmount = vi.fn();
+    const mount = vi.fn();
+    const create = vi.fn().mockReturnValue({ mount, unmount });
+    const elements = vi.fn().mockReturnValue({ create });
+    const confirmSetup = vi.fn().mockResolvedValue({
+      error: { message: "Card declined" },
+    });
+    const loadStripeFn = vi.fn().mockResolvedValue({ elements, confirmSetup });
+    const handle = await mountSetupPaymentElement({
+      publishableKey: "pk_test_x",
+      clientSecret: "seti_secret",
+      container: document.createElement("div"),
+      loadStripeFn,
+    });
+    await expect(handle.confirm()).rejects.toThrow(/declined/i);
+  });
+
+  it("rejects setup without a payment method", async () => {
+    const unmount = vi.fn();
+    const mount = vi.fn();
+    const create = vi.fn().mockReturnValue({ mount, unmount });
+    const elements = vi.fn().mockReturnValue({ create });
+    const confirmSetup = vi.fn().mockResolvedValue({ setupIntent: {} });
+    const loadStripeFn = vi.fn().mockResolvedValue({ elements, confirmSetup });
+    const handle = await mountSetupPaymentElement({
+      publishableKey: "pk_test_x",
+      clientSecret: "seti_secret",
+      container: document.createElement("div"),
+      loadStripeFn,
+    });
+    await expect(handle.confirm()).rejects.toThrow(/without payment_method/i);
+  });
+
+  it("defaults confirmSetup error text when message is absent", async () => {
+    await expect(
+      confirmSetupWithStripe(
+        {
+          confirmSetup: vi.fn().mockResolvedValue({ error: {} }),
+        } as never,
+        {} as never,
+      ),
+    ).rejects.toThrow(/confirmSetup failed/);
+  });
+
+  it("rejects confirm without payment_method", async () => {
+    await expect(
+      confirmSetupWithStripe(
+        {
+          confirmSetup: vi.fn().mockResolvedValue({ setupIntent: {} }),
+        } as never,
+        {} as never,
+      ),
+    ).rejects.toThrow(/missing payment_method/);
+  });
 });

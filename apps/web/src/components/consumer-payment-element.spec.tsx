@@ -60,4 +60,47 @@ describe("ConsumerPaymentElement (INT-193)", () => {
       expect(screen.getByText(/publishable key missing/i)).toBeInTheDocument();
     });
   });
+
+  it("surfaces mount failures", async () => {
+    render(
+      <ConsumerPaymentElement
+        config={config}
+        clientSecret="seti_secret"
+        onAttached={vi.fn()}
+        loadStripe={vi.fn().mockRejectedValue("stripe unavailable")}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load card form/i)).toBeInTheDocument();
+    });
+  });
+
+  it("surfaces confirm failures", async () => {
+    const loadStripe = vi.fn().mockResolvedValue({
+      elements: vi.fn().mockReturnValue({
+        create: vi.fn().mockReturnValue({
+          mount: vi.fn(),
+          unmount: vi.fn(),
+        }),
+      }),
+      confirmSetup: vi.fn().mockResolvedValue({
+        error: { message: "Card was declined" },
+      }),
+    });
+    render(
+      <ConsumerPaymentElement
+        config={config}
+        clientSecret="seti_secret"
+        onAttached={vi.fn()}
+        loadStripe={loadStripe}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /save payment method/i })).not.toBeDisabled();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save payment method/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/declined/i)).toBeInTheDocument();
+    });
+  });
 });

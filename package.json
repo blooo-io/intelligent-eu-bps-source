@@ -2,7 +2,7 @@
   "name": "intelligent-eu-billing-and-payment",
   "private": true,
   "version": "1.1.5",
-  "description": "INTELLIGENT (GA 101160678) — Billing & Payment Service (T5.6 / D5.5)",
+  "description": "INTELLIGENT (GA 101160678) \u2014 Billing & Payment Service (T5.6 / D5.5)",
   "license": "Apache-2.0",
   "packageManager": "pnpm@9.15.9",
   "engines": {
@@ -30,8 +30,8 @@
       "postcss": ">=8.5.18",
       "body-parser": ">=2.4.0",
       "multer": ">=2.5.0",
-      "vitest": "3.2.7",
-      "@vitest/coverage-v8": "3.2.7",
+      "vitest": "4.1.12",
+      "@vitest/coverage-v8": "4.1.12",
       "jsonpath-plus": ">=10.4.0",
       "simple-git": ">=4.0.1",
       "@simple-git/argv-parser": ">=2.0.1",
@@ -39,8 +39,14 @@
       "@faker-js/faker": ">=10.5.0",
       "fast-uri": ">=3.1.9",
       "qs": ">=6.16.1",
-      "tinypool": "2.1.2",
-      "vite": "6.4.6"
+      "vite": "6.4.6",
+      "@vitest/mocker": "4.1.12",
+      "minimatch@>=7": ">=11.0.1",
+      "glob@>=9": ">=14.0.2",
+      "uuid@<11.1.1": ">=11.1.1",
+      "ajv@<6.14.0": "6.14.0",
+      "@babel/core": ">=7.29.6",
+      "fast-xml-parser": ">=5.12.0"
     }
   }
 }

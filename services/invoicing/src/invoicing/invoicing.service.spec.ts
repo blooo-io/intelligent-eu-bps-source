@@ -8,7 +8,7 @@ import {
   OutboxService,
 } from "@intelligent/module-template";
 import { InvoiceStore } from "../domain/store.js";
-import type { PairSettlementInput } from "../domain/types.js";
+import type { InvoiceStatus, PairSettlementInput } from "../domain/types.js";
 import {
   NoopPaymentsClient,
   type PaymentsClientPort,
@@ -295,6 +295,32 @@ describe("InvoicingService", () => {
     const result = await service.markOverdue("2026-11-01");
     expect(result.marked).toBe(1);
     expect(service.getInvoice(invoice.invoiceId).status).toBe("Overdue");
+  });
+
+  it("rejects markOverdue without asOf", async () => {
+    await expect(service.markOverdue("")).rejects.toThrow(/asOf/);
+  });
+
+  it("rejects unsupported manual status", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    await expect(
+      service.setInvoiceStatus(invoice.invoiceId, {
+        status: "Unknown" as InvoiceStatus,
+        reason: "test",
+        actorId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      }),
+    ).rejects.toThrow(/unsupported status/);
+  });
+
+  it("ignores non-succeeded payment status updates", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    const next = await service.applyPaymentStatusChanged({
+      invoiceId: invoice.invoiceId,
+      paymentId: "pay-fail",
+      status: "failed",
+    });
+    expect(next).toBeUndefined();
+    expect(service.getInvoice(invoice.invoiceId).status).toBe("Open");
   });
 
   it("UAT-055 — manager sets Paid with reason and audit trail (REQ-044)", async () => {

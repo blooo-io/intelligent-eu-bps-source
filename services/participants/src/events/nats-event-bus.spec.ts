@@ -28,6 +28,19 @@ describe("createEventBus", () => {
   it("uses NatsEventBus when NATS_URL is set", () => {
     expect(createEventBus({ NATS_URL: "nats://127.0.0.1:4222" })).toBeInstanceOf(NatsEventBus);
   });
+
+  it("falls back to in-memory bus without broker URL", async () => {
+    const { InMemoryEventBus } = await import("./in-memory-event-bus.js");
+    const bus = createEventBus({});
+    expect(bus).toBeInstanceOf(InMemoryEventBus);
+    await bus.publish("Ping", 1);
+  });
+
+  it("accepts NATS_URLS as an alias", () => {
+    expect(createEventBus({ NATS_URLS: "nats://127.0.0.1:4222" })).toBeInstanceOf(
+      NatsEventBus,
+    );
+  });
 });
 
 describe("NatsEventBus authentication (INT-338)", () => {
@@ -38,6 +51,16 @@ describe("NatsEventBus authentication (INT-338)", () => {
     process.env.NATS_PASSWORD = saved.pass;
     if (saved.user === undefined) delete process.env.NATS_USER;
     if (saved.pass === undefined) delete process.env.NATS_PASSWORD;
+  });
+
+  it("connects without credentials when NATS_USER is unset", async () => {
+    delete process.env.NATS_USER;
+    delete process.env.NATS_PASSWORD;
+    connect.mockResolvedValue(mockCoreNc());
+    const bus = new NatsEventBus("nats://127.0.0.1:4222");
+    await bus.subscribe("A", vi.fn());
+    expect(connect).toHaveBeenCalledWith({ servers: "nats://127.0.0.1:4222" });
+    await bus.close();
   });
 
   it("passes the broker account when NATS_USER is set", async () => {

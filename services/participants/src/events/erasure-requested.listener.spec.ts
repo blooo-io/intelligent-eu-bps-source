@@ -55,4 +55,20 @@ describe("ErasureRequestedListener (INT-275)", () => {
     });
     expect(apply).not.toHaveBeenCalled();
   });
+
+  it("skips envelopes without eventId", async () => {
+    await bus.publish("ErasureRequested", {
+      data: { requestId: "req-4", participantId: "part-4" },
+    });
+    expect(apply).not.toHaveBeenCalled();
+  });
+
+  it("logs when applyErasureRequested fails", async () => {
+    apply.mockRejectedValueOnce(new Error("db down"));
+    await bus.publish("ErasureRequested", {
+      eventId: "evt-er-5",
+      data: { requestId: "req-5", participantId: "part-5" },
+    });
+    expect(apply).toHaveBeenCalledOnce();
+  });
 });

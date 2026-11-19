@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "Apache-2.0",
-  "description": "AC-14 scheduler — job catalogue and dispatch to owning modules (INT-113)",
+  "description": "AC-14 scheduler \u2014 job catalogue and dispatch to owning modules (INT-113)",
   "type": "module",
   "files": [
     "dist"
@@ -31,9 +31,9 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
-    "@vitest/coverage-v8": "3.2.7",
+    "@vitest/coverage-v8": "4.1.12",
     "typescript": "^7.0.2",
-    "vitest": "3.2.7"
+    "vitest": "4.1.12"
   },
   "engines": {
     "node": ">=22"

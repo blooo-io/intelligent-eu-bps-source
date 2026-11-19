@@ -41,6 +41,14 @@ describe("HttpPartyResolver (INT-237)", () => {
     await expect(client.resolve("unknown-actor")).resolves.toBeNull();
   });
 
+  it("returns null when response body is incomplete", async () => {
+    const client = new HttpPartyResolver(
+      "http://participants:8080",
+      vi.fn(async () => new Response(JSON.stringify({ participantId: 1 }), { status: 200 })) as never,
+    );
+    await expect(client.resolve("actor")).resolves.toBeNull();
+  });
+
   it("throws on non-404 failure", async () => {
     const client = new HttpPartyResolver(
       "http://participants:8080",

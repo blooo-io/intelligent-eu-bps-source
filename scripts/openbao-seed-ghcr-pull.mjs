@@ -103,7 +103,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       process.exit(1);
     }
     const username = process.env.GHCR_PULL_USERNAME || "x-access-token";
-    console.log(JSON.stringify(apply(username, token)));
+    // INT-419 / CodeQL — never log credential inputs or apply() fields derived from them.
+    apply(username, token);
+    console.log(JSON.stringify({ path: PATH_KEY, status: "ok" }));
     process.exit(0);
   }
   console.error("usage: --check | --print | --apply");

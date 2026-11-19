@@ -19,3 +19,13 @@ test("INT-177 seed script reads bootstrap root_token key", async () => {
   assert.match(source, /jsonpath=\{\.data\.root_token\}/);
   assert.doesNotMatch(source, /jsonpath=\{\.data\.root-token\}/);
 });
+
+test("INT-419 apply CLI log does not echo credentials", async () => {
+  const source = await readFile(new URL("./openbao-seed-ghcr-pull.mjs", import.meta.url), "utf8");
+  assert.match(source, /status:\s*"ok"/);
+  assert.doesNotMatch(
+    source,
+    /console\.log\(JSON\.stringify\(apply\(/,
+  );
+});
+

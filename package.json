@@ -17,7 +17,7 @@
     "docs:build": "pnpm --filter @intelligent/site build"
   },
   "devDependencies": {
-    "@asyncapi/cli": "^6.3.0",
+    "@asyncapi/cli": "^6.3.1",
     "@redocly/cli": "^2.79.0",
     "@stoplight/prism-cli": "^5.14.2",
     "@stoplight/spectral-cli": "^6.17.1",

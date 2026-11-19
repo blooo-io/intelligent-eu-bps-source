@@ -10,5 +10,9 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    // INT-416 — Vite 6.4.6 (Dependabot override) defaults to an older browser
+    // target that rejects top-level await used by the SPA bootstrap.
+    target: "es2022",
   },
 });
+

@@ -1,8 +1,8 @@
 {
   "name": "intelligent-eu-billing-and-payment",
   "private": true,
-  "version": "1.1.4",
-  "description": "INTELLIGENT (GA 101160678) \u2014 Billing & Payment Service (T5.6 / D5.5)",
+  "version": "1.1.5",
+  "description": "INTELLIGENT (GA 101160678) — Billing & Payment Service (T5.6 / D5.5)",
   "license": "Apache-2.0",
   "packageManager": "pnpm@9.15.9",
   "engines": {

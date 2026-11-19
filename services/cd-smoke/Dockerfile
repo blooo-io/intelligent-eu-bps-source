@@ -4,13 +4,23 @@
 # Runtime is distroless so the image does not ship a Debian userland (Trivy OS noise).
 # See deploy/docker/README.md.
 # INT-319 — bump to prove GHCR push of services-cd-smoke on develop after rename.
+# INT-420 — strip vitest before `npm install` (vitest 4 + npm arborist → edgesOut crash).
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 COPY services/cd-smoke/package.json services/cd-smoke/tsconfig.json services/cd-smoke/tsconfig.build.json ./
 COPY services/cd-smoke/src ./src
-# No production npm deps: build TypeScript only, drop node_modules from the final image.
-RUN npm install && npm run build
+# Image build only needs tsc. Vitest stays a workspace/dev dependency; installing it
+# here with npm 10 fails: "Cannot read properties of null (reading 'edgesOut')".
+RUN node --input-type=module -e "\
+import { readFileSync, writeFileSync } from 'node:fs';\
+const p = JSON.parse(readFileSync('package.json', 'utf8'));\
+delete p.devDependencies?.vitest;\
+delete p.devDependencies?.['@vitest/coverage-v8'];\
+writeFileSync('package.json', JSON.stringify(p, null, 2));\
+" \
+  && npm install \
+  && npm run build
 
 # Distroless Node 22 on Debian 13 (debian12 node images are no longer rebuilt;
 # they ship an openssl that fails Trivy HIGH/CRITICAL). Non-root uid 65532.

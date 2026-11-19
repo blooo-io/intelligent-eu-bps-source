@@ -134,6 +134,9 @@ test("cd-smoke Dockerfile is discovered and runs as non-root", async () => {
   assert.equal(imageSuffix("services/cd-smoke/Dockerfile"), "services-cd-smoke");
   assert.match(source, /nodejs22-debian13:nonroot/);
   assert.equal(source.includes("nodejs22-debian12"), false);
+  // INT-420 — vitest must not be installed in the image (npm arborist edgesOut crash).
+  assert.match(source, /delete p\.devDependencies\?\.vitest/);
+  assert.match(source, /INT-420/);
 });
 
 // INT-137: AC-01 web image is discoverable as apps-web and runs non-root.

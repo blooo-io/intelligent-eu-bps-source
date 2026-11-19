@@ -13,7 +13,7 @@ Implementations live under `services/payments` and `services/invoicing`. Point w
 
 ## Local market & data space
 
-Trade intake and publication talk to GSY DEX / EWDS through adapters. Ship-with mocks cover scenarios S1–S13 under `mocks/`. Replace with your Client Gateway when ready; keep message shapes aligned with `docs/architecture/ewds-topics/` and AsyncAPI contracts.
+Trade intake and publication talk to GSY DEX / EWDS through adapters. Ship-with mocks cover scenarios S1–S13 under `mocks/`. Replace with your Client Gateway when ready; keep message shapes aligned with the [EWDS topic schemas](/architecture/ewds-topics) (and AsyncAPI contracts). See also the [EWDS Client Gateway](/architecture/ewds-client-gateway) note.
 
 ## Identity
 

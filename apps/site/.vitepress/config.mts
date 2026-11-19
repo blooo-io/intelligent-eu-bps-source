@@ -4,10 +4,11 @@ import { useSidebar } from "vitepress-openapi";
 import spec from "../public/openapi/public.v1.json" with { type: "json" };
 
 /**
- * Docs site for open-source adopters (INT-299 … INT-302, INT-401).
+ * Docs site for open-source adopters (INT-299 … INT-302, INT-401, INT-413).
  * Blooo canonical host: https://intelligent.docs.blooo.dev/ (DOCS_BASE=/).
  * Run pages:package to ship the Pages artifact + CNAME for the custom domain.
  * OpenAPI UI: vitepress-openapi (Vue pages under /api/).
+ * Architecture views: synced from docs/architecture/ (scripts/sync-architecture.mjs).
  */
 const base = (process.env.DOCS_BASE || "/").replace(/\/?$/, "/") || "/";
 
@@ -55,7 +56,19 @@ export default withMermaid({
     nav: [
       { text: "Guide", link: "/guide/introduction" },
       { text: "Deploy", link: "/guide/deploy" },
-      { text: "Reference", link: "/reference/architecture" },
+      {
+        text: "Architecture",
+        items: [
+          { text: "Overview", link: "/architecture/" },
+          { text: "Functional", link: "/architecture/01-functional-architecture" },
+          { text: "Logical", link: "/architecture/02-logical-architecture" },
+          { text: "Application", link: "/architecture/03-application-architecture" },
+          { text: "Technical", link: "/architecture/04-technical-architecture" },
+          { text: "Physical", link: "/architecture/05-physical-architecture" },
+          { text: "EWDS Client Gateway", link: "/architecture/ewds-client-gateway" },
+        ],
+      },
+      { text: "Reference", link: "/reference/modules" },
       {
         text: "API",
         items: [
@@ -90,11 +103,52 @@ export default withMermaid({
           ],
         },
       ],
+      "/architecture/": [
+        {
+          text: "Architecture",
+          items: [
+            { text: "Overview", link: "/architecture/" },
+            {
+              text: "1. Functional",
+              link: "/architecture/01-functional-architecture",
+            },
+            {
+              text: "2. Logical",
+              link: "/architecture/02-logical-architecture",
+            },
+            {
+              text: "3. Application",
+              link: "/architecture/03-application-architecture",
+            },
+            {
+              text: "4. Technical",
+              link: "/architecture/04-technical-architecture",
+            },
+            {
+              text: "5. Physical",
+              link: "/architecture/05-physical-architecture",
+            },
+            {
+              text: "EWDS Client Gateway",
+              link: "/architecture/ewds-client-gateway",
+            },
+            { text: "EWDS topic schemas", link: "/architecture/ewds-topics" },
+          ],
+        },
+        {
+          text: "Also on this site",
+          items: [
+            { text: "Modules map", link: "/reference/modules" },
+            { text: "Architecture digest", link: "/reference/architecture" },
+          ],
+        },
+      ],
       "/reference/": [
         {
           text: "Reference",
           items: [
-            { text: "Architecture", link: "/reference/architecture" },
+            { text: "Architecture digest", link: "/reference/architecture" },
+            { text: "Full architecture views", link: "/architecture/" },
             { text: "Modules", link: "/reference/modules" },
             { text: "API & events", link: "/reference/api" },
             { text: "Source documentation", link: "/reference/source-docs" },

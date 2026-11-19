@@ -29,7 +29,7 @@
 
 Billing and payment service of the Horizon Europe project **INTELLIGENT** ([GA 101160678](https://cordis.europa.eu/project/id/101160678)). It covers **Task T5.6** and **Deliverable D5.5**. The software is published under **Apache-2.0** so any organisation can run it on **their own** infrastructure.
 
-**Start here for adopters:** [Public documentation](https://intelligent.docs.blooo.dev/) — introduction, deploy-your-own, configuration, adapters, contribute. Source for that site: [`apps/site`](apps/site) (VitePress).
+**Start here for adopters:** [Public documentation](https://intelligent.docs.blooo.dev/) — introduction, **full architecture views**, deploy-your-own, configuration, adapters, contribute. Source for that site: [`apps/site`](apps/site) (VitePress).
 
 The service turns energy trades settled on a local market into **peer-to-peer invoices and payments between community members**, then publishes results to a project data space (EWDS).
 
@@ -37,7 +37,7 @@ The service turns energy trades settled on a local market into **peer-to-peer in
 
 ## Billing model — “the producer is the bank”
 
-Documented in the [functional architecture](docs/architecture/01-functional-architecture.md) and [requirements](docs/requirements/requirements.md) (assumptions A19–A22, business rules BR-01…BR-13):
+Documented in the [functional architecture](https://intelligent.docs.blooo.dev/architecture/01-functional-architecture) ([source](docs/architecture/01-functional-architecture.md)) and [requirements](docs/requirements/requirements.md) (assumptions A19–A22, business rules BR-01…BR-13):
 
 | Rule | Meaning |
 |---|---|
@@ -50,15 +50,15 @@ Documented in the [functional architecture](docs/architecture/01-functional-arch
 
 ## Architecture at a glance
 
-Five validated views (iterative, each refining the previous):
+Five validated views (iterative, each refining the previous). **Read them on the [public docs site](https://intelligent.docs.blooo.dev/architecture/)** (INT-413); the markdown under `docs/architecture/` remains the source of truth.
 
-| View | File | Answers |
-|---|---|---|
-| Functional | [`01-functional-architecture.md`](docs/architecture/01-functional-architecture.md) | Actors, processes, objects, **BR-01…BR-13** |
-| Logical | [`02-logical-architecture.md`](docs/architecture/02-logical-architecture.md) | Blocks, data ownership, events, jobs |
-| Application | [`03-application-architecture.md`](docs/architecture/03-application-architecture.md) | Modules **AC-01…AC-15**, APIs, adapters, mocks S1–S13 |
-| Technical | [`04-technical-architecture.md`](docs/architecture/04-technical-architecture.md) | Decisions **TD-1…TD-13**, principles **TP-1…TP-8** |
-| Physical | [`05-physical-architecture.md`](docs/architecture/05-physical-architecture.md) | Environments, Scaleway Kapsule (nl-ams), ops |
+| View | On the docs site | Source file | Answers |
+|---|---|---|---|
+| Functional | [Functional](https://intelligent.docs.blooo.dev/architecture/01-functional-architecture) | [`01-…`](docs/architecture/01-functional-architecture.md) | Actors, processes, objects, **BR-01…BR-13** |
+| Logical | [Logical](https://intelligent.docs.blooo.dev/architecture/02-logical-architecture) | [`02-…`](docs/architecture/02-logical-architecture.md) | Blocks, data ownership, events, jobs |
+| Application | [Application](https://intelligent.docs.blooo.dev/architecture/03-application-architecture) | [`03-…`](docs/architecture/03-application-architecture.md) | Modules **AC-01…AC-15**, APIs, adapters, mocks S1–S13 |
+| Technical | [Technical](https://intelligent.docs.blooo.dev/architecture/04-technical-architecture) | [`04-…`](docs/architecture/04-technical-architecture.md) | Decisions **TD-1…TD-13**, principles **TP-1…TP-8** |
+| Physical | [Physical](https://intelligent.docs.blooo.dev/architecture/05-physical-architecture) | [`05-…`](docs/architecture/05-physical-architecture.md) | Environments, Scaleway Kapsule (nl-ams), ops |
 
 ```mermaid
 %% elk %%
@@ -144,11 +144,12 @@ Upstream reference cluster notes (example DNS / GitOps) live under [`docs/releas
 | Need | Start here |
 |---|---|
 | **Public operator docs** | [intelligent.docs.blooo.dev](https://intelligent.docs.blooo.dev/) · [`apps/site`](apps/site) |
-| What / for whom | [Functional architecture](docs/architecture/01-functional-architecture.md) |
+| Architecture (all views) | [Docs site /architecture](https://intelligent.docs.blooo.dev/architecture/) · [`docs/architecture/`](docs/architecture/) |
+| What / for whom | [Functional architecture](https://intelligent.docs.blooo.dev/architecture/01-functional-architecture) |
 | REQ / UAT / assumptions | [requirements.md](docs/requirements/requirements.md) · [items/](docs/requirements/items/) |
-| APIs & events | [`contracts/`](contracts/) · [API page](apps/site/reference/api.md) |
-| How it is built | [Technical architecture](docs/architecture/04-technical-architecture.md) |
-| Deploy your own | [apps/site/guide/deploy.md](apps/site/guide/deploy.md) |
+| APIs & events | [`contracts/`](contracts/) · [API page](https://intelligent.docs.blooo.dev/api/) |
+| How it is built | [Technical architecture](https://intelligent.docs.blooo.dev/architecture/04-technical-architecture) |
+| Deploy your own | [Deploy guide](https://intelligent.docs.blooo.dev/guide/deploy) |
 | Reference (example) deploy | [docs/release/deployment.md](docs/release/deployment.md) |
 | Validation evidence | [v1-validation-summary.md](docs/testing/v1-validation-summary.md) |
 

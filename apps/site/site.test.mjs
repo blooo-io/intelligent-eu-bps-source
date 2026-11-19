@@ -29,9 +29,21 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(theme, /ApiTokenHelper/);
   });
 
-  it("architecture page keeps a mermaid fence for client render", () => {
+  it("architecture digest keeps a mermaid fence for client render", () => {
     const arch = readFileSync(path.join(root, "reference/architecture.md"), "utf8");
     assert.match(arch, /```mermaid[\s\S]*flowchart LR/);
+    // INT-413 — digest points at the full published views on this site.
+    assert.match(arch, /\/architecture\/01-functional-architecture/);
+    assert.match(arch, /\/architecture\//);
+  });
+
+  it("nav and sidebar expose the full architecture section (INT-413)", () => {
+    const config = readFileSync(path.join(root, ".vitepress/config.mts"), "utf8");
+    assert.match(config, /text:\s*"Architecture"/);
+    assert.match(config, /"\/architecture\/"/);
+    assert.match(config, /01-functional-architecture/);
+    assert.match(config, /05-physical-architecture/);
+    assert.match(config, /sync-architecture\.mjs/);
   });
 
   it("API pages use vitepress-openapi (not Redoc iframe)", () => {

@@ -11,7 +11,7 @@ It is developed under Horizon Europe project [INTELLIGENT](https://cordis.europa
 | Operators / platform teams deploying their own instance | [Deploy on Kubernetes](./deploy) |
 | Integrators calling the APIs | [API & events](/reference/api) |
 | Contributors improving the code | [How to contribute](/contribute/) |
-| Architects reviewing the design | [Architecture](/reference/architecture) |
+| Architects reviewing the design | [Architecture views](/architecture/) |
 
 This site describes how to **use and run** the software in **your** environment. Upstream maintainer workflows (specific cloud accounts, internal issue trackers, partner demo hosts) are optional reference material — see [Upstream maintainers](/contribute/upstream-maintainers).
 
@@ -23,7 +23,7 @@ This site describes how to **use and run** the software in **your** environment.
 4. The consumer pays the producer **directly** through the payment provider (Stripe Connect). Money does not transit through the billing platform.
 5. Grid fees, taxes and levies stay on the supplier/DSO bill — not on P2P invoices.
 
-Full business rules: [functional architecture](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/docs/architecture/01-functional-architecture.md) in the repository.
+Full business rules: [functional architecture](/architecture/01-functional-architecture) on this site.
 
 ## V1 scope
 

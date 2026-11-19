@@ -7,11 +7,13 @@
   "type": "module",
   "scripts": {
     "openapi:prepare": "node ./scripts/build-openapi.mjs",
-    "dev": "node ./scripts/build-openapi.mjs && vitepress dev",
-    "build": "node ./scripts/build-openapi.mjs && vitepress build",
+    "architecture:sync": "node ./scripts/sync-architecture.mjs",
+    "docs:prepare": "node ./scripts/build-openapi.mjs && node ./scripts/sync-architecture.mjs",
+    "dev": "node ./scripts/build-openapi.mjs && node ./scripts/sync-architecture.mjs && vitepress dev",
+    "build": "node ./scripts/build-openapi.mjs && node ./scripts/sync-architecture.mjs && vitepress build",
     "pages:package": "node ./scripts/package-pages.mjs",
     "preview": "vitepress preview",
-    "test": "node ./scripts/build-openapi.mjs && node --test site.test.mjs scripts/package-pages.test.mjs"
+    "test": "node ./scripts/build-openapi.mjs && node ./scripts/sync-architecture.mjs && node --test site.test.mjs scripts/package-pages.test.mjs scripts/sync-architecture.test.mjs"
   },
   "devDependencies": {
     "mermaid": "12.3.0",

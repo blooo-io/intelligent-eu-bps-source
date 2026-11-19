@@ -1,5 +1,6 @@
-# INT-299 / INT-401 — build the VitePress public docs and publish to GitHub Pages.
+# INT-299 / INT-401 / INT-413 — build the VitePress public docs and publish to GitHub Pages.
 # Canonical Blooo URL: https://intelligent.docs.blooo.dev/
+# Architecture chapters sync from docs/architecture/ at build time (INT-413).
 name: docs
 
 on:
@@ -7,12 +8,14 @@ on:
     branches: [develop]
     paths:
       - "apps/site/**"
+      - "docs/architecture/**"
       - ".github/workflows/docs.yml"
       - "pnpm-lock.yaml"
       - "package.json"
   pull_request:
     paths:
       - "apps/site/**"
+      - "docs/architecture/**"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 

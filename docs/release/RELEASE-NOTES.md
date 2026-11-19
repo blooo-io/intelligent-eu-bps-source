@@ -1,7 +1,7 @@
 # V1 release notes (INT-95)
 
 **Deliverable:** D5.5 — Billing & Payment Service V1  
-**Source tag:** `v1.1.4` (INT-415), after `v1.1.3` (INT-412), `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
+**Source tag:** `v1.1.5` (INT-417), after `v1.1.4` (INT-415), `v1.1.3` (INT-412), `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
 **Project:** Horizon Europe INTELLIGENT (GA 101160678), Task T5.6, led by Blooo  
 **Licence:** Apache License 2.0 — see [`LICENSE`](../../LICENSE) and [`NOTICE`](../../NOTICE)
 
@@ -14,6 +14,11 @@
 - OpenAPI / AsyncAPI contracts; EWDS invoice/payment schema validation via mocks.
 - Observability (OpenTelemetry), secrets via OpenBao + External Secrets, Keycloak OIDC, APISIX gateway.
 - Public docs site publishes the five architecture views (plus EWDS Client Gateway note) at `/architecture/`.
+
+## Changes since v1.1.4
+
+- Dependencies: `pnpm.overrides` force patched transitive advisories (`jsonpath-plus`, `simple-git` / `@simple-git/argv-parser`, `lodash`, `@faker-js/faker`, `fast-uri`, `qs`, `tinypool@2.1.2`, `vite@6.4.6`) while holding vitest at 3.2.7 (INT-416).
+- Supply-chain: suppress Trivy UNKNOWN `CVE-2026-84786` on distroless `libssl3t64` so release images can publish (INT-416); `v1.1.4` image job failed before this ignore.
 
 ## Changes since v1.1.3
 

@@ -73,6 +73,65 @@ describe("HttpSettlementClient (INT-223)", () => {
     );
     await expect(client.getPairSettlement("s1")).rejects.toThrow("503");
   });
+
+  it("applies defaults and drops invalid trade lines", async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        tradeIds: "not-an-array",
+        lines: [
+          null,
+          { tradeId: 42 },
+          { tradeId: "t2", deliveryStart: "2026-11-01T00:00:00Z" },
+        ],
+        settlementType: "invalid",
+        vatRate: "not-a-number",
+        producerStripeAccountId: 123,
+      }),
+    })) as unknown as typeof fetch;
+
+    const client = new HttpSettlementClient(
+      "http://settlement:8080/",
+      fetchImpl,
+    );
+    const pair = await client.getPairSettlement("s9");
+    expect(pair.tradeIds).toEqual([]);
+    expect(pair.lines).toEqual([
+      expect.objectContaining({
+        tradeId: "t2",
+        deliveryStart: "2026-11-01T00:00:00Z",
+        kWh: "0.000",
+      }),
+    ]);
+    expect(pair).not.toHaveProperty("settlementType");
+    expect(pair).not.toHaveProperty("vatRate");
+    expect(pair).not.toHaveProperty("producerStripeAccountId");
+    expect(pair.kWh).toBe("0");
+    expect(pair.currency).toBe("EUR");
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "http://settlement:8080/internal/v1/settlements/s9",
+      expect.anything(),
+    );
+  });
+
+  it("maps early and final settlement types with optional period fields", async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        settlementType: "early",
+        periodFrom: "2026-11-01T00:00:00.000Z",
+        periodUntil: "2026-12-01T00:00:00.000Z",
+        vatRate: 0.081,
+        producerStripeAccountId: "acct_y",
+      }),
+    })) as unknown as typeof fetch;
+    const client = new HttpSettlementClient("http://settlement:8080", fetchImpl);
+    const pair = await client.getPairSettlement("s-final");
+    expect(pair.settlementType).toBe("early");
+    expect(pair.periodFrom).toBe("2026-11-01T00:00:00.000Z");
+    expect(pair.vatRate).toBe(0.081);
+    expect(pair.producerStripeAccountId).toBe("acct_y");
+  });
 });
 
 describe("createSettlementClient (INT-223)", () => {

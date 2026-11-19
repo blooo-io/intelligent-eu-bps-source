@@ -72,4 +72,48 @@ describe("TermsPage (INT-139 / UAT-062)", () => {
       selfBillingMandate: true,
     });
   });
+
+  it("renders embedded mode without the shell and reports missing tokens", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue(null),
+    };
+    vi.stubGlobal("fetch", vi.fn());
+
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <TermsPage config={config} oidc={oidc} embedded />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/no access token/i)).toBeInTheDocument();
+    });
+    expect(container.querySelector('[class*="page-frame"]')).toBeNull();
+
+    const oidcOk: OidcFacade = {
+      ...oidc,
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          termsVersion: "1.0",
+          text: "Embedded terms copy.",
+        }),
+      }),
+    );
+    rerender(
+      <MemoryRouter>
+        <TermsPage config={config} oidc={oidcOk} embedded onAccepted={vi.fn()} />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/embedded terms copy/i)).toBeInTheDocument();
+    });
+  });
 });

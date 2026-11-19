@@ -201,6 +201,43 @@ describe("ReconciliationService", () => {
     ).rejects.toThrow(/scope must be invoice or market/);
   });
 
+  it("flags trade-count-only market mismatch (REQ-041)", async () => {
+    service.projectMarket({
+      marketId: "mkt-trades",
+      communityId: COMMUNITY,
+      expectedNumTrades: 2,
+      expectedTradedQuantityKWh: "8.00",
+      actualNumTrades: 1,
+      actualTradedQuantityKWh: "8.00",
+    });
+    await service.reconcile({ scope: "market" });
+    expect(
+      service
+        .listDiscrepancies()
+        .some(
+          (d) =>
+            d.scope === "market" &&
+            d.expected.includes("numTrades=2") &&
+            d.actual.includes("numTrades=1"),
+        ),
+    ).toBe(true);
+  });
+
+  it("flags intake anomaly without details text", async () => {
+    service.projectIntakeAnomaly({
+      type: "missing_trade",
+      marketId: "mkt-plain",
+      communityId: COMMUNITY,
+    });
+    await service.reconcile({ scope: "market" });
+    const row = service
+      .listDiscrepancies(COMMUNITY)
+      .find((d) => d.scope === "market" && d.actual.includes("missing_trade"));
+    expect(row?.actual).toBe(
+      "market mkt-plain anomaly=missing_trade",
+    );
+  });
+
   it("flags quantity-only market mismatch (REQ-041)", async () => {
     service.projectMarket({
       marketId: "mkt-qty",

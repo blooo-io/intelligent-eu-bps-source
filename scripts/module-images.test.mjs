@@ -88,12 +88,13 @@ test("INT-412 web app tsconfig excludes Vitest specs from production tsc", async
   assert.equal(text.includes("vitest/globals"), false);
 });
 
-test("INT-412 pnpm overrides pin vitest 3.2.7 for the coverage gate", async () => {
+test("INT-418 pnpm overrides pin vitest 4.1.12 (patched mocker CVEs; avoid vitest 5 coverage drop)", async () => {
   const pkg = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
   );
-  assert.equal(pkg.pnpm.overrides.vitest, "3.2.7");
-  assert.equal(pkg.pnpm.overrides["@vitest/coverage-v8"], "3.2.7");
+  assert.equal(pkg.pnpm.overrides.vitest, "4.1.12");
+  assert.equal(pkg.pnpm.overrides["@vitest/coverage-v8"], "4.1.12");
+  assert.equal(pkg.pnpm.overrides["@vitest/mocker"], "4.1.12");
 });
 
 test("Trivy forbids the excluded licence families", async () => {

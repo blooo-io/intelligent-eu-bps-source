@@ -3,12 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const connect = vi.fn();
 const start = vi.fn();
 
-vi.mock("@temporalio/client", () => ({
-  Connection: { connect: (...args: unknown[]) => connect(...args) },
-  Client: vi.fn().mockImplementation(() => ({
-    workflow: { start: (...args: unknown[]) => start(...args) },
-  })),
-}));
+vi.mock("@temporalio/client", () => {
+  class Client {
+    workflow = { start: (...args: unknown[]) => start(...args) };
+  }
+  return {
+    Connection: { connect: (...args: unknown[]) => connect(...args) },
+    Client,
+  };
+});
 
 const { SdkTemporalClient } = await import("./sdk-temporal-client.js");
 

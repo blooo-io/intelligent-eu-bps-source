@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "Apache-2.0",
-  "description": "AC-08 reconciliation — invoice↔payment and market↔clearing checks (INT-108, REQ-041)",
+  "description": "AC-08 reconciliation \u2014 invoice\u2194payment and market\u2194clearing checks (INT-108, REQ-041)",
   "type": "module",
   "files": [
     "dist"
@@ -27,9 +27,9 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
-    "@vitest/coverage-v8": "3.2.7",
+    "@vitest/coverage-v8": "4.1.12",
     "typescript": "^7.0.2",
-    "vitest": "3.2.7"
+    "vitest": "4.1.12"
   },
   "engines": {
     "node": ">=22"

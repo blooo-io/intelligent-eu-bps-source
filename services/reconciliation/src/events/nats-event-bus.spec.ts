@@ -67,6 +67,14 @@ describe("createEventBus (INT-271)", () => {
     expect(bus).toBeInstanceOf(NatsEventBus);
   });
 
+  it("prefers NATS_URLS when both URL env vars are set", () => {
+    const bus = createEventBus({
+      NATS_URL: "nats://ignored:4222",
+      NATS_URLS: "nats://127.0.0.1:4222",
+    });
+    expect(bus).toBeInstanceOf(NatsEventBus);
+  });
+
   it("passes NATS_STREAM for JetStream durable consumers", () => {
     const bus = createEventBus({
       NATS_URL: "nats://127.0.0.1:4222",
@@ -204,5 +212,27 @@ describe("NatsEventBus shared connection (INT-382)", () => {
     await bus.close();
     await bus.publish("A", { ok: true });
     expect(connect).toHaveBeenCalledTimes(3);
+  });
+
+  it("passes broker credentials when NATS_USER is set (INT-338)", async () => {
+    const prevUser = process.env.NATS_USER;
+    const prevPass = process.env.NATS_PASSWORD;
+    process.env.NATS_USER = "svc";
+    process.env.NATS_PASSWORD = "secret";
+    const nc = mockCoreNc();
+    connect.mockResolvedValue(nc);
+    try {
+      const bus = new NatsEventBus("nats://127.0.0.1:4222", "intelligent.dev");
+      await bus.subscribe("InvoiceIssued", vi.fn());
+      expect(connect).toHaveBeenCalledWith(
+        expect.objectContaining({ user: "svc", pass: "secret" }),
+      );
+      await bus.close();
+    } finally {
+      if (prevUser === undefined) delete process.env.NATS_USER;
+      else process.env.NATS_USER = prevUser;
+      if (prevPass === undefined) delete process.env.NATS_PASSWORD;
+      else process.env.NATS_PASSWORD = prevPass;
+    }
   });
 });

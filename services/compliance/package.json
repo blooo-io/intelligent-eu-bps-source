@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "Apache-2.0",
-  "description": "AC-12 compliance — audit, retention, data-subject requests (INT-111, REQ-011/013/030)",
+  "description": "AC-12 compliance \u2014 audit, retention, data-subject requests (INT-111, REQ-011/013/030)",
   "type": "module",
   "files": [
     "dist"
@@ -26,9 +26,9 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
-    "@vitest/coverage-v8": "3.2.7",
+    "@vitest/coverage-v8": "4.1.12",
     "typescript": "^7.0.2",
-    "vitest": "3.2.7"
+    "vitest": "4.1.12"
   },
   "engines": {
     "node": ">=22"

@@ -77,4 +77,20 @@ describe("createPaymentOnboarding (REQ-051 / INT-190)", () => {
       last4: "4242",
     });
   });
+
+  it("surfaces HTTP errors from payment-account APIs", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 503 }),
+    );
+    await expect(fetchMyPaymentAccount("https://api.example/", "tok")).rejects.toThrow(
+      /503/,
+    );
+    await expect(createPaymentOnboarding("https://api.example", "tok")).rejects.toThrow(
+      /503/,
+    );
+    await expect(
+      attachMyPaymentMethod("https://api.example", "tok", "pm_1"),
+    ).rejects.toThrow(/503/);
+  });
 });

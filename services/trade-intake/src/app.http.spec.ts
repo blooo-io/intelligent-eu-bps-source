@@ -110,4 +110,50 @@ describe("trade-intake HTTP (INT-104)", () => {
     expect(list.status).toBe(200);
     expect(Array.isArray(await list.json())).toBe(true);
   });
+
+  it("POST trades:mark-billed and trades:reset-billed (INT-232)", async () => {
+    await fetch(`${base}/internal/v1/intake:refresh`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "service",
+      },
+      body: JSON.stringify({
+        from: "2026-11-01T00:00:00Z",
+        to: "2026-11-02T00:00:00Z",
+      }),
+    });
+
+    const markEmpty = await fetch(`${base}/internal/v1/trades:mark-billed`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "service",
+      },
+      body: JSON.stringify({}),
+    });
+    expect(markEmpty.status).toBe(400);
+
+    const unbilled = await fetch(
+      `${base}/internal/v1/trades/unbilled?until=2026-11-02T00:00:00Z&communityId=${communityId}`,
+      { headers: { "x-intelligent-roles": "service" } },
+    );
+    const trades = (await unbilled.json()) as { tradeId: string }[];
+    const mark = await fetch(`${base}/internal/v1/trades:mark-billed`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "service",
+      },
+      body: JSON.stringify({ tradeIds: trades.map((t) => t.tradeId) }),
+    });
+    expect(mark.status).toBe(204);
+
+    const reset = await fetch(`${base}/internal/v1/trades:reset-billed`, {
+      method: "POST",
+      headers: { "x-intelligent-roles": "service" },
+    });
+    expect(reset.status).toBe(200);
+    expect(await reset.json()).toEqual({ cleared: true });
+  });
 });

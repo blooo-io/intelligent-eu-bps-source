@@ -1,7 +1,7 @@
 # V1 release notes (INT-95)
 
 **Deliverable:** D5.5 — Billing & Payment Service V1  
-**Source tag:** `v1.1.5` (INT-417), after `v1.1.4` (INT-415), `v1.1.3` (INT-412), `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
+**Source tag:** `v1.1.6` (INT-421), after `v1.1.5` (INT-417), `v1.1.4` (INT-415), `v1.1.3` (INT-412), `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
 **Project:** Horizon Europe INTELLIGENT (GA 101160678), Task T5.6, led by Blooo  
 **Licence:** Apache License 2.0 — see [`LICENSE`](../../LICENSE) and [`NOTICE`](../../NOTICE)
 
@@ -14,6 +14,12 @@
 - OpenAPI / AsyncAPI contracts; EWDS invoice/payment schema validation via mocks.
 - Observability (OpenTelemetry), secrets via OpenBao + External Secrets, Keycloak OIDC, APISIX gateway.
 - Public docs site publishes the five architecture views (plus EWDS Client Gateway note) at `/architecture/`.
+
+## Changes since v1.1.5
+
+- Dependencies: bump vitest / `@vitest/coverage-v8` / `@vitest/mocker` to 4.1.12 and override remaining transitive advisories (`minimatch`, `glob`, `uuid`, `ajv`, `@babel/core`, `fast-xml-parser`) so `pnpm audit` is clean (INT-418).
+- Security: close CodeQL High alerts — URL component checks in docs OpenAPI server assertion; no clear-text password/credential fields in Sonar/OpenBao operator CLI logs (INT-419).
+- Supply-chain: strip vitest from the `cd-smoke` Docker `npm install` so image builds do not hit the npm arborist `edgesOut` crash under vitest 4 (INT-420).
 
 ## Changes since v1.1.4
 

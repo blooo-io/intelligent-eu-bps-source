@@ -1,7 +1,7 @@
 # V1 release notes (INT-95)
 
 **Deliverable:** D5.5 — Billing & Payment Service V1  
-**Source tag:** `v1.1.3` (INT-412), after `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
+**Source tag:** `v1.1.4` (INT-415), after `v1.1.3` (INT-412), `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
 **Project:** Horizon Europe INTELLIGENT (GA 101160678), Task T5.6, led by Blooo  
 **Licence:** Apache License 2.0 — see [`LICENSE`](../../LICENSE) and [`NOTICE`](../../NOTICE)
 
@@ -13,6 +13,12 @@
 - GitOps deploy to Scaleway `k8s-intelligent-eu-dev` (`dev` / `int`) and packaging for `demo`.
 - OpenAPI / AsyncAPI contracts; EWDS invoice/payment schema validation via mocks.
 - Observability (OpenTelemetry), secrets via OpenBao + External Secrets, Keycloak OIDC, APISIX gateway.
+- Public docs site publishes the five architecture views (plus EWDS Client Gateway note) at `/architecture/`.
+
+## Changes since v1.1.3
+
+- Docs site: sync `docs/architecture/` into VitePress at build time; Architecture nav and home CTA on https://intelligent.docs.blooo.dev/architecture/ (INT-413).
+- Supply-chain: suppress Trivy UNKNOWN `CVE-2026-95690` on distroless `libssl3t64` (same pattern as INT-402) so `:develop` / release images can publish (INT-415).
 
 ## Changes since v1.1.2
 

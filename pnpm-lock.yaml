@@ -671,8 +671,8 @@ importers:
         specifier: ^12.5.1
         version: 12.5.1(@nestjs/common@12.5.1(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.1)(rxjs@7.8.2)
       '@temporalio/activity':
-        specifier: ^1.25.0
-        version: 1.25.0(long@5.3.2)(protobufjs@8.8.1)
+        specifier: ^1.26.0
+        version: 1.26.0(long@5.3.2)(protobufjs@8.8.1)
       '@temporalio/client':
         specifier: ^1.26.0
         version: 1.26.0(long@5.3.2)(protobufjs@8.8.1)
@@ -3524,6 +3524,13 @@ packages:
 
   '@temporalio/activity@1.25.0':
     resolution: {integrity: sha512-IBz6/pqfwlZpZcw2KBFSQa5iu7B9gH6/RUCI/VCqywP9gfj0KVs6rGVAQj1/48oY63eIU5WcAllWdbaRDWY1+A==}
+    engines: {node: '>= 20.3.0'}
+    peerDependencies:
+      long: ^5.3.2
+      protobufjs: ^8.7.1
+
+  '@temporalio/activity@1.26.0':
+    resolution: {integrity: sha512-j0/yL0PDasvbOuIH571c1rr1n+xsm0BnGX0dl/G+lpWRurxyojCCJmZG9FF472x8xUON6WWequ2qOGquw0gb8A==}
     engines: {node: '>= 20.3.0'}
     peerDependencies:
       long: ^5.3.2
@@ -12663,6 +12670,13 @@ snapshots:
     dependencies:
       '@temporalio/client': 1.25.0(long@5.3.2)(protobufjs@8.8.1)
       '@temporalio/common': 1.25.0(long@5.3.2)(protobufjs@8.8.1)
+      long: 5.3.2
+      protobufjs: 8.8.1
+
+  '@temporalio/activity@1.26.0(long@5.3.2)(protobufjs@8.8.1)':
+    dependencies:
+      '@temporalio/client': 1.26.0(long@5.3.2)(protobufjs@8.8.1)
+      '@temporalio/common': 1.26.0(long@5.3.2)(protobufjs@8.8.1)
       long: 5.3.2
       protobufjs: 8.8.1
 

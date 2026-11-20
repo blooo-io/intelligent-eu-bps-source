@@ -680,8 +680,8 @@ importers:
         specifier: ^1.25.0
         version: 1.25.0(@swc/helpers@0.5.24)(lightningcss@1.33.0)(long@5.3.2)(protobufjs@8.8.1)
       '@temporalio/workflow':
-        specifier: ^1.25.0
-        version: 1.25.0(long@5.3.2)(protobufjs@8.8.1)
+        specifier: ^1.26.0
+        version: 1.26.0(long@5.3.2)(protobufjs@8.8.1)
       pg:
         specifier: ^8.16.3
         version: 8.23.1
@@ -3588,6 +3588,13 @@ packages:
 
   '@temporalio/workflow@1.25.0':
     resolution: {integrity: sha512-2Z5BvOtsfOHL3Dy+4cewXEHDu9NeseEn4FeaaitNwn704POgEfshz0zxyZB8ofxbna2P0wsC5l3rnYHkOvtX9A==}
+    engines: {node: '>= 20.3.0'}
+    peerDependencies:
+      long: ^5.3.2
+      protobufjs: ^8.7.1
+
+  '@temporalio/workflow@1.26.0':
+    resolution: {integrity: sha512-wa5SYoxn4qNVOtNaP6D7QPzyifg8KX6rzTkmE9oIqAqF5uxPgCgv1BbIIRq8Iu7Z0AH/mkkUCGwhwirdcmQwhA==}
     engines: {node: '>= 20.3.0'}
     peerDependencies:
       long: ^5.3.2
@@ -12767,6 +12774,14 @@ snapshots:
     dependencies:
       '@temporalio/common': 1.25.0(long@5.3.2)(protobufjs@8.8.1)
       '@temporalio/proto': 1.25.0
+      long: 5.3.2
+      nexus-rpc: 0.0.3
+      protobufjs: 8.8.1
+
+  '@temporalio/workflow@1.26.0(long@5.3.2)(protobufjs@8.8.1)':
+    dependencies:
+      '@temporalio/common': 1.26.0(long@5.3.2)(protobufjs@8.8.1)
+      '@temporalio/proto': 1.26.0
       long: 5.3.2
       nexus-rpc: 0.0.3
       protobufjs: 8.8.1

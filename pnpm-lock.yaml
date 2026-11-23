@@ -327,8 +327,8 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
       stripe:
-        specifier: 23.1.0
-        version: 23.1.0(@types/node@26.6.6)
+        specifier: 23.2.0
+        version: 23.2.0(@types/node@26.6.6)
     devDependencies:
       '@types/express':
         specifier: ^5.0.6
@@ -459,8 +459,8 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
       stripe:
-        specifier: 23.1.0
-        version: 23.1.0(@types/node@26.6.6)
+        specifier: 23.2.0
+        version: 23.2.0(@types/node@26.6.6)
     devDependencies:
       '@types/express':
         specifier: ^5.0.6
@@ -3518,13 +3518,6 @@ packages:
     peerDependencies:
       vue: ^2.7.0 || ^3.0.0
 
-  '@temporalio/activity@1.25.0':
-    resolution: {integrity: sha512-IBz6/pqfwlZpZcw2KBFSQa5iu7B9gH6/RUCI/VCqywP9gfj0KVs6rGVAQj1/48oY63eIU5WcAllWdbaRDWY1+A==}
-    engines: {node: '>= 20.3.0'}
-    peerDependencies:
-      long: ^5.3.2
-      protobufjs: ^8.7.1
-
   '@temporalio/activity@1.26.0':
     resolution: {integrity: sha512-j0/yL0PDasvbOuIH571c1rr1n+xsm0BnGX0dl/G+lpWRurxyojCCJmZG9FF472x8xUON6WWequ2qOGquw0gb8A==}
     engines: {node: '>= 20.3.0'}
@@ -3532,22 +3525,8 @@ packages:
       long: ^5.3.2
       protobufjs: ^8.7.1
 
-  '@temporalio/client@1.25.0':
-    resolution: {integrity: sha512-IbWlxzQiQg2fuIum+d2PkQWOGPVPyeN294sKdBCylKxVsGc1IoixXjWjEZ0dxVuYNFZq+16Vn9Fh2UNVDfXePA==}
-    engines: {node: '>= 20.3.0'}
-    peerDependencies:
-      long: ^5.3.2
-      protobufjs: ^8.7.1
-
   '@temporalio/client@1.26.0':
     resolution: {integrity: sha512-01hNfP6m6bjlut/huL6oCJ8czAMXm3jWKriLnEoLmnh5RzU6AEuqzbw77dmNDF3lQiZaFeY++lCKjSig4IVd9A==}
-    engines: {node: '>= 20.3.0'}
-    peerDependencies:
-      long: ^5.3.2
-      protobufjs: ^8.7.1
-
-  '@temporalio/common@1.25.0':
-    resolution: {integrity: sha512-R9q/5wJZLi47kktJ3GfGh+eMO2HleRxKQGDysCvoObdVjK7Q+F+Vq0M1EeMu4EMHQZdT9A4vgN5rQ9L8cTgU8w==}
     engines: {node: '>= 20.3.0'}
     peerDependencies:
       long: ^5.3.2
@@ -3573,10 +3552,6 @@ packages:
     peerDependencies:
       long: ^5.3.2
       protobufjs: ^8.7.1
-
-  '@temporalio/proto@1.25.0':
-    resolution: {integrity: sha512-cZF6C1F4ZHWrVwrDNW6hTB7HvBi1sofqPWxQrqJq0b9hPE21y5IU5rTNEUx3Ju6G03xqdpwdH0LECAul0KAi2Q==}
-    engines: {node: '>= 20.3.0'}
 
   '@temporalio/proto@1.26.0':
     resolution: {integrity: sha512-hrYoXs/b3W7u+PvuK6qB2Cvb/TZv1AxKJn9Rj4YCeQsemWknZ3a4+2FICRuGxwB6bR0qsoVFf5uKQOPtouyDCw==}
@@ -8066,8 +8041,8 @@ packages:
     resolution: {integrity: sha512-k55yxKHwaXnpYGsOzg4Vl8+tDrWylxDEpknGjhTiZB8dFRU5rTo9CAzeycivxV3s+zlTKwrs6WxMxR95n26kwg==}
     engines: {node: '>=0.10.0'}
 
-  stripe@23.1.0:
-    resolution: {integrity: sha512-fVUfMSfTPoukfoV//MUKAx2+YxyKmYaYtnAL9VkfnHfaPNQylFdWZMD+zgUFerI8rjbaiER8Vzj2XEUQ2AhAsQ==}
+  stripe@23.2.0:
+    resolution: {integrity: sha512-0W0J4yA9qFO2rnF61v8Y62OiO2SmAR+Cv04VJaFUMpCxiq8lG5bxEYbeSMSpMDR9ofFZGd+Z/iUIgSFbOolmUw==}
     engines: {node: '>=20'}
     peerDependencies:
       '@types/node': '>=20'
@@ -8427,10 +8402,6 @@ packages:
   utility-types@3.11.0:
     resolution: {integrity: sha512-6Z7Ma2aVEWisaL6TvBCy7P8rm2LQoPv6dJ7ecIaIixHcwfbJ0x7mWdbcwlIM5IGQxPZSFYeqRCqlOOeKoJYMkw==}
     engines: {node: '>= 4'}
-
-  uuid@11.1.1:
-    resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
-    hasBin: true
 
   uuid@14.0.3:
     resolution: {integrity: sha512-Sc5u1VVln93y1Xnz4R+CunOZc7R9LUcTmhj7Rc7Eg3HVcf7rVn2FOoa812fe0W8p3jD7xeoGSYbfqCGGH2B6xw==}
@@ -12625,29 +12596,12 @@ snapshots:
       '@tanstack/virtual-core': 3.19.11
       vue: 3.5.44(typescript@7.0.2)
 
-  '@temporalio/activity@1.25.0(long@5.3.2)(protobufjs@8.8.1)':
-    dependencies:
-      '@temporalio/client': 1.25.0(long@5.3.2)(protobufjs@8.8.1)
-      '@temporalio/common': 1.25.0(long@5.3.2)(protobufjs@8.8.1)
-      long: 5.3.2
-      protobufjs: 8.8.1
-
   '@temporalio/activity@1.26.0(long@5.3.2)(protobufjs@8.8.1)':
     dependencies:
       '@temporalio/client': 1.26.0(long@5.3.2)(protobufjs@8.8.1)
       '@temporalio/common': 1.26.0(long@5.3.2)(protobufjs@8.8.1)
       long: 5.3.2
       protobufjs: 8.8.1
-
-  '@temporalio/client@1.25.0(long@5.3.2)(protobufjs@8.8.1)':
-    dependencies:
-      '@grpc/grpc-js': 1.14.7
-      '@temporalio/common': 1.25.0(long@5.3.2)(protobufjs@8.8.1)
-      '@temporalio/proto': 1.25.0
-      long: 5.3.2
-      nexus-rpc: 0.0.3
-      protobufjs: 8.8.1
-      uuid: 11.1.1
 
   '@temporalio/client@1.26.0(long@5.3.2)(protobufjs@8.8.1)':
     dependencies:
@@ -12658,14 +12612,6 @@ snapshots:
       nexus-rpc: 0.0.3
       protobufjs: 8.8.1
       uuid: 14.0.3
-
-  '@temporalio/common@1.25.0(long@5.3.2)(protobufjs@8.8.1)':
-    dependencies:
-      '@temporalio/proto': 1.25.0
-      long: 5.3.2
-      ms: 3.0.0-canary.202508261828
-      nexus-rpc: 0.0.3
-      protobufjs: 8.8.1
 
   '@temporalio/common@1.26.0(long@5.3.2)(protobufjs@8.8.1)':
     dependencies:
@@ -12689,11 +12635,6 @@ snapshots:
       '@temporalio/proto': 1.26.0
       long: 5.3.2
       nexus-rpc: 0.0.3
-      protobufjs: 8.8.1
-
-  '@temporalio/proto@1.25.0':
-    dependencies:
-      long: 5.3.2
       protobufjs: 8.8.1
 
   '@temporalio/proto@1.26.0':
@@ -17499,7 +17440,7 @@ snapshots:
     dependencies:
       escape-string-regexp: 1.0.5
 
-  stripe@23.1.0(@types/node@26.6.6):
+  stripe@23.2.0(@types/node@26.6.6):
     optionalDependencies:
       '@types/node': 26.6.6
 
@@ -17891,8 +17832,6 @@ snapshots:
       inherits: 2.0.3
 
   utility-types@3.11.0: {}
-
-  uuid@11.1.1: {}
 
   uuid@14.0.3: {}
 

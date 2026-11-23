@@ -327,8 +327,8 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
       stripe:
-        specifier: 23.1.0
-        version: 23.1.0(@types/node@26.6.6)
+        specifier: 23.2.0
+        version: 23.2.0(@types/node@26.6.6)
     devDependencies:
       '@types/express':
         specifier: ^5.0.6
@@ -459,8 +459,8 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
       stripe:
-        specifier: 23.1.0
-        version: 23.1.0(@types/node@26.6.6)
+        specifier: 23.2.0
+        version: 23.2.0(@types/node@26.6.6)
     devDependencies:
       '@types/express':
         specifier: ^5.0.6
@@ -8041,8 +8041,8 @@ packages:
     resolution: {integrity: sha512-k55yxKHwaXnpYGsOzg4Vl8+tDrWylxDEpknGjhTiZB8dFRU5rTo9CAzeycivxV3s+zlTKwrs6WxMxR95n26kwg==}
     engines: {node: '>=0.10.0'}
 
-  stripe@23.1.0:
-    resolution: {integrity: sha512-fVUfMSfTPoukfoV//MUKAx2+YxyKmYaYtnAL9VkfnHfaPNQylFdWZMD+zgUFerI8rjbaiER8Vzj2XEUQ2AhAsQ==}
+  stripe@23.2.0:
+    resolution: {integrity: sha512-0W0J4yA9qFO2rnF61v8Y62OiO2SmAR+Cv04VJaFUMpCxiq8lG5bxEYbeSMSpMDR9ofFZGd+Z/iUIgSFbOolmUw==}
     engines: {node: '>=20'}
     peerDependencies:
       '@types/node': '>=20'
@@ -17440,7 +17440,7 @@ snapshots:
     dependencies:
       escape-string-regexp: 1.0.5
 
-  stripe@23.1.0(@types/node@26.6.6):
+  stripe@23.2.0(@types/node@26.6.6):
     optionalDependencies:
       '@types/node': 26.6.6
 

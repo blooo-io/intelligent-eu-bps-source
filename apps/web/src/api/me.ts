@@ -29,6 +29,10 @@ export type Me = {
   readiness: ReadinessStatus;
   profile: BillingProfile;
   billingMode?: string;
+  /** REQ-045 / REQ-051 — KYC complete for billing (Connect or Identity). */
+  kycVerified?: boolean;
+  /** REQ-050 — when the caller accepted the current terms. */
+  termsAcceptedAt?: string | null;
 };
 
 export class ApiError extends Error {

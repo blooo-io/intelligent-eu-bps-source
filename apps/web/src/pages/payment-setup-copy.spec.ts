@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
   formatPaymentBrand,
+  identitySetupIntroCopy,
+  identitySetupStartLabel,
   paymentSetupIntroCopy,
   paymentSetupPageDescription,
   paymentSetupPageTitle,
   paymentSetupStartLabel,
 } from "./payment-setup-copy";
 
-describe("payment-setup-copy (INT-254)", () => {
+describe("payment-setup-copy (INT-254 / INT-429)", () => {
+  it("labels identity step copy for Connect KYC", () => {
+    expect(identitySetupIntroCopy()).toMatch(/stripe connect/i);
+    expect(identitySetupStartLabel()).toMatch(/identity verification/i);
+  });
+
   it("labels setup vs ready titles per persona", () => {
     expect(paymentSetupPageTitle(false, false, true)).toMatch(/add a payment method/i);
     expect(paymentSetupPageTitle(false, false, false)).toMatch(/^payment method$/i);

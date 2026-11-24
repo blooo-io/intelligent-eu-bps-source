@@ -47,16 +47,35 @@ function renderShell(
   if (me) {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          participantId: "11111111-1111-1111-1111-111111111111",
-          communityId: me.communityId,
-          roles,
-          role: me.role ?? (roles.includes("manager") ? "prosumer" : "consumer"),
-          readiness: me.readiness,
-          profile: me.profile,
-        }),
+      vi.fn().mockImplementation(async (url: string) => {
+        const path = String(url);
+        if (path.endsWith("/v1/me/kyc")) {
+          return {
+            ok: true,
+            json: async () => ({
+              subjectId: "11111111-1111-1111-1111-111111111111",
+              subjectType: roles.includes("manager") ? "manager" : "participant",
+              kycStatus: "verified",
+              kycVerified: true,
+              method: roles.includes("manager")
+                ? "identity_document"
+                : "connect_onboarding",
+              updatedAt: "2026-11-24T12:00:00.000Z",
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            participantId: "11111111-1111-1111-1111-111111111111",
+            communityId: me.communityId,
+            roles,
+            role: me.role ?? (roles.includes("manager") ? "prosumer" : "consumer"),
+            readiness: me.readiness,
+            profile: me.profile,
+            kycVerified: true,
+          }),
+        };
       }),
     );
   }
@@ -252,6 +271,71 @@ describe("AppShell (INT-187 / INT-243)", () => {
     expect(screen.getByRole("link", { name: /^members$/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /get ready/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /operator tools/i })).toBeNull();
+  });
+
+  it("REQ-051: redirects unverified managers to /manager/verification", async () => {
+    identity.mockReturnValue({
+      id: "sub-1",
+      name: "Mgr",
+      roles: ["manager"],
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        const path = String(url);
+        if (path.endsWith("/v1/me/kyc")) {
+          return {
+            ok: true,
+            json: async () => ({
+              subjectId: "m1",
+              subjectType: "manager",
+              kycStatus: "none",
+              kycVerified: false,
+              method: "identity_document",
+              updatedAt: "2026-11-24T12:00:00.000Z",
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            participantId: "11111111-1111-1111-1111-111111111111",
+            communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+            roles: ["manager"],
+            role: "prosumer",
+            readiness: "Ready",
+            profile: { name: "Mgr", address: "1", email: "mgr@e.com" },
+            kycVerified: false,
+          }),
+        };
+      }),
+    );
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route element={<AppShell config={config} oidc={oidc} />}>
+            <Route index element={<div>Home body</div>} />
+            <Route
+              path="manager/verification"
+              element={<div>Manager verification body</div>}
+            />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Manager verification body")).toBeInTheDocument();
+    });
   });
 
   it("highlights the active route in the sider", async () => {

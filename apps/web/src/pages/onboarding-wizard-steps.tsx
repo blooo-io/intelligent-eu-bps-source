@@ -7,6 +7,8 @@ import type { OidcFacade } from "../auth/oidc";
 import { ProfilePage } from "./profile-page";
 import { TermsPage } from "./terms-page";
 import { PaymentSetupPage } from "./payment-setup-page";
+import { IdentitySetupPanel } from "./identity-setup-panel";
+import { wizardIncludesPaymentStep } from "./use-onboarding-wizard";
 
 const { Paragraph } = Typography;
 
@@ -22,6 +24,14 @@ type OnboardingWizardStepPanelProps = {
   onAfterGate: () => void;
 };
 
+function isReadyLastStep(me: Me, current: StepKey): boolean {
+  if (me.readiness !== "Ready") return false;
+  if (wizardIncludesPaymentStep(me.role)) {
+    return current === "payment";
+  }
+  return current === "identity";
+}
+
 export function OnboardingWizardStepPanel({
   current,
   me,
@@ -36,7 +46,7 @@ export function OnboardingWizardStepPanel({
   const termsGate =
     termsAccepted || me?.readiness === "TermsAccepted" || me?.readiness === "Ready";
 
-  if (me?.readiness === "Ready" && current === "payment") {
+  if (me && isReadyLastStep(me, current)) {
     return (
       <Card size="small">
         <Paragraph>You are ready. Money screens are unlocked.</Paragraph>
@@ -75,6 +85,7 @@ export function OnboardingWizardStepPanel({
           config={config}
           oidc={oidc}
           embedded
+          marketRole={me?.role}
           onAccepted={() => setTermsAccepted(true)}
         />
         <Button
@@ -83,13 +94,36 @@ export function OnboardingWizardStepPanel({
           disabled={!termsGate}
           onClick={onAfterGate}
         >
-          Continue to payment setup
+          Continue to identity
         </Button>
       </div>
     );
   }
 
-  if (current === "payment" && me?.readiness !== "Ready") {
+  if (current === "identity" && me?.readiness !== "Ready") {
+    return (
+      <div>
+        <IdentitySetupPanel
+          config={config}
+          oidc={oidc}
+          onComplete={onAfterGate}
+        />
+        {me?.kycVerified ? (
+          <Button type="primary" style={{ marginTop: 16 }} onClick={onAfterGate}>
+            {wizardIncludesPaymentStep(me.role)
+              ? "Continue to payment setup"
+              : "Finish setup"}
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (
+    current === "payment" &&
+    me?.readiness !== "Ready" &&
+    wizardIncludesPaymentStep(me?.role)
+  ) {
     return (
       <PaymentSetupPage
         config={config}

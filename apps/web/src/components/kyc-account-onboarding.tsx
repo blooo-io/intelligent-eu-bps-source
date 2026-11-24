@@ -8,11 +8,11 @@ import {
 } from "../api/stripe-connect-onboarding";
 
 /**
- * INT-362 — producer Payout account step: Stripe's embedded Account
- * onboarding component (REQ-051, TD-6). The producer pays Stripe fees and
- * bears disputes; Stripe collects identity, bank account and terms of service.
+ * INT-362 / INT-429 — Stripe Connect embedded Account onboarding for KYC
+ * (REQ-051, TD-6). Every participant role uses this on the Identity wizard
+ * step; managers use hosted Identity verification instead.
  */
-export function ProducerAccountOnboarding({
+export function KycAccountOnboarding({
   config,
   clientSecret,
   refreshClientSecret,
@@ -73,3 +73,6 @@ export function ProducerAccountOnboarding({
     </div>
   );
 }
+
+/** @deprecated Use KycAccountOnboarding — kept for transitional imports. */
+export const ProducerAccountOnboarding = KycAccountOnboarding;

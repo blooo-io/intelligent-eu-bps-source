@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Alert, Button, Card, Checkbox, Typography } from "antd";
 import type { WebConfig } from "../api/config";
+import { fetchMe, type ParticipantRole } from "../api/me";
 import type { OidcFacade } from "../auth/oidc";
+import { isSellerRole } from "../layout/role-home";
 import { PageFrame } from "../layout/page-frame";
 import { acceptTerms, fetchCurrentTerms, type Terms, type TermsAcceptance } from "../api/terms";
 
@@ -16,22 +18,26 @@ function termsAcceptanceDescription(acceptance: TermsAcceptance): string {
 }
 
 /**
- * Terms & self-billing mandate screen (INT-139 / REQ-050 / UAT-062).
- * Producers must tick the self-billing mandate; the API rejects otherwise.
+ * Terms & self-billing mandate screen (INT-139 / REQ-050 / UAT-062 / INT-429).
+ * Self-billing mandate only for producer/prosumer (REQ-050).
  * `embedded` hides PageFrame when nested in the onboarding wizard (INT-211).
  */
 export function TermsPage({
   config,
   oidc,
   embedded = false,
+  marketRole,
   onAccepted,
 }: Readonly<{
   config: WebConfig;
   oidc: OidcFacade;
   embedded?: boolean;
+  /** When known (wizard), skips an extra /me fetch for mandate visibility. */
+  marketRole?: ParticipantRole | null;
   onAccepted?: () => void;
 }>) {
   const [terms, setTerms] = useState<Terms | null>(null);
+  const [role, setRole] = useState<ParticipantRole | null>(marketRole ?? null);
   const [mandate, setMandate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -39,13 +45,25 @@ export function TermsPage({
   const [acceptance, setAcceptance] = useState<TermsAcceptance | null>(null);
 
   useEffect(() => {
+    if (marketRole) setRole(marketRole);
+  }, [marketRole]);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const token = await oidc.getAccessToken();
         if (!token) throw new Error("No access token");
-        const result = await fetchCurrentTerms(config.apiBaseUrl, token);
-        if (!cancelled) setTerms(result);
+        const [result, me] = await Promise.all([
+          fetchCurrentTerms(config.apiBaseUrl, token),
+          marketRole
+            ? Promise.resolve(null)
+            : fetchMe(config.apiBaseUrl, token).catch(() => null),
+        ]);
+        if (!cancelled) {
+          setTerms(result);
+          if (me) setRole(me.role);
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load terms");
@@ -57,7 +75,7 @@ export function TermsPage({
     return () => {
       cancelled = true;
     };
-  }, [config.apiBaseUrl, oidc]);
+  }, [config.apiBaseUrl, oidc, marketRole]);
 
   async function onAccept() {
     if (!terms) return;
@@ -66,9 +84,10 @@ export function TermsPage({
     try {
       const token = await oidc.getAccessToken();
       if (!token) throw new Error("No access token");
+      // REQ-050 — self-billing mandate only for producer/prosumer.
       const result = await acceptTerms(config.apiBaseUrl, token, {
         termsVersion: terms.termsVersion,
-        selfBillingMandate: mandate,
+        selfBillingMandate: isSellerRole(role) ? mandate : false,
       });
       setAcceptance(result);
       onAccepted?.();
@@ -83,6 +102,8 @@ export function TermsPage({
     if (embedded) return null;
     return <PageFrame title="Terms & conditions" loading />;
   }
+
+  const showSelfBilling = isSellerRole(role);
 
   const body = (
     <>
@@ -119,13 +140,15 @@ export function TermsPage({
 
       {terms && !acceptance && (
         <Card>
-          <Checkbox
-            checked={mandate}
-            onChange={(e) => setMandate(e.target.checked)}
-            style={{ marginBottom: 16 }}
-          >
-            I accept the self-billing mandate (required for producers)
-          </Checkbox>
+          {showSelfBilling ? (
+            <Checkbox
+              checked={mandate}
+              onChange={(e) => setMandate(e.target.checked)}
+              style={{ marginBottom: 16 }}
+            >
+              I accept the self-billing mandate (required for producers)
+            </Checkbox>
+          ) : null}
           <div>
             <Button type="primary" loading={submitting} onClick={onAccept}>
               Accept terms

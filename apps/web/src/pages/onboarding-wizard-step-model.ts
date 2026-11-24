@@ -1,6 +1,11 @@
 import type { Me } from "../api/me";
 import { isSellerRole } from "../layout/role-home";
-import { stepFromReadiness, stepIndex, type WizardStepKey } from "./use-onboarding-wizard";
+import {
+  stepFromReadiness,
+  stepIndex,
+  wizardIncludesPaymentStep,
+  type WizardStepKey,
+} from "./use-onboarding-wizard";
 
 export type WizardStepStatus = "finish" | "process" | "wait";
 
@@ -10,7 +15,7 @@ export function wizardStepStatus(
   stepKey: WizardStepKey,
   completedAfterIndex: number,
 ): WizardStepStatus {
-  if (me && stepIndex(stepFromReadiness(me.readiness)) > completedAfterIndex) {
+  if (me && stepIndex(stepFromReadiness(me)) > completedAfterIndex) {
     return "finish";
   }
   if (current === stepKey) {
@@ -19,23 +24,33 @@ export function wizardStepStatus(
   return "wait";
 }
 
-export function wizardPaymentStepTitle(role: Me["role"] | undefined): string {
-  if (role === "prosumer") {
-    return "Payouts & pay";
+export function wizardTermsStepDescription(
+  role: Me["role"] | undefined,
+): string {
+  return isSellerRole(role) ? "Accept & self-billing" : "Accept terms";
+}
+
+export function wizardIdentityStepStatus(
+  me: Me | null,
+  current: WizardStepKey,
+): WizardStepStatus {
+  if (me?.kycVerified || me?.readiness === "Ready") {
+    return "finish";
   }
-  if (isSellerRole(role)) {
-    return "Payouts";
+  if (current === "identity") {
+    return "process";
   }
+  return "wait";
+}
+
+/** Card step title — only shown for consumer / prosumer (INT-429). */
+export function wizardPaymentStepTitle(_role: Me["role"] | undefined): string {
   return "Pay";
 }
 
-export function wizardPaymentStepDescription(role: Me["role"] | undefined): string {
-  if (role === "prosumer") {
-    return "Connect + card";
-  }
-  if (isSellerRole(role)) {
-    return "Stripe Connect";
-  }
+export function wizardPaymentStepDescription(
+  _role: Me["role"] | undefined,
+): string {
   return "Card";
 }
 
@@ -53,7 +68,7 @@ export function wizardPaymentStepStatus(
 }
 
 export function wizardStepItems(me: Me | null, current: WizardStepKey) {
-  return [
+  const items = [
     {
       title: "Profile",
       description: "Billing identity",
@@ -61,13 +76,23 @@ export function wizardStepItems(me: Me | null, current: WizardStepKey) {
     },
     {
       title: "Terms",
-      description: "Accept & self-billing",
+      description: wizardTermsStepDescription(me?.role),
       status: wizardStepStatus(me, current, "terms", 1),
     },
     {
+      title: "Identity",
+      description: "Stripe Connect KYC",
+      status: wizardIdentityStepStatus(me, current),
+    },
+  ];
+
+  if (wizardIncludesPaymentStep(me?.role)) {
+    items.push({
       title: wizardPaymentStepTitle(me?.role),
       description: wizardPaymentStepDescription(me?.role),
       status: wizardPaymentStepStatus(me, current),
-    },
-  ];
+    });
+  }
+
+  return items;
 }

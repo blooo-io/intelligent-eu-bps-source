@@ -6,7 +6,7 @@ import {
   marketRoleLabel,
 } from "./role-home";
 
-describe("role-home (INT-252)", () => {
+describe("role-home (INT-252 / INT-429)", () => {
   it("distinguishes seller market roles", () => {
     expect(isSellerRole("producer")).toBe(true);
     expect(isSellerRole("prosumer")).toBe(true);
@@ -30,9 +30,12 @@ describe("role-home (INT-252)", () => {
     expect(homeNextAction("member", "Ready", "producer")?.label).toMatch(
       /review open invoices/i,
     );
-    expect(homeNextAction("member", "TermsAccepted", "producer")?.label).toMatch(
-      /stripe connect/i,
-    );
+    expect(
+      homeNextAction("member", "TermsAccepted", "producer", false)?.label,
+    ).toMatch(/verify identity/i);
+    expect(
+      homeNextAction("member", "TermsAccepted", "producer", false)?.to,
+    ).toBe("/onboarding?step=identity");
   });
 
   it("INT-269 — prosumer Home copy and dual setup CTA", () => {
@@ -43,7 +46,13 @@ describe("role-home (INT-252)", () => {
       /open invoices/i,
     );
     expect(
-      homeNextAction("member", "TermsAccepted", "prosumer")?.label,
-    ).toMatch(/payouts and card/i);
+      homeNextAction("member", "TermsAccepted", "prosumer", true)?.label,
+    ).toMatch(/card setup/i);
+  });
+
+  it("REQ-051 — unverified manager goes to identity verification", () => {
+    expect(homeNextAction("manager", undefined, undefined, false)?.to).toBe(
+      "/manager/verification",
+    );
   });
 });

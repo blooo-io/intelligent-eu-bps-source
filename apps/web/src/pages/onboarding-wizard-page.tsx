@@ -12,8 +12,8 @@ import { stepIndex, useOnboardingWizard } from "./use-onboarding-wizard";
 const { Paragraph } = Typography;
 
 /**
- * Member journey wizard (INT-193 / INT-255 / NFR-016 / UAT-067).
- * Volt MockSetup: Get ready — step N of 3; hide sider via AppShell.
+ * Member journey wizard (INT-193 / INT-255 / INT-429 / NFR-016 / UAT-067).
+ * Volt MockSetup: Get ready — step N of 3|4; hide sider via AppShell (INT-254).
  */
 export function OnboardingWizardPage({
   config,
@@ -22,15 +22,15 @@ export function OnboardingWizardPage({
   config: WebConfig;
   oidc: OidcFacade;
 }>) {
-  const { me, error, loading, current, stepNumber, afterGate } =
+  const { me, error, loading, current, stepNumber, totalSteps, afterGate } =
     useOnboardingWizard(config, oidc);
 
   const items = useMemo(() => wizardStepItems(me, current), [current, me]);
 
   return (
     <PageFrame
-      title={`Get ready — step ${stepNumber} of 3`}
-      description="Complete your profile, accept the terms, then save a payment method."
+      title={`Get ready — step ${stepNumber} of ${totalSteps}`}
+      description="Complete your profile, accept the terms, verify identity, then save a payment method when needed."
       loading={loading}
     >
       {error && <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} />}

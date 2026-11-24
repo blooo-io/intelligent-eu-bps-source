@@ -1,12 +1,13 @@
-import type { ReadinessStatus } from "../api/me";
+import type { Me, ReadinessStatus } from "../api/me";
+import { wizardIncludesPaymentStep } from "../pages/use-onboarding-wizard";
 
 /**
- * Home readiness checklist for the participant portal (03 §6, REQ-049).
- * Steps mirror the readiness lifecycle in 02 §5 / BR-09.
+ * Home readiness checklist for the participant portal (03 §6, REQ-049 / INT-429).
+ * Steps mirror the readiness lifecycle in 02 §5 / BR-09 plus KYC (REQ-051).
  */
 
 export type ChecklistItem = {
-  id: "profile" | "terms" | "payment";
+  id: "profile" | "terms" | "identity" | "payment";
   label: string;
   done: boolean;
   /** Wizard deep link (INT-193). */
@@ -25,11 +26,17 @@ function rank(status: ReadinessStatus): number {
   return i === -1 ? -1 : i;
 }
 
-/** Build the three onboarding gates from the current readiness status. */
-export function readinessChecklist(status: ReadinessStatus): ChecklistItem[] {
+/** Build onboarding gates from readiness (+ optional KYC / role). */
+export function readinessChecklist(
+  status: ReadinessStatus,
+  me?: Pick<Me, "kycVerified" | "role"> | null,
+): ChecklistItem[] {
+  const kycDone = Boolean(me?.kycVerified) || status === "Ready";
+  const includePayment = wizardIncludesPaymentStep(me?.role);
+
   // Restricted / Offboarded: show gates as incomplete plus sticky state.
   if (status === "Restricted" || status === "Offboarded") {
-    return [
+    const blocked: ChecklistItem[] = [
       {
         id: "profile",
         label: "Complete billing profile",
@@ -43,16 +50,25 @@ export function readinessChecklist(status: ReadinessStatus): ChecklistItem[] {
         to: "/onboarding?step=terms",
       },
       {
+        id: "identity",
+        label: "Verify identity (Stripe Connect KYC)",
+        done: false,
+        to: "/onboarding?step=identity",
+      },
+    ];
+    if (includePayment) {
+      blocked.push({
         id: "payment",
         label: "Complete payment setup",
         done: false,
         to: "/onboarding?step=payment",
-      },
-    ];
+      });
+    }
+    return blocked;
   }
 
   const r = rank(status);
-  return [
+  const items: ChecklistItem[] = [
     {
       id: "profile",
       label: "Complete billing profile",
@@ -66,12 +82,21 @@ export function readinessChecklist(status: ReadinessStatus): ChecklistItem[] {
       to: "/onboarding?step=terms",
     },
     {
+      id: "identity",
+      label: "Verify identity (Stripe Connect KYC)",
+      done: kycDone,
+      to: "/onboarding?step=identity",
+    },
+  ];
+  if (includePayment) {
+    items.push({
       id: "payment",
       label: "Complete payment setup",
       done: r >= rank("Ready"),
       to: "/onboarding?step=payment",
-    },
-  ];
+    });
+  }
+  return items;
 }
 
 export function readinessHeadline(status: ReadinessStatus): string {

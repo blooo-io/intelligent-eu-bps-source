@@ -13,9 +13,15 @@ export function isSellerRole(role?: ParticipantRole | null): boolean {
   return role === "producer" || role === "prosumer";
 }
 
-function termsAcceptedCtaLabel(marketRole?: ParticipantRole | null): string {
+function termsAcceptedCtaLabel(
+  marketRole?: ParticipantRole | null,
+  kycVerified?: boolean,
+): string {
+  if (!kycVerified) {
+    return "Verify identity";
+  }
   if (marketRole === "prosumer") {
-    return "Finish payouts and card";
+    return "Finish card setup";
   }
   if (isSellerRole(marketRole)) {
     return "Open Stripe Connect";
@@ -102,8 +108,16 @@ export function homeNextAction(
   audience: HomeAudience,
   readiness?: ReadinessStatus,
   marketRole?: ParticipantRole | null,
+  kycVerified?: boolean,
 ): NextAction | null {
   if (audience === "manager") {
+    if (kycVerified === false) {
+      return {
+        label: "Verify identity",
+        to: "/manager/verification",
+        primary: true,
+      };
+    }
     return { label: "Start billing run", to: "/billing-runs", primary: true };
   }
   if (audience === "operator") {
@@ -125,9 +139,19 @@ export function homeNextAction(
         ? { label: "Review open invoices", to: "/invoices", primary: true }
         : { label: "Pay open invoices", to: "/invoices", primary: true };
     case "TermsAccepted":
+      if (!kycVerified) {
+        return {
+          label: termsAcceptedCtaLabel(marketRole, false),
+          to: "/onboarding?step=identity",
+          primary: true,
+        };
+      }
       return {
-        label: termsAcceptedCtaLabel(marketRole),
-        to: "/onboarding?step=payment",
+        label: termsAcceptedCtaLabel(marketRole, true),
+        to:
+          marketRole === "producer"
+            ? "/onboarding?step=identity"
+            : "/onboarding?step=payment",
         primary: true,
       };
     case "ProfileCompleted":

@@ -121,7 +121,7 @@ describe("ReportingService", () => {
       `payment,${COMMUNITY},${PERIOD},${CONSUMER},${INV2},${PAY_FAIL},5.50,,EUR,failed,card,180,card_declined,`,
     );
     expect(text).toMatch(
-      /Ask the consumer to use another card or contact their bank/,
+      /Use another card or contact your bank, then pay again from the billing portal/,
     );
     expect(text).toContain(
       `payment,${COMMUNITY},${PERIOD},${CONSUMER},${INV1},${PAY_OK},10.00,,EUR,succeeded,card,420,,`,

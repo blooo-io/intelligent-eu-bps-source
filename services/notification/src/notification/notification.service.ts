@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   IdempotentConsumer,
   redactPersonalData,
+  suggestedCorrectiveAction,
 } from "@intelligent/module-template";
 import { NotificationStore } from "../domain/store.js";
 import type { PaymentStatusEvent } from "../domain/types.js";
@@ -105,6 +106,10 @@ export class NotificationService {
       `status=${event.status}`,
       event.failureCategory
         ? `failureCategory=${event.failureCategory}`
+        : undefined,
+      // REQ-046 / UAT-057 — KPI UE-3 corrective action in failure notices.
+      event.status === "failed"
+        ? `correctiveAction=${suggestedCorrectiveAction(event.failureCategory)}`
         : undefined,
     ]
       .filter(Boolean)

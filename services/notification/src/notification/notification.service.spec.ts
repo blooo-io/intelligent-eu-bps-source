@@ -135,4 +135,22 @@ describe("NotificationService", () => {
     });
     expect(service.capturedMail()[0]?.to).toBe("from-ac03@example.com");
   });
+
+  it("UAT-057 UE-3 failure e-mail states the cause and the corrective action", async () => {
+    await service.onPaymentStatusChanged({
+      eventId: "77777777-7777-4777-8777-777777777777",
+      paymentId: "pay-ue3",
+      invoiceId: "inv-ue3",
+      status: "failed",
+      failureCategory: "insufficient_funds",
+      participantId: PARTICIPANT,
+      communityId: COMMUNITY,
+    });
+    const sent = service.capturedMail();
+    expect(sent[0]).toMatchObject({ template: "payment-failure" });
+    expect(sent[0].body).toContain("failureCategory=insufficient_funds");
+    expect(sent[0].body).toContain(
+      "correctiveAction=Top up the account or choose another payment method, then pay again",
+    );
+  });
 });

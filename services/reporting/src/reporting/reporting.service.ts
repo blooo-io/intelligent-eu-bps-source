@@ -11,7 +11,7 @@ import type {
   PaymentProjection,
   PeriodicSummary,
 } from "../domain/types.js";
-import { suggestedCorrectiveAction } from "./corrective-action.js";
+import { suggestedCorrectiveAction } from "@intelligent/module-template";
 import { sumMoney } from "./money.js";
 
 /**

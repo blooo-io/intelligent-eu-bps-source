@@ -318,7 +318,9 @@ export class StripePspAdapter
         success_url: input.successUrl,
         cancel_url: input.cancelUrl,
         customer: input.pspCustomerRef,
-        payment_method_types: input.methods,
+        // Stripe SDK 23 — SessionCreateParams uses allowed_payment_method_types
+        // (payment_method_types was removed from create params).
+        allowed_payment_method_types: input.methods,
         line_items: [
           {
             quantity: 1,

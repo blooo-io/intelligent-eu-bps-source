@@ -108,10 +108,11 @@ function optKey(
  * Minimal Stripe stand-in. Test helpers (`completeKyc`, `fundBalance`, …) drive
  * the contract harness; resource methods mirror the Stripe SDK call shapes the
  * adapter uses.
+ *
+ * Return type is inferred (do not annotate as FakeStripe — that alias is
+ * derived from this function and would circularly reference itself).
  */
-export type FakeStripe = ReturnType<typeof createFakeStripe>;
-
-export function createFakeStripe(webhookSecret = "whsec_fake_test"): FakeStripe {
+export function createFakeStripe(webhookSecret = "whsec_fake_test") {
   const accounts = new Map<string, AccountRecord>();
   const customers = new Map<string, CustomerRecord>();
   const paymentMethods = new Map<string, PaymentMethodRecord>();
@@ -806,6 +807,9 @@ export function createFakeStripe(webhookSecret = "whsec_fake_test"): FakeStripe 
 
   return fake;
 }
+
+/** Inferred FakeStripe shape — declared after createFakeStripe to avoid a circular alias. */
+export type FakeStripe = ReturnType<typeof createFakeStripe>;
 
 /** Sign a raw webhook body the way {@link createFakeStripe} verifies. */
 export function signFakeStripeEvent(

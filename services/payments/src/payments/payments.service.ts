@@ -1114,6 +1114,13 @@ export class PaymentsService {
     return row.initiatedAt ?? this.clock.now().toISOString();
   }
 
+  /** REQ-043 — resolve community billing mode for outbox envelopes. */
+  private async modeOf(communityId: string) {
+    const resolver =
+      this.billingMode ?? new StaticBillingModeResolver("virtual");
+    return resolver.modeOf(communityId);
+  }
+
   private async announcePaymentStatus(
     row: PaymentRecord,
     payeeId: string | undefined,
@@ -1124,7 +1131,7 @@ export class PaymentsService {
       type: "PaymentStatusChanged",
       producer: PRODUCER,
       communityId: row.communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(row.communityId),
       data: {
         paymentId: row.paymentId,
         invoiceId: row.invoiceId,
@@ -1419,7 +1426,7 @@ export class PaymentsService {
       type: "PaymentAccountStatusChanged",
       producer: PRODUCER,
       communityId: account.communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(account.communityId),
       data: {
         participantId,
         kycStatus: account.kycStatus,
@@ -1524,7 +1531,7 @@ export class PaymentsService {
       type: "ErasureCompleted",
       producer: PRODUCER,
       communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(communityId),
       data: {
         requestId: input.requestId,
         module: "AC-07",

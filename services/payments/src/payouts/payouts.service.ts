@@ -1,8 +1,17 @@
-import { ConflictException, Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+  Optional,
+} from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
+  BILLING_MODE_RESOLVER,
   OutboxService,
   PassthroughTransaction,
+  StaticBillingModeResolver,
+  type BillingModeResolver,
   type RecordingTransaction,
 } from "@intelligent/module-template";
 import { CLOCK, type Clock } from "../domain/clock.js";
@@ -111,6 +120,9 @@ export class PayoutsService implements PayoutEventsHandler {
     @Inject(PAYMENT_ACCOUNTS_STORE) private readonly accounts: PaymentAccountsStore,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(COMMUNITY_SETTINGS) private readonly settings: CommunitySettingsPort,
+    @Optional()
+    @Inject(BILLING_MODE_RESOLVER)
+    private readonly billingMode: BillingModeResolver | null = null,
   ) {}
 
   useTransaction(tx: RecordingTransaction<JournalWrite> | PassthroughTransaction): void {
@@ -316,13 +328,17 @@ export class PayoutsService implements PayoutEventsHandler {
   }
 
   private async announce(row: PayoutRecord): Promise<void> {
+    const resolver =
+      this.billingMode ?? new StaticBillingModeResolver("virtual");
+    // REQ-043 — community live|virtual from AC-03 settings.
+    const billingMode = await resolver.modeOf(row.communityId);
     await this.outbox.append({
       aggregateType: "Payout",
       aggregateId: row.payoutId,
       type: "PayoutStatusChanged",
       producer: PRODUCER,
       communityId: row.communityId,
-      billingMode: "virtual",
+      billingMode,
       data: {
         payoutId: row.payoutId,
         participantId: row.participantId,

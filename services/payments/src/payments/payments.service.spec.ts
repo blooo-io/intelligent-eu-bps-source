@@ -162,6 +162,50 @@ describe("PaymentsService", () => {
     ).toHaveLength(0);
   });
 
+  it("REQ-043: PaymentStatusChanged carries community live mode", async () => {
+    const liveOutbox = new InMemoryOutboxStore();
+    const outbox = new OutboxService(liveOutbox);
+    const liveService = new PaymentsService(
+      store,
+      outbox,
+      psp,
+      invoices,
+      new NoopParticipantsNotifier(),
+      accountsStore,
+      new NoopParticipantsResolver(),
+      pspErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
+      kycOf(outbox),
+      null,
+      createTestPspRegistry({ test: psp }),
+      new StaticBillingModeResolver("live"),
+    );
+    store.putPayment({
+      paymentId: "pay-mode",
+      invoiceId: "inv-mode",
+      participantId: CONSUMER,
+      amount: "5.00",
+      currency: "EUR",
+      status: "pending",
+      pspPaymentRef: "mock_pay_mode",
+      communityId: COMMUNITY,
+      initiatedAt: "2026-11-24T09:00:00.000Z",
+    });
+    const { rawBody, signature } = psp.signEvent({
+      kind: "payment.succeeded",
+      pspPaymentRef: "mock_pay_mode",
+      livemode: true,
+    });
+    await liveService.receiveWebhook(rawBody, signature);
+    const events = await liveOutbox.list();
+    const changed = events.find((e) => e.event.type === "PaymentStatusChanged");
+    expect(changed?.event.billingMode).toBe("live");
+  });
+
   it("INT-338 — getPaymentStatus returns the stored row and 404s otherwise", () => {
     store.putPayment({
       paymentId: "pay-1",

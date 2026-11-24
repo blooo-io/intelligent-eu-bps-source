@@ -2,12 +2,16 @@
  * REQ-045 / REQ-051 / UAT-056 / UAT-063 — KYC readiness for every role and
  * KycStatusChanged emission (identifiers only, NFR-015).
  *
- * BillingModeResolver (plan Task 3.13) is not wired yet; envelopes use
- * `billingMode: "virtual"` until that resolver lands.
+ * REQ-043 — KycStatusChanged.billingMode comes from BillingModeResolver.
  */
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { OutboxService } from "@intelligent/module-template";
+import {
+  BILLING_MODE_RESOLVER,
+  OutboxService,
+  StaticBillingModeResolver,
+  type BillingModeResolver,
+} from "@intelligent/module-template";
 import {
   PaymentsStore,
   type AccountRecord,
@@ -53,6 +57,9 @@ export class KycService {
     private readonly accountsStore: PaymentAccountsStore,
     @Inject(KYC_LOG_STORE) private readonly kycLog: KycLogStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
+    @Optional()
+    @Inject(BILLING_MODE_RESOLVER)
+    private readonly billingMode: BillingModeResolver | null = null,
   ) {}
 
   /**
@@ -110,13 +117,17 @@ export class KycService {
     const changed =
       previousStatus !== kycStatus || previousPayout !== payoutAccountVerified;
     if (changed) {
+      const resolver =
+        this.billingMode ?? new StaticBillingModeResolver("virtual");
+      // REQ-043 — community live|virtual from AC-03 settings.
+      const billingMode = await resolver.modeOf(updated.communityId);
       await this.outbox.append({
         aggregateType: "KycStatus",
         aggregateId: participantId,
         type: "KycStatusChanged",
         producer: PRODUCER,
         communityId: updated.communityId,
-        billingMode: "virtual",
+        billingMode,
         data: {
           subjectId: participantId,
           subjectType: "participant",

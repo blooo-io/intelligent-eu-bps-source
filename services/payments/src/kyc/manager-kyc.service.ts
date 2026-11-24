@@ -1,14 +1,16 @@
 /**
  * REQ-051 / A5 / UAT-063 — Stripe Identity for community managers (no Connect).
  *
- * BillingModeResolver (plan Task 3.13) is not wired yet; envelopes use
- * `billingMode: "virtual"` until that resolver lands.
+ * REQ-043 — KycStatusChanged.billingMode comes from BillingModeResolver.
  */
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
+  BILLING_MODE_RESOLVER,
   IdempotentConsumer,
   OutboxService,
+  StaticBillingModeResolver,
+  type BillingModeResolver,
 } from "@intelligent/module-template";
 import type { KycStatus } from "../domain/store.js";
 import {
@@ -61,6 +63,9 @@ export class ManagerKycService {
     @Inject(KYC_LOG_STORE) private readonly kycLog: KycLogStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
     @Inject(IdempotentConsumer) private readonly consumer: IdempotentConsumer,
+    @Optional()
+    @Inject(BILLING_MODE_RESOLVER)
+    private readonly billingMode: BillingModeResolver | null = null,
   ) {}
 
   /**
@@ -149,13 +154,17 @@ export class ManagerKycService {
     await this.kycLog.append(entry);
 
     if (previousStatus !== kycStatus) {
+      const resolver =
+        this.billingMode ?? new StaticBillingModeResolver("virtual");
+      // REQ-043 — community live|virtual from AC-03 settings.
+      const billingMode = await resolver.modeOf(record.communityId);
       await this.outbox.append({
         aggregateType: "KycStatus",
         aggregateId: record.subjectId,
         type: "KycStatusChanged",
         producer: PRODUCER,
         communityId: record.communityId,
-        billingMode: "virtual",
+        billingMode,
         data: {
           subjectId: record.subjectId,
           subjectType: "manager",

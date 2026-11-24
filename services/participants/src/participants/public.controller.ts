@@ -84,15 +84,21 @@ export class PublicParticipantsController {
   @Put("communities/:communityId/settings")
   @UseGuards(
     new ModuleAuthGuard({
-      roles: ["manager"],
+      // REQ-043 — managers edit settings; operators may switch to live.
+      roles: ["manager", "operator"],
       requireCommunityScope: true,
     }),
   )
   putCommunitySettings(
+    @Req() req: AuthenticatedRequest,
     @Param("communityId") communityId: string,
     @Body() body: CommunitySettingsWrite,
   ) {
-    return this.participants.updateCommunitySettings(communityId, body);
+    return this.participants.updateCommunitySettings(
+      communityId,
+      body,
+      req.user!.roles,
+    );
   }
 
   @Post(String.raw`communities/:communityId/participants\:import`)

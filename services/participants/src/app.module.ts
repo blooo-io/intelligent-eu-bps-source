@@ -31,6 +31,10 @@ import { KycStatusChangedListener } from "./events/kyc-status-changed.listener.j
 import { ACTOR_SOURCE_PORT } from "./actors/actor-source.port.js";
 import { createActorSource } from "./actors/actor-source.factory.js";
 import { ActorSyncService } from "./actors/actor-sync.service.js";
+import {
+  createPspCapabilities,
+  PSP_CAPABILITIES_PORT,
+} from "./ports/psp-capabilities.port.js";
 
 @Module({
   imports: [
@@ -50,6 +54,8 @@ import { ActorSyncService } from "./actors/actor-sync.service.js";
     // REQ-008 — ActorSourcePort (mock|ewds|none); null when disabled.
     { provide: ACTOR_SOURCE_PORT, useFactory: () => createActorSource() },
     ActorSyncService,
+    // REQ-043 / UAT-054 — live mode needs AC-07 liveConfigured.
+    { provide: PSP_CAPABILITIES_PORT, useFactory: () => createPspCapabilities() },
   ],
 })
 export class AppModule implements NestModule {

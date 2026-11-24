@@ -30,6 +30,15 @@ describe("KycStatusChangedListener (REQ-051)", () => {
       store,
       new OutboxService(outboxStore),
       new MockIdpAdapter(),
+      {
+        async get() {
+          return {
+            provider: "mock" as const,
+            testConfigured: true,
+            liveConfigured: false,
+          };
+        },
+      },
     );
     listener = new KycStatusChangedListener(
       bus,

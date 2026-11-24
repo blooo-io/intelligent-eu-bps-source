@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -25,6 +27,10 @@ import type {
   ReadinessStatus,
 } from "../domain/types.js";
 import { IDP_ADMIN_PORT, type IdpAdminPort } from "../idp/idp.port.js";
+import {
+  PSP_CAPABILITIES_PORT,
+  type PspCapabilitiesPort,
+} from "../ports/psp-capabilities.port.js";
 import { deriveReadiness, isInvoiceReady } from "./readiness.js";
 
 const PRODUCER = "AC-03";
@@ -120,6 +126,8 @@ export class ParticipantsService {
     @Inject(ParticipantsStore) private readonly store: ParticipantsStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
     @Inject(IDP_ADMIN_PORT) private readonly idp: IdpAdminPort,
+    @Inject(PSP_CAPABILITIES_PORT)
+    private readonly pspCapabilities: PspCapabilitiesPort,
   ) {}
 
   /** Test seam — wipe fixture state between cases. */
@@ -142,23 +150,46 @@ export class ParticipantsService {
     return this.requireCommunity(communityId);
   }
 
+  /**
+   * REQ-043 / UAT-054 / A10.1 — update settings. Billing-mode transitions:
+   * virtual→live needs operator + live PSP keys; live→virtual is refused.
+   */
   updateCommunitySettings(
     communityId: string,
     write: CommunitySettingsWrite,
+    callerRoles: string[],
   ): Promise<CommunitySettings> {
-    return this.tx.run(() => this.performUpdateCommunitySettings(communityId, write));
+    return this.tx.run(() =>
+      this.performUpdateCommunitySettings(communityId, write, callerRoles),
+    );
   }
 
-  private performUpdateCommunitySettings(
+  private async performUpdateCommunitySettings(
     communityId: string,
     write: CommunitySettingsWrite,
-  ): CommunitySettings {
-    if (!this.store.getCommunity(communityId)) {
+    callerRoles: string[],
+  ): Promise<CommunitySettings> {
+    const current = this.store.getCommunity(communityId);
+    if (!current) {
       throw new NotFoundException(`Unknown community ${communityId}`);
     }
-    // V1 communities are virtual (REQ-043); refuse live until post-V1.
-    if (write.billingMode === "live") {
-      throw new BadRequestException("V1 communities must remain virtual");
+    const modeChanging = write.billingMode !== current.billingMode;
+    if (modeChanging) {
+      // REQ-043 — live → virtual refused so real-money invoices stay live.
+      if (current.billingMode === "live" && write.billingMode === "virtual") {
+        throw new ConflictException({ code: "live_to_virtual_refused" });
+      }
+      if (current.billingMode === "virtual" && write.billingMode === "live") {
+        if (!callerRoles.includes("operator")) {
+          throw new ForbiddenException({
+            code: "operator_required_for_live",
+          });
+        }
+        const caps = await this.pspCapabilities.get();
+        if (!caps.liveConfigured) {
+          throw new ConflictException({ code: "live_keys_missing" });
+        }
+      }
     }
     const next: CommunitySettings = {
       communityId,
@@ -166,6 +197,23 @@ export class ParticipantsService {
       autoPayout: write.autoPayout ?? false,
     };
     this.store.putCommunity(next);
+    if (modeChanging && next.billingMode === "live") {
+      // REQ-043 — audit trail for live switch (identifiers only).
+      await this.outbox.append({
+        aggregateType: "CommunitySettings",
+        aggregateId: communityId,
+        type: "AuditableActionPerformed",
+        producer: PRODUCER,
+        communityId,
+        billingMode: "live",
+        data: {
+          actorId: "operator",
+          action: "community.billing-mode.live",
+          target: `community:${communityId}`,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
     return next;
   }
 

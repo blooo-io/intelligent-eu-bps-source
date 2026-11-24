@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { FxPort } from "@intelligent/mocks";
-import { createV1FxPort, formatRate } from "../fx/fx-adapter.js";
+import { createV1FxPort, formatFxRate } from "../fx/fx-adapter.js";
 
 export type ExchangeRateDto = {
   currency: string;
@@ -11,7 +11,7 @@ export type ExchangeRateDto = {
 
 /**
  * GetRate / FetchRates for AC-13 (contracts/openapi/internal/reference-data.v1.yaml).
- * BR-08: amounts/rates on the wire use two decimal places.
+ * BR-06: ECB FX rates on the wire use 4–6 decimal places.
  */
 @Injectable()
 export class RatesService {
@@ -30,7 +30,7 @@ export class RatesService {
       return {
         currency: "EUR",
         date,
-        rate: "1.00",
+        rate: "1.0000",
         source: "identity",
       };
     }
@@ -39,7 +39,7 @@ export class RatesService {
       return {
         currency: quote.targetCurrency,
         date: quote.rateDate,
-        rate: formatRate(quote.rate),
+        rate: formatFxRate(quote.rate),
         source: quote.source,
       };
     } catch {

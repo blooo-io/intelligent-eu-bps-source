@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { NotFoundException } from "@nestjs/common";
+import { formatFxRate } from "../fx/fx-adapter.js";
 import { RatesService } from "./rates.service.js";
 
 describe("RatesService (INT-102 / REQ-002)", () => {
@@ -11,18 +12,22 @@ describe("RatesService (INT-102 / REQ-002)", () => {
     expect(svc.getRate("EUR", "2026-11-30")).toEqual({
       currency: "EUR",
       date: "2026-11-30",
-      rate: "1.00",
+      rate: "1.0000",
       source: "identity",
     });
+    expect(svc.getRate("EUR", "2026-11-30").rate).toBe("1.0000");
   });
 
-  it("returns ECB CHF fixture rate with two decimal places (BR-08)", () => {
+  it("REQ-002 returns the ECB CHF fixture rate with 4 to 6 decimals (BR-06)", () => {
     const svc = new RatesService();
     const quote = svc.getRate("CHF", "2026-11-30");
     expect(quote.currency).toBe("CHF");
     expect(quote.source).toBe("ECB");
-    expect(quote.rate).toMatch(/^\d+\.\d{2}$/);
-    expect(Number(quote.rate)).toBeCloseTo(0.94, 2);
+    expect(svc.getRate("CHF", "2026-11-30").rate).toBe("0.9412");
+  });
+
+  it("formatFxRate keeps 4 to 6 decimals on the wire (BR-06)", () => {
+    expect(formatFxRate(0.94123456)).toBe("0.941235");
   });
 
   it("throws NotFound for unknown currency codes", () => {
@@ -50,6 +55,6 @@ describe("RatesService (INT-102 / REQ-002)", () => {
         source: "ECB",
       }),
     });
-    expect(svc.getRate("CHF", "2026-01-01").rate).toBe("0.99");
+    expect(svc.getRate("CHF", "2026-01-01").rate).toBe("0.9900");
   });
 });

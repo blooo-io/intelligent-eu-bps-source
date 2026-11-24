@@ -1,3 +1,9 @@
+import type {
+  InvoiceSummary,
+  ParticipantPersonalData,
+  PaymentAccountPersonalData,
+} from "../export/personal-data-sources.port.js";
+
 /** Data-subject request kinds (public.v1 DataSubjectRequest). */
 export type DataSubjectRequestType = "export" | "erasure";
 
@@ -77,4 +83,31 @@ export type PersonalDataRecord = {
 export type RetentionPolicy = {
   /** Days after relationship end before personal cache is anonymized. */
   personalRetentionDays: number;
+  /**
+   * Years of legal invoice retention (REQ-013).
+   * `retainedUntil` is 31 Dec of (issue year + this value).
+   */
+  invoiceRetentionYears: number;
+};
+
+/**
+ * REQ-013 Art. 15/20 — machine-readable DSAR export (Task 3.20).
+ * Assembled on each GET; never stored in the compliance store.
+ */
+export type DataSubjectExport = {
+  schemaVersion: "1.0";
+  requestId: string;
+  producedAt: string;
+  controller: { communityId: string };
+  participant: ParticipantPersonalData;
+  paymentAccount: PaymentAccountPersonalData | null;
+  invoices: Array<InvoiceSummary & { retainedUntil: string }>;
+  dataSubjectRequests: Array<{
+    requestId: string;
+    type: string;
+    status: string;
+    createdAt: string;
+  }>;
+  /** Public RetentionPolicy shape (invoice years only — OpenAPI). */
+  retention: { invoiceRetentionYears: number };
 };

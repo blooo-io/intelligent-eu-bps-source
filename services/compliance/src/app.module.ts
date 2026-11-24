@@ -11,6 +11,10 @@ import {
   createParticipantCommunity,
   PARTICIPANT_COMMUNITY,
 } from "./ports/participant-community.port.js";
+import {
+  createPersonalDataSources,
+  PERSONAL_DATA_SOURCES,
+} from "./export/personal-data-sources.port.js";
 import { InternalComplianceController } from "./compliance/internal.controller.js";
 import { PublicComplianceController } from "./compliance/public.controller.js";
 
@@ -27,6 +31,10 @@ import { PublicComplianceController } from "./compliance/public.controller.js";
     {
       provide: PARTICIPANT_COMMUNITY,
       useFactory: () => createParticipantCommunity(),
+    },
+    {
+      provide: PERSONAL_DATA_SOURCES,
+      useFactory: () => createPersonalDataSources(),
     },
   ],
 })

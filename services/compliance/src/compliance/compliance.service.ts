@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  GoneException,
   Inject,
   Injectable,
   NotFoundException,
@@ -14,6 +15,7 @@ import { ComplianceStore } from "../domain/store.js";
 import type {
   AuditEvent,
   DataSubjectConfirmation,
+  DataSubjectExport,
   DataSubjectRequest,
   DataSubjectRequestType,
   ErasureModule,
@@ -31,8 +33,15 @@ import {
   PARTICIPANT_COMMUNITY,
   type ParticipantCommunityPort,
 } from "../ports/participant-community.port.js";
+import {
+  PERSONAL_DATA_SOURCES,
+  type PersonalDataSources,
+} from "../export/personal-data-sources.port.js";
 
 const PRODUCER = "AC-12";
+
+/** Export download window after the request is opened (REQ-013). */
+const EXPORT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * AC-12 compliance — audit, retention, DSR orchestration (INT-111).
@@ -48,6 +57,8 @@ export class ComplianceService {
     @Inject(PSP_ERASE_PORT) private readonly psp: PspErasePort,
     @Inject(PARTICIPANT_COMMUNITY)
     private readonly directory: ParticipantCommunityPort,
+    @Inject(PERSONAL_DATA_SOURCES)
+    private readonly personalData: PersonalDataSources,
   ) {}
 
   resetStore(): void {
@@ -65,6 +76,93 @@ export class ComplianceService {
 
   setRetentionDays(days: number): void {
     this.store.setRetentionPolicy({ personalRetentionDays: days });
+  }
+
+  setInvoiceRetentionYears(years: number): void {
+    this.store.setRetentionPolicy({ invoiceRetentionYears: years });
+  }
+
+  listRequests() {
+    return this.store.listRequests();
+  }
+
+  /**
+   * REQ-013 Art. 15/20 — assemble the machine-readable export on read.
+   * Personal data is never written to the compliance store.
+   */
+  async buildExport(requestId: string): Promise<DataSubjectExport> {
+    const row = this.store.getRequest(requestId);
+    if (!row) throw new NotFoundException(`Unknown request ${requestId}`);
+    this.assertExportAvailable(row);
+
+    const policy = this.store.getRetentionPolicy();
+    const [participant, paymentAccount, invoices] = await Promise.all([
+      this.personalData.getParticipantPersonalData(row.participantId),
+      this.personalData.getPaymentAccountPersonalData(row.participantId),
+      this.personalData.listInvoices(row.participantId),
+    ]);
+
+    const dataSubjectRequests = this.store
+      .listRequests()
+      .filter((r) => r.participantId === row.participantId)
+      .map((r) => ({
+        requestId: r.requestId,
+        type: r.type,
+        status: r.status,
+        createdAt: r.createdAt,
+      }));
+
+    return {
+      schemaVersion: "1.0",
+      requestId: row.requestId,
+      producedAt: new Date().toISOString(),
+      controller: { communityId: row.communityId },
+      participant,
+      paymentAccount,
+      invoices: invoices.map((inv) => ({
+        ...inv,
+        retainedUntil: retainedUntil(
+          inv.issuedAt,
+          inv.period,
+          policy.invoiceRetentionYears,
+        ),
+      })),
+      dataSubjectRequests,
+      retention: { invoiceRetentionYears: policy.invoiceRetentionYears },
+    };
+  }
+
+  /**
+   * Public export download (REQ-013 / REQ-049). Same community scoping as
+   * {@link getRequestForCaller}; a peer in the same community gets 403.
+   */
+  async getExportForCaller(
+    requestId: string,
+    caller: {
+      sub: string;
+      communityId: string;
+      roles: string[];
+      selfParticipantId?: string;
+    },
+  ): Promise<DataSubjectExport> {
+    const row = this.store.getRequest(requestId);
+    if (!row || !caller.communityId || row.communityId !== caller.communityId) {
+      throw new NotFoundException(`Unknown request ${requestId}`);
+    }
+    if (!this.callerMayRead(row, caller)) {
+      throw new ForbiddenException("Not allowed to download this export");
+    }
+    return this.buildExport(requestId);
+  }
+
+  private assertExportAvailable(row: DataSubjectRequest): void {
+    if (row.type === "erasure") {
+      throw new GoneException("Export is not available for an erasure request");
+    }
+    const ageMs = Date.now() - Date.parse(row.createdAt);
+    if (!Number.isNaN(ageMs) && ageMs > EXPORT_TTL_MS) {
+      throw new GoneException("Export is older than 30 days");
+    }
   }
 
   listAudits(): AuditEvent[] {
@@ -463,4 +561,26 @@ export class ComplianceService {
       timestamp: input.timestamp,
     });
   }
+}
+
+/**
+ * REQ-013 — legal retention end date: 31 December of
+ * (issue year + invoiceRetentionYears).
+ */
+export function retainedUntil(
+  issuedAt: string | null,
+  period: string,
+  invoiceRetentionYears: number,
+): string {
+  const yearFromIssued = issuedAt ? Date.parse(issuedAt) : Number.NaN;
+  let issueYear: number;
+  if (!Number.isNaN(yearFromIssued)) {
+    issueYear = new Date(yearFromIssued).getUTCFullYear();
+  } else {
+    const periodYear = Number.parseInt(period.slice(0, 4), 10);
+    issueYear = Number.isFinite(periodYear)
+      ? periodYear
+      : new Date().getUTCFullYear();
+  }
+  return `${issueYear + invoiceRetentionYears}-12-31`;
 }

@@ -5,9 +5,10 @@ import type {
   RetentionPolicy,
 } from "./types.js";
 
-/** Default V1 personal retention: 365 days after relationship end (REQ-011). */
+/** Default V1 retention (REQ-011 / REQ-013). */
 export const DEFAULT_RETENTION: RetentionPolicy = {
   personalRetentionDays: 365,
+  invoiceRetentionYears: 10,
 };
 
 export class ComplianceStore {
@@ -23,8 +24,8 @@ export class ComplianceStore {
     this.retention = { ...DEFAULT_RETENTION };
   }
 
-  setRetentionPolicy(policy: RetentionPolicy): void {
-    this.retention = { ...policy };
+  setRetentionPolicy(policy: Partial<RetentionPolicy>): void {
+    this.retention = { ...this.retention, ...policy };
   }
 
   getRetentionPolicy(): RetentionPolicy {

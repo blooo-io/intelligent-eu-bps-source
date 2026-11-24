@@ -49,32 +49,19 @@ describe("payments HTTP (INT-107)", () => {
     expect(await res.json()).toEqual({ status: "ok", module: "payments" });
   });
 
-  it("UAT-014 REQ-014 internal EnsureConnectedCustomer reuses one Customer per pair (INT-355)", async () => {
-    const ensure = (body: unknown, roles = "service") =>
-      fetch(`${base}/internal/v1/connected-customers:ensure`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-intelligent-roles": roles,
-        },
-        body: JSON.stringify(body),
-      });
-    const first = await ensure({ participantId: CONSUMER, pspAccountRef: "acct_test_p1" });
-    expect(first.status).toBe(200);
-    const created = (await first.json()) as { pspCustomerRef: string };
-    expect(created).toMatchObject({
-      participantId: CONSUMER,
-      pspAccountRef: "acct_test_p1",
-      pspCustomerRef: expect.stringMatching(/^cus_test_/),
+  it("D2 / REQ-014 connected-customers:ensure is gone (INT-428)", async () => {
+    const res = await fetch(`${base}/internal/v1/connected-customers:ensure`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "service",
+      },
+      body: JSON.stringify({
+        participantId: CONSUMER,
+        pspAccountRef: "acct_test_p1",
+      }),
     });
-    const again = await ensure({ participantId: CONSUMER, pspAccountRef: "acct_test_p1" });
-    expect(((await again.json()) as { pspCustomerRef: string }).pspCustomerRef).toBe(
-      created.pspCustomerRef,
-    );
-    expect((await ensure({ participantId: CONSUMER, pspAccountRef: "bad" })).status).toBe(400);
-    expect(
-      (await ensure({ participantId: CONSUMER, pspAccountRef: "acct_test_p1" }, "member")).status,
-    ).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it("internal GetPaymentAccount + provision (INT-228)", async () => {

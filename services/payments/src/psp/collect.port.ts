@@ -14,7 +14,6 @@ export type DirectChargeInput = {
   amount: string;
   currency: string;
   pspAccountRef: string;
-  pspCustomerRef: string;
   pspPaymentMethodRef: string;
   idempotencyKey: string;
 };
@@ -31,7 +30,6 @@ export type CheckoutInput = {
   amount: string;
   currency: string;
   pspAccountRef: string;
-  pspCustomerRef: string;
   methods: PspPaymentMethodType[];
   saveForFutureUse: boolean;
   successUrl: string;
@@ -63,10 +61,10 @@ export interface CollectPort {
   getPaymentMethodDetails(
     pspPaymentMethodRef: string,
   ): Promise<PaymentMethodDetails>;
-  ensureCustomer(input: {
-    participantId: string;
-    pspAccountRef: string;
-  }): Promise<{ pspCustomerRef: string }>;
+  /**
+   * D2 / REQ-014 — clone the platform card onto the producer account and
+   * confirm a PaymentIntent. No Customer on the connected account (A1).
+   */
   createDirectCharge(input: DirectChargeInput): Promise<CollectResult>;
   createCheckoutSession(input: CheckoutInput): Promise<CheckoutSession>;
   getChargeSettlement(input: {

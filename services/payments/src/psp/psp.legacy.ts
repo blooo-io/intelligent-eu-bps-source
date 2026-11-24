@@ -28,16 +28,6 @@ export type PaymentMethodDetails = {
   brand?: string;
   last4?: string;
 };
-export type PspPaymentInput = {
-  invoiceId: string; amount: string; currency: string;
-  pspAccountRef: string; pspInvoiceRef: string;
-  pspCustomerRef: string; pspPaymentMethodRef: string;
-};
-export type PspPaymentResult = {
-  pspPaymentRef: string;
-  status: "pending" | "succeeded" | "failed";
-  failureCategory?: string;
-};
 export const PRODUCER_ONBOARDING_DUE = [
   "business_type","business_profile.url","business_profile.mcc",
   "representative.first_name","representative.last_name","representative.email",

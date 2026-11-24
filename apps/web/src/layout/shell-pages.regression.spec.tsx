@@ -23,6 +23,7 @@ describe("shell page regression (INT-187)", () => {
         "community-settings-page.tsx",
         "home-page.tsx",
         "invoices-page.tsx",
+        "manager-verification-page.tsx",
         "onboarding-wizard-page.tsx",
         "operator-page.tsx",
         "participants-page.tsx",

@@ -51,9 +51,6 @@ importers:
       openapi-typescript:
         specifier: '7'
         version: 7.13.0(typescript@4.9.5)
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
 
   apps/docs-portal:
     devDependencies:

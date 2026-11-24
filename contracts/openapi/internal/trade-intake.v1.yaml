@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Trade intake internal API
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Module-to-module commands of AC-04 (03 §3.2 and 02 §4.5). Never exposed to clients.
   license:
@@ -168,7 +168,9 @@ components:
         kWh:
           type: string
         price:
-          $ref: '../components/schemas.yaml#/components/schemas/Money'
+          $ref: '../components/schemas.yaml#/components/schemas/UnitPrice'
+        adjustedPrice:
+          $ref: '../components/schemas.yaml#/components/schemas/UnitPrice'
         status:
           type: string
           description: Trade status as received from the market. Billing never changes it (BR-11).

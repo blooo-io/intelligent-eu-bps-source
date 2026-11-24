@@ -94,7 +94,7 @@
       "minimum": 0
     },
     "totalAmount": {
-      "description": "energyAmount + taxAmount (gridFeeAmount is 0 in D5.5). IRI: int:totalAmount.",
+      "description": "energyAmount + gridFeeAmount + taxAmount (REQ-004). IRI: int:totalAmount.",
       "type": "number",
       "minimum": 0
     },

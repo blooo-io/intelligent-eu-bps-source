@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Settlement internal API
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Module-to-module commands of AC-05 (03 §3.2 and 02 §4.5). Never exposed to clients.
   license:
@@ -147,7 +147,17 @@ components:
     PairSettlement:
       type: object
       additionalProperties: false
-      required: [settlementId, runId, communityId, consumerId, producerId, currency]
+      required:
+        - settlementId
+        - runId
+        - communityId
+        - consumerId
+        - producerId
+        - currency
+        - gridFeeAmount
+        - levyAmount
+        - taxAmount
+        - tariffId
       properties:
         settlementId:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'
@@ -169,9 +179,18 @@ components:
           description: >
             REQ-007 — one entry per trade (delivery period, kWh, price per kWh,
             amount). Empty when the invoice settles a carried balance only.
-            Grid fees are never included (A20).
           items:
             $ref: '../components/schemas.yaml#/components/schemas/InvoiceTradeLine'
+        gridFeeAmount:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        levyAmount:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        taxAmount:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        tariffId:
+          oneOf:
+            - type: string
+            - type: 'null'
         kWh:
           type: string
           description: Net energy of the pair in kWh, three decimals (BR-08).

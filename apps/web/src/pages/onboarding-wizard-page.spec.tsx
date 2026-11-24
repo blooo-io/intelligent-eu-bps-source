@@ -2,8 +2,10 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { OnboardingWizardPage } from "./onboarding-wizard-page";
+import { wizardStepItems } from "./onboarding-wizard-step-model";
 import type { OidcFacade } from "../auth/oidc";
 import type { WebConfig } from "../api/config";
+import type { Me } from "../api/me";
 
 const config: WebConfig = {
   oidcAuthority: "https://auth.example/realms/int",
@@ -14,15 +16,17 @@ const config: WebConfig = {
 
 function meFixture(
   readiness: string,
-  profile = { name: "A", address: "B", email: "a@b.co" },
-) {
+  overrides: Partial<Me> = {},
+): Me {
   return {
     participantId: "p1",
     communityId: "c1",
     roles: ["member"],
-    role: "consumer" as const,
-    readiness,
-    profile,
+    role: "consumer",
+    readiness: readiness as Me["readiness"],
+    profile: { name: "A", address: "B", email: "a@b.co" },
+    kycVerified: false,
+    ...overrides,
   };
 }
 
@@ -47,13 +51,112 @@ function renderWizard(initial = "/onboarding") {
   );
 }
 
-describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
+describe("OnboardingWizardPage (INT-193 / UAT-067 / INT-429)", () => {
   // Nested Ant Design pages under coverage regularly exceed Vitest's 5s default on CI.
   const slow = 15_000;
 
   beforeEach(() => {
     vi.restoreAllMocks();
   });
+
+  it("REQ-051: consumer wizard shows Identity step before Pay", () => {
+    const items = wizardStepItems(
+      meFixture("Invited", { role: "consumer" }),
+      "profile",
+    );
+    expect(items.map((i) => i.title)).toEqual([
+      "Profile",
+      "Terms",
+      "Identity",
+      "Pay",
+    ]);
+  });
+
+  it("REQ-051: producer wizard has no card step", () => {
+    const items = wizardStepItems(
+      meFixture("Invited", { role: "producer" }),
+      "profile",
+    );
+    expect(items.map((i) => i.title)).toEqual([
+      "Profile",
+      "Terms",
+      "Identity",
+    ]);
+  });
+
+  it(
+    "REQ-050: Terms step shows self-billing mandate only for producer/prosumer",
+    async () => {
+      const fetchImpl = vi.fn().mockImplementation(async (url: string) => {
+        const path = String(url);
+        if (path.endsWith("/v1/me")) {
+          return {
+            ok: true,
+            json: async () =>
+              meFixture("ProfileCompleted", { role: "consumer" }),
+          };
+        }
+        if (path.includes("/terms")) {
+          return {
+            ok: true,
+            json: async () => ({
+              termsVersion: "1.0",
+              text: "Consumer terms without self-billing gate.",
+            }),
+          };
+        }
+        return { ok: false, status: 404 };
+      });
+      vi.stubGlobal("fetch", fetchImpl);
+      renderWizard("/onboarding?step=terms");
+      await waitFor(
+        () => {
+          expect(
+            screen.getByText(/Consumer terms without self-billing/i),
+          ).toBeInTheDocument();
+        },
+        { timeout: 10_000 },
+      );
+      expect(
+        screen.queryByRole("checkbox", { name: /self-billing mandate/i }),
+      ).toBeNull();
+
+      // Prosumer must see the mandate.
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockImplementation(async (url: string) => {
+          const path = String(url);
+          if (path.endsWith("/v1/me")) {
+            return {
+              ok: true,
+              json: async () =>
+                meFixture("ProfileCompleted", { role: "prosumer" }),
+            };
+          }
+          if (path.includes("/terms")) {
+            return {
+              ok: true,
+              json: async () => ({
+                termsVersion: "1.0",
+                text: "Prosumer terms with self-billing.",
+              }),
+            };
+          }
+          return { ok: false, status: 404 };
+        }),
+      );
+      renderWizard("/onboarding?step=terms");
+      await waitFor(
+        () => {
+          expect(
+            screen.getByRole("checkbox", { name: /self-billing mandate/i }),
+          ).toBeInTheDocument();
+        },
+        { timeout: 10_000 },
+      );
+    },
+    slow,
+  );
 
   it(
     "loads readiness and opens the profile step when Invited",
@@ -63,7 +166,9 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
         vi.fn().mockResolvedValue({
           ok: true,
           json: async () =>
-            meFixture("Invited", { name: "", address: "", email: "" }),
+            meFixture("Invited", {
+              profile: { name: "", address: "", email: "" },
+            }),
         }),
       );
       renderWizard();
@@ -90,13 +195,38 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
   );
 
   it(
-    "advances to payment step when TermsAccepted",
+    "opens identity step when TermsAccepted and KYC is incomplete",
     async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
           ok: true,
-          json: async () => meFixture("TermsAccepted"),
+          json: async () => meFixture("TermsAccepted", { kycVerified: false }),
+        }),
+      );
+      renderWizard("/onboarding?step=identity");
+      await waitFor(
+        () => {
+          expect(
+            screen.getByRole("button", {
+              name: /continue to identity verification/i,
+            }),
+          ).toBeInTheDocument();
+        },
+        { timeout: 10_000 },
+      );
+    },
+    slow,
+  );
+
+  it(
+    "advances to payment step when TermsAccepted and KYC is done",
+    async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => meFixture("TermsAccepted", { kycVerified: true }),
         }),
       );
       renderWizard("/onboarding?step=payment");
@@ -125,7 +255,8 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
           }
           return Promise.resolve({
             ok: true,
-            json: async () => meFixture("Ready"),
+            json: async () =>
+              meFixture("Ready", { kycVerified: true }),
           });
         }),
       );
@@ -149,7 +280,7 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
       await waitFor(
         () => {
           expect(
-            screen.getByRole("heading", { name: /Get ready — step 3 of 3/i }),
+            screen.getByRole("heading", { name: /Get ready — step 4 of 4/i }),
           ).toBeInTheDocument();
         },
         { timeout: 10_000 },
@@ -208,31 +339,34 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
   );
 
   it(
-    "Continue to payment setup on terms step refreshes readiness",
+    "Continue to identity on terms step refreshes readiness",
     async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
           ok: true,
-          json: async () => meFixture("TermsAccepted"),
+          json: async () =>
+            meFixture("TermsAccepted", { kycVerified: false }),
         }),
       );
       renderWizard("/onboarding?step=terms");
       await waitFor(
         () => {
           expect(
-            screen.getByRole("button", { name: /continue to payment setup/i }),
+            screen.getByRole("button", { name: /continue to identity/i }),
           ).toBeInTheDocument();
         },
         { timeout: 10_000 },
       );
       fireEvent.click(
-        screen.getByRole("button", { name: /continue to payment setup/i }),
+        screen.getByRole("button", { name: /continue to identity/i }),
       );
       await waitFor(
         () => {
           expect(
-            screen.getByRole("button", { name: /save card and finish/i }),
+            screen.getByRole("button", {
+              name: /continue to identity verification/i,
+            }),
           ).toBeInTheDocument();
         },
         { timeout: 10_000 },
@@ -247,7 +381,9 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () =>
-          meFixture("Invited", { name: "", address: "", email: "" }),
+          meFixture("Invited", {
+            profile: { name: "", address: "", email: "" },
+          }),
       }),
     );
     renderWizard();
@@ -291,4 +427,17 @@ describe("OnboardingWizardPage (INT-193 / UAT-067)", () => {
     },
     slow,
   );
+
+  it("prosumer wizard includes Identity and Pay", () => {
+    const items = wizardStepItems(
+      meFixture("Invited", { role: "prosumer" }),
+      "profile",
+    );
+    expect(items.map((i) => i.title)).toEqual([
+      "Profile",
+      "Terms",
+      "Identity",
+      "Pay",
+    ]);
+  });
 });

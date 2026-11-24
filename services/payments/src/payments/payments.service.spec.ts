@@ -1844,40 +1844,6 @@ describe("PaymentsService", () => {
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
   });
 
-  it("REQ-013 / INT-275 — erasure reports failed when PSP erase throws", async () => {
-    const failingErase = new MockPspEraseAdapter();
-    failingErase.erase = vi.fn().mockRejectedValue(new Error("stripe down"));
-    const svc = new PaymentsService(
-      store,
-      new OutboxService(outboxStore),
-      psp,
-      invoices,
-      new NoopParticipantsNotifier(),
-      accountsStore,
-      new NoopParticipantsResolver(),
-      failingErase,
-      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      psp,
-      clock,
-      psp,
-      payoutEvents,
-    );
-    await svc.provisionPaymentAccount({
-      participantId: PRODUCER,
-      communityId: COMMUNITY,
-      role: "producer",
-      fresh: true,
-    });
-    const result = await svc.applyErasureRequested({
-      requestId: "dddddddd-eeee-4fff-8000-111111111111",
-      participantId: PRODUCER,
-    });
-    expect(result.result).toBe("failed");
-    const events = await outboxStore.list();
-    const completed = events.find((e) => e.event.type === "ErasureCompleted");
-    expect(completed?.event.data).toMatchObject({ result: "failed" });
-  });
-
   it("REQ-013 / INT-275 — erasure completes when no payment account exists", async () => {
     const result = await service.applyErasureRequested({
       requestId: "eeeeeeee-ffff-4000-8000-222222222222",
@@ -1902,6 +1868,8 @@ describe("PaymentsService", () => {
     });
     expect(result.result).toBe("completed");
     expect(store.getAccount(CONSUMER)?.pspPaymentMethodRef).toBeNull();
+    // Task 3.18 — local erase no longer calls the PSP port (eraseAtPsp does).
+    expect(pspErase.recorded()).toHaveLength(0);
 
     const events = await outboxStore.list();
     const completed = events.find((e) => e.event.type === "ErasureCompleted");
@@ -1911,6 +1879,139 @@ describe("PaymentsService", () => {
       module: "AC-07",
       result: "completed",
     });
+  });
+
+  it("REQ-013: personal-data returns payment method and KYC flags", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    const row = store.getAccount(CONSUMER)!;
+    await accountsStore.put({
+      ...row,
+      kycStatus: "verified",
+      kycVerified: true,
+      kycVerifiedAt: "2026-11-25T10:00:00.000Z",
+      payoutAccountVerified: false,
+      kycLog: [
+        {
+          at: "2026-11-25T10:00:00.000Z",
+          source: "webhook",
+          kycStatus: "verified",
+          pspEventId: "evt_1",
+        },
+      ],
+      platformCustomerIds: ["cus_platform_1"],
+    });
+    store.putAccount(await accountsStore.get(CONSUMER)!);
+
+    const data = await service.getPersonalData(CONSUMER);
+    expect(data).toEqual({
+      participantId: CONSUMER,
+      pspAccountRef: null,
+      paymentMethodPresent: true,
+      kycStatus: "verified",
+      kycVerified: true,
+      kycVerifiedAt: "2026-11-25T10:00:00.000Z",
+      payoutAccountVerified: false,
+      kycLog: [
+        {
+          at: "2026-11-25T10:00:00.000Z",
+          source: "webhook",
+          kycStatus: "verified",
+          pspEventId: "evt_1",
+        },
+      ],
+    });
+  });
+
+  it("REQ-013: personal-data payload is never logged", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    const logSpy = vi.spyOn(Logger.prototype, "log");
+    const warnSpy = vi.spyOn(Logger.prototype, "warn");
+    const errorSpy = vi.spyOn(Logger.prototype, "error");
+    await service.getPersonalData(CONSUMER);
+    const joined = [...logSpy.mock.calls, ...warnSpy.mock.calls, ...errorSpy.mock.calls]
+      .flat()
+      .map(String)
+      .join(" ");
+    expect(joined).not.toMatch(/@|visa|pm_card/i);
+    expect(joined).toContain(CONSUMER);
+    logSpy.mockRestore();
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it("REQ-013 / UAT-013: test-mode eraseAtPsp deletes via PSP port (empty connectedCustomers)", async () => {
+    await service.provisionPaymentAccount({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      fresh: true,
+    });
+    const account = store.getAccount(PRODUCER)!;
+    await accountsStore.put({
+      ...account,
+      platformCustomerIds: ["cus_plat"],
+    });
+    store.putAccount(await accountsStore.get(PRODUCER)!);
+
+    const result = await service.eraseAtPsp(PRODUCER, { livemode: false });
+    expect(result.outcome).toBe("erased");
+    expect(pspErase.recorded()).toHaveLength(1);
+    expect(pspErase.recorded()[0]).toMatchObject({
+      participantId: PRODUCER,
+      pspAccountRef: expect.stringMatching(/^acct_/),
+      platformCustomerIds: ["cus_plat"],
+      connectedCustomers: [],
+      livemode: false,
+    });
+  });
+
+  it("REQ-013: live-mode eraseAtPsp returns retained_by_psp", async () => {
+    await service.provisionPaymentAccount({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      fresh: true,
+    });
+    const result = await service.eraseAtPsp(PRODUCER, { livemode: true });
+    expect(result.outcome).toBe("retained_by_psp");
+    expect(result.reason).toBe("aml_legal_obligation");
+    expect(pspErase.recorded()[0]?.livemode).toBe(true);
+  });
+
+  it("REQ-013: eraseAtPsp reports failed when PSP erase throws", async () => {
+    const failingErase = new MockPspEraseAdapter();
+    failingErase.erase = vi.fn().mockRejectedValue(new Error("stripe down"));
+    const svc = new PaymentsService(
+      store,
+      new OutboxService(outboxStore),
+      psp,
+      invoices,
+      new NoopParticipantsNotifier(),
+      accountsStore,
+      new NoopParticipantsResolver(),
+      failingErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
+    );
+    await svc.provisionPaymentAccount({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+      fresh: true,
+    });
+    await expect(svc.eraseAtPsp(PRODUCER)).rejects.toThrow(/stripe down/);
   });
 });
 

@@ -41,6 +41,26 @@ export class InternalParticipantsController {
     return this.participants.getParticipantCommunity(participantId);
   }
 
+  /**
+   * REQ-013 / Task 3.18 — DSAR personal-data payload (service-role only).
+   */
+  @Get("participants/:participantId/personal-data")
+  @UseGuards(new ModuleAuthGuard({ roles: ["service"] }))
+  getPersonalData(@Param("participantId") participantId: string) {
+    return this.participants.getPersonalData(participantId);
+  }
+
+  /**
+   * REQ-013 / Task 3.18 — erase IdP identity (service-role only).
+   * Keycloak 404 counts as erased.
+   */
+  @Post(String.raw`participants/:participantId\:erase-identity`)
+  @HttpCode(200)
+  @UseGuards(new ModuleAuthGuard({ roles: ["service"] }))
+  eraseIdentity(@Param("participantId") participantId: string) {
+    return this.participants.eraseIdentity(participantId);
+  }
+
   /** INT-274 — AC-11 payment-notice recipient from profile e-mail. */
   @Get("participants/:participantId/notification-contact")
   getNotificationContact(@Param("participantId") participantId: string) {

@@ -16,6 +16,7 @@ import type {
   InvoiceRecord,
   InvoiceReminder,
   InvoiceStatus,
+  InvoiceSummary,
   PairSettlementInput,
 } from "../domain/types.js";
 import { UAT_INLINE_PDF } from "../domain/uat-seed.js";
@@ -193,6 +194,30 @@ export class InvoicingService {
       .list()
       .filter((row) => this.isCallerOnInvoice(row, set))
       .map((row) => this.toPublicInvoice(row));
+  }
+
+  /**
+   * REQ-013 / Task 3.19 — invoices where the participant is issuer (producer)
+   * or addressee (consumer), ordered by period for the DSAR export.
+   */
+  async listForParticipant(participantId: string): Promise<InvoiceSummary[]> {
+    return this.store
+      .listByParticipant(participantId)
+      .map((row) => ({
+        invoiceId: row.invoiceId,
+        legalNumber: row.legalNumber,
+        period: row.period,
+        partyRole:
+          row.producerId === participantId
+            ? ("issuer" as const)
+            : ("addressee" as const),
+        total: row.total,
+        currency: row.currency,
+        status: row.status,
+        // InvoiceRecord has no issue timestamp yet (A6); null until stored.
+        issuedAt: null,
+      }))
+      .sort((a, b) => a.period.localeCompare(b.period));
   }
 
   /** Public detail when the caller is producer or consumer (REQ-007). */

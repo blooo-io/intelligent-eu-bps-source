@@ -3,10 +3,11 @@ info:
   title: Billing & Payment public API
   version: 1.1.0
   description: >
-    Public API exposed by the gateway under `/v1` (03 §3.1, REQ-052).
-    Every call needs a bearer token. A response contains only data of the
-    caller's own participant or community (REQ-010). Personal data is limited
-    to the billing profile on `/me`.
+    Public API exposed by the gateway under `/v1` for the reference client (apps/web) only
+    (03 §3.1, REQ-052, A7). The INTELLIGENT project UI integrates through EWDS
+    records and the command channel, not this REST surface. Every call needs a
+    bearer token. A response contains only data of the caller's own participant
+    or community (REQ-010). Personal data is limited to the billing profile on `/me`.
   contact:
     name: Blooo
     url: https://github.com/blooo-io/intelligent-eu-bps-source

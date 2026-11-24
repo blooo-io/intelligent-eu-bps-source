@@ -21,11 +21,11 @@ baseline: 02-logical-architecture.md v1.0 (validated 2026-10-07); 01-functional
 |---|---|---|
 | AD-1 | **Modular architecture, one deployable module per logical block.** Each module is built, tested and deployed independently. It owns its data and exposes its capabilities only through APIs and events. | 2026-10-07 |
 | AD-2 | **Target hosting: a Kubernetes cluster.** Each module runs as its own workload. Cluster design belongs to the technical and physical views. | 2026-10-07 |
-| AD-3 | **External API: REST, versioned (`/v1`), described by an OpenAPI contract.** Authentication uses OIDC bearer tokens from the project IdP. | 2026-10-07; REQ-052 |
+| AD-3 | **External API: REST `/v1` for the reference client (`apps/web`); EWDS records + command channel (AsyncAPI) for the project UI.** Authentication on `/v1` uses OIDC bearer tokens from the project IdP. | 2026-10-07; REQ-052; A7 |
 | AD-4 | **Events between modules: asynchronous, at-least-once, through a transactional outbox per module.** Consumers are idempotent. The transport is chosen in the technical view. | 2026-10-07; logical LP-3/LP-4 |
-| AD-5 | **Reference screens in V1: participant portal and community-manager console**, built only on the public API. | 2026-10-07; REQ-052 |
-| AD-6 | **V1 integrates only Stripe in test mode.** Every other external system is reached through an adapter whose V1 implementation is a mock (or a local instance). | A32 |
-| AD-7 | **API-first, contract-first** (added 2026-10-07): public and internal APIs are specified in OpenAPI and events in AsyncAPI **before** implementation. The web app and the project UI consume only the public API; contracts are the source for mocks and generated clients (see technical view TP-8 / TD-13). | 2026-10-07 |
+| AD-5 | **Reference client (`apps/web`) for adopters without the project UI**; not part of the INTELLIGENT project UI path (A7). | 2026-10-07; REQ-052 |
+| AD-6 | **Adapters selected by environment variables.** EWDS adapters are real with **mock as the code default** (A8); deployed environments switch them live. Stripe runs in test or live mode per community. | A8; A10.1 |
+| AD-7 | **API-first, contract-first** (added 2026-10-07): public and internal REST APIs are specified in OpenAPI, domain events and the EWDS command channel in AsyncAPI, and EWDS record schemas as JSON Schema **before** implementation. Contracts are the source for mocks and generated clients (see technical view TP-8 / TD-13). | 2026-10-07; A7 |
 
 ## 2. Application components
 
@@ -230,7 +230,7 @@ flowchart LR
 
 ### 3.1 Public API (AC-02, `/v1`, OpenAPI)
 
-Consumed by AC-01 and by the project UI. Every call needs a bearer token, and responses only contain data of the caller's own participant or community (REQ-010).
+Consumed by the reference client **AC-01 (`apps/web`) only** (A7 / REQ-052). The INTELLIGENT project UI integrates through EWDS records and the command channel, not through `/v1`. Every call needs a bearer token, and responses only contain data of the caller's own participant or community (REQ-010).
 
 | Resource / operation | Role(s) | Served by | Requirements | Screen |
 |---|---|---|---|---|
@@ -266,7 +266,10 @@ Inbound integration endpoint, not part of the public API: `POST /webhooks/paymen
 | GetRate(currency, date), GetVatRate(communityId) | AC-13 | AC-05 |
 | GetPairSettlement(settlementId) | AC-05 | AC-06 |
 | GetInvoice(invoiceId) (amounts, legalNumber; no Stripe invoice id) | AC-06 | AC-07 |
-| StartRun / RefreshIntake / MarkOverdue / Reconcile / PurgeCache / ApplyRetention / FetchRates … | owning module | AC-14 |
+| GetKycStatus(subjectId) | AC-07 | AC-03, AC-06, guards |
+| ApplyRetention / GetRetentionPolicy | AC-12 | AC-14; operators / peers |
+| erase-identity / erase-at-psp | AC-03 / AC-07 | AC-12 (DSAR erasure) |
+| StartRun / RefreshIntake / MarkOverdue / Reconcile / PurgeCache / FetchRates … | owning module | AC-14 |
 
 ## 4. Event catalogue
 
@@ -290,6 +293,7 @@ Inbound integration endpoint, not part of the public API: `POST /webhooks/paymen
 | InvoiceIssued | AC-06 | AC-07, AC-08, AC-09, AC-10, AC-11 | invoiceId, issuer, recipient, settlementId, period bounds, settlement type, amounts, energy, VAT rate, currency, tradeIds |
 | InvoiceStatusChanged | AC-06 | AC-08, AC-09, AC-10 | invoiceId, status, reason, outstanding |
 | PaymentStatusChanged | AC-07 | AC-06, AC-08, AC-09, AC-10, AC-11 | paymentId, invoiceId, payerId, payeeId, status, failureCategory |
+| KycStatusChanged | AC-07 | AC-03, AC-10 (billingKycStatus), AC-09 | subjectId, subjectType, kycStatus, kycVerified, method, payoutAccountVerified |
 | DiscrepancyDetected | AC-08 | AC-09, AC-11 (operator alert) | scope, expected, actual |
 | ErasureRequested | AC-12 | AC-03, AC-06, AC-07 | requestId, participantId |
 | ErasureCompleted | AC-03, AC-06, AC-07 | AC-12 | requestId, module, result |
@@ -371,11 +375,15 @@ Payment rules (INT-355, REQ-014, TD-6 / A6):
 
 Every adapter implements one logical port behind a stable interface. Switching from a mock to the real system is a configuration change (AD-6).
 
-| Adapter (module) | Port | Interface (operations) | V1 implementation | Later implementation |
+| Adapter (module) | Port | Interface (operations) | V1 / selection | Notes |
 |---|---|---|---|---|
-| Market adapter (AC-04) | P-MKT | queryTrades(window), queryClearingResults(marketId), queryMarkets(window) | **Mock** (AC-15) | EWDS request/reply on GSY channels + REST backfill |
-| Data-space adapter (AC-10) | P-DS | publish(topic, message), purgeCache(before) | **Mock** (AC-15, schema validation) | Blooo EWDS Client Gateway |
-| Payment adapter (AC-07) | P-PSP | KycOnboardingPort, CollectPort (direct charge / hosted Checkout on the producer account), PayoutPort, PspEventsPort | **Stripe test mode** | Stripe live (per community, after V1) |
+| Market adapter (AC-04) | P-MKT | queryTrades(window), queryClearingResults(marketId), queryMarkets(window) | `MARKET_ADAPTER=mock\|ewds` (mock default) | EWDS request/reply on GSY channels; GSY off-chain REST is a **test fixture only** (A8) |
+| Data-space adapter (AC-10) | P-DS | publish(topic, message), purgeCache(before) | `DATASPACE_ADAPTER=mock\|ewds` (mock default) | Blooo EWDS Client Gateway |
+| Command channel (AC-10) | P-CMD | poll commands, authorize, dispatch, reply | `COMMAND_CHANNEL_ENABLED=true\|false` (default false) | Three-layer auth: CGW channel role → sender DID allowlist + signature → actor role |
+| Actor intake (AC-03) | P-ACTOR-SRC | receive Actor records | `ACTOR_SOURCE=mock\|ewds` (mock default; `ewds` in deployed envs) | EWDS subscriber (`ActorSourcePort`) |
+| Erasure intake (AC-12) | P-ERASURE-REQ | receive erasure requests; reportOutcome | `ERASURE_REQUEST_SOURCE=mock\|ewds\|none` (default none; mock in tests; `ewds` in WS4) | EWDS subscriber (`ErasureRequestPort`) |
+| Tariff adapter (AC-13) | P-TARIFF | getTariff(communityId, at) | `TARIFF_ADAPTER=mock\|ewds` (mock default) | EWDS when DSO publishes; else 0 |
+| Payment adapter (AC-07) | P-PSP | KycOnboardingPort, CollectPort (direct charge / hosted Checkout on the producer account), PayoutPort, PspEventsPort | **Stripe** test or live per community | — |
 | IdP admin adapter (AC-03) + token validation (AC-02) | P-IDP | createUser, sendInvitation, deleteUser; validateToken | Keycloak, local instance | Project IdP (Blooo-operated) or pilot OIDC IdP |
 | FX adapter (AC-13) | P-FX | getRate(currency, date) | **Fixture** (AC-15) | ECB reference rates |
 | Mail adapter (AC-11) | P-MAIL | send(template, to, attachments) — invoice PDF and payment reminders are sent by billing via AC-11 (A6; Stripe no longer e-mails invoices) | Local mail catcher | Transactional mail service |

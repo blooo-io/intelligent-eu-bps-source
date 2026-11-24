@@ -19,9 +19,12 @@ ingressFrom:
   - reporting
 keycloakEgress: true
 stripeEgress: false
+# INT-429 / NFR-017 — DDHub CGW client (label + CGW_API_KEY secretKeyRef via module template).
+ewdsClient: true
 # INT-215 / INT-218 / INT-325 — Keycloak Admin P-IDP.
 # Client secrets come from OpenBao ExternalSecret envFrom (never Helm values).
 # Service DNS is platform-keycloak-keycloakx-http (port 80), not keycloak:8080.
+# A8 — chart defaults stay mock; deploy/envs overlays switch adapters live (A8-live).
 env:
   IDP_ADMIN_PROVIDER: keycloak
   KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
@@ -37,3 +40,10 @@ env:
   NATS_URL: nats://nats.nats.svc.cluster.local:4222
   NATS_SUBJECT_PREFIX: intelligent.dev
   NATS_STREAM: DebeziumStream
+  CGW_BASE_URL: http://ddhub-client-gateway.ddhub.svc.cluster.local
+  MARKET_ADAPTER: mock
+  DATASPACE_ADAPTER: mock
+  ACTOR_SOURCE_ADAPTER: mock
+  ERASURE_SOURCE_ADAPTER: mock
+  TARIFF_ADAPTER: mock
+  COMMAND_CHANNEL_ENABLED: "false"

@@ -14,8 +14,11 @@ ingressFrom:
   - settlement
 keycloakEgress: true
 stripeEgress: false
+# INT-429 / NFR-017 — DDHub CGW client (label + CGW_API_KEY secretKeyRef via module template).
+ewdsClient: true
 
 # INT-287 — Keycloak client-credentials for inter-module JWT (dual-mode).
+# A8 — chart defaults stay mock; deploy/envs overlays switch adapters live (A8-live).
 env:
   KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
   # INT-348 — JWT iss is public KC_HOSTNAME (INT-345); JWKS stays on KEYCLOAK_BASE_URL.
@@ -26,3 +29,10 @@ env:
   KEYCLOAK_SERVICE_CLIENT_ID: module-service
   # INT-314 — require Bearer JWT on /internal/* (forgeable headers alone rejected).
   SERVICE_JWT_REQUIRED: "true"
+  CGW_BASE_URL: http://ddhub-client-gateway.ddhub.svc.cluster.local
+  MARKET_ADAPTER: mock
+  DATASPACE_ADAPTER: mock
+  ACTOR_SOURCE_ADAPTER: mock
+  ERASURE_SOURCE_ADAPTER: mock
+  TARIFF_ADAPTER: mock
+  COMMAND_CHANNEL_ENABLED: "false"

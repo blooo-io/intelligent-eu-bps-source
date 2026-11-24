@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Layout, theme } from "antd";
 import type { ItemType } from "antd/es/menu/interface";
 import { useGetIdentity, useLogout } from "@refinedev/core";
-import { Link, Outlet, useLocation } from "react-router";
+import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { fetchMe, type Me } from "../api/me";
+import { fetchMyKyc } from "../api/kyc";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
 import { brand } from "../theme";
@@ -69,6 +70,7 @@ export function AppShell({
   oidc?: OidcFacade;
 } = {}) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { mutate: logout } = useLogout();
   const { data: identity } = useGetIdentity<Identity>();
   const [collapsed, setCollapsed] = useState(false);
@@ -94,6 +96,29 @@ export function AppShell({
   }, [config, oidc]);
 
   const roles = effectiveRoles(identity?.roles, me?.roles);
+
+  // INT-429 / REQ-051 — managers without KYC stay on /manager/verification.
+  useEffect(() => {
+    if (!config || !oidc) return;
+    if (!roles.includes("manager")) return;
+    if (location.pathname.startsWith("/manager/verification")) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (me?.kycVerified === true) return;
+        const access = await oidc.getAccessToken();
+        if (!access) return;
+        const kyc = await fetchMyKyc(config.apiBaseUrl, access);
+        if (cancelled || kyc.kycVerified) return;
+        navigate("/manager/verification", { replace: true });
+      } catch {
+        // Leave the current route if KYC status is unavailable.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [config, location.pathname, me?.kycVerified, navigate, oidc, roles]);
   const navItems = useMemo(
     () =>
       labeledNavItems(visibleNavItems(roles, me?.readiness), {

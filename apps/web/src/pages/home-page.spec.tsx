@@ -66,8 +66,11 @@ describe("HomePage (INT-137 / INT-245 / REQ-049)", () => {
       expect(screen.getByTestId("home-setup")).toBeInTheDocument();
     });
     expect(screen.getByRole("heading", { name: /^home$/i })).toBeInTheDocument();
-    expect(screen.getByText(/Complete payment setup/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /finish payment setup/i })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Verify identity \(Stripe Connect KYC\)/i),
+    ).toBeInTheDocument();
+    // INT-429 / REQ-051 — TermsAccepted without KYC opens Identity first.
+    expect(screen.getByRole("button", { name: /verify identity/i })).toBeInTheDocument();
     expect(screen.queryByText(/back to home/i)).not.toBeInTheDocument();
   });
 

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
@@ -20,11 +21,34 @@ import type {
   ParticipantPatch,
   ParticipantRecord,
   ParticipantRole,
+  PostalAddress,
+  ReadinessStatus,
 } from "../domain/types.js";
 import { IDP_ADMIN_PORT, type IdpAdminPort } from "../idp/idp.port.js";
 import { deriveReadiness, isInvoiceReady } from "./readiness.js";
 
 const PRODUCER = "AC-03";
+
+/** REQ-013 — DSAR payload assembled for AC-12 (never logged). */
+export type ParticipantPersonalData = {
+  participantId: string;
+  communityId: string;
+  role: ParticipantRole;
+  source: "ewds" | "import";
+  marketActorId: string;
+  meterId: string;
+  profile: BillingProfile;
+  postalAddress: PostalAddress | null;
+  phone: string | null;
+  idpUserId: string | null;
+  consents: {
+    termsVersion: string | null;
+    termsAcceptedAt: string | null;
+    selfBillingMandate: boolean;
+  };
+  readiness: ReadinessStatus;
+  kycVerified: boolean;
+};
 
 function invoiceNotReadyReason(
   status: ParticipantRecord["status"],
@@ -70,6 +94,7 @@ export type MeResult = {
  */
 @Injectable()
 export class ParticipantsService {
+  private readonly logger = new Logger(ParticipantsService.name);
   private tx: { run<T>(fn: () => Promise<T> | T): Promise<T> } = new PassthroughTransaction();
 
   /** INT-356 — registry mutations commit with the outbox when DATABASE_URL is set. */
@@ -295,6 +320,11 @@ export class ParticipantsService {
         selfBillingMandate: false,
         paymentAccountReady: false,
         paymentBlockReason: null,
+        source: "import",
+        postalAddress: null,
+        phone: null,
+        termsAcceptedAt: null,
+        kycVerified: false,
       };
       this.store.putParticipant(record);
       await this.outbox.append({
@@ -558,7 +588,58 @@ export class ParticipantsService {
   }
 
   /**
+   * REQ-013 / Task 3.18 — personal data for DSAR export (service-role only).
+   * Identifiers and values are returned to AC-12; never written to logs.
+   */
+  getPersonalData(participantId: string): ParticipantPersonalData {
+    const row = this.requireParticipant(participantId);
+    // NFR-015 — log ids only; never the profile / contact payload.
+    this.logger.log(`personal-data requested for participantId=${participantId}`);
+    return {
+      participantId: row.participantId,
+      communityId: row.communityId,
+      role: row.role,
+      source: row.source ?? "import",
+      marketActorId: row.marketActorId,
+      meterId: row.meterId,
+      profile: row.profile ?? { name: "", address: "", email: "" },
+      postalAddress: row.postalAddress ?? null,
+      phone: row.phone ?? null,
+      idpUserId: row.idpUserId,
+      consents: {
+        termsVersion: row.termsVersionAccepted,
+        termsAcceptedAt: row.termsAcceptedAt ?? null,
+        selfBillingMandate: row.selfBillingMandate,
+      },
+      readiness: deriveReadiness(row),
+      kycVerified: row.kycVerified ?? row.paymentAccountReady,
+    };
+  }
+
+  /**
+   * REQ-013 / Task 3.18 — delete the Keycloak user. HTTP 404 counts as erased.
+   * Local anonymization stays on {@link applyErasureRequested}.
+   */
+  async eraseIdentity(participantId: string): Promise<{ erased: boolean }> {
+    const row = this.requireParticipant(participantId);
+    if (!row.idpUserId) {
+      return { erased: true };
+    }
+    try {
+      await this.idp.deleteUser(row.idpUserId);
+      return { erased: true };
+    } catch (err) {
+      // Keycloak adapter already treats 404 as success; other adapters may throw.
+      if (isNotFoundError(err)) {
+        return { erased: true };
+      }
+      throw err;
+    }
+  }
+
+  /**
    * REQ-013 / INT-275 — anonymize registry personal data; emit ErasureCompleted (AC-03).
+   * IdP deletion is {@link eraseIdentity} (Task 3.18) — called by AC-12 separately.
    */
   async applyErasureRequested(input: {
     requestId: string;
@@ -585,16 +666,11 @@ export class ParticipantsService {
       profile: row.profile
         ? { name: "[erased]", address: "[erased]", email: "[erased]" }
         : null,
+      postalAddress: null,
+      phone: null,
       idpUserId: null,
     };
     this.store.putParticipant(next);
-    if (row.idpUserId) {
-      try {
-        await this.idp.deleteUser(row.idpUserId);
-      } catch {
-        /* fail soft — local anonymization still applied (REQ-013) */
-      }
-    }
     await this.publishErasureCompleted(
       input.requestId,
       "completed",
@@ -666,4 +742,18 @@ export class ParticipantsService {
       },
     });
   }
+}
+
+/** REQ-013 — Keycloak (and stubs) may surface missing users as 404-like errors. */
+function isNotFoundError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const status =
+    "status" in err
+      ? Number((err as { status?: unknown }).status)
+      : "statusCode" in err
+        ? Number((err as { statusCode?: unknown }).statusCode)
+        : NaN;
+  if (status === 404) return true;
+  const message = err instanceof Error ? err.message : String(err);
+  return /\b404\b|not\s*found/i.test(message);
 }

@@ -10,7 +10,7 @@ import {
   PaymentSetupLinkPanel,
   PaymentSetupStartButton,
 } from "./payment-setup-session-panels";
-import { ProducerAccountOnboarding } from "../components/producer-account-onboarding";
+import { KycAccountOnboarding } from "../components/kyc-account-onboarding";
 
 const { Paragraph } = Typography;
 
@@ -103,7 +103,7 @@ export function PaymentSetupBody({
         session.status !== "complete" &&
         session.clientSecret ? (
           // INT-362 — on exit, Start again re-reads the status from Stripe.
-          <ProducerAccountOnboarding
+          <KycAccountOnboarding
             config={config}
             clientSecret={session.clientSecret}
             refreshClientSecret={refreshClientSecret}

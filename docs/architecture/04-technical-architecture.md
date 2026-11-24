@@ -25,7 +25,7 @@ baseline: 03-application-architecture.md v1.0 (validated 2026-10-07); 02 logical
 | TP-5 | **Stripe test mode is the only real external integration in V1.** Everything else runs as a mock or a local instance behind the same adapter. | A32 |
 | TP-6 | **Licence check by local `git clone`** of each candidate. The result is recorded in §4 with date and commit date. | brain rule 9 |
 | TP-7 | **Single master per data item.** Billing is master of invoices (numbering, PDF, e-mail); Stripe is master of accounts, KYC and payments. Data mastered by an external system is never copied as a source of truth — only identifiers and links are stored, plus a rebuildable read cache where lists or reports need it. | 2026-10-07; A6 / INT-428 2026-11-24 |
-| TP-8 | **API-first, contract-first.** Every interface is described by a versioned contract **before** it is implemented: OpenAPI 3.1 for the public and internal REST APIs, AsyncAPI 3 for the events. The contracts live in the repository, are reviewed like code, and are the single source for mocks, clients, validation and documentation. The web app and the project UI consume only the public API. | 2026-10-07 |
+| TP-8 | **API-first, contract-first.** Every interface is described by a versioned contract **before** it is implemented: OpenAPI 3.1 for the public and internal REST APIs, AsyncAPI 3 for domain events and the EWDS command channel, and JSON Schema for EWDS record topics. The contracts live in the repository, are reviewed like code, and are the single source for mocks, clients, validation and documentation. `/v1` serves the reference client (`apps/web`) only; the project UI uses EWDS records and commands (A7). | 2026-10-07; A7 |
 
 ## 2. Reuse map: what can replace custom code
 

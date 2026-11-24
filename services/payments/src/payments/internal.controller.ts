@@ -7,6 +7,7 @@ import {
   Inject,
   Param,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { ModuleAuthGuard } from "@intelligent/module-template";
@@ -31,6 +32,34 @@ export class InternalPaymentsController {
   @Get("payment-accounts/:participantId")
   getPaymentAccount(@Param("participantId") participantId: string) {
     return this.payments.getPaymentAccount(participantId);
+  }
+
+  /**
+   * REQ-013 / Task 3.18 — payment-account personal data for DSAR (service only).
+   */
+  @Get("payment-accounts/:participantId/personal-data")
+  @UseGuards(new ModuleAuthGuard({ roles: ["service"] }))
+  getPersonalData(@Param("participantId") participantId: string) {
+    return this.payments.getPersonalData(participantId);
+  }
+
+  /**
+   * REQ-013 / Task 3.18 — erase at PSP (service only).
+   * Optional `livemode=true` retains the Connect account under AML.
+   */
+  @Post(String.raw`payment-accounts/:participantId\:erase-at-psp`)
+  @HttpCode(200)
+  @UseGuards(new ModuleAuthGuard({ roles: ["service"] }))
+  eraseAtPsp(
+    @Param("participantId") participantId: string,
+    @Query("livemode") livemode?: string,
+    @Body() body?: { livemode?: boolean },
+  ) {
+    const live =
+      body?.livemode === true ||
+      livemode === "true" ||
+      livemode === "1";
+    return this.payments.eraseAtPsp(participantId, { livemode: live });
   }
 
   /** AC-14 RunAutoPayouts (REQ-015). */

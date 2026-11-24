@@ -4,10 +4,11 @@ import type {
   PersonalDataRecord,
   RetentionPolicy,
 } from "./types.js";
+import { DEFAULT_RETENTION_POLICY } from "./retention-config.js";
 
-/** Default V1 personal retention: 365 days after relationship end (REQ-011). */
+/** Default V1 retention (REQ-011 / REQ-013 / Task 3.23). */
 export const DEFAULT_RETENTION: RetentionPolicy = {
-  personalRetentionDays: 365,
+  ...DEFAULT_RETENTION_POLICY,
 };
 
 export class ComplianceStore {
@@ -16,6 +17,10 @@ export class ComplianceStore {
   private readonly personal = new Map<string, PersonalDataRecord>();
   private retention: RetentionPolicy = { ...DEFAULT_RETENTION };
 
+  constructor(initial?: RetentionPolicy) {
+    if (initial) this.retention = { ...initial };
+  }
+
   reset(): void {
     this.requests.clear();
     this.audits = [];
@@ -23,8 +28,8 @@ export class ComplianceStore {
     this.retention = { ...DEFAULT_RETENTION };
   }
 
-  setRetentionPolicy(policy: RetentionPolicy): void {
-    this.retention = { ...policy };
+  setRetentionPolicy(policy: Partial<RetentionPolicy>): void {
+    this.retention = { ...this.retention, ...policy };
   }
 
   getRetentionPolicy(): RetentionPolicy {
@@ -38,6 +43,18 @@ export class ComplianceStore {
   getRequest(requestId: string): DataSubjectRequest | undefined {
     const row = this.requests.get(requestId);
     return row ? structuredClone(row) : undefined;
+  }
+
+  /** Lookup by EWDS external request id (REQ-013 / Task 3.22 idempotency). */
+  findByExternalRequestId(
+    externalRequestId: string,
+  ): DataSubjectRequest | undefined {
+    for (const row of this.requests.values()) {
+      if (row.externalRequestId === externalRequestId) {
+        return structuredClone(row);
+      }
+    }
+    return undefined;
   }
 
   listRequests(): DataSubjectRequest[] {

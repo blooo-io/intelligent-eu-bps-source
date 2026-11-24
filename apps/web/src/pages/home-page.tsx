@@ -134,7 +134,12 @@ export function HomePage({
     };
   }, [config.apiBaseUrl, oidc]);
 
-  const next = homeNextAction(audience, me?.readiness, me?.role);
+  const next = homeNextAction(
+    audience,
+    me?.readiness,
+    me?.role,
+    me?.kycVerified,
+  );
 
   return (
     <PageFrame
@@ -160,7 +165,7 @@ export function HomePage({
         <Card title="Get ready" data-testid="home-setup">
           <Paragraph>{readinessHeadline(me.readiness)}</Paragraph>
           <List
-            dataSource={readinessChecklist(me.readiness)}
+            dataSource={readinessChecklist(me.readiness, me)}
             renderItem={(item) => (
               <List.Item>
                 <Space>

@@ -1,23 +1,40 @@
 # Adapters & integrations
 
-External systems are reached only through **adapter ports**. In V1, everything except the payment provider can run as a **mock** so you can develop and demo without partner backends.
+External systems are reached only through **adapter ports**, selected by environment variables (A8). In code and on chart defaults, everything except the payment provider can run as a **mock** so you can develop and demo without partner backends. Deployed environments switch EWDS adapters live (`deploy/envs/dev|demo`).
 
 ## Payment service provider (PSP)
 
 | Mode | When to use |
 |---|---|
-| Stripe test mode | Default V1 path — Connect onboarding, Invoicing, webhooks |
+| Stripe test mode | Default V1 path — Connect onboarding, charges, webhooks |
 | Mock PSP | Automated tests / offline demos |
 
-Implementations live under `services/payments` and `services/invoicing`. Point webhook endpoints at your public API gateway URL.
+Implementations live under `services/payments`. Point webhook endpoints at your public API gateway URL.
 
-## Local market & data space
+## Local market & data space (EWDS)
 
-Trade intake and publication talk to GSY DEX / EWDS through adapters. Ship-with mocks cover scenarios S1–S13 under `mocks/`. Replace with your Client Gateway when ready; keep message shapes aligned with the [EWDS topic schemas](/architecture/ewds-topics) (and AsyncAPI contracts). See also the [EWDS Client Gateway](/architecture/ewds-client-gateway) note.
+Trade intake and publication talk to GSY DEX / EWDS through adapters:
+
+| Port | Flag | Live path |
+|---|---|---|
+| Market (P-MKT) | `MARKET_ADAPTER` | EWDS request/reply on GSY channels |
+| Data space (P-DS) | `DATASPACE_ADAPTER` | Blooo Client Gateway publish / receive |
+| Actor intake | `ACTOR_SOURCE_ADAPTER` | EWDS Actor records |
+| Erasure intake | `ERASURE_SOURCE_ADAPTER` | EWDS erasure requests |
+| Tariff | `TARIFF_ADAPTER` | EWDS tariff records (or 0 until published) |
+| Command channel | `COMMAND_CHANNEL_ENABLED` | Project UI request/reply |
+
+Ship-with mocks cover scenarios S1–S13 under `mocks/`. The GSY off-chain storage REST adapter is a **test fixture only** — never a production backfill path (A8). Keep message shapes aligned with the [EWDS topic schemas](/architecture/ewds-topics) (and AsyncAPI contracts). See also the [EWDS Client Gateway](/architecture/ewds-client-gateway) note.
+
+### Command authorization (three layers)
+
+1. CGW channel role restriction on the billing commands channel.
+2. Sender DID allowlist + signature check.
+3. Actor role check against the participants registry.
 
 ## Identity
 
-The public API expects **OIDC bearer tokens**. The reference packaging uses Keycloak realms. Any IdP works if:
+The public `/v1` API (reference client `apps/web` only) expects **OIDC bearer tokens**. The project UI does not call `/v1`; it uses EWDS records and the command channel (A7). The reference packaging uses Keycloak realms. Any IdP works if:
 
 - Access tokens validate at the gateway
 - Claims used by the services (subject, roles, community) match the [public OpenAPI](https://github.com/blooo-io/intelligent-eu-bps-source/tree/develop/contracts/openapi) assumptions

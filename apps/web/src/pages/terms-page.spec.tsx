@@ -25,23 +25,42 @@ describe("TermsPage (INT-139 / UAT-062)", () => {
       getAccessToken: vi.fn().mockResolvedValue("tok"),
     };
 
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          termsVersion: "1.0",
-          text: "INTELLIGENT terms including self-billing.",
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          termsVersion: "1.0",
-          selfBillingMandate: true,
-          acceptedAt: "2026-10-17T12:00:00.000Z",
-        }),
-      });
+    const fetchImpl = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+      if (path.endsWith("/v1/me") && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            participantId: "p1",
+            communityId: "c1",
+            roles: ["member"],
+            role: "producer",
+            readiness: "ProfileCompleted",
+            profile: { name: "A", address: "B", email: "a@b.co" },
+          }),
+        };
+      }
+      if (path.endsWith("/v1/terms/current") && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            termsVersion: "1.0",
+            text: "INTELLIGENT terms including self-billing.",
+          }),
+        };
+      }
+      if (path.endsWith("/v1/me/terms-acceptance") && init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({
+            termsVersion: "1.0",
+            selfBillingMandate: true,
+            acceptedAt: "2026-10-17T12:00:00.000Z",
+          }),
+        };
+      }
+      return { ok: false, status: 404 };
+    });
     vi.stubGlobal("fetch", fetchImpl);
 
     render(

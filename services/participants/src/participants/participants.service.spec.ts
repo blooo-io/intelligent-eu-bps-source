@@ -2,12 +2,14 @@
  * INT-103 — AC-03 domain behaviour (REQ-008, REQ-009, REQ-012, REQ-050, REQ-058, BR-09).
  */
 import "reflect-metadata";
-import { beforeEach, describe, expect, it } from "vitest";
+import { Logger } from "@nestjs/common";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   InMemoryOutboxStore,
   OutboxService,
 } from "@intelligent/module-template";
 import { ParticipantsStore } from "../domain/store.js";
+import type { ParticipantRecord } from "../domain/types.js";
 import { MockIdpAdapter } from "../idp/mock-idp.adapter.js";
 import { ParticipantsService } from "./participants.service.js";
 import {
@@ -363,6 +365,7 @@ describe("ParticipantsService", () => {
     const participantId = "f69e6745-3bfe-49ad-b84e-0853aa86ad05";
     const before = store.getParticipant(participantId)!;
     expect(before.profile?.email).toContain("@");
+    const idpBefore = before.idpUserId!;
 
     const result = await service.applyErasureRequested({
       requestId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
@@ -373,6 +376,8 @@ describe("ParticipantsService", () => {
     const after = store.getParticipant(participantId)!;
     expect(after.profile?.email).toBe("[erased]");
     expect(after.idpUserId).toBeNull();
+    // Task 3.18 — IdP delete is eraseIdentity, not the local anonymization path.
+    expect(idp.deleted.has(idpBefore)).toBe(false);
 
     const events = await outboxStore.list();
     const completed = events.find((e) => e.event.type === "ErasureCompleted");
@@ -383,5 +388,114 @@ describe("ParticipantsService", () => {
       result: "completed",
     });
     expect(JSON.stringify(events)).not.toMatch(/@/);
+  });
+
+  it("REQ-013: personal-data returns profile, address, contact, consents", () => {
+    const participantId = "aaaaaaaa-1111-4111-8111-111111111111";
+    const fixture: ParticipantRecord = {
+      participantId,
+      communityId: S1_COMMUNITY_ID,
+      role: "consumer",
+      status: "TermsAccepted",
+      marketActorId: "mkt-ewds-lisboa",
+      meterId: "m-lisboa-1",
+      idpUserId: "bbbbbbbb-2222-4222-8222-222222222222",
+      profile: {
+        name: "Ana Silva",
+        address: "Rua Augusta 1, 1100-053 Lisboa, PT",
+        email: "ana.silva@example.invalid",
+      },
+      termsVersionAccepted: "v1.0.0",
+      selfBillingMandate: false,
+      paymentAccountReady: true,
+      paymentBlockReason: null,
+      source: "ewds",
+      postalAddress: {
+        street: "Rua Augusta 1",
+        postalCode: "1100-053",
+        city: "Lisboa",
+        country: "PT",
+      },
+      phone: "+351910000000",
+      termsAcceptedAt: "2026-11-20T12:00:00.000Z",
+      kycVerified: true,
+    };
+    store.putParticipant(fixture);
+
+    const data = service.getPersonalData(participantId);
+    expect(data).toEqual({
+      participantId,
+      communityId: S1_COMMUNITY_ID,
+      role: "consumer",
+      source: "ewds",
+      marketActorId: "mkt-ewds-lisboa",
+      meterId: "m-lisboa-1",
+      profile: {
+        name: "Ana Silva",
+        address: "Rua Augusta 1, 1100-053 Lisboa, PT",
+        email: "ana.silva@example.invalid",
+      },
+      postalAddress: {
+        street: "Rua Augusta 1",
+        postalCode: "1100-053",
+        city: "Lisboa",
+        country: "PT",
+      },
+      phone: "+351910000000",
+      idpUserId: "bbbbbbbb-2222-4222-8222-222222222222",
+      consents: {
+        termsVersion: "v1.0.0",
+        termsAcceptedAt: "2026-11-20T12:00:00.000Z",
+        selfBillingMandate: false,
+      },
+      readiness: "Ready",
+      kycVerified: true,
+    });
+  });
+
+  it("REQ-013: eraseIdentity deletes the Keycloak user, 404 counts as erased", async () => {
+    const [created] = await service.importParticipants(communityId, [
+      {
+        email: "erase-me@example.invalid",
+        marketActorId: "mkt-erase-1",
+        meterId: "m-erase-1",
+        role: "consumer",
+      },
+    ]);
+    const idpUserId = store.getParticipant(created.participantId)!.idpUserId!;
+    expect(idp.created.has(idpUserId)).toBe(true);
+
+    const first = await service.eraseIdentity(created.participantId);
+    expect(first.erased).toBe(true);
+    expect(idp.deleted.has(idpUserId)).toBe(true);
+
+    // Simulate Keycloak 404 for an already-deleted user.
+    idp.deleteUser = vi.fn(async () => {
+      throw Object.assign(new Error("Keycloak deleteUser failed with HTTP 404"), {
+        status: 404,
+      });
+    });
+    const second = await service.eraseIdentity(created.participantId);
+    expect(second.erased).toBe(true);
+  });
+
+  it("REQ-013: personal-data payload is never logged", () => {
+    const participantId = "f69e6745-3bfe-49ad-b84e-0853aa86ad05";
+    const email = store.getParticipant(participantId)!.profile!.email;
+    const logSpy = vi.spyOn(Logger.prototype, "log");
+    const warnSpy = vi.spyOn(Logger.prototype, "warn");
+    const errorSpy = vi.spyOn(Logger.prototype, "error");
+
+    service.getPersonalData(participantId);
+
+    const joined = [...logSpy.mock.calls, ...warnSpy.mock.calls, ...errorSpy.mock.calls]
+      .flat()
+      .map(String)
+      .join(" ");
+    expect(joined).not.toContain(email);
+    expect(joined).toContain(participantId);
+    logSpy.mockRestore();
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 });

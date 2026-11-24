@@ -115,6 +115,18 @@ describe("compliance HTTP (INT-111)", () => {
     });
     expect(retention.status).toBe(202);
     expect(await retention.json()).toMatchObject({ accepted: true });
+
+    const policyDenied = await fetch(`${base}/internal/v1/retention-policy`);
+    expect(policyDenied.status).toBe(401);
+    const policy = await fetch(`${base}/internal/v1/retention-policy`, {
+      headers: { "x-intelligent-roles": "service" },
+    });
+    expect(policy.status).toBe(200);
+    expect(await policy.json()).toMatchObject({
+      personalRetentionDays: 1,
+      invoiceRetentionYears: 10,
+      kycLogRetentionYears: 5,
+    });
   });
 
   const OTHER = "22222222-2222-4333-8444-555555555555";
@@ -205,6 +217,54 @@ describe("compliance HTTP (INT-111)", () => {
     });
     expect(sameManager.status).toBe(201);
     expect(await sameManager.json()).toMatchObject({ participantId: OTHER });
+  });
+
+  it("REQ-013 / REQ-049: peer of the same community gets 403 on export", async () => {
+    const created = await fetch(`${base}/v1/data-subject-requests`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "member",
+        "x-intelligent-sub": PARTICIPANT,
+        "x-intelligent-community": COMMUNITY,
+      },
+      body: JSON.stringify({ type: "export" }),
+    });
+    expect(created.status).toBe(201);
+    const body = (await created.json()) as { requestId: string };
+
+    const peerDenied = await fetch(
+      `${base}/v1/data-subject-requests/${body.requestId}/export`,
+      {
+        headers: {
+          "x-intelligent-roles": "member",
+          "x-intelligent-sub": OTHER,
+          "x-intelligent-community": COMMUNITY,
+        },
+      },
+    );
+    expect(peerDenied.status).toBe(403);
+
+    const owner = await fetch(
+      `${base}/v1/data-subject-requests/${body.requestId}/export`,
+      {
+        headers: {
+          "x-intelligent-roles": "member",
+          "x-intelligent-sub": PARTICIPANT,
+          "x-intelligent-community": COMMUNITY,
+        },
+      },
+    );
+    expect(owner.status).toBe(200);
+    expect(owner.headers.get("content-disposition")).toContain(
+      `attachment; filename="dsar-${body.requestId}.json"`,
+    );
+    const exported = (await owner.json()) as {
+      participant: { postalAddress?: { city?: string } };
+      invoices: unknown[];
+    };
+    expect(exported.participant.postalAddress?.city).toBe("Lisboa");
+    expect(exported.invoices).toHaveLength(3);
   });
 
   // INT-375 — IdP sub is not the registry participant id (INT-230).

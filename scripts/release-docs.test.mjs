@@ -90,3 +90,35 @@ test("INT-291 SonarQube quality note is linked", async () => {
   assert.match(sonar, /qualitygate\.wait/);
   assert.match(deploy, /sonarqube\.md/);
 });
+
+test("A7: public API is documented as the apps/web reference-client API only", async () => {
+  const publicApi = await readFile("contracts/openapi/public.v1.yaml", "utf8");
+  const tp = await readFile(
+    "docs/architecture/04-technical-architecture.md",
+    "utf8",
+  );
+  assert.match(publicApi, /reference client \(apps\/web\) only/);
+  assert.doesNotMatch(tp, /project UI consume only the public API/);
+});
+
+test("A8: configuration guide lists the real adapter flags", async () => {
+  const config = await readFile("apps/site/guide/configuration.md", "utf8");
+  for (const k of [
+    "MARKET_ADAPTER",
+    "DATASPACE_ADAPTER",
+    "ACTOR_SOURCE_ADAPTER",
+    "ERASURE_SOURCE_ADAPTER",
+    "TARIFF_ADAPTER",
+    "COMMAND_CHANNEL_ENABLED",
+  ]) {
+    assert.match(config, new RegExp(k));
+  }
+});
+
+test("A8: no production doc offers REST backfill to GSY", async () => {
+  const app = await readFile(
+    "docs/architecture/03-application-architecture.md",
+    "utf8",
+  );
+  assert.doesNotMatch(app, /\+ REST backfill/);
+});

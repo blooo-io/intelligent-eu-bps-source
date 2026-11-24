@@ -3,14 +3,18 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   Inject,
   NotFoundException,
   Param,
   Post,
   Req,
+  Res,
+  StreamableFile,
   UseGuards,
 } from "@nestjs/common";
+import type { Response } from "express";
 import {
   ModuleAuthGuard,
   type AuthenticatedRequest,
@@ -92,6 +96,44 @@ export class PublicComplianceController {
       communityId: user.communityId,
       roles: user.roles,
       selfParticipantId,
+    });
+  }
+
+  /**
+   * REQ-013 Art. 15/20 — download the machine-readable DSAR export (Task 3.20).
+   * Assembled on each GET; Content-Disposition attachment.
+   */
+  @Get("data-subject-requests/:id/export")
+  @Header("Cache-Control", "private, no-store")
+  @UseGuards(new ModuleAuthGuard({ roles: ["member", "dpo", "manager", "operator"] }))
+  async export(
+    @Param("id") id: string,
+    @Req() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const user = req.user!;
+    const memberOnly =
+      user.roles.includes("member") &&
+      !user.roles.includes("manager") &&
+      !user.roles.includes("dpo") &&
+      !user.roles.includes("operator");
+    const selfParticipantId = memberOnly
+      ? await this.memberParticipantId(user.sub, user.communityId)
+      : undefined;
+    const payload = await this.compliance.getExportForCaller(id, {
+      sub: user.sub,
+      communityId: user.communityId,
+      roles: user.roles,
+      selfParticipantId,
+    });
+    const body = Buffer.from(JSON.stringify(payload, null, 2), "utf8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="dsar-${id}.json"`,
+    );
+    return new StreamableFile(body, {
+      type: "application/json",
+      disposition: `attachment; filename="dsar-${id}.json"`,
     });
   }
 }

@@ -1,3 +1,12 @@
+/** INT-429 — Identity wizard step (Connect KYC for every participant role). */
+export function identitySetupIntroCopy(): string {
+  return "Verify your identity once with Stripe Connect. Identity documents go to Stripe only — this app never stores them.";
+}
+
+export function identitySetupStartLabel(): string {
+  return "Continue to identity verification";
+}
+
 export function paymentSetupPageTitle(
   asProsumer: boolean,
   asProducer: boolean,

@@ -36,7 +36,7 @@ Confirmed set: [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76).
 | UAT-045 | REQ-035 | Manual PKCE login on `app.dev` (S256 `code_challenge`; session after `/auth/callback`) |
 | UAT-046 | REQ-036 | `config.json` issuer/clientId only; OIDC secret via OpenBao ExternalSecret |
 | UAT-049 | NFR-011 | APISIX JWKS OIDC; forged foreign-issuer JWT → 401 on `/v1/me` |
-| UAT-068 | NFR-017 | V1 mock CG (A32) + cluster region `nl-ams` (EU) |
+| UAT-068 | NFR-017 | V1 mock CG (A32) + cluster region `nl-ams` (EU) — mock path until `*_ADAPTER=ewds` re-run |
 
 ## INT-80 batch (2026-10-18)
 

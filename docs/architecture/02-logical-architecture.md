@@ -171,14 +171,14 @@ Each port is a logical interface. Its V1 implementation follows decision A32: **
 
 | Port | Direction | Purpose | Real implementation (target) | **V1 implementation** |
 |---|---|---|---|---|
-| **P-MKT Market** | out → in | Get settled trades per time window (≤ 24 h), clearing results per market, markets (delivery period, community, mechanism) | GSY DEX via EWDS request/reply (`tradesQuery`, `clearingResultsQuery`, `marketsQuery`); GSY off-chain storage REST for backfill | **Mock**: fixture datasets (pairs, netting, threshold, unknown party, incomplete market, late trade, duplicate) |
+| **P-MKT Market** | out → in | Get settled trades per time window (≤ 24 h), clearing results per market, markets (delivery period, community, mechanism) | GSY DEX via EWDS request/reply (`tradesQuery`, `clearingResultsQuery`, `marketsQuery`); GSY off-chain storage REST is a **test fixture only** (A8) | **EWDS Client Gateway adapter** selected by `MARKET_ADAPTER` (mock default until EWAG grants roles) |
 | **P-DS Data space** | out | Publish `billingInvoice` / `billingPayment` messages; purge cached messages | EWDS Client Gateway (Blooo instance) | **Mock**: in-memory/broker stub that validates each message against the draft schemas and records it |
 | **P-PSP Payment provider** | out + in (events) | Producer account onboarding and KYC, consumer payment method, payment to producer's account, refunds; incoming provider events | Stripe (Connect, Identity, PaymentIntents, webhooks) | **Stripe test mode** (real integration) |
 | **P-IDP Identity provider** | out + in | Token validation and claims; account creation, invitation and erasure | Project IdP (Keycloak operated by Blooo, replaceable by a pilot OIDC IdP) | Local development instance |
 | **P-FX Rates** | out | EUR→CHF reference rate for a date | ECB reference rates | **Mock**: fixture table |
 | **P-MAIL Mail** | out | Send e-mails with attachments | Transactional mail service | Local mail catcher |
 | **P-KPI KPI export** | out | Deliver periodic billing exports for WP6 / GSY Analytics | Format/channel to agree (file or EWDS) | File export |
-| **Client API** | in | Used by the reference screens and the project UI | — | Real (Blooo reference screens) |
+| **Client API** | in | Used by the reference client (`apps/web`) only; the project UI uses EWDS records + command channel (A7) | — | Real (Blooo reference client) |
 
 ## 4. Internal interactions
 
@@ -187,8 +187,9 @@ Each port is a logical interface. Its V1 implementation follows decision A32: **
 | Event | Emitted by | Consumed by | Meaning |
 |---|---|---|---|
 | ParticipantOnboarded | LB-02 | LB-09 (invitation), LB-06 (create provider customer/account link) | Participant imported, account created |
-| ParticipantReadinessChanged | LB-02 (from LB-06 KYC status) | LB-05, LB-12 | Producer is or is no longer allowed to have invoices issued in their name |
+| ParticipantReadinessChanged | LB-02 (from LB-06 KYC status) | LB-05, LB-12 | Participant is or is no longer Ready (terms + KYC for every role) |
 | ParticipantOffboarded | LB-02 | LB-04 (force final settlement) | Participant left the community |
+| KycStatusChanged | LB-06 | LB-02, LB-08 (billingKycStatus), LB-14 | KYC / payout capability change for a participant or manager |
 | TradesIngested | LB-03 | LB-04 | New attributed trades available for a window |
 | IntakeAnomalyDetected | LB-03 | LB-07, LB-14, operator alert | Incomplete market, unknown party, intake stopped |
 | BillingRunCompleted | LB-04 | LB-05 | Pair settlements of a run (or of an early settlement) ready to invoice |
@@ -204,7 +205,7 @@ Each port is a logical interface. Its V1 implementation follows decision A32: **
 | GetCommunitySettings(communityId) | LB-04 → LB-02 | Currency, period, threshold, VAT, mode |
 | GetRate(currency, date) | LB-04 → LB-11 | Exchange rate |
 | GetUnbilledTrades(pair, until) | LB-04 → LB-03 | Trades for a settlement or an early settlement |
-| CheckReadiness(producerId) | LB-05 → LB-02 | Terms + KYC OK before issuing |
+| CheckReadiness(participantId) | LB-05 → LB-02 | Terms + KYC OK (every role) before issuing |
 | RequestEarlySettlement(consumer, producer) | LB-12 → LB-04 | Early settlement on demand |
 | PayInvoice(invoiceId) | LB-12 → LB-06 | Start payment of an invoice |
 | ChangeInvoiceStatus(invoiceId, status, reason) | LB-12 → LB-05 | Manual status change by the community manager |
@@ -318,20 +319,22 @@ stateDiagram-v2
   refunded --> [*]
 ```
 
-### Participant readiness (gates invoicing in a producer's name)
+### Participant readiness (gates invoicing and payment — KYC for all roles)
 
 ```mermaid
 %% elk %%
 stateDiagram-v2
-  [*] --> Invited: imported by manager
+  [*] --> Invited: imported by manager or EWDS Actor
   Invited --> ProfileCompleted: login, profile
-  ProfileCompleted --> TermsAccepted: terms (+ self-billing mandate)
-  TermsAccepted --> Ready: consumer has payment method / producer KYC verified
+  ProfileCompleted --> TermsAccepted: terms (+ self-billing mandate for producers)
+  TermsAccepted --> Ready: KYC verified (Connect for every role; Identity for managers) and payment method when buying
   Ready --> Restricted: KYC revoked or payment method removed
   Restricted --> Ready: resolved
   Ready --> Offboarded: left community (final settlement)
   Offboarded --> [*]
 ```
+
+Retention (LB-10, REQ-011): personal cache anonymized after `personalRetentionDays` (default 365); invoice identifiers kept for `invoiceRetentionYears` (6–10, default 10); KYC audit log kept for `kycLogRetentionYears` (at least 5, default 5).
 
 ### Billing run
 `Scheduled → Collecting (intake) → Computing → Completed`, or `→ Failed` (retryable). A rerun for the same community and period creates a new **version**, and earlier versions are kept (LP-5).

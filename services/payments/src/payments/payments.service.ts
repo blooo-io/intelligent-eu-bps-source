@@ -19,6 +19,7 @@ import { CLOCK, type Clock } from "../domain/clock.js";
 import {
   PaymentsStore,
   type AccountRecord,
+  type KycLogEntry,
   type PaymentRecord,
 } from "../domain/store.js";
 import type { JournalWrite } from "../persistence/payment-journal.js";
@@ -68,6 +69,23 @@ type OnboardingSession = LegacyOnboardingSession;
 const PRODUCER = "AC-07";
 
 type ProvisionRole = "consumer" | "producer" | "prosumer";
+
+/** REQ-013 — payment-account personal data for DSAR (never logged). */
+export type PaymentAccountPersonalData = {
+  participantId: string;
+  pspAccountRef: string | null;
+  paymentMethodPresent: boolean;
+  kycStatus: "none" | "pending" | "verified" | "rejected";
+  kycVerified: boolean;
+  kycVerifiedAt: string | null;
+  payoutAccountVerified: boolean;
+  kycLog: KycLogEntry[];
+};
+
+export type EraseAtPspResult = {
+  outcome: "erased" | "retained_by_psp" | "nothing_to_erase";
+  reason?: "aml_legal_obligation";
+};
 
 export type PayInvoiceInput = {
   invoiceId: string;
@@ -1219,29 +1237,82 @@ export class PaymentsService {
   }
 
   /**
-   * REQ-013 / INT-275 — clear local payment-method cache, PSP erase (test mode), ErasureCompleted.
+   * REQ-013 / Task 3.18 — payment-account personal data for DSAR (service-role).
+   * Never logs the payload (NFR-015).
+   */
+  async getPersonalData(
+    participantId: string,
+  ): Promise<PaymentAccountPersonalData> {
+    const account = await this.hydrateAccount(participantId);
+    if (!account) {
+      throw new NotFoundException(`Unknown payment account ${participantId}`);
+    }
+    this.logger.log(
+      `payment personal-data requested for participantId=${participantId}`,
+    );
+    const kycStatus = normalizeKycStatus(account.kycStatus);
+    const kycVerified =
+      account.kycVerified ?? kycStatus === "verified";
+    return {
+      participantId: account.participantId,
+      pspAccountRef: account.pspAccountRef,
+      paymentMethodPresent: Boolean(account.pspPaymentMethodRef),
+      kycStatus,
+      kycVerified,
+      kycVerifiedAt: account.kycVerifiedAt ?? null,
+      payoutAccountVerified: account.payoutAccountVerified ?? false,
+      kycLog: account.kycLog ? account.kycLog.map((e) => ({ ...e })) : [],
+    };
+  }
+
+  /**
+   * REQ-013 / Task 3.18 — erase customers / Connect account at the PSP.
+   * Connected-customers store was removed in INT-428; `connectedCustomers`
+   * is therefore empty unless a future path reintroduces linked refs.
+   * Live mode retains the Connect account (`retained_by_psp`).
+   */
+  async eraseAtPsp(
+    participantId: string,
+    options?: { livemode?: boolean },
+  ): Promise<EraseAtPspResult> {
+    const account = await this.hydrateAccount(participantId);
+    if (!account) {
+      throw new NotFoundException(`Unknown payment account ${participantId}`);
+    }
+    const platformCustomerIds = [...(account.platformCustomerIds ?? [])];
+    // INT-428 — connected-customers store deleted; may be empty.
+    const connectedCustomers: { accountRef: string; customerRef: string }[] =
+      [];
+    const livemode = options?.livemode === true;
+    const result = await this.pspErase.erase({
+      requestId: randomUUID(),
+      participantId,
+      pspAccountRef: account.pspAccountRef ?? undefined,
+      platformCustomerIds,
+      connectedCustomers,
+      livemode,
+    });
+    return {
+      outcome: result.outcome,
+      ...(result.reason ? { reason: result.reason } : {}),
+    };
+  }
+
+  /**
+   * REQ-013 / INT-275 — clear local payment-method cache; emit ErasureCompleted.
+   * PSP erase is {@link eraseAtPsp} (Task 3.18) — called by AC-12 separately.
    */
   async applyErasureRequested(input: {
     requestId: string;
     participantId: string;
   }): Promise<{ result: "completed" | "failed" }> {
     const account = await this.hydrateAccount(input.participantId);
-    let result: "completed" | "failed" = "completed";
-    if (account?.pspAccountRef) {
-      try {
-        await this.pspErase.erase({
-          requestId: input.requestId,
-          participantId: input.participantId,
-          pspAccountRef: account.pspAccountRef,
-        });
-      } catch {
-        result = "failed";
-      }
-    }
+    const result: "completed" | "failed" = "completed";
     if (account) {
       await this.saveAccount({
         ...account,
         pspPaymentMethodRef: null,
+        platformCustomerIds: [],
       });
     }
     const communityId =
@@ -1261,4 +1332,18 @@ export class PaymentsService {
     });
     return { result };
   }
+}
+
+function normalizeKycStatus(
+  status: string,
+): PaymentAccountPersonalData["kycStatus"] {
+  if (
+    status === "none" ||
+    status === "pending" ||
+    status === "verified" ||
+    status === "rejected"
+  ) {
+    return status;
+  }
+  return "none";
 }

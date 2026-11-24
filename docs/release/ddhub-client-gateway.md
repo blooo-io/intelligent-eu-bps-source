@@ -26,6 +26,7 @@ Flags: `MTLS_ENABLED=true` (INT-309, after the EWF-signed client certificate was
 |---|---|
 | CNPG + ESO Password → Secret `ddhub` | `username` / `password` (role) |
 | OpenBao `platform/ddhub` | `vault_token` (CG → OpenBao for DID keys) |
+| OpenBao `ddhub/api-key` | `CGW_API_KEY` placeholder for billing modules (INT-429; real key with INT-309) |
 | ExternalSecret → `ddhub-client-gateway-secret` | `DB_NAME` (URI), `VAULT_TOKEN` |
 
 Never commit secret values.

@@ -26,6 +26,15 @@ export class InvoicingController {
     return this.invoicing.getInvoice(invoiceId);
   }
 
+  /**
+   * REQ-013 / Task 3.19 — DSAR export: invoices where the participant is
+   * issuer (producer) or addressee (consumer).
+   */
+  @Get("participants/:participantId/invoices")
+  listParticipantInvoices(@Param("participantId") participantId: string) {
+    return this.invoicing.listForParticipant(participantId);
+  }
+
   /** INT-238 — poll invoice created by NATS SettlementCompleted (or bridge). */
   @Get(String.raw`invoices\:by-settlement/:settlementId`)
   getInvoiceBySettlement(@Param("settlementId") settlementId: string) {

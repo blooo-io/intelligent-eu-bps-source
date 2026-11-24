@@ -9,7 +9,11 @@ import {
 } from "@intelligent/module-template";
 import { StatementStore } from "../domain/statement-store.js";
 import { InvoiceStore } from "../domain/store.js";
-import type { InvoiceStatus, PairSettlementInput } from "../domain/types.js";
+import type {
+  InvoiceRecord,
+  InvoiceStatus,
+  PairSettlementInput,
+} from "../domain/types.js";
 import type { ParticipantsResolverPort } from "../ports/participants-resolver.port.js";
 import { NoopParticipantsResolver } from "../ports/participants-resolver.port.js";
 import { MapReadiness } from "../ports/readiness.port.js";
@@ -397,5 +401,57 @@ describe("InvoicingService", () => {
     expect(
       store.get(invoice.invoiceId)?.reminders.every((r) => r.trigger === "scheduled"),
     ).toBe(true);
+  });
+
+  it("REQ-013: lists invoices where the participant is issuer or addressee", async () => {
+    // 2 as producer (issuer) + 1 as consumer (addressee), ordered by period.
+    const P = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const row = (
+      invoiceId: string,
+      consumerId: string,
+      producerId: string,
+      period: string,
+    ): InvoiceRecord => ({
+      invoiceId,
+      settlementId: `s-${invoiceId}`,
+      runId: "R-dsar",
+      period,
+      periodFrom: `${period}-01T00:00:00.000Z`,
+      periodUntil: `${period}-28T00:00:00.000Z`,
+      producerId,
+      consumerId,
+      currency: "EUR",
+      status: "Open",
+      total: "10.00",
+      tradeIds: [],
+      lines: [],
+      legalNumber: producerId === P ? `SB-${period}` : null,
+      energyAmount: "10.00",
+      vatAmount: "0.00",
+      dueDate: `${period}-28`,
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+      statusAudit: [],
+      reminders: [],
+    });
+    store.put(row("inv-p1", "cccc1111-1111-4111-8111-111111111111", P, "2026-01"));
+    store.put(row("inv-p2", "cccc2222-2222-4222-8222-222222222222", P, "2026-02"));
+    store.put(row("inv-c1", P, "dddd3333-3333-4333-8333-333333333333", "2026-03"));
+
+    const rows = await service.listForParticipant(P);
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => r.partyRole)).toEqual([
+      "issuer",
+      "issuer",
+      "addressee",
+    ]);
+    expect(rows.map((r) => r.period)).toEqual(["2026-01", "2026-02", "2026-03"]);
+    expect(rows[0]).toMatchObject({
+      invoiceId: "inv-p1",
+      legalNumber: "SB-2026-01",
+      total: "10.00",
+      currency: "EUR",
+      status: "Open",
+      issuedAt: null,
+    });
   });
 });

@@ -13,9 +13,22 @@ Modules are configured through **environment variables** and Kubernetes values. 
 | Stripe | `STRIPE_SECRET_KEY`, webhook secret | Test mode for V1 |
 | NATS | `NATS_URL` | JetStream enabled |
 | Temporal | Host / namespace | Scheduler workers |
-| Adapter mode | e.g. `PSP_PROVIDER`, market/EWDS flags | `mock` vs real implementation |
+| CGW | `CGW_BASE_URL`, `CGW_API_KEY` (OpenBao) | Never inline the API key in Helm values |
 
 Exact keys live in each chart’s `values.yaml` and module README under `services/<module>/`.
+
+## EWDS adapter flags (A8)
+
+| Variable | Values | Default (code / chart) | Deployed envs |
+|---|---|---|---|
+| `MARKET_ADAPTER` | `mock` \| `ewds` | `mock` | `ewds` |
+| `DATASPACE_ADAPTER` | `mock` \| `ewds` | `mock` | `ewds` |
+| `ACTOR_SOURCE_ADAPTER` | `mock` \| `ewds` | `mock` | `ewds` |
+| `ERASURE_SOURCE_ADAPTER` | `mock` \| `ewds` | `mock` | `ewds` |
+| `TARIFF_ADAPTER` | `mock` \| `ewds` | `mock` | `ewds` |
+| `COMMAND_CHANNEL_ENABLED` | `true` \| `false` | `false` | `true` |
+
+Any other value fails at boot. Local development and unit tests keep the mock defaults. See [Adapters](./adapters).
 
 ## Per-environment values
 
@@ -27,14 +40,15 @@ Copy the structure of `deploy/envs/` as a starting point:
 
 ## Web app config
 
-The reference UI loads a small JSON config (API base URL, OIDC client settings). Generate it from your chart or ConfigMap so the same image can run in multiple environments.
+The reference UI loads a small JSON config (API base URL, OIDC client settings). Generate it from your chart or ConfigMap so the same image can run in multiple environments. `/v1` is for this reference client only; the project UI uses EWDS.
 
 ## Feature and adapter switches
 
 Business integrations are behind **ports** (hexagonal adapters). Prefer configuration to select:
 
 - Stripe vs mock PSP
-- Mock market / EWDS vs real gateways
+- Mock market / EWDS vs real Client Gateway (`MARKET_ADAPTER`, `DATASPACE_ADAPTER`, …)
+- Command channel on/off (`COMMAND_CHANNEL_ENABLED`)
 - Mail catcher vs real SMTP
 
 See [Adapters](./adapters).

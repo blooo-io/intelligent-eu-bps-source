@@ -13,6 +13,7 @@ import { ProfilePage } from "./pages/profile-page";
 import { TermsPage } from "./pages/terms-page";
 import { PaymentSetupPage } from "./pages/payment-setup-page";
 import { OnboardingWizardPage } from "./pages/onboarding-wizard-page";
+import { ManagerVerificationPage } from "./pages/manager-verification-page";
 import { BalancesPage } from "./pages/balances-page";
 import { InvoicesPage } from "./pages/invoices-page";
 import { StatementsPage } from "./pages/statements-page";
@@ -73,6 +74,10 @@ export function App({
                   <Route
                     path="onboarding"
                     element={<OnboardingWizardPage config={config} oidc={oidc} />}
+                  />
+                  <Route
+                    path="manager/verification"
+                    element={<ManagerVerificationPage config={config} oidc={oidc} />}
                   />
                   <Route path="balances" element={<BalancesPage config={config} oidc={oidc} />} />
                   <Route path="invoices" element={<InvoicesPage config={config} oidc={oidc} />} />

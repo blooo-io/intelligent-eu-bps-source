@@ -1,22 +1,36 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import type { WebConfig } from "../api/config";
-import { fetchMe, type Me, type ReadinessStatus } from "../api/me";
+import { fetchMe, type Me } from "../api/me";
 import type { OidcFacade } from "../auth/oidc";
 
-const STEP_KEYS = ["profile", "terms", "payment"] as const;
+const STEP_KEYS = ["profile", "terms", "identity", "payment"] as const;
 export type WizardStepKey = (typeof STEP_KEYS)[number];
 
-export function stepFromReadiness(status: ReadinessStatus): WizardStepKey {
-  switch (status) {
+/** Producer finishes after Identity (Connect KYC); buyers still need a card. */
+export function wizardIncludesPaymentStep(
+  role: Me["role"] | undefined | null,
+): boolean {
+  return role !== "producer";
+}
+
+/**
+ * Map readiness + KYC to the next wizard step (INT-429 / REQ-051).
+ * TermsAccepted && !kycVerified → identity for every participant role.
+ */
+export function stepFromReadiness(me: Me): WizardStepKey {
+  switch (me.readiness) {
     case "Invited":
       return "profile";
     case "ProfileCompleted":
       return "terms";
     case "TermsAccepted":
-      return "payment";
+      if (!me.kycVerified) {
+        return "identity";
+      }
+      return wizardIncludesPaymentStep(me.role) ? "payment" : "identity";
     case "Ready":
-      return "payment";
+      return wizardIncludesPaymentStep(me.role) ? "payment" : "identity";
     default:
       return "profile";
   }
@@ -77,7 +91,7 @@ export function useOnboardingWizard(config: WebConfig, oidc: OidcFacade) {
     setParams({ step: "payment" }, { replace: true });
   }, [params, me?.readiness, navigate, setParams]);
 
-  const suggested = me ? stepFromReadiness(me.readiness) : "profile";
+  const suggested = me ? stepFromReadiness(me) : "profile";
   const current = resolveCurrentStep(params.get("step"), suggested);
 
   function go(step: WizardStepKey) {
@@ -92,11 +106,13 @@ export function useOnboardingWizard(config: WebConfig, oidc: OidcFacade) {
         navigate("/invoices");
         return;
       }
-      go(stepFromReadiness(next.readiness));
+      go(stepFromReadiness(next));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refresh failed");
     }
   }
+
+  const totalSteps = wizardIncludesPaymentStep(me?.role) ? 4 : 3;
 
   return {
     me,
@@ -104,6 +120,7 @@ export function useOnboardingWizard(config: WebConfig, oidc: OidcFacade) {
     loading,
     current,
     stepNumber: stepIndex(current) + 1,
+    totalSteps,
     go,
     afterGate,
   };

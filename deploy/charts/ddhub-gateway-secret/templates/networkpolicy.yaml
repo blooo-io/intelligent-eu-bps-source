@@ -2,6 +2,10 @@
   INT-308 — egress for DDHub CG API + scheduler pods.
   Hostname allow-list (ddhub-ewc / rpc / identitycache) needs FQDN policy (Cilium);
   Phase 1 allows DNS + Postgres + OpenBao + HTTPS/TCP 443. Confirm RPC hosts with EWAG.
+
+  INT-429 / NFR-017 — ingress to CGW API :3333 only from pods labelled ewds-client: "true"
+  in the billing apps namespaces (int-apps / demo-apps). Modules that talk to int-data
+  carry the label via chart value ewdsClient: true.
 */ -}}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -17,10 +21,17 @@ spec:
   policyTypes:
     - Ingress
     - Egress
-  # No public Ingress in Phase 1; cluster-internal callers only (Billing later).
+  # Cluster-internal EWDS clients only (no public Ingress).
   ingress:
     - from:
-        - namespaceSelector: {}
+        {{- range .Values.ewdsClientNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . }}
+          podSelector:
+            matchLabels:
+              ewds-client: "true"
+        {{- end }}
       ports:
         - port: 3333
           protocol: TCP

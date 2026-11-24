@@ -15,8 +15,11 @@ ingressFrom:
   - settlement
 keycloakEgress: true
 stripeEgress: false
+# INT-429 / NFR-017 — DDHub CGW client (label + CGW_API_KEY secretKeyRef via module template).
+ewdsClient: true
 # INT-232 — ingest S1 window on boot so settlement HttpTradeSource is non-empty.
 # INT-237 — HttpPartyResolver → AC-03 ResolveParty (leave unset for FixturePartyResolver).
+# A8 — chart defaults stay mock; deploy/envs overlays switch adapters live (A8-live).
 env:
   KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
   # INT-348 — JWT iss is public KC_HOSTNAME (INT-345); JWKS stays on KEYCLOAK_BASE_URL.
@@ -29,3 +32,10 @@ env:
   SERVICE_JWT_REQUIRED: "true"
   INTAKE_BOOTSTRAP_S1: "true"
   PARTICIPANTS_INTERNAL_URL: http://participants:8080
+  CGW_BASE_URL: http://ddhub-client-gateway.ddhub.svc.cluster.local
+  MARKET_ADAPTER: mock
+  DATASPACE_ADAPTER: mock
+  ACTOR_SOURCE_ADAPTER: mock
+  ERASURE_SOURCE_ADAPTER: mock
+  TARIFF_ADAPTER: mock
+  COMMAND_CHANNEL_ENABLED: "false"

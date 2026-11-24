@@ -93,3 +93,18 @@ export type InvoiceRecord = {
   /** REQ-061 — reminders already sent (manual + scheduled). */
   reminders: InvoiceReminder[];
 };
+
+/**
+ * REQ-013 / Task 3.19 — DSAR invoice row (issuer or addressee).
+ * Identifiers and amounts only; no personal data.
+ */
+export type InvoiceSummary = {
+  invoiceId: string;
+  legalNumber: string | null;
+  period: string;
+  partyRole: "issuer" | "addressee";
+  total: string;
+  currency: string;
+  status: string;
+  issuedAt: string | null;
+};

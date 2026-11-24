@@ -114,6 +114,88 @@ test("DDHub values keep Phase 1 auth off and secret refs only", async () => {
   assert.equal(db.includes("platform/ddhub"), false);
 });
 
+test("REQ-053: CGW cleanup cron enabled", async () => {
+  const values = await readFile(
+    "deploy/platform/ddhub-client-gateway/values.yaml",
+    "utf8",
+  );
+  assert.match(values, /CLEANUP_MESSAGES_CRON_ENABLED:\s*"true"/);
+  const chartDefaults = await readFile(
+    "deploy/charts/ddhub-client-gateway/values.yaml",
+    "utf8",
+  );
+  assert.match(chartDefaults, /CLEANUP_MESSAGES_CRON_ENABLED:\s*"true"/);
+});
+
+test("NFR-017: module charts never inline CGW_API_KEY", async () => {
+  for (const m of [
+    "trade-intake",
+    "publication",
+    "participants",
+    "compliance",
+    "reference-data",
+  ]) {
+    const text = await readFile(`deploy/charts/${m}/values.yaml`, "utf8");
+    assert.ok(
+      !/CGW_API_KEY:\s*\S/.test(text),
+      `${m} must not inline CGW_API_KEY`,
+    );
+    assert.match(text, /ewdsClient:\s*true/);
+    assert.match(
+      text,
+      /CGW_BASE_URL:\s*http:\/\/ddhub-client-gateway\.ddhub\.svc\.cluster\.local/,
+    );
+  }
+  const tpl = await readFile(
+    "deploy/charts/module/templates/_resources.tpl",
+    "utf8",
+  );
+  assert.match(tpl, /secretKeyRef:[\s\S]*CGW_API_KEY/);
+  assert.match(tpl, /key:\s*ddhub\/api-key/);
+});
+
+test("A8: every adapter env var is mock in dev values", async () => {
+  const adapters = [
+    "MARKET_ADAPTER",
+    "DATASPACE_ADAPTER",
+    "ACTOR_SOURCE_ADAPTER",
+    "ERASURE_SOURCE_ADAPTER",
+    "TARIFF_ADAPTER",
+  ];
+  for (const m of [
+    "trade-intake",
+    "publication",
+    "participants",
+    "compliance",
+    "reference-data",
+  ]) {
+    const text = await readFile(`deploy/charts/${m}/values.yaml`, "utf8");
+    for (const key of adapters) {
+      assert.match(text, new RegExp(`${key}:\\s*mock`));
+    }
+    assert.match(text, /COMMAND_CHANNEL_ENABLED:\s*"false"/);
+  }
+});
+
+test("NFR-017: CGW API not reachable from pods without ewds-client label", async () => {
+  const np = await readFile(
+    "deploy/charts/ddhub-gateway-secret/templates/networkpolicy.yaml",
+    "utf8",
+  );
+  assert.match(np, /ewds-client:\s*"true"/);
+  assert.match(np, /port:\s*3333/);
+  // Ingress must not allow empty namespaceSelector alone (would open the API).
+  assert.equal(
+    /ingress:[\s\S]*namespaceSelector:\s*\{\s*\}/.test(np),
+    false,
+  );
+  const tpl = await readFile(
+    "deploy/charts/module/templates/_resources.tpl",
+    "utf8",
+  );
+  assert.match(tpl, /ewds-client:\s*"true"/);
+});
+
 test("platform README, release docs and TP-2 cover DDHub CG (INT-308)", async () => {
   const readme = await readFile("deploy/platform/README.md", "utf8");
   assert.match(readme, /INT-308/);

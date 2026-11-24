@@ -12,3 +12,15 @@ export {
   type RequestEnvelope,
   type ResponseEnvelope,
 } from "./request-reply.js";
+export {
+  InMemoryInboundStore,
+  MAX_RETENTION_MS,
+  PgInboundStore,
+  type InboundMessageStore,
+  type InboundRecord,
+} from "./inbound-store.js";
+export { EwdsTopicConsumer } from "./topic-consumer.js";
+export {
+  createTopicValidator,
+  type EwdsTopicName,
+} from "./topic-validator.js";

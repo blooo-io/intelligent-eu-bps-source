@@ -62,12 +62,24 @@
 - Test: an authenticated public API e2e suite runs on the deployed stack and fails unless every public operation is covered (INT-394).
 - Platform: Argo CD reports `platform-kyverno` Synced, with labels and annotations rendered on the Kyverno policy CRDs (INT-396). NATS, CNPG and Kyverno fixes from INT-377 to INT-384.
 
+## GDPR retention (REQ-011 / REQ-013)
+
+| Data class | Default | Config | Notes |
+|---|---|---|---|
+| Personal cache (AC-12 projection) | 365 days after relationship end | `RETENTION_PERSONAL_DAYS` | Anonymized by ApplyRetention; no names/emails stored |
+| Invoice identifiers / legal archives | 10 years | `RETENTION_INVOICE_YEARS` (6–10) | Kept after erasure; `retainedUntil` = 31 Dec of issue year + years |
+| KYC audit log | 5 years | `RETENTION_KYC_LOG_YEARS` (≥ 5) | Identifiers and status only |
+
+## Stripe live-mode erasure limit (REQ-013 / B5)
+
+In **live** mode, AC-07 erase-at-psp does **not** delete the Connect account. Stripe keeps KYC data as an independent controller under AML law. The outcome reported to AC-12 is `retained_by_psp` with reason `aml_legal_obligation`. Test mode still deletes Connect accounts and customers.
+
 ## Known limitations (V1)
 
 | Area | Limitation |
 |---|---|
-| Billing mode | Every community is **virtual**; no live community settlement |
-| Payments | **Stripe test mode only** — no live charges or bank payouts in production sense |
+| Billing mode | **Per community** live or virtual (REQ-043); A22 "all virtual" withdrawn. First live community: Greenvolt |
+| Payments | Stripe **test or live** keys selected by community billingMode; live charges only for live communities |
 | Market / data space / FX | GSY DEX, EWDS Client Gateway and ECB are **mocked** (assumption A32) |
 | Crypto / AMM / stablecoin | Out of D5.5 scope (deferred to D5.10) |
 | Grid fees / taxes on P2P invoices | Not on P2P invoice body lines where A20 applies; tariff components published on EWDS when present (INT-428 / REQ-004 mapping). Full UAT-004 mock-tariff Pass pending WS4 |

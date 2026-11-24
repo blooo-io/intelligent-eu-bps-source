@@ -266,7 +266,10 @@ Inbound integration endpoint, not part of the public API: `POST /webhooks/paymen
 | GetRate(currency, date), GetVatRate(communityId) | AC-13 | AC-05 |
 | GetPairSettlement(settlementId) | AC-05 | AC-06 |
 | GetInvoice(invoiceId) (amounts, legalNumber; no Stripe invoice id) | AC-06 | AC-07 |
-| StartRun / RefreshIntake / MarkOverdue / Reconcile / PurgeCache / ApplyRetention / FetchRates … | owning module | AC-14 |
+| GetKycStatus(subjectId) | AC-07 | AC-03, AC-06, guards |
+| ApplyRetention / GetRetentionPolicy | AC-12 | AC-14; operators / peers |
+| erase-identity / erase-at-psp | AC-03 / AC-07 | AC-12 (DSAR erasure) |
+| StartRun / RefreshIntake / MarkOverdue / Reconcile / PurgeCache / FetchRates … | owning module | AC-14 |
 
 ## 4. Event catalogue
 
@@ -290,6 +293,7 @@ Inbound integration endpoint, not part of the public API: `POST /webhooks/paymen
 | InvoiceIssued | AC-06 | AC-07, AC-08, AC-09, AC-10, AC-11 | invoiceId, issuer, recipient, settlementId, period bounds, settlement type, amounts, energy, VAT rate, currency, tradeIds |
 | InvoiceStatusChanged | AC-06 | AC-08, AC-09, AC-10 | invoiceId, status, reason, outstanding |
 | PaymentStatusChanged | AC-07 | AC-06, AC-08, AC-09, AC-10, AC-11 | paymentId, invoiceId, payerId, payeeId, status, failureCategory |
+| KycStatusChanged | AC-07 | AC-03, AC-10 (billingKycStatus), AC-09 | subjectId, subjectType, kycStatus, kycVerified, method, payoutAccountVerified |
 | DiscrepancyDetected | AC-08 | AC-09, AC-11 (operator alert) | scope, expected, actual |
 | ErasureRequested | AC-12 | AC-03, AC-06, AC-07 | requestId, participantId |
 | ErasureCompleted | AC-03, AC-06, AC-07 | AC-12 | requestId, module, result |
@@ -376,8 +380,8 @@ Every adapter implements one logical port behind a stable interface. Switching f
 | Market adapter (AC-04) | P-MKT | queryTrades(window), queryClearingResults(marketId), queryMarkets(window) | `MARKET_ADAPTER=mock\|ewds` (mock default) | EWDS request/reply on GSY channels; GSY off-chain REST is a **test fixture only** (A8) |
 | Data-space adapter (AC-10) | P-DS | publish(topic, message), purgeCache(before) | `DATASPACE_ADAPTER=mock\|ewds` (mock default) | Blooo EWDS Client Gateway |
 | Command channel (AC-10) | P-CMD | poll commands, authorize, dispatch, reply | `COMMAND_CHANNEL_ENABLED=true\|false` (default false) | Three-layer auth: CGW channel role → sender DID allowlist + signature → actor role |
-| Actor intake (AC-03) | P-ACTOR | receive Actor records | `ACTOR_SOURCE_ADAPTER=mock\|ewds` (mock default) | EWDS subscriber |
-| Erasure intake (AC-12) | P-ERASURE | receive erasure requests | `ERASURE_SOURCE_ADAPTER=mock\|ewds` (mock default) | EWDS subscriber |
+| Actor intake (AC-03) | P-ACTOR-SRC | receive Actor records | `ACTOR_SOURCE=mock\|ewds` (mock default; `ewds` in deployed envs) | EWDS subscriber (`ActorSourcePort`) |
+| Erasure intake (AC-12) | P-ERASURE-REQ | receive erasure requests; reportOutcome | `ERASURE_REQUEST_SOURCE=mock\|ewds\|none` (default none; mock in tests; `ewds` in WS4) | EWDS subscriber (`ErasureRequestPort`) |
 | Tariff adapter (AC-13) | P-TARIFF | getTariff(communityId, at) | `TARIFF_ADAPTER=mock\|ewds` (mock default) | EWDS when DSO publishes; else 0 |
 | Payment adapter (AC-07) | P-PSP | KycOnboardingPort, CollectPort (direct charge / hosted Checkout on the producer account), PayoutPort, PspEventsPort | **Stripe** test or live per community | — |
 | IdP admin adapter (AC-03) + token validation (AC-02) | P-IDP | createUser, sendInvitation, deleteUser; validateToken | Keycloak, local instance | Project IdP (Blooo-operated) or pilot OIDC IdP |

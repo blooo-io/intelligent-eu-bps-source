@@ -28,3 +28,12 @@ test("UAT-042 / NFR-010 — every in-scope REQ/NFR has a linked UAT with status"
   }
   assert.deepEqual(missing, [], `REQ/NFR without in-scope UAT: ${missing.join(", ")}`);
 });
+
+test("WS3: KycStatusChanged documented in 03 event catalogue", async () => {
+  const body = await readFile(
+    "docs/architecture/03-application-architecture.md",
+    "utf8",
+  );
+  assert.match(body, /KycStatusChanged/);
+  assert.match(body, /P-ERASURE-REQ/);
+});

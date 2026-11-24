@@ -20,10 +20,10 @@ The Billing & Payment Service (T5.6, deliverable D5.5) turns the energy trades s
 | In scope for D5.5 V1 | Out of scope for D5.5 |
 |---|---|
 | Peer-to-peer invoices between consumers and producers for energy traded on the local market | Grid fees, taxes and levies of suppliers and DSOs: they stay on the existing supplier/DSO bill (A20) |
-| Fiat payment through a payment service provider, in **test mode** for every community (A22, A32) | Real-money payments: the first live community comes after V1 |
-| Participant onboarding, payment KYC, terms and self-billing mandate | Imbalance penalties (A18); community bonus and incentives (A30) |
+| Fiat payment through a payment service provider; **live or virtual (test) mode per community** (REQ-043; A22 withdrawn) | Imbalance penalties (A18); community bonus and incentives (A30) |
+| Participant onboarding, payment KYC for **all roles**, terms and self-billing mandate | KPI computation EC-1/EC-2 and comparison with a baseline bill (A23) |
 | Publication of invoices and payments for the project (KPIs, trade payment status) | Crypto payments, AMM interface, i-Euro stablecoin (D5.10) |
-| GDPR obligations of the billing data | KPI computation EC-1/EC-2 and comparison with a baseline bill (A23) |
+| GDPR obligations of the billing data | — |
 
 **Functional principles**
 1. **The producer is the bank** (A19). Each producer is paid by each consumer who bought energy from them. Invoices are issued per consumer→producer pair, in the producer's name, through self-billing.
@@ -258,10 +258,10 @@ erDiagram
 | BR-06 | Each invoice has one currency, the community currency. EUR prices are converted at the ECB reference rate of the last business day of the period (or the settlement date for an early settlement), and the rate is shown on the invoice. | REQ-002 |
 | BR-07 | VAT is applied at the community rate (0 by default). There are no grid-fee, tax or levy lines from suppliers or DSOs. | REQ-007 |
 | BR-08 | Amounts are computed in exact decimals and rounded to the cent per invoice line. The total is the sum of the lines. | A17 |
-| BR-09 | Nothing is invoiced in a producer's name until the producer has accepted the terms (self-billing mandate) and completed KYC. Until then, their trades stay unbilled. | REQ-045, REQ-050 |
+| BR-09 | Nothing is invoiced until **both parties** have accepted the terms (self-billing mandate for producers) and completed KYC. Connect onboarding applies to every participant role; Stripe Identity is used only for community managers. Until then, their trades stay unbilled. | REQ-045, REQ-050, REQ-051 |
 | BR-10 | Legal invoice numbers are sequential, without gaps, per producer, and never change. Billing owns the series (numbering, PDF, e-mail); Stripe is master of accounts, KYC and payments. | REQ-042 |
 | BR-11 | Billing never changes a trade's status. "Paid" is read from the published invoices and payments. | REQ-048 |
-| BR-12 | In virtual mode no real money moves. Payments run in the payment provider's test environment. | REQ-043 |
+| BR-12 | In virtual mode no real money moves. Payments run in the payment provider's test environment. In live mode, the community uses the live Stripe keys and real charges/payouts. Mode is per community (REQ-043); A22 ("all virtual in V1") is withdrawn. | REQ-043 |
 | BR-13 | A computed result is never overwritten. A correction creates a new version. | REQ-005 |
 
 ## 7. V1 functional coverage (iteration 1)

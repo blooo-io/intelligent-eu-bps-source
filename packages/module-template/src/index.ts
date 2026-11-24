@@ -45,6 +45,16 @@ export {
   type AuthGuardOptions,
 } from "./auth/auth.guard.js";
 export type { AuthClaims, AuthenticatedRequest } from "./auth/auth.types.js";
+
+export {
+  KYC_STATUS_CLIENT,
+  AllowAllKycStatusClient,
+  HttpKycStatusClient,
+  RequireVerifiedKycGuard,
+  createKycStatusClient,
+  type KycStatusClient,
+  type KycStatusSnapshot,
+} from "./kyc/kyc-status.client.js";
 export {
   principalMiddleware,
   servicePrincipalMiddleware,

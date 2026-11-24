@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import {
   ModuleAuthGuard,
+  RequireVerifiedKycGuard,
   type AuthenticatedRequest,
 } from "@intelligent/module-template";
 import { SettlementService } from "./settlement.service.js";
@@ -44,6 +45,7 @@ export class PublicSettlementController {
       // REQ-049 / UAT-060 — token community must be this community.
       requireCommunityScope: true,
     }),
+    RequireVerifiedKycGuard,
   )
   async startCommunityRun(
     @Param("communityId") communityId: string,

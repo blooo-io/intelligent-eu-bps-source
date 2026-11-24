@@ -1,5 +1,11 @@
 import { Inject, Injectable, MiddlewareConsumer, Module, NestModule, OnModuleInit } from "@nestjs/common";
-import { ModuleTemplateModule, OutboxService } from "@intelligent/module-template";
+import {
+  createKycStatusClient,
+  KYC_STATUS_CLIENT,
+  ModuleTemplateModule,
+  OutboxService,
+  RequireVerifiedKycGuard,
+} from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
 import { StatementStore } from "./domain/statement-store.js";
 import { InvoiceStore } from "./domain/store.js";
@@ -69,6 +75,12 @@ class InvoicePersistence implements OnModuleInit {
     InvoicingService,
     StatementsService,
     InvoicePersistence,
+    RequireVerifiedKycGuard,
+    {
+      provide: KYC_STATUS_CLIENT,
+      // REQ-045 — AllowAll when PAYMENTS_INTERNAL_URL unset (test-only).
+      useFactory: () => createKycStatusClient(),
+    },
     {
       provide: READINESS_PORT,
       // INT-231 — HttpReadiness when PARTICIPANTS_INTERNAL_URL is set (BR-09).

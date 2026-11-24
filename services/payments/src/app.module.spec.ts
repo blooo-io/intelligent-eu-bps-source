@@ -1,6 +1,5 @@
 import "reflect-metadata";
 import { afterEach, describe, expect, it } from "vitest";
-import { Test } from "@nestjs/testing";
 import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import { AppModule } from "./app.module.js";
@@ -55,13 +54,14 @@ describe("AppModule factories (INT-193)", () => {
 
   it("AD-6 one PSP adapter instance backs all neutral ports [INT-424]", async () => {
     delete process.env.PSP_PROVIDER;
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    const k = moduleRef.get(KYC_ONBOARDING_PORT);
-    expect(moduleRef.get(COLLECT_PORT)).toBe(k);
-    expect(moduleRef.get(PAYOUT_PORT)).toBe(k);
-    expect(moduleRef.get(PSP_EVENTS_PORT)).toBe(k);
+    delete process.env.INVOICING_INTERNAL_URL;
+    delete process.env.PARTICIPANTS_INTERNAL_URL;
+    const nest = await boot();
+    const k = nest.get(KYC_ONBOARDING_PORT);
+    expect(nest.get(COLLECT_PORT)).toBe(k);
+    expect(nest.get(PAYOUT_PORT)).toBe(k);
+    expect(nest.get(PSP_EVENTS_PORT)).toBe(k);
     expect(k).toBeInstanceOf(MockPspAdapter);
-    await moduleRef.close();
   });
 
   it("defaults to in-memory invoice lookup and noop notifier", async () => {

@@ -9,7 +9,7 @@
 
 - Peer-to-peer self-billing invoices (producer is the bank): netting, threshold, carry-forward, early settlement (BR-01…BR-13).
 - NestJS modules AC-03…AC-14, Refine reference web app (AC-01), mock suite (AC-15).
-- Stripe **test mode** Connect payments and webhooks.
+- Stripe test mode Connect payments and webhooks.
 - GitOps deploy to Scaleway `k8s-intelligent-eu-dev` (`dev` / `int`) and packaging for `demo`.
 - OpenAPI / AsyncAPI contracts; EWDS invoice/payment schema validation via mocks.
 - Observability (OpenTelemetry), secrets via OpenBao + External Secrets, Keycloak OIDC, APISIX gateway.

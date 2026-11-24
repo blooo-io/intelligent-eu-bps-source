@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Invoicing internal API
-  version: 2.0.0
+  version: 2.1.0
   description: >
     Module-to-module commands of AC-06 (03 §3.2 and 02 §4.5). Never exposed to clients.
     Billing owns invoice numbering, PDF storage and reminders (REQ-039, REQ-042).
@@ -186,6 +186,29 @@ paths:
                     type: string
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /participants/{participantId}/invoices:
+    get:
+      operationId: listParticipantInvoices
+      tags: [Invoicing]
+      summary: Invoices where the participant is issuer or addressee
+      description: REQ-013 — DSAR export (Task 3.19).
+      parameters:
+        - name: participantId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Invoice summaries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvoiceSummary'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /statements:
     get:
       operationId: listStatements
@@ -481,3 +504,36 @@ components:
         legalNumber:
           type: string
           description: Billing-assigned legal number when issued (REQ-042).
+    InvoiceSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - invoiceId
+        - period
+        - partyRole
+        - total
+        - currency
+        - status
+      properties:
+        invoiceId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        legalNumber:
+          oneOf:
+            - type: string
+            - type: 'null'
+        period:
+          type: string
+        partyRole:
+          type: string
+          enum: [issuer, addressee]
+        total:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        currency:
+          $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        status:
+          type: string
+        issuedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'

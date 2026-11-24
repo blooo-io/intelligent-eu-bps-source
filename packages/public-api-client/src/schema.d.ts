@@ -124,6 +124,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/identity-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Stripe Identity verification for a community manager
+         * @description REQ-051 — community managers verify identity only (not Connect). Returns a hosted verification session URL.
+         */
+        post: operations["createIdentityVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/kyc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the caller's KYC status
+         * @description REQ-045 / REQ-051 — current KYC state for the signed-in member or manager.
+         */
+        get: operations["getMyKycStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/payment-account/payment-method": {
         parameters: {
             query?: never;
@@ -573,6 +613,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/payment-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Per-method payment KPIs (TE-2)
+         * @description REQ-046 TE-2 — processing time = PSP success webhook time minus submission time; card and SEPA compared; fees from the producer account balance transaction; test-mode fees are provider-simulated.
+         */
+        get: operations["getPaymentMethodReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reconciliation/discrepancies": {
         parameters: {
             query?: never;
@@ -622,7 +682,7 @@ export interface paths {
         };
         /**
          * KPI export for a period
-         * @description CSV file export of the period (REQ-047 invoice amounts/kWh plus REQ-046 payment failure causes, suggested corrective actions and processing times per method). The later channel is still open in the architecture (03 §7, port P-KPI).
+         * @description CSV file export of the period (REQ-047 invoice amounts/kWh plus REQ-046 payment failure causes, suggested corrective actions and processing times per method). Columns include communityId, period, invoiceCount, paidCount, openCount, totalEnergy, totalGridFee, paymentCount, succeededCount, failedCount, medianProcessingTimeMsCard, medianProcessingTimeMsSepa, totalFeeCard, totalFeeSepa, failureCategoryBreakdown. The later channel is still open in the architecture (03 §7, port P-KPI).
          */
         get: operations["getKpiExport"];
         put?: never;
@@ -665,6 +725,26 @@ export interface paths {
          * @description Status of one export or erasure request (REQ-013). A member reads a request they opened or that names them. A manager, operator or DPO reads a request in their own community. Another community returns 404 (REQ-049).
          */
         get: operations["getDataSubjectRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/data-subject-requests/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download the machine-readable DSAR export
+         * @description REQ-013 Art. 15/20 — JSON export assembled on read (Task 3.20). Same access rules as the parent request. Erasure requests or stale exports may return 410.
+         */
+        get: operations["getDataSubjectExport"];
         put?: never;
         post?: never;
         delete?: never;
@@ -734,6 +814,10 @@ export interface components {
             readiness: components["schemas"]["ReadinessStatus"];
             profile: components["schemas"]["BillingProfile"];
             billingMode?: components["schemas"]["BillingMode"];
+            /** @description REQ-045 — whether KYC is complete for billing. */
+            kycVerified?: boolean;
+            /** @description REQ-050 — when the caller accepted the current terms. */
+            termsAcceptedAt?: string | null;
         };
         Terms: {
             termsVersion: string;
@@ -755,8 +839,13 @@ export interface components {
             brand?: string;
             /** @description Last four digits of the attached card. */
             last4?: string;
-            /** @description Connect account id for producer/prosumer. */
-            stripeAccountId?: string;
+            /** @description PSP Connect account reference for producer/prosumer. */
+            pspAccountRef?: string;
+            /** @enum {string} */
+            kycStatus?: "none" | "pending" | "verified" | "rejected";
+            kycVerified?: boolean;
+            /** @description External bank account verified for payouts (REQ-015). */
+            payoutAccountVerified?: boolean;
             /**
              * Format: uri
              * @description Optional platform Stripe Dashboard deep-link for the Connect account (test mode). Absent when no Connect account exists.
@@ -766,11 +855,16 @@ export interface components {
         /** @description INT-362 — producer uses `mode: embedded` (Account Session client secret for the Connect embedded Account onboarding component); consumer uses `mode: elements` (SetupIntent client secret for Payment Element) or `mode: link` (hosted fallback). `mode: requirements` is deprecated (INT-191 API KYC on accounts created before INT-362). */
         OnboardingSession: {
             /** @enum {string} */
-            mode: "embedded" | "requirements" | "link" | "elements";
+            mode: "embedded" | "hosted" | "requirements" | "link" | "elements";
             /** @enum {string} */
             status: "requirements_due" | "pending_verification" | "complete";
-            /** @description Connect account id once created. */
-            stripeAccountId?: string;
+            /** @description PSP Connect account reference once created. */
+            pspAccountRef?: string;
+            /**
+             * Format: date-time
+             * @description Present when mode is hosted or link.
+             */
+            expiresAt?: string;
             /** @description Stripe requirement keys still due (REQ-051). */
             currentlyDue?: string[];
             eventuallyDue?: string[];
@@ -904,9 +998,97 @@ export interface components {
             amount: components["schemas"]["Money"];
             currency: components["schemas"]["Currency"];
             status: components["schemas"]["PaymentStatus"];
-            method?: string;
-            /** @description Present when the payment failed (REQ-016, REQ-046). */
-            failureCategory?: string;
+            /** @enum {string} */
+            method?: "card" | "sepa_debit";
+            failureCategory?: components["schemas"]["PspFailureCategory"];
+            /**
+             * Format: uri
+             * @description Hosted checkout URL when payment requires redirect (A7-bis).
+             */
+            checkoutUrl?: string;
+            /** Format: date-time */
+            initiatedAt?: string;
+            /** Format: date-time */
+            settledAt?: string;
+            processingTimeMs?: number;
+            feeAmount?: components["schemas"]["Money"];
+            feeCurrency?: components["schemas"]["Currency"];
+        };
+        /** @enum {string} */
+        PspFailureCategory: "card_declined" | "insufficient_funds" | "authentication_required" | "mandate_invalid" | "bank_account_invalid" | "provider_error" | "other";
+        PaymentMethodStats: {
+            /** @enum {string} */
+            method: "card" | "sepa_debit";
+            feeCurrency: components["schemas"]["Currency"];
+            count: number;
+            succeededCount: number;
+            failedCount: number;
+            pendingCount: number;
+            successRate: number | null;
+            medianProcessingTimeMs: number | null;
+            totalFee: components["schemas"]["Money"];
+            averageFee: components["schemas"]["Money"] | null;
+            feeMissingCount: number;
+        };
+        PaymentMethodReport: {
+            communityId: components["schemas"]["Uuid"];
+            period: string;
+            rows: components["schemas"]["PaymentMethodStats"][];
+        };
+        KycStatus: {
+            subjectId: components["schemas"]["Uuid"];
+            /** @enum {string} */
+            subjectType: "participant" | "manager";
+            /** @enum {string} */
+            kycStatus: "none" | "pending" | "verified" | "rejected";
+            kycVerified: boolean;
+            /** @enum {string} */
+            method: "connect_onboarding" | "identity_document";
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        IdentityVerificationSession: {
+            verificationId: string;
+            /** Format: uri */
+            url: string;
+            /** @enum {string} */
+            status: "requires_input" | "processing" | "verified" | "canceled";
+        };
+        DataSubjectExport: {
+            /** @constant */
+            schemaVersion: "1.0";
+            requestId: components["schemas"]["Uuid"];
+            /** Format: date-time */
+            producedAt: string;
+            controller: {
+                communityId: components["schemas"]["Uuid"];
+            };
+            participant: components["schemas"]["DsarParticipantProfile"];
+            paymentAccount?: components["schemas"]["DsarPaymentAccount"] | null;
+            invoices: components["schemas"]["DsarInvoiceSummary"][];
+            dataSubjectRequests: {
+                requestId: components["schemas"]["Uuid"];
+                type: string;
+                status: string;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            retention: components["schemas"]["RetentionPolicy"];
+        };
+        /** @description REQ-013 — participant personal data (see Task 3.18). */
+        DsarParticipantProfile: {
+            [key: string]: unknown;
+        };
+        /** @description REQ-013 — payment-account personal data (see Task 3.18). */
+        DsarPaymentAccount: {
+            [key: string]: unknown;
+        };
+        /** @description Invoice row with retainedUntil (REQ-013). */
+        DsarInvoiceSummary: {
+            [key: string]: unknown;
+        };
+        RetentionPolicy: {
+            invoiceRetentionYears: number;
         };
         CommunitySettings: {
             communityId: components["schemas"]["Uuid"];
@@ -1382,15 +1564,81 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description A7-bis — embedded Account Session or hosted Connect onboarding link (REQ-051).
+                     * @enum {string}
+                     */
+                    surface?: "embedded" | "hosted";
+                    /**
+                     * Format: uri
+                     * @description Required when surface is hosted.
+                     */
+                    returnUrl?: string;
+                };
+            };
+        };
         responses: {
-            /** @description Onboarding session (embedded, elements, or link). */
+            /** @description Onboarding session (embedded, hosted, elements, or link). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["OnboardingSession"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createIdentityVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: uri */
+                    returnUrl?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Identity verification session. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityVerificationSession"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getMyKycStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description KYC status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycStatus"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -1778,8 +2026,25 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
+            /** @description Live billing mode requires the operator role (REQ-043). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Live-mode guard refused the update (`live_keys_missing` when PSP live keys are absent; `live_to_virtual_refused` when downgrading). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     importParticipants: {
@@ -2064,6 +2329,34 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    getPaymentMethodReport: {
+        parameters: {
+            query: {
+                /** @description Community whose data is requested (REQ-010). */
+                communityId: components["parameters"]["CommunityIdQuery"];
+                /** @description Billing period of the report. */
+                period: components["parameters"]["PeriodQuery"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Per-method statistics for the period. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodReport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     listDiscrepancies: {
         parameters: {
             query?: {
@@ -2194,6 +2487,41 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getDataSubjectExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource identifier. */
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DSAR export file. */
+            200: {
+                headers: {
+                    /** @description attachment; filename="dsar-{requestId}.json" */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataSubjectExport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Export no longer available. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     listJobs: {

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Payments internal API
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Module-to-module commands of AC-07 (03 §3.2). Never exposed to clients.
     Stripe Connect is master of producer accounts (TP-7); callers must not invent
@@ -288,6 +288,101 @@ paths:
                 $ref: '../components/schemas.yaml#/components/schemas/PspHandoff'
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /kyc-status/{subjectId}:
+    get:
+      operationId: getKycStatus
+      tags: [Payments]
+      summary: Read KYC status for a subject
+      description: REQ-045 / REQ-051 — used by AC-03 and compliance export.
+      parameters:
+        - name: subjectId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: KYC status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KycStatus'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /psp/capabilities:
+    get:
+      operationId: getPspCapabilities
+      tags: [Payments]
+      summary: Whether test and live PSP keys are configured
+      description: REQ-043 — checked before switching billingMode to live.
+      responses:
+        '200':
+          description: PSP capability flags.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [provider, testConfigured, liveConfigured]
+                properties:
+                  provider:
+                    type: string
+                    enum: [stripe, mock]
+                  testConfigured:
+                    type: boolean
+                  liveConfigured:
+                    type: boolean
+  /payment-accounts/{participantId}/personal-data:
+    get:
+      operationId: getPaymentAccountPersonalData
+      tags: [Payments]
+      summary: Payment-account personal data for DSAR
+      description: REQ-013 — service-only (Task 3.18).
+      parameters:
+        - name: participantId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Payment-account personal data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentAccountPersonalData'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /payment-accounts/{participantId}:erase-at-psp:
+    post:
+      operationId: erasePaymentAccountAtPsp
+      tags: [Payments]
+      summary: Erase payment data at the PSP
+      description: REQ-013 — deletes customers; Connect account in test mode only.
+      parameters:
+        - name: participantId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Erasure outcome.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [outcome]
+                properties:
+                  outcome:
+                    type: string
+                    enum: [erased, retained_by_psp, nothing_to_erase]
+                  reason:
+                    type: string
+                    enum: [aml_legal_obligation]
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
 components:
   schemas:
     PaymentStatus:
@@ -309,9 +404,9 @@ components:
       properties:
         participantId:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-        stripeAccountId:
+        pspAccountRef:
           type: [string, "null"]
-          description: Connect account id (acct_…) when role is producer/prosumer.
+          description: PSP Connect account reference when role is producer/prosumer.
         paymentMethodId:
           type: [string, "null"]
           description: Consumer payment method id when present.
@@ -324,7 +419,74 @@ components:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'
         chargesEnabled:
           type: boolean
-          description: Stripe charges_enabled when known (producer).
+          description: PSP charges enabled when known (producer).
+    KycStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - subjectId
+        - subjectType
+        - kycStatus
+        - kycVerified
+        - method
+        - updatedAt
+        - payoutAccountVerified
+      properties:
+        subjectId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        subjectType:
+          type: string
+          enum: [participant, manager]
+        kycStatus:
+          type: string
+          enum: [none, pending, verified, rejected]
+        kycVerified:
+          type: boolean
+        method:
+          type: string
+          enum: [connect_onboarding, identity_document]
+        updatedAt:
+          type: string
+          format: date-time
+        payoutAccountVerified:
+          type: boolean
+    PaymentAccountPersonalData:
+      type: object
+      additionalProperties: false
+      required:
+        - participantId
+        - pspAccountRef
+        - paymentMethodPresent
+        - kycStatus
+        - kycVerified
+        - payoutAccountVerified
+        - kycLog
+      properties:
+        participantId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        pspAccountRef:
+          oneOf:
+            - type: string
+            - type: 'null'
+        paymentMethodPresent:
+          type: boolean
+        kycStatus:
+          type: string
+          enum: [none, pending, verified, rejected]
+        kycVerified:
+          type: boolean
+        kycVerifiedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        payoutAccountVerified:
+          type: boolean
+        kycLog:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
   securitySchemes:
     serviceAuth:
       $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'

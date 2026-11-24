@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: compliance events
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     Domain events published by AC-12. Catalogue in application architecture section 4.
     Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
@@ -42,6 +42,7 @@ components:
                 required:
                   - requestId
                   - participantId
+                  - origin
                 properties:
                   requestId:
                     type: "string"
@@ -49,3 +50,7 @@ components:
                   participantId:
                     type: "string"
                     format: "uuid"
+                  origin:
+                    type: "string"
+                    enum: [portal, manager, ewds]
+                    description: Who initiated the erasure (REQ-013).

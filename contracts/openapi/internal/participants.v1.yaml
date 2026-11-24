@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Participants internal API
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Module-to-module commands of AC-03 (03 §3.2). Never exposed to clients.
   license:
@@ -133,6 +133,91 @@ paths:
                     $ref: '../components/schemas.yaml#/components/schemas/ReadinessStatus'
                   reason:
                     type: string
+                  kycVerified:
+                    type: boolean
+                    description: REQ-045 — mirror of payment-account KYC.
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /communities/{communityId}/actors:sync:
+    post:
+      operationId: syncCommunityActors
+      tags: [Participants]
+      summary: Upsert participants from the EWDS Actor source
+      description: >
+        REQ-008 — pulls Actor records from ActorSourcePort and creates or updates
+        participants. CSV import remains the fallback when the port is disabled.
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                full:
+                  type: boolean
+                  default: true
+                  description: When true, reconcile the full actor list for the community.
+      responses:
+        '200':
+          description: Sync counters.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [created, updated, skipped]
+                properties:
+                  created:
+                    type: integer
+                    minimum: 0
+                  updated:
+                    type: integer
+                    minimum: 0
+                  skipped:
+                    type: integer
+                    minimum: 0
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants/{participantId}/personal-data:
+    get:
+      operationId: getParticipantPersonalData
+      tags: [Participants]
+      summary: Personal data for DSAR and erasure
+      description: REQ-013 — service-only export payload (Task 3.18).
+      parameters:
+        - $ref: '#/components/parameters/ParticipantId'
+      responses:
+        '200':
+          description: Participant personal data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipantPersonalData'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants/{participantId}:erase-identity:
+    post:
+      operationId: eraseParticipantIdentity
+      tags: [Participants]
+      summary: Erase the participant identity at the IdP
+      description: REQ-013 — deletes the Keycloak user; 404 counts as erased.
+      parameters:
+        - $ref: '#/components/parameters/ParticipantId'
+      responses:
+        '200':
+          description: Erasure outcome.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [erased]
+                properties:
+                  erased:
+                    type: boolean
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /participants/{participantId}/community:
@@ -378,3 +463,63 @@ components:
                     - type: string
                       format: date-time
                     - type: 'null'
+    ParticipantPersonalData:
+      type: object
+      additionalProperties: false
+      required:
+        - participantId
+        - communityId
+        - role
+        - source
+        - profile
+        - readiness
+        - kycVerified
+      properties:
+        participantId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        role:
+          $ref: '../components/schemas.yaml#/components/schemas/ParticipantRole'
+        source:
+          type: string
+          enum: [ewds, import]
+        marketActorId:
+          type: string
+        meterId:
+          type: string
+        profile:
+          type: object
+          additionalProperties: true
+        postalAddress:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+        phone:
+          oneOf:
+            - type: string
+            - type: 'null'
+        idpUserId:
+          oneOf:
+            - type: string
+            - type: 'null'
+        consents:
+          type: object
+          additionalProperties: false
+          properties:
+            termsVersion:
+              oneOf:
+                - type: string
+                - type: 'null'
+            termsAcceptedAt:
+              oneOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            selfBillingMandate:
+              type: boolean
+        readiness:
+          $ref: '../components/schemas.yaml#/components/schemas/ReadinessStatus'
+        kycVerified:
+          type: boolean

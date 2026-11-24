@@ -23,8 +23,6 @@ import type {
   PaymentMethodDetails,
   PaymentMethodRef,
   ProducerAccount,
-  PspPaymentInput,
-  PspPaymentResult,
 } from "./psp.legacy.js";
 import {
   PspError,
@@ -44,12 +42,11 @@ const MANUAL_PAYOUTS = {
 
 /**
  * Real Stripe test-mode P-PSP adapter (INT-189 / INT-190 / INT-191 / AD-6 / BR-12).
- * Implements neutral ports (WS5 Tasks 5.4–5.5 / INT-424) and keeps legacy
- * legacy PspPort methods until Task 5.6 deletes the old port.
+ * Implements neutral ports (WS5 Tasks 5.4–5.5 / INT-424).
  *
- * Direct charges (neutral): PaymentIntent confirm off_session on the producer
- * Connect account (REQ-014 / TD-6). Legacy {@link createPayment} still pays the
- * producer's Stripe invoice until Task 5.7 rewires the service.
+ * Direct charges (D2 / REQ-014 / TD-6): clone the platform card onto the
+ * producer Connect account and confirm a PaymentIntent off_session — no
+ * Customer on the connected account and no application_fee_amount (A1).
  */
 export class StripePspAdapter
   implements KycOnboardingPort, CollectPort, PayoutPort, PspEventsPort
@@ -207,22 +204,10 @@ export class StripePspAdapter
     };
   }
 
-  async ensureCustomer(input: {
-    participantId: string;
-    pspAccountRef: string;
-  }): Promise<{ pspCustomerRef: string }> {
-    // INT-355 / NFR-015 — identifiers only; no personal data.
-    const customer = await this.stripe.customers.create(
-      { metadata: { participantId: input.participantId } },
-      { stripeAccount: input.pspAccountRef },
-    );
-    return { pspCustomerRef: customer.id };
-  }
-
   /**
-   * REQ-014 — direct charge: clone the platform card PM onto the connected
-   * account, then confirm a PaymentIntent off_session (A6 — no Stripe Invoice).
-   * Platform sepa_debit PMs cannot be shared → mandate_invalid (use checkout).
+   * D2 / REQ-014 — clone the platform card onto the connected account, then
+   * confirm a PaymentIntent off_session. No Customer on the producer account
+   * (A1). Platform sepa_debit cannot be shared → mandate_invalid (use checkout).
    */
   async createDirectCharge(input: DirectChargeInput): Promise<CollectResult> {
     const opts: Stripe.RequestOptions = {
@@ -255,13 +240,9 @@ export class StripePspAdapter
         };
       }
 
+      // Clone platform → connected; the clone is consumed by one PaymentIntent.
       const cloned = await this.stripe.paymentMethods.create(
         { customer: shareable.customerId, payment_method: shareable.id },
-        { stripeAccount: input.pspAccountRef },
-      );
-      await this.stripe.paymentMethods.attach(
-        cloned.id,
-        { customer: input.pspCustomerRef },
         { stripeAccount: input.pspAccountRef },
       );
 
@@ -269,7 +250,6 @@ export class StripePspAdapter
         {
           amount: toMinorUnits(input.amount),
           currency: input.currency.toLowerCase(),
-          customer: input.pspCustomerRef,
           payment_method: cloned.id,
           confirm: true,
           off_session: true,
@@ -317,12 +297,13 @@ export class StripePspAdapter
   }
 
   async createCheckoutSession(input: CheckoutInput): Promise<CheckoutSession> {
+    // D2 — SEPA / no saved card: Checkout on the producer account; Stripe may
+    // create a Customer itself. We never call customers.create here (A1).
     const session = await this.stripe.checkout.sessions.create(
       {
         mode: "payment",
         success_url: input.successUrl,
         cancel_url: input.cancelUrl,
-        customer: input.pspCustomerRef,
         // Stripe SDK 23 — SessionCreateParams uses allowed_payment_method_types
         // (payment_method_types was removed from create params).
         allowed_payment_method_types: input.methods,
@@ -709,143 +690,6 @@ export class StripePspAdapter
     return { id: attached.id, customerId: stripeId(attached.customer) ?? customerId };
   }
 
-  async createConnectedCustomer(input: {
-    participantId: string;
-    pspAccountRef: string;
-  }): Promise<{ pspCustomerRef: string }> {
-    return this.ensureCustomer({
-      participantId: input.participantId,
-      pspAccountRef: input.pspAccountRef,
-    });
-  }
-
-  /**
-   * INT-355 / REQ-014 / TD-6 — legacy direct charge via Stripe Invoice.
-   * Kept until Task 5.7 rewires payments.service to CollectPort.
-   */
-  async createPayment(input: PspPaymentInput): Promise<PspPaymentResult> {
-    const opts: Stripe.RequestOptions = {
-      stripeAccount: input.pspAccountRef,
-    };
-    try {
-      const invoice = await this.stripe.invoices.retrieve(
-        input.pspInvoiceRef,
-        { expand: ["payments"] },
-        opts,
-      );
-      if (invoice.status === "paid") {
-        return {
-          pspPaymentRef: invoicePaymentIntentId(invoice),
-          status: "succeeded",
-        };
-      }
-      if (invoice.status !== "open") {
-        return {
-          pspPaymentRef: invoicePaymentIntentId(invoice),
-          status: "failed",
-          failureCategory: "invoice_not_payable",
-        };
-      }
-      if (
-        invoice.amount_due !== toMinorUnits(input.amount) ||
-        invoice.currency !== input.currency.toLowerCase()
-      ) {
-        return {
-          pspPaymentRef: invoicePaymentIntentId(invoice),
-          status: "failed",
-          failureCategory: "amount_mismatch",
-        };
-      }
-
-      const platformPm = await this.stripe.paymentMethods.retrieve(
-        input.pspPaymentMethodRef,
-      );
-      if (platformPm.type === "sepa_debit") {
-        return {
-          pspPaymentRef: invoicePaymentIntentId(invoice),
-          status: "failed",
-          failureCategory: "sepa_debit_not_shareable",
-        };
-      }
-      const shareable = await this.shareablePlatformCard(
-        platformPm,
-        input.pspPaymentMethodRef,
-      );
-      if (!shareable) {
-        return {
-          pspPaymentRef: invoicePaymentIntentId(invoice),
-          status: "failed",
-          failureCategory: "payment_method_not_attached",
-        };
-      }
-      const customer = stripeId(invoice.customer) ?? input.pspCustomerRef;
-      const cloned = await this.stripe.paymentMethods.create(
-        { customer: shareable.customerId, payment_method: shareable.id },
-        opts,
-      );
-      await this.stripe.paymentMethods.attach(cloned.id, { customer }, opts);
-
-      const intentId = invoicePaymentIntentId(invoice);
-      if (intentId.startsWith("pi_")) {
-        await this.stripe.paymentIntents.update(
-          intentId,
-          { metadata: { invoiceId: input.invoiceId } },
-          opts,
-        );
-      }
-
-      const paid = await this.stripe.invoices.pay(
-        invoice.id,
-        { payment_method: cloned.id, off_session: true, expand: ["payments"] },
-        { ...opts, idempotencyKey: `pay:${input.invoiceId}` },
-      );
-      await this.tagProducerCharge(paid, input.invoiceId, opts);
-      const pspPaymentRef = invoicePaymentIntentId(paid);
-      if (paid.status === "paid") {
-        return { pspPaymentRef, status: "succeeded" };
-      }
-      if (paid.status === "open") {
-        return { pspPaymentRef, status: "pending" };
-      }
-      return { pspPaymentRef, status: "failed", failureCategory: "declined" };
-    } catch (err) {
-      const stripeErr = err as {
-        decline_code?: string;
-        code?: string;
-        message?: string;
-        payment_intent?: { id?: string };
-      };
-      const code =
-        stripeErr.decline_code ??
-        stripeErr.code ??
-        (typeof stripeErr.message === "string"
-          ? stripeErr.message.slice(0, 64)
-          : "declined");
-      return {
-        pspPaymentRef: stripeErr.payment_intent?.id ?? input.pspInvoiceRef,
-        status: "failed",
-        failureCategory: legacyMapFailureCategory(String(code)),
-      };
-    }
-  }
-
-  private async tagProducerCharge(
-    invoice: Stripe.Invoice,
-    invoiceId: string,
-    opts: Stripe.RequestOptions,
-  ): Promise<void> {
-    const intentId = invoicePaymentIntentId(invoice);
-    if (!intentId.startsWith("pi_")) return;
-    const intent = await this.stripe.paymentIntents.update(
-      intentId,
-      { metadata: { invoiceId } },
-      opts,
-    );
-    const chargeId = stripeId(intent?.latest_charge);
-    if (!chargeId) return;
-    await this.stripe.charges.update(chargeId, { metadata: { invoiceId } }, opts);
-  }
-
   private constructStripeEvent(
     rawBody: string,
     signature: string,
@@ -1048,7 +892,7 @@ function stripeId(
   return typeof ref === "string" ? ref : ref.id;
 }
 
-/* v8 ignore start — legacy PspPort helpers until Task 5.7 */
+/* v8 ignore start — legacy onboarding session helpers */
 function hasTokenizableKyc(submission: OnboardingRequirementsSubmission): boolean {
   return Boolean(
     submission.tosAccepted ||
@@ -1057,20 +901,6 @@ function hasTokenizableKyc(submission: OnboardingRequirementsSubmission): boolea
       submission.representative?.lastName ||
       submission.representative?.email,
   );
-}
-
-function legacyMapFailureCategory(code: string): string {
-  const lower = code.toLowerCase();
-  if (lower.includes("insufficient")) return "insufficient_funds";
-  if (lower.includes("authenticat")) return "authentication_required";
-  return "declined";
-}
-
-/** PaymentIntent behind the invoice (API ≥ basil exposes it through invoice.payments). */
-function invoicePaymentIntentId(invoice: Stripe.Invoice): string {
-  const payments = invoice.payments?.data ?? [];
-  const chosen = payments.find((p) => p.is_default) ?? payments[0];
-  return stripeId(chosen?.payment.payment_intent) ?? invoice.id;
 }
 
 function sessionFromAccount(account: Stripe.Account): LegacyOnboardingSession {

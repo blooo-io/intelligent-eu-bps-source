@@ -37,10 +37,6 @@ import {
   PAYMENT_ACCOUNTS_STORE,
 } from "./ports/payment-accounts.store.js";
 import {
-  CONNECTED_CUSTOMERS_STORE,
-  createConnectedCustomersStore,
-} from "./ports/connected-customers.store.js";
-import {
   COMMUNITY_SETTINGS,
   createCommunitySettings,
   InMemoryCommunitySettings,
@@ -109,10 +105,6 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
     {
       provide: PAYMENT_ACCOUNTS_STORE,
       useFactory: () => createPaymentAccountsStore(),
-    },
-    {
-      provide: CONNECTED_CUSTOMERS_STORE,
-      useFactory: () => createConnectedCustomersStore(),
     },
     {
       provide: PSP_ADAPTER,

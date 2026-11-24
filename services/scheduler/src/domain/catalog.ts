@@ -30,6 +30,12 @@ const SPECS: Array<{
   { name: "ApplyRetention", ownerModule: "AC-12", path: "/retention:apply" },
   { name: "FetchRates", ownerModule: "AC-13", path: "/rates:fetch" },
   { name: "RunAutoPayouts", ownerModule: "AC-07", path: "/payouts:run-auto" },
+  // INT-428 / REQ-061 — plan suggested …000c; that id is taken by RunAutoPayouts.
+  {
+    name: "SendReminders",
+    ownerModule: "AC-06",
+    path: "/invoices:send-reminders",
+  },
 ];
 
 /** Deterministic UUID v5-like ids from name (fixed map for tests/operators). */
@@ -46,6 +52,8 @@ const FIXED_IDS: Record<JobName, string> = {
   ApplyRetention: "a1000000-0000-4000-8000-00000000000a",
   FetchRates: "a1000000-0000-4000-8000-00000000000b",
   RunAutoPayouts: "a1000000-0000-4000-8000-00000000000c",
+  // Deviation from D5.5 plan Task 2.16: …000c already used by RunAutoPayouts.
+  SendReminders: "a1000000-0000-4000-8000-00000000000d",
 };
 
 export function buildJobCatalog(): JobDefinition[] {

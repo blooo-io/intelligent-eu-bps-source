@@ -30,8 +30,6 @@ import {
   type PaymentMethodDetails,
   type PaymentMethodRef,
   type ProducerAccount,
-  type PspPaymentInput,
-  type PspPaymentResult,
 } from "./psp.legacy.js";
 import { PspError, type PspEvent, type PspPaymentMethodType } from "./psp.types.js";
 
@@ -94,19 +92,10 @@ export class MockPspAdapter
   readonly accounts = new Map<string, string>();
   readonly methods = new Map<string, string>();
   private readonly methodOwners = new Map<string, string>();
-  readonly payments: PspPaymentResult[] = [];
   readonly dueByAccount = new Map<string, string[]>();
   readonly tokens: string[] = [];
-  readonly connectedCustomers: Array<{
-    participantId: string;
-    pspAccountRef: string;
-    pspCustomerRef: string;
-  }> = [];
-  readonly paymentInputs: PspPaymentInput[] = [];
-  private readonly paidInvoices = new Map<string, PspPaymentResult>();
 
   private readonly connected = new Map<string, ConnectedAccountState>();
-  private readonly customers = new Map<string, string>();
   private readonly chargesByKey = new Map<string, ChargeRecord>();
   private readonly chargesByRef = new Map<string, ChargeRecord>();
   private readonly checkoutsByKey = new Map<string, CheckoutSession>();
@@ -215,23 +204,6 @@ export class MockPspAdapter
       brand: base.brand,
       last4: base.last4,
     };
-  }
-
-  async ensureCustomer(input: {
-    participantId: string;
-    pspAccountRef: string;
-  }): Promise<{ pspCustomerRef: string }> {
-    const key = `${input.participantId}|${input.pspAccountRef}`;
-    const existing = this.customers.get(key);
-    if (existing) return { pspCustomerRef: existing };
-    const pspCustomerRef = `mock_cus_${shortId()}`;
-    this.customers.set(key, pspCustomerRef);
-    this.connectedCustomers.push({
-      participantId: input.participantId,
-      pspAccountRef: input.pspAccountRef,
-      pspCustomerRef,
-    });
-    return { pspCustomerRef };
   }
 
   async createDirectCharge(input: DirectChargeInput): Promise<CollectResult> {
@@ -524,55 +496,6 @@ export class MockPspAdapter
     return {
       clientSecret: `seti_test_${participantId.replaceAll("-", "").slice(0, 12)}_secret_test`,
     };
-  }
-
-  async createConnectedCustomer(input: {
-    participantId: string;
-    pspAccountRef: string;
-  }): Promise<{ pspCustomerRef: string }> {
-    const pspCustomerRef = `cus_test_${randomUUID().replaceAll("-", "").slice(0, 14)}`;
-    this.connectedCustomers.push({ ...input, pspCustomerRef });
-    return { pspCustomerRef };
-  }
-
-  /** INT-355 — mirrors PSP: a paid invoice is never charged twice (until Task 5.7). */
-  async createPayment(input: PspPaymentInput): Promise<PspPaymentResult> {
-    this.paymentInputs.push({ ...input });
-    const alreadyPaid = this.paidInvoices.get(input.pspInvoiceRef);
-    if (alreadyPaid) {
-      return { ...alreadyPaid };
-    }
-    const { pspPaymentMethodRef } = input;
-    if (
-      (await this.resolvePaymentMethodDetails(pspPaymentMethodRef)).type ===
-      "sepa_debit"
-    ) {
-      const refused: PspPaymentResult = {
-        pspPaymentRef: `pi_test_${randomUUID().slice(0, 8)}`,
-        status: "failed",
-        failureCategory: "sepa_debit_not_shareable",
-      };
-      this.payments.push(refused);
-      return refused;
-    }
-    const fail = pspPaymentMethodRef.startsWith("pm_fail_");
-    const result: PspPaymentResult = fail
-      ? {
-          pspPaymentRef: `pi_test_${randomUUID().slice(0, 8)}`,
-          status: "failed",
-          failureCategory: pspPaymentMethodRef.includes("insufficient")
-            ? "insufficient_funds"
-            : "declined",
-        }
-      : {
-          pspPaymentRef: `pi_test_${randomUUID().slice(0, 8)}`,
-          status: "succeeded",
-        };
-    this.payments.push(result);
-    if (result.status === "succeeded") {
-      this.paidInvoices.set(input.pspInvoiceRef, result);
-    }
-    return result;
   }
 
   // ── Test helpers (contract harness) ─────────────────────────────────────

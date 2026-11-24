@@ -45,6 +45,7 @@ function openInvoice(overrides: Partial<InvoiceProjection> = {}): InvoiceProject
     totalAmount: 10.2,
     outstandingAmount: 10.2,
     energyAmount: 10.2,
+    gridFeeAmount: 0,
     gridFeeStatus: "not_published",
     taxAmount: 0,
     vatRate: 0,

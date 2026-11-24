@@ -33,17 +33,6 @@ export class InternalPaymentsController {
     return this.payments.getPaymentAccount(participantId);
   }
 
-  @Post(String.raw`connected-customers\:ensure`)
-  @HttpCode(200)
-  ensureConnectedCustomer(
-    @Body() body: { participantId: string; pspAccountRef: string },
-  ) {
-    return this.payments.ensureConnectedCustomer({
-      participantId: body?.participantId,
-      pspAccountRef: body?.pspAccountRef,
-    });
-  }
-
   /** AC-14 RunAutoPayouts (REQ-015). */
   @Post(String.raw`payouts\:run-auto`)
   @HttpCode(202)

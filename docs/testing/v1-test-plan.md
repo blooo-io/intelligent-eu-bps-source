@@ -32,3 +32,16 @@ Requirements with priority **W**, and UAT notes with `scope_d55: out`, stay in t
 ## Evidence
 
 A test run records its evidence in the UAT note (`status`, `last_run`, `tester`, and a short run note). It does not open a Jira issue per case and does not copy the case into the issue.
+
+## WS2 invoice spec trace (INT-428)
+
+Workstream 2 (billing-owned invoices, A6 / INT-428) traces these UAT notes. Case text stays in each note; this plan only names the identifiers:
+
+| UAT | Requirement | Focus |
+|---|---|---|
+| UAT-003 | REQ-003 | Trade / adjusted price used as billed (mock path) |
+| UAT-004 | REQ-004 | Tariff components on the invoice (mock tariff path; EWDS tariff pending WS4) |
+| UAT-007 | REQ-007 | Per-trade lines, energy / VAT / total; no grid-fee line on the P2P invoice body where A20 applies |
+| UAT-050 | REQ-039 | Self-billing PDF stored by billing, available to both parties, e-mailed on issue |
+| UAT-053 | REQ-042 | Gapless legal numbers `SB-…` per producer, owned by billing |
+| UAT-078 | REQ-061 | Payment reminders (manager / scheduled) and missing-payment alert |

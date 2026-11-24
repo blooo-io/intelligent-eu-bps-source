@@ -36,17 +36,12 @@ describe("MockPspAdapter fee model", () => {
       country: "FR",
     });
     await h.completeKyc(pspAccountRef);
-    const { pspCustomerRef } = await m.ensureCustomer({
-      participantId: P1,
-      pspAccountRef,
-    });
 
     const card100 = await m.createDirectCharge({
       invoiceId: INV1,
       amount: "100.00",
       currency: "EUR",
       pspAccountRef,
-      pspCustomerRef,
       pspPaymentMethodRef: await h.paymentMethod("card_ok"),
       idempotencyKey: `pay:${INV1}:card-fee`,
     });
@@ -62,7 +57,6 @@ describe("MockPspAdapter fee model", () => {
       amount: "100.00",
       currency: "EUR",
       pspAccountRef,
-      pspCustomerRef,
       pspPaymentMethodRef: await h.paymentMethod("sepa_ok"),
       idempotencyKey: `pay:${INV1}:sepa-fee`,
     });

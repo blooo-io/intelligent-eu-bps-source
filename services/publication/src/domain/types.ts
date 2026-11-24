@@ -39,8 +39,11 @@ export type InvoiceProjection = {
   totalAmount: number;
   outstandingAmount: number;
   energyAmount: number;
+  /** gridFee + levy in major units (R6 / REQ-004). */
+  gridFeeAmount: number;
   /** applied when a non-zero grid fee is published; else not_published (A10.2). */
   gridFeeStatus: "applied" | "not_published";
+  /** tax + VAT in major units (R6 / REQ-004). */
   taxAmount: number;
   vatRate: number;
   carriedForwardAmount: number;

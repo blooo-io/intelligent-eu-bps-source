@@ -15,7 +15,6 @@ import { PaymentsStore } from "../domain/store.js";
 import { MockPspAdapter } from "../psp/mock-psp.adapter.js";
 import { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
 import type { PspEvent } from "../psp/psp.types.js";
-import { InMemoryConnectedCustomersStore } from "../ports/connected-customers.store.js";
 import { InMemoryInvoiceLookup } from "../ports/invoice-lookup.port.js";
 import { InMemoryPaymentAccountsStore } from "../ports/payment-accounts.store.js";
 import { NoopParticipantsNotifier } from "../ports/participants-notifier.port.js";
@@ -66,7 +65,6 @@ describe("PaymentsService", () => {
       new NoopParticipantsResolver(),
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      new InMemoryConnectedCustomersStore(),
       psp,
       clock,
       psp,
@@ -415,7 +413,6 @@ describe("PaymentsService", () => {
       new NoopParticipantsResolver(),
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      new InMemoryConnectedCustomersStore(),
       psp,
       clock,
       psp,
@@ -810,7 +807,7 @@ describe("PaymentsService", () => {
       await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     });
 
-    it("charges each invoice as one reused customer per consumer and producer account", async () => {
+    it("D2 / REQ-014 pay clones per charge with no connected Customer (A1)", async () => {
       const charge = vi.spyOn(psp, "createDirectCharge");
       putInvoice("inv-dc-1", "acct_p1");
       putInvoice("inv-dc-2", "acct_p1");
@@ -818,20 +815,24 @@ describe("PaymentsService", () => {
       for (const invoiceId of ["inv-dc-1", "inv-dc-2", "inv-dc-3"]) {
         await service.payInvoice({ invoiceId, participantId: CONSUMER, communityId: COMMUNITY });
       }
-      expect(psp.connectedCustomers.map((c) => c.pspAccountRef)).toEqual([
-        "acct_p1",
-        "acct_p2",
-      ]);
+      expect("ensureCustomer" in psp).toBe(false);
+      expect("createConnectedCustomer" in psp).toBe(false);
+      expect("createPayment" in psp).toBe(false);
       const [p1, p2, p3] = charge.mock.calls.map(([input]) => input);
       expect(p1).toMatchObject({
         invoiceId: "inv-dc-1",
         pspAccountRef: "acct_p1",
         pspPaymentMethodRef: "pm_card_visa",
-        pspCustomerRef: psp.connectedCustomers[0]!.pspCustomerRef,
         idempotencyKey: "pay:inv-dc-1",
       });
-      expect(p2!.pspCustomerRef).toBe(p1!.pspCustomerRef);
-      expect(p3!.pspCustomerRef).toBe(psp.connectedCustomers[1]!.pspCustomerRef);
+      expect(p1).not.toHaveProperty("pspCustomerRef");
+      expect(p2).not.toHaveProperty("pspCustomerRef");
+      expect(p3).toMatchObject({
+        invoiceId: "inv-dc-3",
+        pspAccountRef: "acct_p2",
+        pspPaymentMethodRef: "pm_card_visa",
+      });
+      expect(p3).not.toHaveProperty("pspCustomerRef");
     });
 
     it("A6 pays an invoice that has no PSP invoice id", async () => {
@@ -902,22 +903,6 @@ describe("PaymentsService", () => {
       expect(events).toHaveLength(1);
     });
 
-    it("mock PSP never charges a paid Stripe invoice twice", async () => {
-      const input = {
-        invoiceId: "inv-x",
-        amount: "1.00",
-        currency: "EUR",
-        pspAccountRef: "acct_p1",
-        pspInvoiceRef: "in_x",
-        pspCustomerRef: "cus_x",
-        pspPaymentMethodRef: "pm_card_visa",
-      };
-      const a = await psp.createPayment(input);
-      const b = await psp.createPayment(input);
-      expect(b).toEqual(a);
-      expect(psp.payments).toHaveLength(1);
-    });
-
     it("INT-376 a settled row stored without payeeId still names the producer", async () => {
       putInvoice("inv-dc-hook", "acct_p1");
       const payment = await service.payInvoice({
@@ -980,13 +965,12 @@ describe("PaymentsService", () => {
       expect(payoutEvents.onPayoutEvent).not.toHaveBeenCalled();
     });
 
-    it("validates EnsureConnectedCustomer input", async () => {
+    it("D2 connected-customers module and ensure path are gone", async () => {
       await expect(
-        service.ensureConnectedCustomer({ participantId: CONSUMER, pspAccountRef: "cus_1" }),
-      ).rejects.toThrow(/acct_/);
-      await expect(
-        service.ensureConnectedCustomer({ participantId: "", pspAccountRef: "acct_1" }),
-      ).rejects.toThrow(/participantId/);
+        import("../ports/connected-customers.store.js"),
+      ).rejects.toThrow();
+      expect(service).not.toHaveProperty("ensureConnectedCustomer");
+      expect(service).not.toHaveProperty("connectedCustomers");
     });
   });
 
@@ -1502,7 +1486,6 @@ describe("PaymentsService", () => {
       resolver,
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      new InMemoryConnectedCustomersStore(),
       psp,
       clock,
       psp,
@@ -1557,7 +1540,6 @@ describe("PaymentsService", () => {
       new NoopParticipantsResolver(),
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      new InMemoryConnectedCustomersStore(),
       psp,
       clock,
       psp,
@@ -1587,7 +1569,6 @@ describe("PaymentsService", () => {
       resolver,
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      new InMemoryConnectedCustomersStore(),
       psp,
       clock,
       psp,
@@ -1636,7 +1617,6 @@ describe("PaymentsService", () => {
       resolver,
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      new InMemoryConnectedCustomersStore(),
       psp,
       clock,
       psp,
@@ -1692,7 +1672,6 @@ describe("PaymentsService", () => {
       resolver,
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      new InMemoryConnectedCustomersStore(),
       psp,
       clock,
       psp,
@@ -1814,7 +1793,6 @@ describe("PaymentsService", () => {
       new NoopParticipantsResolver(),
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      new InMemoryConnectedCustomersStore(),
       psp,
       clock,
       psp,
@@ -1879,7 +1857,6 @@ describe("PaymentsService", () => {
       new NoopParticipantsResolver(),
       failingErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      new InMemoryConnectedCustomersStore(),
       psp,
       clock,
       psp,

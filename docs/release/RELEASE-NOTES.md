@@ -17,6 +17,7 @@
 
 ## Changes since v1.1.5
 
+- Invoicing (INT-428 / A6): **Stripe Invoicing removed**. Billing owns self-billing PDFs (`pdf-lib`) and gapless legal numbers `SB-<producer8>-<seq6>` per producer; AC-11 e-mails the PDF on issue. Payment reminders: manager action + scheduled job (`SendReminders`); missing-payment alert path tracked under UAT-078 / REQ-061.
 - Dependencies: bump vitest / `@vitest/coverage-v8` / `@vitest/mocker` to 4.1.12 and override remaining transitive advisories (`minimatch`, `glob`, `uuid`, `ajv`, `@babel/core`, `fast-xml-parser`) so `pnpm audit` is clean (INT-418).
 - Security: close CodeQL High alerts — URL component checks in docs OpenAPI server assertion; no clear-text password/credential fields in Sonar/OpenBao operator CLI logs (INT-419).
 - Supply-chain: strip vitest from the `cd-smoke` Docker `npm install` so image builds do not hit the npm arborist `edgesOut` crash under vitest 4 (INT-420).
@@ -69,8 +70,9 @@
 | Payments | **Stripe test mode only** — no live charges or bank payouts in production sense |
 | Market / data space / FX | GSY DEX, EWDS Client Gateway and ECB are **mocked** (assumption A32) |
 | Crypto / AMM / stablecoin | Out of D5.5 scope (deferred to D5.10) |
-| Grid fees / taxes on P2P invoices | Not on P2P invoices (A20) |
-| Acceptance | **62 Pass / 0 Blocked** in-scope UATs (INT-204, 2026-10-18). Remaining partner optimisations: pilot SLA number (NFR-008), onboarding step-count (NFR-016) — see [`docs/testing/v1-uat-package.md`](../testing/v1-uat-package.md) |
+| Grid fees / taxes on P2P invoices | Not on P2P invoice body lines where A20 applies; tariff components published on EWDS when present (INT-428 / REQ-004 mapping). Full UAT-004 mock-tariff Pass pending WS4 |
+| Invoicing | Billing-owned PDF and `SB-…` legal numbers (A6); Stripe Invoicing removed (INT-428). Reminders: AC-06 path shipped; AC-11 reminder e-mail / missing-payment alert (UAT-078) not yet Pass |
+| Acceptance | **62 Pass / 0 Blocked** in-scope UATs historically (INT-204); UAT-078 added in-scope as **Not Run** pending Task 2.17 (INT-428). Remaining partner optimisations: pilot SLA number (NFR-008), onboarding step-count (NFR-016) — see [`docs/testing/v1-uat-package.md`](../testing/v1-uat-package.md) |
 | Partner IdP | V1 = single project IdP only (REQ-034 / REQ-037 and UAT-044 / UAT-047 out of scope, INT-192). Config-only issuer path Pass on UAT-061 |
 | Stripe Connect | Producers onboard in Stripe's embedded Account onboarding component; the producer pays Stripe fees and bears disputes, the platform absorbs nothing (INT-362). Direct charges on the producer account (INT-355). Operator test fixtures still use Account Tokens + test KYC tokens (INT-191 / INT-195). Cards only in V1 (INT-361) |
 | Billing period | Quarterly. The FX date is the period end (INT-353). Carry-forward is signed (INT-351). Money uses exact decimal arithmetic (INT-352). Each trade is an invoice line (INT-354) |

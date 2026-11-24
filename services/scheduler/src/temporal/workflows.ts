@@ -66,3 +66,6 @@ export async function Job_FetchRates(input: JobWorkflowInput) {
 export async function Job_RunAutoPayouts(input: JobWorkflowInput) {
   return runJob(input);
 }
+export async function Job_SendReminders(input: JobWorkflowInput) {
+  return runJob(input);
+}

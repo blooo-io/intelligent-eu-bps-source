@@ -38,7 +38,7 @@ Each logical block becomes its own deployable module. The only exception is LB-0
 | **AC-03 Participants** | Domain | LB-02 | Communities, registry, profiles, terms and mandate, readiness, offboarding; account provisioning in the IdP | Community, Participant, RegistryEntry, BillingProfile, TermsAcceptance |
 | **AC-04 Trade intake** | Domain | LB-03 | Market queries per window, deduplication, attribution, completeness, intake health | Trade, MarketInfo, ClearingResult, IntakeWindow, IntakeAnomaly |
 | **AC-05 Settlement** | Domain | LB-04 | Billing runs and early settlements, pair settlement, netting, threshold and carry-forward, currency and VAT, ledger | BillingRun, PairSettlement, CarryForward, LedgerEntry, BillingAccount |
-| **AC-06 Invoicing** | Domain | LB-05 | Invoices in the producer's name, legal numbering per producer, PDF, lifecycle and manual status | Invoice, InvoiceLine, NumberSeries, InvoiceDocument, StatusHistory |
+| **AC-06 Invoicing** | Domain | LB-05 | Billing-owned invoices in the producer's name: legal numbering per producer, PDF stored in the invoicing DB, lifecycle and manual status; e-mail via AC-11 (A6) | Invoice, InvoiceLine, NumberSeries, InvoiceDocument, StatusHistory |
 | **AC-07 Payments** | Domain | LB-06 | Payment-provider onboarding (producer accounts, KYC, consumer payment methods), payments, provider webhooks, failures | PaymentAccount, Payment, ProviderEvent, FailureRecord |
 | **AC-08 Reconciliation** | Control | LB-07 | Invoice ↔ payment and market ↔ clearing checks, discrepancies and alerts | ReconciliationResult, Discrepancy |
 | **AC-09 Reporting & exports** | Read side | LB-14 | Manager views, history, summaries, KPI export, end-to-end trace (read models built from events) | Read models, KpiExport |
@@ -265,8 +265,7 @@ Inbound integration endpoint, not part of the public API: `POST /webhooks/paymen
 | GetUnbilledTrades(community or pair, until) | AC-04 | AC-05 |
 | GetRate(currency, date), GetVatRate(communityId) | AC-13 | AC-05 |
 | GetPairSettlement(settlementId) | AC-05 | AC-06 |
-| GetInvoice(invoiceId) (incl. Stripe invoice id and producer Connect account) | AC-06 | AC-07 |
-| EnsureConnectedCustomer(participantId, stripeAccountId) | AC-07 | AC-06 |
+| GetInvoice(invoiceId) (amounts, legalNumber; no Stripe invoice id) | AC-06 | AC-07 |
 | StartRun / RefreshIntake / MarkOverdue / Reconcile / PurgeCache / ApplyRetention / FetchRates … | owning module | AC-14 |
 
 ## 4. Event catalogue
@@ -332,22 +331,20 @@ sequenceDiagram
   participant STR as Stripe test
   participant BUS as Event channel
   participant INV as AC-06 Invoicing
-  Note over INV,STR: at issue (5.1) AC-06 calls EnsureConnectedCustomer on AC-07, then creates and finalizes the invoice on the producer account for that Customer (charge_automatically, auto_advance false, not e-mailed)
+  Note over INV: at issue (5.1) AC-06 assigns a billing legal number and stores the PDF; AC-11 e-mails it (A6). No Stripe invoice is created.
   WEB->>GW: POST /invoices/{id}/payments
   GW->>PAY: pay invoice
-  PAY->>INV: GetInvoice (Stripe invoice id, producer account)
-  PAY->>STR: clone the consumer's platform PaymentMethod to the producer account and attach it to the Customer
-  PAY->>STR: pay the Stripe invoice on the producer account (direct charge)
-  STR-->>PAY: Connect webhook (invoice.paid / invoice.payment_failed)
+  PAY->>INV: GetInvoice (amounts, legalNumber)
+  PAY->>STR: PaymentIntent direct charge (or hosted Checkout) on the producer Connect account (CollectPort)
+  STR-->>PAY: Connect webhook (payment_intent.succeeded / …)
   PAY->>BUS: PaymentStatusChanged
   BUS-->>INV: update outstanding and status
 ```
 
-Payment rules (INT-355, REQ-014, TD-6):
-- The payment is a **direct charge** on the producer's Stripe Connect account: AC-07 pays the producer's own Stripe invoice there with `invoices.pay`. The platform never holds the funds; no `transfer_data` / destination charge is used.
-- The consumer saves one PaymentMethod on the platform (SetupIntent). At payment time AC-07 clones it to the producer account and attaches it to the consumer's Customer on that account. AC-07 owns the mapping consumer × Connect account → Customer (one Customer per pair, metadata `participantId` only).
-- **SEPA Direct Debit (deferred, INT-361):** Stripe does not share `sepa_debit` PaymentMethods with connected accounts, so a platform SEPA mandate cannot fund a direct charge. V1 offers cards only: the SetupIntent and the Payment Element allow `card` alone. A SEPA method saved earlier is refused at pay time with `failureCategory: sepa_debit_not_shareable` and no charge is made. SEPA with a mandate per producer account is planned for the next release.
-- Stripe accepts a single payment per invoice, and the invoice is never e-mailed with a payable link: no double payment. A repeated Pay on a settled invoice returns the existing payment.
+Payment rules (INT-355, REQ-014, TD-6 / A6):
+- The payment is a **direct charge** on the producer's Stripe Connect account via `CollectPort` (PaymentIntent or hosted Checkout). There is no Stripe invoice and no `invoices.pay`. The platform never holds the funds; no `transfer_data` / destination charge is used.
+- The consumer saves one PaymentMethod on the platform (SetupIntent). At payment time AC-07 charges a card off-session on the producer account, or opens a PSP-hosted Checkout for SEPA / when no saved card exists (A7-bis).
+- A repeated Pay on a settled invoice returns the existing payment.
 - **Fees and disputes are on the producer; the platform absorbs nothing (INT-362).** Producer Connect accounts are created with `controller.fees.payer = account`, `controller.losses.payments = stripe` and `controller.requirement_collection = stripe`: Stripe takes its processing fees and any dispute amount from the producer's balance, and covers losses a producer cannot repay. The platform charges no application fee. No fee is added for the consumer: card surcharges are banned for EEA consumer cards (PSD2 art. 62(4)), and P2P invoices carry no extra lines (A20).
 - Because Stripe collects the requirements, producer onboarding (identity, bank account, terms of service) runs in Stripe's **embedded Account onboarding component** inside the portal's Payout account step. AC-07 returns an Account Session client secret (`mode: embedded`) and re-reads the account from Stripe on `account.updated` and on every Start; KYC is complete only when Stripe reports nothing due. Operator test fixtures (`payment-accounts:provision`, test mode only) still use Account Tokens on platform-collected accounts, because Stripe does not let a platform accept the terms of service of accounts it does not collect requirements for.
 - The webhook endpoint accepts both the platform and the Connect endpoint signing secrets (`stripe_webhook_secret`, `stripe_connect_webhook_secret`) and deduplicates on the Stripe event id.
@@ -378,10 +375,10 @@ Every adapter implements one logical port behind a stable interface. Switching f
 |---|---|---|---|---|
 | Market adapter (AC-04) | P-MKT | queryTrades(window), queryClearingResults(marketId), queryMarkets(window) | **Mock** (AC-15) | EWDS request/reply on GSY channels + REST backfill |
 | Data-space adapter (AC-10) | P-DS | publish(topic, message), purgeCache(before) | **Mock** (AC-15, schema validation) | Blooo EWDS Client Gateway |
-| Payment adapter (AC-07) | P-PSP | createEmbeddedProducerAccount, createAccountOnboardingSession, createProducerAccount (test fixtures), attachPaymentMethod, createConnectedCustomer, createPayment (direct charge: pays the producer's Stripe invoice), refund, verifyWebhook | **Stripe test mode** | Stripe live (per community, after V1) |
+| Payment adapter (AC-07) | P-PSP | KycOnboardingPort, CollectPort (direct charge / hosted Checkout on the producer account), PayoutPort, PspEventsPort | **Stripe test mode** | Stripe live (per community, after V1) |
 | IdP admin adapter (AC-03) + token validation (AC-02) | P-IDP | createUser, sendInvitation, deleteUser; validateToken | Keycloak, local instance | Project IdP (Blooo-operated) or pilot OIDC IdP |
 | FX adapter (AC-13) | P-FX | getRate(currency, date) | **Fixture** (AC-15) | ECB reference rates |
-| Mail adapter (AC-11) | P-MAIL | send(template, to, attachments) | Local mail catcher | Transactional mail service |
+| Mail adapter (AC-11) | P-MAIL | send(template, to, attachments) — invoice PDF and payment reminders are sent by billing via AC-11 (A6; Stripe no longer e-mails invoices) | Local mail catcher | Transactional mail service |
 | KPI export adapter (AC-09) | P-KPI | export(period, dataset) | File export | Format/channel agreed with WP6 / GSY |
 
 ## 8. Mock suite: V1 scenarios (AC-15)

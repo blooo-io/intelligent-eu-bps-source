@@ -53,15 +53,10 @@ async function readyAccount(
 async function readyCollect(h: PspContractHarness): Promise<{
   a: PspAdapter;
   pspAccountRef: string;
-  pspCustomerRef: string;
 }> {
   const { a, pspAccountRef } = await readyAccount(h);
   await h.completeKyc(pspAccountRef);
-  const { pspCustomerRef } = await a.ensureCustomer({
-    participantId: P1,
-    pspAccountRef,
-  });
-  return { a, pspAccountRef, pspCustomerRef };
+  return { a, pspAccountRef };
 }
 
 export function runPspContractSuite(
@@ -112,13 +107,12 @@ export function runPspContractSuite(
     describe("Collect", () => {
       it("UAT-014 REQ-014 direct card charge succeeds and is idempotent", async () => {
         const h = await makeHarness();
-        const { a, pspAccountRef, pspCustomerRef } = await readyCollect(h);
+        const { a, pspAccountRef } = await readyCollect(h);
         const input = {
           invoiceId: INV1,
           amount: "100.00",
           currency: "EUR",
           pspAccountRef,
-          pspCustomerRef,
           pspPaymentMethodRef: await h.paymentMethod("card_ok"),
           idempotencyKey: `pay:${INV1}`,
         };
@@ -130,14 +124,13 @@ export function runPspContractSuite(
 
       it("UAT-016 REQ-016 declined card maps to card_declined", async () => {
         const h = await makeHarness();
-        const { a, pspAccountRef, pspCustomerRef } = await readyCollect(h);
+        const { a, pspAccountRef } = await readyCollect(h);
         expect(
           await a.createDirectCharge({
             invoiceId: INV1,
             amount: "100.00",
             currency: "EUR",
             pspAccountRef,
-            pspCustomerRef,
             pspPaymentMethodRef: await h.paymentMethod("card_decline"),
             idempotencyKey: "k2",
           }),
@@ -146,13 +139,12 @@ export function runPspContractSuite(
 
       it("UAT-057 REQ-046 settlement exposes the PSP fee", async () => {
         const h = await makeHarness();
-        const { a, pspAccountRef, pspCustomerRef } = await readyCollect(h);
+        const { a, pspAccountRef } = await readyCollect(h);
         const r1 = await a.createDirectCharge({
           invoiceId: INV1,
           amount: "100.00",
           currency: "EUR",
           pspAccountRef,
-          pspCustomerRef,
           pspPaymentMethodRef: await h.paymentMethod("card_ok"),
           idempotencyKey: `pay:${INV1}:settle`,
         });
@@ -166,13 +158,12 @@ export function runPspContractSuite(
 
       it("REQ-014 hosted checkout offers card and SEPA on the producer account", async () => {
         const h = await makeHarness();
-        const { a, pspAccountRef, pspCustomerRef } = await readyCollect(h);
+        const { a, pspAccountRef } = await readyCollect(h);
         const c = await a.createCheckoutSession({
           invoiceId: INV2,
           amount: "42.50",
           currency: "EUR",
           pspAccountRef,
-          pspCustomerRef,
           methods: ["card", "sepa_debit"],
           saveForFutureUse: true,
           successUrl: RET,

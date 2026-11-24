@@ -69,6 +69,13 @@ describe("AppModule factories (INT-193)", () => {
     expect(k).toBeInstanceOf(MockPspAdapter);
   });
 
+  it("D2 connected-customers store is not wired [INT-428]", async () => {
+    delete process.env.PSP_PROVIDER;
+    const nest = await boot();
+    await expect(import("./ports/connected-customers.store.js")).rejects.toThrow();
+    expect(() => nest.get(Symbol.for("CONNECTED_CUSTOMERS_STORE"))).toThrow();
+  });
+
   it("defaults to in-memory invoice lookup and noop notifier", async () => {
     delete process.env.INVOICING_INTERNAL_URL;
     delete process.env.PARTICIPANTS_INTERNAL_URL;

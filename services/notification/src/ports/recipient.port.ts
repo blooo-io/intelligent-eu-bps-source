@@ -1,24 +1,40 @@
 import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
 /**
- * Resolve payment-notice recipient e-mail (INT-274 / REQ-017).
+ * Resolve payment-notice recipient e-mail (INT-274 / REQ-017)
+ * and community manager contact (INT-428 / REQ-061).
  * Prefer AC-03 profile; local registerRecipient remains for unit tests.
  */
 export interface RecipientPort {
   resolveEmail(participantId: string): Promise<string | null>;
+  /** AC-03 GetManagerContact — missing-payment alert (REQ-061). */
+  resolveCommunityManagerEmail(communityId: string): Promise<string | null>;
 }
 
 export const RECIPIENT_PORT = Symbol("RECIPIENT_PORT");
 
 /** In-memory map — used when PARTICIPANTS_INTERNAL_URL is unset (CI). */
 export class MapRecipient implements RecipientPort {
-  constructor(private readonly byId: Map<string, string>) {}
+  constructor(
+    private readonly byId: Map<string, string>,
+    private readonly managersByCommunity = new Map<string, string>(),
+  ) {}
 
   async resolveEmail(participantId: string): Promise<string | null> {
     return this.byId.get(participantId) ?? null;
   }
 
+  async resolveCommunityManagerEmail(
+    communityId: string,
+  ): Promise<string | null> {
+    return this.managersByCommunity.get(communityId) ?? null;
+  }
+
   register(participantId: string, email: string): void {
     this.byId.set(participantId, email);
+  }
+
+  registerCommunityManager(communityId: string, email: string): void {
+    this.managersByCommunity.set(communityId, email);
   }
 }
 
@@ -48,6 +64,30 @@ export class HttpRecipient implements RecipientPort {
     if (!res.ok) {
       throw new Error(
         `participants getNotificationContact ${participantId} failed with ${res.status}`,
+      );
+    }
+    const body = (await res.json()) as { email?: string };
+    const email = typeof body.email === "string" ? body.email.trim() : "";
+    return email || null;
+  }
+
+  /** INT-428 — GetManagerContact for missing-payment alerts (REQ-061). */
+  async resolveCommunityManagerEmail(
+    communityId: string,
+  ): Promise<string | null> {
+    const url = `${this.baseUrl.replace(/\/$/, "")}/internal/v1/communities/${communityId}/manager-contact`;
+    const res = await this.fetchImpl(url, {
+      method: "GET",
+      headers: {
+        ...(await resolveServiceAuthHeaders("ac-11-notification", this.auth)),
+      },
+    });
+    if (res.status === 404) {
+      return null;
+    }
+    if (!res.ok) {
+      throw new Error(
+        `participants getManagerContact ${communityId} failed with ${res.status}`,
       );
     }
     const body = (await res.json()) as { email?: string };

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -13,14 +14,11 @@ import {
 import { InvoiceStore, type InvoiceWrite } from "../domain/store.js";
 import type {
   InvoiceRecord,
+  InvoiceReminder,
   InvoiceStatus,
   PairSettlementInput,
 } from "../domain/types.js";
-import {
-  isLiveStripeInvoiceProvider,
-  PAYMENTS_CLIENT,
-  type PaymentsClientPort,
-} from "../ports/payments-client.port.js";
+import { UAT_INLINE_PDF } from "../domain/uat-seed.js";
 import {
   PARTICIPANTS_RESOLVER,
   type ParticipantsResolverPort,
@@ -29,22 +27,40 @@ import {
   READINESS_PORT,
   type ReadinessPort,
 } from "../ports/readiness.port.js";
-import {
-  STRIPE_INVOICE_PORT,
-  type StripeInvoicePort,
-} from "../stripe/stripe-invoice.port.js";
 import { StatementsService } from "./statements.service.js";
 
 const PRODUCER = "AC-06";
+const SCHEDULED_REMINDER_ACTOR = "00000000-0000-4000-8000-000000000003";
+
+/** Statuses that accept a payment reminder (REQ-061). */
+const REMINDABLE_STATUSES = new Set<InvoiceStatus>([
+  "Open",
+  "Overdue",
+  "PartiallyPaid",
+]);
+
+function reminderIntervalDays(): number {
+  const raw = Number(process.env.REMINDER_INTERVAL_DAYS ?? "7");
+  return Number.isFinite(raw) && raw > 0 ? raw : 7;
+}
+
+function reminderMax(): number {
+  const raw = Number(process.env.REMINDER_MAX ?? "3");
+  return Number.isFinite(raw) && raw > 0 ? raw : 3;
+}
+
+function daysBetween(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00.000Z`);
+  const b = Date.parse(`${to}T00:00:00.000Z`);
+  return Math.floor((b - a) / 86_400_000);
+}
 
 /**
- * AC-06 — map pair settlement → Stripe invoice (INT-106 / TD-2).
- * BR-09 readiness gate; BR-10 numbering owned by Stripe.
+ * AC-06 — map pair settlement → billing-owned invoice (INT-428 / A6 / TD-2).
+ * BR-09 readiness gate; BR-10 numbering owned by billing.
  */
 @Injectable()
 export class InvoicingService {
-  /** Unit-test / mock fixture: producerId → Stripe Connect account id. */
-  private readonly connectAccounts = new Map<string, string>();
   private tx: { run<T>(fn: () => Promise<T> | T): Promise<T> } = new PassthroughTransaction();
 
   /** INT-356 — Postgres transaction around invoice writes when DATABASE_URL is set. */
@@ -55,9 +71,7 @@ export class InvoicingService {
   constructor(
     @Inject(InvoiceStore) private readonly store: InvoiceStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
-    @Inject(STRIPE_INVOICE_PORT) private readonly stripe: StripeInvoicePort,
     @Inject(READINESS_PORT) private readonly readiness: ReadinessPort,
-    @Inject(PAYMENTS_CLIENT) private readonly payments: PaymentsClientPort,
     @Inject(PARTICIPANTS_RESOLVER)
     private readonly idpResolver: ParticipantsResolverPort,
     @Inject(StatementsService) private readonly statements: StatementsService,
@@ -65,96 +79,22 @@ export class InvoicingService {
 
   resetStore(): void {
     this.store.reset();
-    this.connectAccounts.clear();
-  }
-
-  registerConnectAccount(producerId: string, stripeAccountId: string): void {
-    this.connectAccounts.set(producerId, stripeAccountId);
-  }
-
-  /**
-   * INT-228 / TP-7 / INT-231 — Connect id from override → AC-07 → fixture.
-   * Never synthesise acct_test_* when talking to live Stripe.
-   * When AC-07 reports chargesEnabled=false, throw a retryable signal so the
-   * NATS consumer naks until KYC completes.
-   */
-  private async resolveProducerStripeAccount(
-    settlement: PairSettlementInput,
-  ): Promise<string> {
-    const fromPayments = await this.payments.getPaymentAccount(
-      settlement.producerId,
-    );
-    // INT-340 — an operator override is kept only when it matches AC-07, or when
-    // AC-07 has no Connect id yet (UAT-028 seed before provisioning).
-    if (fromPayments?.stripeAccountId) {
-      if (fromPayments.chargesEnabled === false) {
-        throw new BadRequestException(
-          "producer charges_enabled not ready (retry until KYC completes)",
-        );
-      }
-      if (
-        settlement.producerStripeAccountId &&
-        settlement.producerStripeAccountId !== fromPayments.stripeAccountId
-      ) {
-        throw new BadRequestException(
-          "producer Connect account does not match AC-07",
-        );
-      }
-      return fromPayments.stripeAccountId;
-    }
-    if (settlement.producerStripeAccountId) {
-      return settlement.producerStripeAccountId;
-    }
-    const fromFixture = this.connectAccounts.get(settlement.producerId);
-    if (fromFixture) {
-      return fromFixture;
-    }
-    if (isLiveStripeInvoiceProvider()) {
-      throw new BadRequestException(
-        "producer Connect account required (provision via AC-07; no synthetic acct_test_*)",
-      );
-    }
-    return `acct_test_${settlement.producerId.replaceAll("-", "").slice(0, 16)}`;
-  }
-
-  /**
-   * INT-355 / REQ-014 — the invoice bills the consumer's Customer on the
-   * producer Connect account, owned by AC-07 (EnsureConnectedCustomer), so the
-   * payment is a direct charge on that account. Never synthesised against live
-   * Stripe: the NATS consumer naks until AC-07 answers.
-   */
-  private async resolveConnectedCustomer(
-    consumerId: string,
-    stripeAccountId: string,
-  ): Promise<string> {
-    const fromPayments = await this.payments.ensureConnectedCustomer(
-      consumerId,
-      stripeAccountId,
-    );
-    if (fromPayments) {
-      return fromPayments;
-    }
-    if (isLiveStripeInvoiceProvider()) {
-      throw new BadRequestException(
-        "consumer connected-account Customer required (AC-07 EnsureConnectedCustomer)",
-      );
-    }
-    return `cus_test_${consumerId.replaceAll("-", "").slice(0, 16)}`;
   }
 
   getInvoice(invoiceId: string): {
     invoiceId: string;
     producerId: string;
     consumerId: string;
+    communityId: string;
     currency: string;
     status: InvoiceStatus;
+    legalNumber: string | null;
+    dueDate: string;
     total: string;
     /** INT-196 / UAT-028 — originating trades for operator trace. */
     tradeIds: string[];
     pairSettlementId: string;
-    producerStripeAccountId?: string;
-    stripeInvoiceId?: string;
-    hostedInvoiceUrl?: string;
+    amounts: { energy: string; vat: string; total: string };
   } {
     const row = this.store.get(invoiceId);
     if (!row) {
@@ -168,14 +108,15 @@ export class InvoicingService {
     invoiceId: string;
     producerId: string;
     consumerId: string;
+    communityId: string;
     currency: string;
     status: InvoiceStatus;
+    legalNumber: string | null;
+    dueDate: string;
     total: string;
     tradeIds: string[];
     pairSettlementId: string;
-    producerStripeAccountId?: string;
-    stripeInvoiceId?: string;
-    hostedInvoiceUrl?: string;
+    amounts: { energy: string; vat: string; total: string };
   } {
     const row = this.store.findBySettlement(settlementId);
     if (!row) {
@@ -190,29 +131,33 @@ export class InvoicingService {
     invoiceId: string;
     producerId: string;
     consumerId: string;
+    communityId: string;
     currency: string;
     status: InvoiceStatus;
+    legalNumber: string | null;
+    dueDate: string;
     total: string;
     tradeIds: string[];
     pairSettlementId: string;
-    producerStripeAccountId?: string;
-    stripeInvoiceId?: string;
-    hostedInvoiceUrl?: string;
+    amounts: { energy: string; vat: string; total: string };
   } {
     return {
       invoiceId: row.invoiceId,
       producerId: row.producerId,
       consumerId: row.consumerId,
+      communityId: row.communityId,
       currency: row.currency,
       status: row.status,
+      legalNumber: row.legalNumber,
+      dueDate: row.dueDate,
       total: row.total,
       tradeIds: row.tradeIds,
       pairSettlementId: row.settlementId,
-      ...(row.producerStripeAccountId
-        ? { producerStripeAccountId: row.producerStripeAccountId }
-        : {}),
-      ...(row.stripeInvoiceId ? { stripeInvoiceId: row.stripeInvoiceId } : {}),
-      ...(row.hostedInvoiceUrl ? { hostedInvoiceUrl: row.hostedInvoiceUrl } : {}),
+      amounts: {
+        energy: row.energyAmount,
+        vat: row.vatAmount,
+        total: row.total,
+      },
     };
   }
 
@@ -266,11 +211,14 @@ export class InvoicingService {
     return this.toPublicInvoice(row);
   }
 
-  /** Hosted PDF / invoice URL (REQ-039). */
-  async getDocumentUrlForParticipant(
+  /**
+   * REQ-039 / A6 — billing-stored PDF for the caller (member on the invoice).
+   * Stub bytes until the pdf-lib renderer (Task 2.10) stores a real document.
+   */
+  async getDocumentForCaller(
     invoiceId: string,
     subOrParticipantId: string,
-  ): Promise<{ url: string }> {
+  ): Promise<{ legalNumber: string; content: Buffer }> {
     const row = this.store.get(invoiceId);
     if (!row) {
       throw new NotFoundException(`Unknown invoice ${invoiceId}`);
@@ -279,15 +227,15 @@ export class InvoicingService {
     if (!this.isCallerOnInvoice(row, callerIds)) {
       throw new NotFoundException(`Unknown invoice ${invoiceId}`);
     }
-    if (!row.hostedInvoiceUrl) {
+    if (!row.legalNumber) {
       throw new NotFoundException(`No document for invoice ${invoiceId}`);
     }
-    return { url: row.hostedInvoiceUrl };
+    return { legalNumber: row.legalNumber, content: Buffer.from(UAT_INLINE_PDF) };
   }
 
   /**
-   * TD-2 mapping: create Stripe invoice on producer Connect account from a pair settlement.
-   * Idempotent on settlementId.
+   * TD-2 / A6 mapping: issue a billing-owned invoice from a pair settlement.
+   * Idempotent on settlementId. Legal number sequential per producer (BR-10).
    */
   async createFromSettlement(
     settlement: PairSettlementInput,
@@ -316,25 +264,16 @@ export class InvoicingService {
       );
     }
 
-    const stripeAccountId = await this.resolveProducerStripeAccount(settlement);
-    const stripeCustomerId = await this.resolveConnectedCustomer(
-      settlement.consumerId,
-      stripeAccountId,
-    );
-
     const dueDate = new Date();
     dueDate.setUTCDate(dueDate.getUTCDate() + 14);
     const due = dueDate.toISOString().slice(0, 10);
 
-    const stripeInvoice = await this.stripe.createFromSettlement(settlement, {
-      stripeAccountId,
-      stripeCustomerId,
-      dueDate: due,
-    });
-
     const total = (
       Number(settlement.energyAmount) + Number(settlement.vat)
     ).toFixed(2);
+
+    // BR-10 / REQ-042 — assign inside the issue transaction (A6).
+    const legalNumber = this.store.nextLegalNumber(settlement.producerId);
 
     const invoiceId = randomUUID();
     const record: InvoiceRecord = {
@@ -351,15 +290,13 @@ export class InvoicingService {
       total,
       tradeIds: settlement.tradeIds,
       lines: settlement.lines ?? [],
-      stripeInvoiceId: stripeInvoice.stripeInvoiceId,
-      legalNumber: stripeInvoice.legalNumber,
-      hostedInvoiceUrl: stripeInvoice.hostedInvoiceUrl || null,
+      legalNumber,
       energyAmount: settlement.energyAmount,
       vatAmount: settlement.vat,
-      producerStripeAccountId: stripeAccountId,
       dueDate: due,
       communityId: settlement.communityId,
       statusAudit: [],
+      reminders: [],
     };
     this.store.put(record);
 
@@ -425,6 +362,133 @@ export class InvoicingService {
   }
 
   /**
+   * REQ-061 / UAT-078 — manager or scheduled payment reminder.
+   * 409 unless Open | Overdue | PartiallyPaid; REQ-049 community scope → 404.
+   */
+  async sendReminder(
+    invoiceId: string,
+    input: {
+      actorId: string;
+      communityId?: string;
+      trigger: "manual" | "scheduled";
+      /** Calendar date for scheduled cadence (defaults to today UTC). */
+      asOf?: string;
+    },
+  ): Promise<{ invoiceId: string; reminderCount: number }> {
+    return this.tx.run(() => this.performSendReminder(invoiceId, input));
+  }
+
+  private async performSendReminder(
+    invoiceId: string,
+    input: {
+      actorId: string;
+      communityId?: string;
+      trigger: "manual" | "scheduled";
+      asOf?: string;
+    },
+  ): Promise<{ invoiceId: string; reminderCount: number }> {
+    const row = this.store.get(invoiceId);
+    if (!row) throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    if (
+      input.communityId !== undefined &&
+      row.communityId !== input.communityId
+    ) {
+      throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    }
+    if (!REMINDABLE_STATUSES.has(row.status)) {
+      throw new ConflictException(
+        `invoice ${invoiceId} cannot be reminded in status ${row.status}`,
+      );
+    }
+
+    const asOf = input.asOf ?? new Date().toISOString().slice(0, 10);
+    const reminders = [...(row.reminders ?? [])];
+    const reminderNumber = reminders.length + 1;
+    const entry: InvoiceReminder = {
+      sentOn: asOf,
+      trigger: input.trigger,
+      reminderNumber,
+    };
+    reminders.push(entry);
+    this.store.put({ ...row, reminders });
+
+    await this.outbox.append({
+      aggregateType: "Invoice",
+      aggregateId: invoiceId,
+      type: "PaymentReminderRequested",
+      producer: PRODUCER,
+      communityId: row.communityId,
+      billingMode: "virtual",
+      data: {
+        invoiceId,
+        recipientId: row.consumerId,
+        communityId: row.communityId,
+        dueDate: row.dueDate,
+        outstanding: row.total,
+        currency: row.currency,
+        reminderNumber,
+        trigger: input.trigger,
+      },
+    });
+
+    if (input.trigger === "manual") {
+      await this.outbox.append({
+        aggregateType: "Invoice",
+        aggregateId: invoiceId,
+        type: "AuditableActionPerformed",
+        producer: PRODUCER,
+        communityId: row.communityId,
+        billingMode: "virtual",
+        data: {
+          actorId: input.actorId,
+          action: "invoice.reminder.manual",
+          target: `invoice:${invoiceId}`,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
+
+    return { invoiceId, reminderCount: reminders.length };
+  }
+
+  /**
+   * REQ-061 — batch scheduled reminders for Overdue invoices (AC-14 SendReminders).
+   * Cadence: first scheduled, then every REMINDER_INTERVAL_DAYS, at most REMINDER_MAX.
+   */
+  async sendDueReminders(
+    asOf: string,
+  ): Promise<{ accepted: true; sent: number }> {
+    return this.tx.run(() => this.performSendDueReminders(asOf));
+  }
+
+  private async performSendDueReminders(
+    asOf: string,
+  ): Promise<{ accepted: true; sent: number }> {
+    if (!asOf) {
+      throw new BadRequestException("asOf is required");
+    }
+    const interval = reminderIntervalDays();
+    const max = reminderMax();
+    let sent = 0;
+    for (const row of this.store.list()) {
+      if (row.status !== "Overdue") continue;
+      const scheduled = (row.reminders ?? []).filter(
+        (r) => r.trigger === "scheduled",
+      );
+      if (scheduled.length >= max) continue;
+      const last = scheduled[scheduled.length - 1];
+      if (last && daysBetween(last.sentOn, asOf) < interval) continue;
+      await this.performSendReminder(row.invoiceId, {
+        actorId: SCHEDULED_REMINDER_ACTOR,
+        trigger: "scheduled",
+        asOf,
+      });
+      sent += 1;
+    }
+    return { accepted: true, sent };
+  }
+
+  /**
    * Manager manual status change (REQ-044 / UAT-055).
    * Reason is mandatory; actor + reason go to statusAudit and AuditableActionPerformed.
    */
@@ -476,35 +540,6 @@ export class InvoicingService {
   }
 
   /**
-   * Apply a Stripe webhook status into the rebuildable cache (TD-6 / INT-130).
-   * Stripe remains master; we store the mapped status locally.
-   */
-  async applyStripeStatus(input: {
-    stripeInvoiceId: string;
-    status: InvoiceStatus;
-    reason?: string;
-  }): Promise<InvoiceRecord | undefined> {
-    return this.tx.run(() => this.performApplyStripeStatus(input));
-  }
-
-  private async performApplyStripeStatus(input: {
-    stripeInvoiceId: string;
-    status: InvoiceStatus;
-    reason?: string;
-  }): Promise<InvoiceRecord | undefined> {
-    const row = this.store
-      .list()
-      .find((r) => r.stripeInvoiceId === input.stripeInvoiceId);
-    if (!row) return undefined;
-    return this.applyStatus(row, {
-      status: input.status,
-      reason: input.reason ?? `stripe:${input.status}`,
-      actorId: "00000000-0000-4000-8000-000000000002",
-      source: "stripe",
-    });
-  }
-
-  /**
    * INT-270 / INT-130 — PaymentStatusChanged → invoice Paid (BR-11).
    * Idempotent when already Paid; ignores non-succeeded statuses.
    */
@@ -534,7 +569,7 @@ export class InvoicingService {
       status: "Paid",
       reason: `payment:${input.paymentId}`,
       actorId: "00000000-0000-4000-8000-000000000002",
-      source: "stripe",
+      source: "payment",
     });
   }
 
@@ -550,7 +585,7 @@ export class InvoicingService {
       status: InvoiceStatus;
       reason: string;
       actorId: string;
-      source: "manual" | "stripe" | "mark_overdue";
+      source: "manual" | "payment" | "mark_overdue";
     },
   ): Promise<InvoiceRecord> {
     const at = new Date().toISOString();

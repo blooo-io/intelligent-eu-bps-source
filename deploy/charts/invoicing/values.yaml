@@ -8,19 +8,19 @@ image:
   tag: "0.0.0"
 port: 8080
 # INT-287 — peer allow-list only (no namespace-wide ingress).
-egressModules: 
+# A6 / INT-428 — Stripe Invoicing removed; no payments egress.
+egressModules:
   - settlement
   - participants
-  - payments
 ingressFrom:
   - payments
   - scheduler-worker
+  - notification
 keycloakEgress: true
-stripeEgress: true
-# INT-189 — Stripe test invoices on producer Connect accounts (AD-6).
+stripeEgress: false
 # INT-223 — JetStream SettlementCompleted → createFromSettlement.
-# INT-228 — resolve Connect ids from AC-07 (no synthetic acct_test_*).
-# INT-231 — HttpReadiness (BR-09) + charges_enabled retry via AC-07.
+# INT-231 — HttpReadiness (BR-09) via AC-03.
+# INT-428 — reminders (REQ-061).
 env:
   KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
   # INT-348 — JWT iss is public KC_HOSTNAME (INT-345); JWKS stays on KEYCLOAK_BASE_URL.
@@ -31,11 +31,10 @@ env:
   KEYCLOAK_SERVICE_CLIENT_ID: module-service
   # INT-314 — require Bearer JWT on /internal/* (forgeable headers alone rejected).
   SERVICE_JWT_REQUIRED: "true"
-  STRIPE_INVOICE_PROVIDER: stripe
-  PSP_PROVIDER: stripe
   NATS_URL: nats://nats.nats.svc.cluster.local:4222
   NATS_SUBJECT_PREFIX: intelligent.dev
   NATS_STREAM: DebeziumStream
   SETTLEMENT_INTERNAL_URL: http://settlement:8080
-  PAYMENTS_INTERNAL_URL: http://payments:8080
   PARTICIPANTS_INTERNAL_URL: http://participants:8080
+  REMINDER_INTERVAL_DAYS: "7"
+  REMINDER_MAX: "3"

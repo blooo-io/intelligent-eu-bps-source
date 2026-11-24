@@ -23,11 +23,6 @@ import {
 } from "../domain/store.js";
 import type { JournalWrite } from "../persistence/payment-journal.js";
 import {
-  CONNECTED_CUSTOMERS_STORE,
-  type ConnectedCustomerRecord,
-  type ConnectedCustomersStore,
-} from "../ports/connected-customers.store.js";
-import {
   INVOICE_LOOKUP,
   type InvoiceLookupPort,
 } from "../ports/invoice-lookup.port.js";
@@ -126,8 +121,6 @@ export class PaymentsService {
     private readonly idpResolver: ParticipantsResolverPort,
     @Inject(PSP_ERASE_PORT) private readonly pspErase: PspErasePort,
     @Inject(IdempotentConsumer) private readonly consumer: IdempotentConsumer,
-    @Inject(CONNECTED_CUSTOMERS_STORE)
-    private readonly connectedCustomers: ConnectedCustomersStore,
     @Inject(COLLECT_PORT) private readonly collect: CollectPort,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(PSP_EVENTS_PORT) private readonly pspEvents: PspEventsPort,
@@ -143,34 +136,6 @@ export class PaymentsService {
   resetStore(): void {
     this.store.reset();
     this.accountsStore.reset?.();
-    this.connectedCustomers.reset?.();
-  }
-
-  /**
-   * INT-355 / REQ-014 — EnsureConnectedCustomer: one Customer per consumer per
-   * producer Connect account, reused for every invoice of the pair. AC-06 bills
-   * it; AC-07 pays the invoice as that Customer (direct charge).
-   */
-  async ensureConnectedCustomer(input: {
-    participantId: string;
-    pspAccountRef: string;
-  }): Promise<ConnectedCustomerRecord> {
-    if (!input.participantId || !/^acct_/.test(input.pspAccountRef ?? "")) {
-      throw new BadRequestException("participantId and acct_ pspAccountRef required");
-    }
-    const existing = await this.connectedCustomers.get(
-      input.participantId,
-      input.pspAccountRef,
-    );
-    if (existing) {
-      return existing;
-    }
-    const created = await this.psp.createConnectedCustomer(input);
-    return this.connectedCustomers.putIfAbsent({
-      participantId: input.participantId,
-      pspAccountRef: input.pspAccountRef,
-      pspCustomerRef: created.pspCustomerRef,
-    });
   }
 
   /** INT-228 — write memory + durable store (Postgres when DATABASE_URL set). */
@@ -878,8 +843,7 @@ export class PaymentsService {
     };
 
     if (pspPaymentMethodRef && savedMethod === "card") {
-      const pspCustomerRef = await this.connectedCustomerFor(participantId, pspAccountRef);
-      // A declined attempt must not replay under the PSP idempotency key.
+      // D2 / A1 — per-charge PM clone on the producer account; no connected Customer.
       const failed = attempts.filter(
         (row) => row.status === "failed" && !row.pspCheckoutRef,
       ).length;
@@ -891,7 +855,6 @@ export class PaymentsService {
         amount: invoice.total,
         currency: invoice.currency,
         pspAccountRef,
-        pspCustomerRef,
         pspPaymentMethodRef,
         idempotencyKey,
       });
@@ -914,14 +877,12 @@ export class PaymentsService {
         "returnUrl required for PSP-hosted checkout (A7-bis)",
       );
     }
-    const pspCustomerRef = await this.connectedCustomerFor(participantId, pspAccountRef);
     const initiatedAt = this.clock.now().toISOString();
     const session = await this.collect.createCheckoutSession({
       invoiceId: input.invoiceId,
       amount: invoice.total,
       currency: invoice.currency,
       pspAccountRef,
-      pspCustomerRef,
       methods: [...CHECKOUT_METHODS],
       saveForFutureUse: true,
       successUrl: input.returnUrl,
@@ -964,24 +925,6 @@ export class PaymentsService {
       );
     }
     return pspAccountRef;
-  }
-
-  /** INT-355 — one PSP customer per consumer and producer account, reused per invoice. */
-  private async connectedCustomerFor(
-    participantId: string,
-    pspAccountRef: string,
-  ): Promise<string> {
-    const existing = await this.connectedCustomers.get(participantId, pspAccountRef);
-    if (existing) {
-      return existing.pspCustomerRef;
-    }
-    const created = await this.collect.ensureCustomer({ participantId, pspAccountRef });
-    const stored = await this.connectedCustomers.putIfAbsent({
-      participantId,
-      pspAccountRef,
-      pspCustomerRef: created.pspCustomerRef,
-    });
-    return stored.pspCustomerRef;
   }
 
   private async paymentMethodType(pspPaymentMethodRef: string): Promise<string> {

@@ -255,15 +255,13 @@ describe("SettlementCompletedListener (INT-223)", () => {
     ).rejects.toThrow("stripe down");
   });
 
-  it("acks non-retryable Stripe Connect account errors without rethrow", async () => {
+  it("acks non-retryable GetPairSettlement 404 without rethrow", async () => {
     const bus = new InMemoryEventBus();
     const listener = new SettlementCompletedListener(
       bus,
       {
         createFromSettlement: vi.fn(async () => {
-          throw new Error(
-            "The provided key does not have access to account 'acct_test_abc'",
-          );
+          throw new Error("settlement getPairSettlement s1 failed with 404");
         }),
       } as never,
       {
@@ -336,7 +334,9 @@ describe("SettlementCompletedListener (INT-223)", () => {
 
     it("REQ-059: still issues statements for created invoices when a pair fails non-retryably", async () => {
       const { listener, statements } = setup(async (p) => {
-        if (p.settlementId === "s2") throw new Error("No such account: acct_x");
+        if (p.settlementId === "s2") {
+          throw new Error("settlement getPairSettlement s2 failed with 404");
+        }
       });
       await listener.onMessage(envelope({ runId: "R1", pairSettlementIds: ["s1", "s2"] }));
       expect(statements.issueStatementsForRun).toHaveBeenCalledWith("R1");
@@ -365,32 +365,22 @@ describe("SettlementCompletedListener (INT-223)", () => {
     });
   });
 
-  it("classifies Stripe account errors as non-retryable", () => {
-    expect(
-      isNonRetryableInvoiceError(
-        new Error("does not have access to account 'acct_xyz'"),
-      ),
-    ).toBe(true);
+  it("classifies unknown errors as retryable", () => {
     expect(isNonRetryableInvoiceError(new Error("timeout"))).toBe(false);
+    expect(
+      isNonRetryableInvoiceError(new Error("renderer failed")),
+    ).toBe(false);
   });
 
-  it("INT-231 — readiness / charges_enabled stay retryable", () => {
-    expect(
-      isNonRetryableInvoiceError(
-        new Error("producer charges_enabled not ready (retry until KYC completes)"),
-      ),
-    ).toBe(false);
+  it("INT-231 — readiness stays retryable", () => {
     expect(
       isNonRetryableInvoiceError(new Error("producer_not_ready")),
     ).toBe(false);
     expect(
       isNonRetryableInvoiceError(
-        new Error("producer Connect account required (provision via AC-07)"),
+        new Error("producer not ready for self-billing"),
       ),
     ).toBe(false);
-    expect(
-      isNonRetryableInvoiceError(new Error("acct_test_poison")),
-    ).toBe(true);
   });
 
   it("INT-368 — a 404 from AC-05 GetPairSettlement is not retried", () => {

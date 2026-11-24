@@ -224,17 +224,12 @@ describe("StripePspAdapter mapping (INT-424)", () => {
       country: "FR",
     });
     fake.completeKyc(pspAccountRef);
-    const { pspCustomerRef } = await adapter.ensureCustomer({
-      participantId: "part-3",
-      pspAccountRef,
-    });
     await expect(
       adapter.createDirectCharge({
         invoiceId: INV1,
         amount: "10.00",
         currency: "EUR",
         pspAccountRef,
-        pspCustomerRef,
         pspPaymentMethodRef: "pm_sepa_debit",
         idempotencyKey: "sepa:1",
       }),
@@ -243,6 +238,63 @@ describe("StripePspAdapter mapping (INT-424)", () => {
       failureCategory: "mandate_invalid",
       method: "sepa_debit",
     });
+  });
+
+  it("D2 / REQ-014 direct charge clones the platform card; no Customer on producer account", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
+      participantId: "part-d2",
+      country: "FR",
+    });
+    fake.completeKyc(pspAccountRef);
+    const customersCreate = vi.spyOn(fake.customers, "create");
+    const pmCreate = vi.spyOn(fake.paymentMethods, "create");
+    const piCreate = vi.spyOn(fake.paymentIntents, "create");
+    const attach = vi.spyOn(fake.paymentMethods, "attach");
+
+    const r = await adapter.createDirectCharge({
+      invoiceId: INV1,
+      amount: "12.00",
+      currency: "EUR",
+      pspAccountRef,
+      pspPaymentMethodRef: "pm_card_visa",
+      idempotencyKey: `pay:${INV1}`,
+    });
+
+    expect(r).toMatchObject({ status: "succeeded", method: "card" });
+    expect(pmCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_method: expect.any(String) }),
+      expect.objectContaining({ stripeAccount: pspAccountRef }),
+    );
+    expect(piCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 1200,
+        currency: "eur",
+        payment_method: expect.any(String),
+        confirm: true,
+        off_session: true,
+        metadata: { invoiceId: INV1 },
+      }),
+      expect.objectContaining({
+        stripeAccount: pspAccountRef,
+        idempotencyKey: `pay:${INV1}`,
+      }),
+    );
+    const piArgs = piCreate.mock.calls[0]![0] as Record<string, unknown>;
+    expect(piArgs).not.toHaveProperty("customer");
+    // Platform Customer may be created to make a bare test token shareable;
+    // never create a Customer on the connected (producer) account.
+    expect(
+      customersCreate.mock.calls.every(
+        ([, opts]) => !(opts as { stripeAccount?: string } | undefined)?.stripeAccount,
+      ),
+    ).toBe(true);
+    expect(
+      attach.mock.calls.every(
+        ([, , opts]) => !(opts as { stripeAccount?: string } | undefined)?.stripeAccount,
+      ),
+    ).toBe(true);
+    expect(adapter).not.toHaveProperty("createConnectedCustomer");
+    expect(adapter).not.toHaveProperty("createPayment");
   });
 
   it("verifyEvent rejects bad signatures and normalises signed events", () => {
@@ -350,10 +402,6 @@ describe("StripePspAdapter mapping (INT-424)", () => {
       country: "FR",
     });
     fake.completeKyc(pspAccountRef);
-    const { pspCustomerRef } = await adapter.ensureCustomer({
-      participantId: "part-ns",
-      pspAccountRef,
-    });
     // Non pm_card_* token with no customer → shareablePlatformCard returns null.
     fake.paymentMethods.retrieve = async () =>
       ({
@@ -369,7 +417,6 @@ describe("StripePspAdapter mapping (INT-424)", () => {
         amount: "10.00",
         currency: "EUR",
         pspAccountRef,
-        pspCustomerRef,
         pspPaymentMethodRef: "pm_custom_noshare",
         idempotencyKey: "ns:1",
       }),
@@ -517,17 +564,13 @@ describe("StripePspAdapter mapping (INT-424)", () => {
       country: "FR",
     });
     fake.completeKyc(pspAccountRef);
-    const { pspCustomerRef } = await adapter.ensureCustomer({
-      participantId: "part-cs",
-      pspAccountRef,
-    });
+    const customersCreate = vi.spyOn(fake.customers, "create");
     await expect(
       adapter.createCheckoutSession({
         invoiceId: INV1,
         amount: "10.00",
         currency: "EUR",
         pspAccountRef,
-        pspCustomerRef,
         methods: ["card", "sepa_debit"],
         successUrl: "https://app.invalid/ok",
         cancelUrl: "https://app.invalid/cancel",
@@ -535,6 +578,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
         saveForFutureUse: true,
       }),
     ).resolves.toMatchObject({ checkoutUrl: expect.stringMatching(/^https:\/\//) });
+    expect(customersCreate).not.toHaveBeenCalled();
 
     vi.spyOn(fake.checkout.sessions, "create").mockResolvedValueOnce({
       id: "cs_nourl",
@@ -547,7 +591,6 @@ describe("StripePspAdapter mapping (INT-424)", () => {
         amount: "10.00",
         currency: "EUR",
         pspAccountRef,
-        pspCustomerRef,
         methods: ["card"],
         successUrl: "https://app.invalid/ok",
         cancelUrl: "https://app.invalid/cancel",

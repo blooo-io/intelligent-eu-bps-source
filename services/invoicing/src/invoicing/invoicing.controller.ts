@@ -38,6 +38,13 @@ export class InvoicingController {
     return this.invoicing.markOverdue(body.asOf);
   }
 
+  /** REQ-061 — AC-14 SendReminders batch. */
+  @Post(String.raw`invoices\:send-reminders`)
+  @HttpCode(202)
+  async sendReminders(@Body() body: { asOf: string }) {
+    return this.invoicing.sendDueReminders(body.asOf);
+  }
+
   /**
    * INT-196 / UAT-028 — operator / seed bridge AC-05 → AC-06.
    * Primary path is SettlementCompleted NATS consumer (INT-223 / INT-238).
@@ -67,8 +74,6 @@ export class InvoicingController {
       tradeIds: invoice.tradeIds,
       pairSettlementId: invoice.settlementId,
       legalNumber: invoice.legalNumber ?? undefined,
-      producerStripeAccountId: invoice.producerStripeAccountId,
-      hostedInvoiceUrl: invoice.hostedInvoiceUrl ?? undefined,
     };
   }
 }

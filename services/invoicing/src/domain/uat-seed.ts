@@ -15,13 +15,7 @@ export const UAT_COMMUNITY_ID = "a1000000-0000-4000-8000-000000000001";
 
 export const UAT_INVOICE_ID = "c0a1b2c3-d4e5-4f60-8a70-b8c9d0e1f203";
 
-/**
- * Marker URL — public document handler serves an inline stub PDF instead of
- * redirecting (browser fetch + external redirect fails CORS / cluster egress).
- */
-export const UAT_HOSTED_INVOICE_URL = "seed:uat218-inline-pdf";
-
-/** Minimal valid PDF bytes for Open PDF e2e (REQ-039 path). */
+/** Minimal valid PDF bytes for Open PDF e2e (REQ-039 path / A6 stub). */
 export const UAT_INLINE_PDF = Buffer.from(
   "%PDF-1.1\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n",
   "utf8",
@@ -53,15 +47,13 @@ export function seedUatInvoices(): InvoiceRecord[] {
           amount: "20.00",
         },
       ],
-      stripeInvoiceId: "in_test_uat218_seed",
-      legalNumber: "UAT218-000001",
-      hostedInvoiceUrl: UAT_HOSTED_INVOICE_URL,
+      legalNumber: "SB-ACA5ADB7-000001",
       energyAmount: "20.00",
       vatAmount: "2.00",
-      producerStripeAccountId: "acct_test_uat218",
       dueDate: "2026-11-30",
       communityId: UAT_COMMUNITY_ID,
       statusAudit: [],
+      reminders: [],
     },
   ];
 }

@@ -51,15 +51,13 @@ const statementInvoice = (
   total,
   tradeIds: [],
   lines: [],
-  stripeInvoiceId: `in_${invoiceId}`,
   legalNumber: null,
-  hostedInvoiceUrl: null,
   energyAmount: total,
   vatAmount: "0.00",
-  producerStripeAccountId: null,
   dueDate: "2026-11-15",
   communityId: COM,
   statusAudit: [],
+  reminders: [],
 });
 
 const memberHeaders = (sub: string) => ({
@@ -194,7 +192,6 @@ describe("invoicing HTTP (INT-106)", () => {
       currency: "EUR",
       rate: "1.0000",
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
-      producerStripeAccountId: "acct_override_uat028",
     };
     const denied = await fetch(`${base}/internal/v1/invoices:from-settlement`, {
       method: "POST",
@@ -217,13 +214,13 @@ describe("invoicing HTTP (INT-106)", () => {
       tradeIds: string[];
       pairSettlementId: string;
       legalNumber?: string;
-      hostedInvoiceUrl?: string;
-      producerStripeAccountId?: string;
     };
     expect(json.tradeIds).toEqual(body.tradeIds);
     expect(json.pairSettlementId).toBe(body.settlementId);
-    expect(json.legalNumber).toBeTruthy();
-    expect(json.producerStripeAccountId).toBe("acct_override_uat028");
+    expect(json.legalNumber).toMatch(/^SB-66666666-\d{6}$/);
+    expect(json).not.toHaveProperty("producerStripeAccountId");
+    expect(json).not.toHaveProperty("hostedInvoiceUrl");
+    expect(json).not.toHaveProperty("stripeInvoiceId");
   });
 
   it("POST invoices:from-settlement skips zero-amount carry-forward (INT-196 / BR-05)", async () => {
@@ -344,6 +341,137 @@ describe("invoicing HTTP (INT-106)", () => {
     });
   });
 
+  it("UAT-078 manager sends a reminder on an overdue invoice", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s4444444-4444-4444-8444-444444444444",
+      runId: "r4444444-4444-4444-8444-444444444444",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x4"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    await service.setInvoiceStatus(created!.invoiceId, {
+      status: "Overdue",
+      reason: "past due for reminder UAT",
+      actorId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    const res = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/reminders`,
+      {
+        method: "POST",
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-sub": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "x-intelligent-community": "c0ffee00-1234-4abc-8def-0123456789ab",
+        },
+      },
+    );
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({
+      invoiceId: created!.invoiceId,
+      reminderCount: 1,
+    });
+  });
+
+  it("REQ-061 refuses a reminder on a Paid invoice via HTTP", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s6666666-6666-4666-8666-666666666666",
+      runId: "r6666666-6666-4666-8666-666666666666",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x6"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    await service.setInvoiceStatus(created!.invoiceId, {
+      status: "Paid",
+      reason: "paid before reminder",
+      actorId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+    const res = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/reminders`,
+      {
+        method: "POST",
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-sub": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "x-intelligent-community": "c0ffee00-1234-4abc-8def-0123456789ab",
+        },
+      },
+    );
+    expect(res.status).toBe(409);
+  });
+
+  it("REQ-049 manager of another community gets 404 on reminder", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s8888888-8888-4888-8888-888888888888",
+      runId: "r8888888-8888-4888-8888-888888888888",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x8"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    const res = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/reminders`,
+      {
+        method: "POST",
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-sub": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "x-intelligent-community": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        },
+      },
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("SendReminders internal batch accepts asOf", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s9999999-9999-4999-8999-999999999999",
+      runId: "r9999999-9999-4999-8999-999999999999",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x9"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    await service.setInvoiceStatus(created!.invoiceId, {
+      status: "Overdue",
+      reason: "for batch reminder",
+      actorId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+    const res = await fetch(`${base}/internal/v1/invoices:send-reminders`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "service",
+      },
+      body: JSON.stringify({ asOf: "2026-12-02" }),
+    });
+    expect(res.status).toBe(202);
+    expect(await res.json()).toMatchObject({ accepted: true, sent: 1 });
+  });
+
   // UAT-060 — a manager may change status only inside their community (REQ-049).
   it("UAT-060 — manager of another community cannot set invoice status (REQ-049)", async () => {
     const created = await service.createFromSettlement({
@@ -381,7 +509,7 @@ describe("invoicing HTTP (INT-106)", () => {
     expect(service.getInvoice(created!.invoiceId).status).toBe("Open");
   });
 
-  it("GET invoice document returns PDF bytes (INT-389 / REQ-039 / ANO-008)", async () => {
+  it("GET invoice document returns PDF bytes (REQ-039 / A6)", async () => {
     const consumerId = "11111111-2222-4333-8444-555555555555";
     const created = await service.createFromSettlement({
       settlementId: "s7777777-7777-4777-8777-777777777777",
@@ -396,85 +524,32 @@ describe("invoicing HTTP (INT-106)", () => {
       rate: "1.0000",
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
     });
-    const realFetch = globalThis.fetch.bind(globalThis);
-    const pdf = Buffer.from("%PDF-1.1\n%%EOF\n");
-    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
-      if (url.startsWith("https://invoice.stripe.com/")) {
-        return new Response(pdf, {
-          status: 200,
-          headers: { "content-type": "application/pdf" },
-        });
-      }
-      return realFetch(input, init);
-    }) as typeof fetch;
-    try {
-      const res = await fetch(
-        `${base}/v1/invoices/${created!.invoiceId}/document`,
-        {
-          headers: {
-            "x-intelligent-roles": "member",
-            "x-intelligent-sub": consumerId,
-          },
-          redirect: "manual",
+    const res = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/document`,
+      {
+        headers: {
+          "x-intelligent-roles": "member",
+          "x-intelligent-sub": consumerId,
         },
-      );
-      expect(res.status).toBe(200);
-      expect(res.headers.get("content-type")).toContain("application/pdf");
-      const body = Buffer.from(await res.arrayBuffer());
-      expect(body.subarray(0, 5).toString("utf8")).toBe("%PDF-");
-    } finally {
-      globalThis.fetch = realFetch;
-    }
+        redirect: "manual",
+      },
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/pdf");
+    expect(res.headers.get("content-disposition")).toContain(
+      `${created!.legalNumber}.pdf`,
+    );
+    const body = Buffer.from(await res.arrayBuffer());
+    expect(body.subarray(0, 5).toString("utf8")).toBe("%PDF-");
   });
 
-  it("GET invoice document reports a Stripe failure (INT-389)", async () => {
-    const consumerId = "11111111-2222-4333-8444-555555555555";
-    const created = await service.createFromSettlement({
-      settlementId: "s8888888-8888-4888-8888-888888888888",
-      runId: "r8888888-8888-4888-8888-888888888888",
-      consumerId,
-      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
-      tradeIds: ["0xpdf-fail"],
-      kWh: "1.00",
-      energyAmount: "1.00",
-      vat: "0.00",
-      currency: "EUR",
-      rate: "1.0000",
-      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
-    });
-    const realFetch = globalThis.fetch.bind(globalThis);
-    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
-      if (url.startsWith("https://invoice.stripe.com/")) {
-        return new Response(null, { status: 502 });
-      }
-      return realFetch(input, init);
-    }) as typeof fetch;
-    try {
-      const res = await fetch(
-        `${base}/v1/invoices/${created!.invoiceId}/document`,
-        {
-          headers: {
-            "x-intelligent-roles": "member",
-            "x-intelligent-sub": consumerId,
-          },
-        },
-      );
-      expect(res.status).toBe(502);
-    } finally {
-      globalThis.fetch = realFetch;
-    }
+  it("A6 invoicing has no Stripe dependency", async () => {
+    const { existsSync, readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const root = resolve(import.meta.dirname, "..");
+    const pkg = readFileSync(resolve(root, "package.json"), "utf8");
+    expect(pkg).not.toMatch(/"stripe"/);
+    expect(existsSync(resolve(root, "src/stripe"))).toBe(false);
   });
 
   describe("statements (REQ-059)", () => {

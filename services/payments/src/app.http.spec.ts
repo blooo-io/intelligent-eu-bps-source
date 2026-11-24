@@ -118,9 +118,11 @@ describe("payments HTTP (INT-107)", () => {
       },
     });
     expect(onboarding.status).toBe(200);
+    // REQ-051 — every role starts with Connect KYC (embedded by default).
     expect(await onboarding.json()).toMatchObject({
-      mode: "elements",
-      clientSecret: expect.stringMatching(/^seti_test_/),
+      mode: "embedded",
+      clientSecret: expect.stringMatching(/^accs_secret_test_/),
+      pspAccountRef: expect.stringMatching(/^acct_/),
     });
 
     await service.ensureParticipant({

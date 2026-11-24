@@ -884,6 +884,17 @@ export function normalizeStripeEvent(event: Stripe.Event): PspEvent {
         pspPayoutRef: payout.id,
       };
     }
+    case "identity.verification_session.verified":
+    case "identity.verification_session.requires_input":
+    case "identity.verification_session.canceled": {
+      const session = event.data.object as Stripe.Identity.VerificationSession;
+      return {
+        ...base,
+        kind: event.type as PspEvent["kind"],
+        verificationId: session.id,
+        participantId: session.metadata?.subjectId,
+      };
+    }
     default:
       return { ...base, kind: "ignored" };
   }

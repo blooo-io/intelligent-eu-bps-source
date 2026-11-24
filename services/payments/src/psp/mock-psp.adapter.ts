@@ -684,6 +684,7 @@ export class MockPspAdapter
       pspPaymentRef: e.pspPaymentRef,
       pspCheckoutRef: e.pspCheckoutRef,
       pspPayoutRef: e.pspPayoutRef,
+      verificationId: e.verificationId,
       arrivalDate: e.arrivalDate,
       method: e.method,
       failureCategory: e.failureCategory,

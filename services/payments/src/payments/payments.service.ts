@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
@@ -41,6 +42,7 @@ import {
   type PaymentAccountsStore,
 } from "../ports/payment-accounts.store.js";
 import { KycService, kycReady } from "../kyc/kyc.service.js";
+import { ManagerKycService } from "../kyc/manager-kyc.service.js";
 import {
   COLLECT_PORT,
   type ChargeSettlement,
@@ -177,6 +179,9 @@ export class PaymentsService {
     @Inject(PAYOUT_EVENTS_HANDLER)
     private readonly payoutEvents: PayoutEventsHandler,
     @Inject(KycService) private readonly kyc: KycService,
+    @Optional()
+    @Inject(ManagerKycService)
+    private readonly managerKyc: ManagerKycService | null = null,
   ) {}
 
   /** INT-326 — exposed for tests / future Prometheus scrape. */
@@ -1232,6 +1237,16 @@ export class PaymentsService {
       case "payout.canceled":
         // REQ-015 — producer payouts are owned by the payout workflow (WS1).
         return this.payoutEvents.onPayoutEvent(event);
+      case "identity.verification_session.verified":
+      case "identity.verification_session.requires_input":
+      case "identity.verification_session.canceled":
+        // REQ-051 — community-manager Identity (A5); no Connect account.
+        if (!event.verificationId || !this.managerKyc) return;
+        return this.managerKyc.onIdentityEvent(
+          event.eventId,
+          event.verificationId,
+          event.kind,
+        );
       default:
         return;
     }

@@ -8,6 +8,14 @@ import { InternalPaymentsController } from "./payments/internal.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
 import { PaymentsService } from "./payments/payments.service.js";
 import { KycService } from "./kyc/kyc.service.js";
+import {
+  KycQueryService,
+  ManagerKycService,
+} from "./kyc/manager-kyc.service.js";
+import {
+  createManagerKycStore,
+  MANAGER_KYC_STORE,
+} from "./ports/manager-kyc.store.js";
 import { PayoutsController } from "./payouts/payouts.controller.js";
 import { PayoutsService } from "./payouts/payouts.service.js";
 import { createPaymentTransaction } from "./persistence/payment-journal.js";
@@ -93,6 +101,8 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
     PaymentsStore,
     PaymentsService,
     KycService,
+    ManagerKycService,
+    KycQueryService,
     PayoutsStore,
     PayoutsService,
     PaymentPersistence,
@@ -115,6 +125,10 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
     {
       provide: KYC_LOG_STORE,
       useFactory: () => createKycLogStore(),
+    },
+    {
+      provide: MANAGER_KYC_STORE,
+      useFactory: () => createManagerKycStore(),
     },
     {
       provide: PSP_ADAPTER,

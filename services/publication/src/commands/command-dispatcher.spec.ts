@@ -288,6 +288,189 @@ describe("CommandDispatcher (REQ-052 / A7 / A7-bis)", () => {
     });
   });
 
+  it("signatureValid false -> null (layer-2 drop)", async () => {
+    const { d, targets } = harness();
+    targets.startPayment = vi.fn();
+    const r = await d.handle({
+      ...msg("startPayment", {
+        invoiceId: INV,
+        surface: "hosted",
+        returnUrl: `${RETURN_PREFIX}billing/return`,
+      }),
+      signatureValid: false,
+    });
+    expect(r).toBeNull();
+    expect(targets.startPayment).not.toHaveBeenCalled();
+  });
+
+  it("REQ-015: requestWithdrawal returns payout data", async () => {
+    const { d, targets, authzClient } = harness();
+    authzClient.set({
+      actorId: ACTOR,
+      status: "active",
+      memberships: [
+        {
+          communityId: C1,
+          role: "member",
+          participantRole: "producer",
+        },
+      ],
+    });
+    targets.requestWithdrawal = vi.fn(async () => ({
+      payoutId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      payoutStatus: "pending",
+      amount: 12.5,
+      currency: "EUR",
+    }));
+    const r = await d.handle(
+      msg("requestWithdrawal", { currency: "EUR" }, "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"),
+    );
+    expect(r?.success).toBe(true);
+    expect(r?.data).toMatchObject({ currency: "EUR", amount: 12.5 });
+  });
+
+  it("REQ-061: sendReminder passes communityId from authz", async () => {
+    const { d, targets, authzClient, invoices } = harness({ role: "manager" });
+    authzClient.set(activeManager(ACTOR, C1));
+    invoices.set(invoice(INV, C1, ACTOR));
+    targets.sendReminder = vi.fn(async () => ({
+      invoiceId: INV,
+      sentAt: "2026-11-24T10:00:00Z",
+    }));
+    const r = await d.handle(
+      msg("sendReminder", { invoiceId: INV }, "ffffffff-ffff-4fff-8fff-ffffffffffff"),
+    );
+    expect(r?.success).toBe(true);
+    expect(targets.sendReminder).toHaveBeenCalledWith({
+      invoiceId: INV,
+      actorId: ACTOR,
+      communityId: C1,
+    });
+  });
+
+  it("REQ-006: triggerBillingRun calls startRun", async () => {
+    const { d, targets, authzClient } = harness();
+    authzClient.set(activeManager(ACTOR, C1));
+    targets.startRun = vi.fn(async () => ({
+      runId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa01",
+    }));
+    const r = await d.handle(
+      msg(
+        "triggerBillingRun",
+        { communityId: C1, period: "2026-11", type: "periodic" },
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa02",
+      ),
+    );
+    expect(r?.success).toBe(true);
+    expect(targets.startRun).toHaveBeenCalledWith({
+      communityId: C1,
+      type: "periodic",
+      period: "2026-11",
+    });
+  });
+
+  it("A7-bis: setupPaymentMethod returns hosted handoff", async () => {
+    const { d, targets } = harness();
+    targets.setupPaymentMethod = vi.fn(async () => ({
+      handoff: {
+        surface: "hosted" as const,
+        provider: "stripe" as const,
+        purpose: "setup" as const,
+        url: "https://checkout.stripe.com/c/pay/setup_1",
+        expiresAt: "2026-11-24T10:30:00Z",
+      },
+    }));
+    const r = await d.handle(
+      msg(
+        "setupPaymentMethod",
+        { surface: "hosted", returnUrl: `${RETURN_PREFIX}setup` },
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa03",
+      ),
+    );
+    expect(r?.success).toBe(true);
+    expect(r?.data).toMatchObject({
+      handoff: { purpose: "setup" },
+    });
+  });
+
+  it("invalid body without requestId is dropped", async () => {
+    const { d } = harness();
+    const r = await d.handle({
+      messageId: "m-bad",
+      sender: ALLOWED,
+      signatureValid: true,
+      body: {
+        requestId: "",
+        operation: "startPayment",
+        actorId: ACTOR,
+        payload: {},
+      } as BillingCommandRequest,
+    });
+    expect(r).toBeNull();
+  });
+
+  it("refreshUrl outside prefixes -> invalid", async () => {
+    const { d, targets } = harness();
+    targets.startKyc = vi.fn();
+    const r = await d.handle(
+      msg(
+        "startKyc",
+        {
+          surface: "hosted",
+          returnUrl: `${RETURN_PREFIX}kyc`,
+          refreshUrl: "https://evil.example/refresh",
+        },
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa05",
+      ),
+    );
+    expect(r?.error?.code).toBe("invalid");
+    expect(targets.startKyc).not.toHaveBeenCalled();
+  });
+
+  it("startKyc for manager uses identity kind", async () => {
+    const { d, targets, authzClient } = harness();
+    authzClient.set(activeManager(ACTOR, C1));
+    targets.startKyc = vi.fn(async () => ({
+      surface: "hosted" as const,
+      provider: "stripe" as const,
+      purpose: "identity" as const,
+      url: "https://verify.stripe.com/v/test",
+      expiresAt: "2026-11-24T10:30:00Z",
+    }));
+    const r = await d.handle(
+      msg(
+        "startKyc",
+        { surface: "hosted", returnUrl: `${RETURN_PREFIX}kyc` },
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa06",
+      ),
+    );
+    expect(r?.success).toBe(true);
+    expect(targets.startKyc).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "identity" }),
+    );
+  });
+
+  it("layer-3 forbidden returns error reply (not null)", async () => {
+    const { d, authzClient } = harness();
+    authzClient.set({
+      actorId: ACTOR,
+      status: "offboarded",
+      memberships: [],
+    });
+    const r = await d.handle(
+      msg(
+        "startPayment",
+        {
+          invoiceId: INV,
+          surface: "hosted",
+          returnUrl: `${RETURN_PREFIX}billing/return`,
+        },
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa04",
+      ),
+    );
+    expect(r).toMatchObject({ success: false, error: { code: "forbidden" } });
+  });
+
   it("per-sender rate limit: more than 30 commands/min from one DID -> error unavailable and an operator alert event", async () => {
     const { d, targets, outboxStore } = harness();
     targets.startPayment = vi.fn(async () => ({

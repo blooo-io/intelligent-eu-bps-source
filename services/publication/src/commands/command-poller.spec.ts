@@ -179,6 +179,115 @@ describe("CommandPoller (REQ-052 / A7 / REQ-053)", () => {
       ),
     ).toThrow(/EWDS_REPLY_ENCRYPTED/);
   });
+
+  it("createCommandPoller enabled with injected consumer+cgw starts and ticks", async () => {
+    const doneIds: string[] = [];
+    const consumer: CommandTopicConsumer = {
+      pull: vi.fn(async () => [
+        {
+          messageId: "m-live",
+          sender: ALLOWED,
+          body: baseBody(),
+          signatureValid: true,
+        },
+      ]),
+      done: vi.fn(async (id) => {
+        doneIds.push(id);
+      }),
+    };
+    const cgw: CommandReplySender = {
+      send: vi.fn(async () => ({ messageId: "r", sent: 1, failed: 0 })),
+    };
+    const targets = stubTargets();
+    targets.startPayment = vi.fn(async () => ({
+      paymentId: PAYMENT_ID,
+      status: "requires_action" as const,
+      handoff: hostedCheckout(),
+    }));
+    const authzClient = new StubActorAuthzClient();
+    authzClient.set(activeMember(ACTOR, C1));
+    const invoices = new StubInvoiceLookupClient();
+    invoices.set(invoice(INV, C1, ACTOR));
+    const processed = new InMemoryProcessedCommandsStore();
+    const outbox = new OutboxService(new InMemoryOutboxStore());
+    const dispatcher = new CommandDispatcher(
+      new CommandAuthorizer([ALLOWED], authzClient, invoices),
+      targets,
+      processed,
+      [RETURN_PREFIX],
+      outbox,
+      [ALLOWED],
+    );
+    const poller = createCommandPoller(
+      {
+        COMMAND_CHANNEL_ENABLED: "true",
+        EWDS_REPLY_ENCRYPTED: "true",
+        EWDS_COMMAND_ALLOWED_DIDS: ALLOWED,
+        EWDS_COMMAND_RETURN_URL_PREFIXES: RETURN_PREFIX,
+      },
+      { outbox, consumer, cgw, dispatcher, processed },
+    );
+    // Drive a single tick without onModuleInit (avoids re-entry with boot tick).
+    await poller.tick();
+    poller.onModuleDestroy();
+    expect(cgw.send).toHaveBeenCalled();
+    expect(doneIds).toContain("m-live");
+  });
+
+  it("createCommandPoller enabled without outbox throws", () => {
+    expect(() =>
+      createCommandPoller({
+        COMMAND_CHANNEL_ENABLED: "true",
+        EWDS_REPLY_ENCRYPTED: "true",
+        CGW_BASE_URL: "http://cgw",
+        CGW_API_KEY: "k",
+      }),
+    ).toThrow(/OutboxService/);
+  });
+
+  it("re-entry guard skips overlapping ticks", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    const consumer: CommandTopicConsumer = {
+      pull: vi.fn(async () => {
+        await gate;
+        return [];
+      }),
+      done: vi.fn(async () => {}),
+    };
+    const { poller } = buildPoller({ consumer });
+    const first = poller.tick();
+    await poller.tick(); // overlapping — skipped
+    release();
+    await first;
+    expect(consumer.pull).toHaveBeenCalledTimes(1);
+  });
+
+  it("layer-2 drop marks message done without CGW reply", async () => {
+    const doneIds: string[] = [];
+    const consumer: CommandTopicConsumer = {
+      pull: vi.fn(async () => [
+        {
+          messageId: "m-drop",
+          sender: "did:ethr:0xEVIL",
+          body: baseBody(),
+          signatureValid: true,
+        },
+      ]),
+      done: vi.fn(async (id) => {
+        doneIds.push(id);
+      }),
+    };
+    const cgw: CommandReplySender = {
+      send: vi.fn(async () => ({ messageId: "r", sent: 1, failed: 0 })),
+    };
+    const { poller } = buildPoller({ consumer, cgw });
+    await poller.tick();
+    expect(doneIds).toEqual(["m-drop"]);
+    expect(cgw.send).not.toHaveBeenCalled();
+  });
 });
 
 function livePoller() {

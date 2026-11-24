@@ -119,4 +119,129 @@ describe("HttpCommandTargetsClient (REQ-052 / Task 4.3)", () => {
       "https://app.example/",
     ]);
   });
+
+  it("requestWithdrawal, startKyc, sendReminder and setupPaymentMethod hit their paths", async () => {
+    const fetchImpl = vi.fn(async (url: string | URL) => {
+      const u = String(url);
+      if (u.includes("payouts:request")) {
+        return new Response(
+          JSON.stringify({
+            payoutId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+            payoutStatus: "pending",
+            amount: 1,
+            currency: "EUR",
+          }),
+          { status: 200 },
+        );
+      }
+      if (u.includes("kyc:start")) {
+        return new Response(
+          JSON.stringify({
+            surface: "hosted",
+            provider: "stripe",
+            purpose: "identity",
+            url: "https://verify.stripe.com/v/test",
+            expiresAt: "2026-11-24T10:30:00Z",
+          }),
+          { status: 200 },
+        );
+      }
+      if (u.includes("reminders")) {
+        return new Response(
+          JSON.stringify({ invoiceId: INV, sentAt: "2026-11-24T10:00:00Z" }),
+          { status: 200 },
+        );
+      }
+      if (u.includes("payment-methods:setup")) {
+        return new Response(
+          JSON.stringify({
+            handoff: {
+              surface: "hosted",
+              provider: "stripe",
+              purpose: "setup",
+              url: "https://checkout.stripe.com/c/pay/setup",
+              expiresAt: "2026-11-24T10:30:00Z",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("", { status: 500 });
+    }) as unknown as typeof fetch;
+
+    const client = new HttpCommandTargetsClient(
+      {
+        paymentsBaseUrl: "http://payments:8080",
+        invoicingBaseUrl: "http://invoicing:8080",
+        notificationBaseUrl: "http://notification:8080",
+        settlementBaseUrl: "http://settlement:8080",
+      },
+      fetchImpl,
+    );
+
+    await expect(
+      client.requestWithdrawal({ actorId: ACTOR, currency: "EUR" }),
+    ).resolves.toMatchObject({ currency: "EUR" });
+    await expect(
+      client.startKyc({
+        actorId: ACTOR,
+        kind: "identity",
+        surface: "hosted",
+      }),
+    ).resolves.toMatchObject({ purpose: "identity" });
+    await expect(
+      client.sendReminder({
+        invoiceId: INV,
+        actorId: ACTOR,
+        communityId: C1,
+      }),
+    ).resolves.toMatchObject({ invoiceId: INV });
+    await expect(
+      client.setupPaymentMethod({ actorId: ACTOR, surface: "hosted" }),
+    ).resolves.toMatchObject({ handoff: { purpose: "setup" } });
+  });
+
+  it("maps 400 -> invalid", async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response("", { status: 400 }),
+    ) as unknown as typeof fetch;
+    const client = new HttpCommandTargetsClient(
+      {
+        paymentsBaseUrl: "http://payments:8080",
+        invoicingBaseUrl: "http://invoicing:8080",
+        notificationBaseUrl: "http://notification:8080",
+        settlementBaseUrl: "http://settlement:8080",
+      },
+      fetchImpl,
+    );
+    await expect(
+      client.sendReminder({
+        invoiceId: INV,
+        actorId: ACTOR,
+        communityId: C1,
+      }),
+    ).rejects.toMatchObject({ code: "invalid", status: 400 });
+  });
+
+  it("network failure maps to unavailable", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("ECONNREFUSED");
+    }) as unknown as typeof fetch;
+    const client = new HttpCommandTargetsClient(
+      {
+        paymentsBaseUrl: "http://payments:8080",
+        invoicingBaseUrl: "http://invoicing:8080",
+        notificationBaseUrl: "http://notification:8080",
+        settlementBaseUrl: "http://settlement:8080",
+      },
+      fetchImpl,
+    );
+    await expect(
+      client.startPayment({
+        invoiceId: INV,
+        actorId: ACTOR,
+        surface: "hosted",
+      }),
+    ).rejects.toMatchObject({ code: "unavailable" });
+  });
 });

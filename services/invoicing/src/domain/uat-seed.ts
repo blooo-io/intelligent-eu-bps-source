@@ -53,6 +53,7 @@ export function seedUatInvoices(): InvoiceRecord[] {
       dueDate: "2026-11-30",
       communityId: UAT_COMMUNITY_ID,
       statusAudit: [],
+      reminders: [],
     },
   ];
 }

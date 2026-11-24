@@ -321,4 +321,81 @@ describe("InvoicingService", () => {
       result: "completed",
     });
   });
+
+  it("UAT-078 manager sends a reminder on an overdue invoice", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    store.put({ ...invoice, status: "Overdue", dueDate: "2026-11-01" });
+    const actor = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const result = await service.sendReminder(invoice.invoiceId, {
+      actorId: actor,
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+      trigger: "manual",
+    });
+    expect(result).toEqual({ invoiceId: invoice.invoiceId, reminderCount: 1 });
+    const events = await outboxStore.list();
+    const reminder = events.find(
+      (e) => e.event.type === "PaymentReminderRequested",
+    );
+    expect(reminder?.event.data).toMatchObject({
+      invoiceId: invoice.invoiceId,
+      trigger: "manual",
+      reminderNumber: 1,
+      recipientId: "11111111-2222-4333-8444-555555555555",
+    });
+    const audit = events.find(
+      (e) =>
+        e.event.type === "AuditableActionPerformed" &&
+        (e.event.data as { action?: string }).action ===
+          "invoice.reminder.manual",
+    );
+    expect(audit?.event.data).toMatchObject({
+      actorId: actor,
+      action: "invoice.reminder.manual",
+    });
+  });
+
+  it("REQ-061 refuses a reminder on a Paid invoice", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    await service.setInvoiceStatus(invoice.invoiceId, {
+      status: "Paid",
+      reason: "already settled",
+      actorId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+    await expect(
+      service.sendReminder(invoice.invoiceId, {
+        actorId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        trigger: "manual",
+      }),
+    ).rejects.toThrow(/cannot be reminded|Conflict/);
+  });
+
+  it("REQ-049 manager of another community gets 404 on reminder", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    await expect(
+      service.sendReminder(invoice.invoiceId, {
+        actorId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        communityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        trigger: "manual",
+      }),
+    ).rejects.toThrow(/Unknown invoice/);
+  });
+
+  it("REQ-061 scheduled reminders every 7 days, at most 3", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    store.put({
+      ...invoice,
+      status: "Overdue",
+      dueDate: "2026-12-01",
+      reminders: [],
+    });
+    expect((await service.sendDueReminders("2026-12-02")).sent).toBe(1);
+    expect((await service.sendDueReminders("2026-12-05")).sent).toBe(0);
+    expect((await service.sendDueReminders("2026-12-09")).sent).toBe(1);
+    expect((await service.sendDueReminders("2026-12-16")).sent).toBe(1);
+    expect((await service.sendDueReminders("2026-12-23")).sent).toBe(0);
+    expect(store.get(invoice.invoiceId)?.reminders).toHaveLength(3);
+    expect(
+      store.get(invoice.invoiceId)?.reminders.every((r) => r.trigger === "scheduled"),
+    ).toBe(true);
+  });
 });

@@ -55,7 +55,8 @@ export function buildScheduleCatalog(
       scheduleId: "intelligent.mark-overdue.daily",
       cronExpressions: ["0 4 * * *"],
       jobName: "MarkOverdue",
-      body: { communityId },
+      // asOf resolved to today UTC in materializeBody / bodyFor (REQ-044).
+      body: { communityId, asOf: "today" },
       description: "Overdue detection daily",
     },
     {
@@ -96,6 +97,13 @@ export function buildScheduleCatalog(
       body: { communityId },
       description: "Automatic producer payouts daily (REQ-015)",
     },
+    {
+      scheduleId: "intelligent.send-reminders.daily",
+      cronExpressions: ["0 9 * * *"],
+      jobName: "SendReminders",
+      body: { communityId, asOf: "today" },
+      description: "Scheduled payment reminders daily (REQ-061)",
+    },
   ];
 }
 
@@ -116,7 +124,29 @@ export function materializeBody(
   if (out.period === "YEAR-12") {
     out.period = `${now.getUTCFullYear()}-12`;
   }
+  // REQ-044 / REQ-061 — MarkOverdue and SendReminders need asOf = today (UTC).
+  if (out.asOf === "today") {
+    out.asOf = now.toISOString().slice(0, 10);
+  }
   // REQ-006 — StartRun(periodic) carries no period: the body is frozen when the
   // schedule is created, so AC-05 resolves the elapsed period at fire time.
   return out;
+}
+
+/**
+ * INT-428 — resolved schedule body for a catalogue job (tests + operators).
+ * MarkOverdue / SendReminders carry `{ communityId, asOf: YYYY-MM-DD }`.
+ */
+export function bodyFor(
+  jobName: JobName,
+  communityId: string = DEFAULT_COMMUNITY,
+  now: Date = new Date(),
+): Record<string, unknown> {
+  const spec = buildScheduleCatalog(communityId).find(
+    (s) => s.jobName === jobName,
+  );
+  if (!spec?.body) {
+    return {};
+  }
+  return materializeBody(spec.body, now);
 }

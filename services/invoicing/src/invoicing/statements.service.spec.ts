@@ -49,6 +49,7 @@ const invoice = (
   dueDate: "2026-11-15",
   communityId: COM,
   statusAudit: [],
+  reminders: [],
   ...over,
 });
 

@@ -83,4 +83,21 @@ export class PublicInvoicingController {
       communityId: req.user!.communityId,
     });
   }
+
+  /**
+   * REQ-061 / UAT-078 — manager payment reminder (manual trigger).
+   */
+  @Post("invoices/:id/reminders")
+  @HttpCode(202)
+  @UseGuards(new ModuleAuthGuard({ roles: ["manager"] }))
+  async sendReminder(
+    @Param("id") invoiceId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.invoicing.sendReminder(invoiceId, {
+      actorId: req.user!.sub,
+      communityId: req.user!.communityId,
+      trigger: "manual",
+    });
+  }
 }

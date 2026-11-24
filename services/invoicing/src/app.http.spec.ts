@@ -57,6 +57,7 @@ const statementInvoice = (
   dueDate: "2026-11-15",
   communityId: COM,
   statusAudit: [],
+  reminders: [],
 });
 
 const memberHeaders = (sub: string) => ({
@@ -338,6 +339,137 @@ describe("invoicing HTTP (INT-106)", () => {
       invoiceId: created!.invoiceId,
       status: "Paid",
     });
+  });
+
+  it("UAT-078 manager sends a reminder on an overdue invoice", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s4444444-4444-4444-8444-444444444444",
+      runId: "r4444444-4444-4444-8444-444444444444",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x4"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    await service.setInvoiceStatus(created!.invoiceId, {
+      status: "Overdue",
+      reason: "past due for reminder UAT",
+      actorId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+
+    const res = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/reminders`,
+      {
+        method: "POST",
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-sub": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "x-intelligent-community": "c0ffee00-1234-4abc-8def-0123456789ab",
+        },
+      },
+    );
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({
+      invoiceId: created!.invoiceId,
+      reminderCount: 1,
+    });
+  });
+
+  it("REQ-061 refuses a reminder on a Paid invoice via HTTP", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s6666666-6666-4666-8666-666666666666",
+      runId: "r6666666-6666-4666-8666-666666666666",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x6"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    await service.setInvoiceStatus(created!.invoiceId, {
+      status: "Paid",
+      reason: "paid before reminder",
+      actorId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+    const res = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/reminders`,
+      {
+        method: "POST",
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-sub": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "x-intelligent-community": "c0ffee00-1234-4abc-8def-0123456789ab",
+        },
+      },
+    );
+    expect(res.status).toBe(409);
+  });
+
+  it("REQ-049 manager of another community gets 404 on reminder", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s8888888-8888-4888-8888-888888888888",
+      runId: "r8888888-8888-4888-8888-888888888888",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x8"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    const res = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/reminders`,
+      {
+        method: "POST",
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-sub": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "x-intelligent-community": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        },
+      },
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("SendReminders internal batch accepts asOf", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s9999999-9999-4999-8999-999999999999",
+      runId: "r9999999-9999-4999-8999-999999999999",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x9"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    await service.setInvoiceStatus(created!.invoiceId, {
+      status: "Overdue",
+      reason: "for batch reminder",
+      actorId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
+    const res = await fetch(`${base}/internal/v1/invoices:send-reminders`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-intelligent-roles": "service",
+      },
+      body: JSON.stringify({ asOf: "2026-12-02" }),
+    });
+    expect(res.status).toBe(202);
+    expect(await res.json()).toMatchObject({ accepted: true, sent: 1 });
   });
 
   // UAT-060 — a manager may change status only inside their community (REQ-049).

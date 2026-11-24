@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bodyFor,
   buildScheduleCatalog,
   jobByName,
   materializeBody,
@@ -54,6 +55,31 @@ describe("schedule catalog (INT-277)", () => {
       ownerModule: "AC-07",
       path: "/payouts:run-auto",
       method: "POST",
+    });
+  });
+
+  it("MarkOverdue and SendReminders carry asOf", () => {
+    expect(bodyFor("MarkOverdue", "C", new Date("2026-12-02T09:00:00Z"))).toEqual({
+      communityId: "C",
+      asOf: "2026-12-02",
+    });
+    expect(bodyFor("MarkOverdue").asOf).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(jobByName("SendReminders")).toMatchObject({
+      jobId: "a1000000-0000-4000-8000-00000000000d",
+      ownerModule: "AC-06",
+      path: "/invoices:send-reminders",
+      method: "POST",
+    });
+    expect(
+      buildScheduleCatalog("C").find((s) => s.jobName === "SendReminders"),
+    ).toMatchObject({
+      scheduleId: "intelligent.send-reminders.daily",
+      cronExpressions: ["0 9 * * *"],
+      body: { communityId: "C", asOf: "today" },
+    });
+    expect(bodyFor("SendReminders", "C", new Date("2026-12-09T09:00:00Z"))).toEqual({
+      communityId: "C",
+      asOf: "2026-12-09",
     });
   });
 });

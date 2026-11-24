@@ -11,7 +11,8 @@ export type JobName =
   | "PurgeCache"
   | "ApplyRetention"
   | "FetchRates"
-  | "RunAutoPayouts";
+  | "RunAutoPayouts"
+  | "SendReminders";
 
 export type JobDefinition = {
   jobId: string;

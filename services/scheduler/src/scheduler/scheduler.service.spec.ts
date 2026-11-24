@@ -46,6 +46,7 @@ describe("SchedulerService", () => {
         "RefreshIntake",
         "RetryPending",
         "RunAutoPayouts",
+        "SendReminders",
         "StartRun",
       ].sort(),
     );
@@ -139,6 +140,7 @@ describe("SchedulerService", () => {
     await service.runJob(byName.FetchRates!, { communityId: COMMUNITY });
     await service.runJob(byName.PurgeCache!, { communityId: COMMUNITY });
     await service.runJob(byName.MarkOverdue!, { communityId: COMMUNITY });
+    await service.runJob(byName.SendReminders!, { communityId: COMMUNITY });
     await service.runJob(byName.ApplyRetention!, { communityId: COMMUNITY });
 
     const names = service.recordedDispatches().map((d) => d.job.name);
@@ -150,6 +152,7 @@ describe("SchedulerService", () => {
         "FetchRates",
         "PurgeCache",
         "MarkOverdue",
+        "SendReminders",
         "ApplyRetention",
       ]),
     );
@@ -160,6 +163,20 @@ describe("SchedulerService", () => {
     expect(
       service.recordedDispatches().find((d) => d.job.name === "Reconcile")?.body,
     ).toMatchObject({ scope: "invoice", communityId: COMMUNITY });
+    expect(
+      service.recordedDispatches().find((d) => d.job.name === "MarkOverdue")
+        ?.body,
+    ).toMatchObject({
+      communityId: COMMUNITY,
+      asOf: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    });
+    expect(
+      service.recordedDispatches().find((d) => d.job.name === "SendReminders")
+        ?.body,
+    ).toMatchObject({
+      communityId: COMMUNITY,
+      asOf: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+    });
   });
 
   it("filters listJobs by community when an execution exists", async () => {

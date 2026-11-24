@@ -56,6 +56,14 @@ export type InvoiceStatusAudit = {
   source: "manual" | "payment" | "mark_overdue";
 };
 
+/** REQ-061 — payment reminder sent for an invoice (manual or scheduled). */
+export type InvoiceReminder = {
+  /** Calendar date (UTC YYYY-MM-DD) when the reminder was sent. */
+  sentOn: string;
+  trigger: "manual" | "scheduled";
+  reminderNumber: number;
+};
+
 export type InvoiceRecord = {
   invoiceId: string;
   settlementId: string;
@@ -82,4 +90,6 @@ export type InvoiceRecord = {
   communityId: string;
   /** Audit trail of status changes — identifiers + reason only (REQ-044). */
   statusAudit: InvoiceStatusAudit[];
+  /** REQ-061 — reminders already sent (manual + scheduled). */
+  reminders: InvoiceReminder[];
 };

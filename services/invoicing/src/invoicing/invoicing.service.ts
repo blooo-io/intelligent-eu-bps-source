@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -13,6 +14,7 @@ import {
 import { InvoiceStore, type InvoiceWrite } from "../domain/store.js";
 import type {
   InvoiceRecord,
+  InvoiceReminder,
   InvoiceStatus,
   PairSettlementInput,
 } from "../domain/types.js";
@@ -28,6 +30,30 @@ import {
 import { StatementsService } from "./statements.service.js";
 
 const PRODUCER = "AC-06";
+const SCHEDULED_REMINDER_ACTOR = "00000000-0000-4000-8000-000000000003";
+
+/** Statuses that accept a payment reminder (REQ-061). */
+const REMINDABLE_STATUSES = new Set<InvoiceStatus>([
+  "Open",
+  "Overdue",
+  "PartiallyPaid",
+]);
+
+function reminderIntervalDays(): number {
+  const raw = Number(process.env.REMINDER_INTERVAL_DAYS ?? "7");
+  return Number.isFinite(raw) && raw > 0 ? raw : 7;
+}
+
+function reminderMax(): number {
+  const raw = Number(process.env.REMINDER_MAX ?? "3");
+  return Number.isFinite(raw) && raw > 0 ? raw : 3;
+}
+
+function daysBetween(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00.000Z`);
+  const b = Date.parse(`${to}T00:00:00.000Z`);
+  return Math.floor((b - a) / 86_400_000);
+}
 
 /**
  * AC-06 — map pair settlement → billing-owned invoice (INT-428 / A6 / TD-2).
@@ -270,6 +296,7 @@ export class InvoicingService {
       dueDate: due,
       communityId: settlement.communityId,
       statusAudit: [],
+      reminders: [],
     };
     this.store.put(record);
 
@@ -332,6 +359,133 @@ export class InvoicingService {
       }
     }
     return { accepted: true, marked };
+  }
+
+  /**
+   * REQ-061 / UAT-078 — manager or scheduled payment reminder.
+   * 409 unless Open | Overdue | PartiallyPaid; REQ-049 community scope → 404.
+   */
+  async sendReminder(
+    invoiceId: string,
+    input: {
+      actorId: string;
+      communityId?: string;
+      trigger: "manual" | "scheduled";
+      /** Calendar date for scheduled cadence (defaults to today UTC). */
+      asOf?: string;
+    },
+  ): Promise<{ invoiceId: string; reminderCount: number }> {
+    return this.tx.run(() => this.performSendReminder(invoiceId, input));
+  }
+
+  private async performSendReminder(
+    invoiceId: string,
+    input: {
+      actorId: string;
+      communityId?: string;
+      trigger: "manual" | "scheduled";
+      asOf?: string;
+    },
+  ): Promise<{ invoiceId: string; reminderCount: number }> {
+    const row = this.store.get(invoiceId);
+    if (!row) throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    if (
+      input.communityId !== undefined &&
+      row.communityId !== input.communityId
+    ) {
+      throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+    }
+    if (!REMINDABLE_STATUSES.has(row.status)) {
+      throw new ConflictException(
+        `invoice ${invoiceId} cannot be reminded in status ${row.status}`,
+      );
+    }
+
+    const asOf = input.asOf ?? new Date().toISOString().slice(0, 10);
+    const reminders = [...(row.reminders ?? [])];
+    const reminderNumber = reminders.length + 1;
+    const entry: InvoiceReminder = {
+      sentOn: asOf,
+      trigger: input.trigger,
+      reminderNumber,
+    };
+    reminders.push(entry);
+    this.store.put({ ...row, reminders });
+
+    await this.outbox.append({
+      aggregateType: "Invoice",
+      aggregateId: invoiceId,
+      type: "PaymentReminderRequested",
+      producer: PRODUCER,
+      communityId: row.communityId,
+      billingMode: "virtual",
+      data: {
+        invoiceId,
+        recipientId: row.consumerId,
+        communityId: row.communityId,
+        dueDate: row.dueDate,
+        outstanding: row.total,
+        currency: row.currency,
+        reminderNumber,
+        trigger: input.trigger,
+      },
+    });
+
+    if (input.trigger === "manual") {
+      await this.outbox.append({
+        aggregateType: "Invoice",
+        aggregateId: invoiceId,
+        type: "AuditableActionPerformed",
+        producer: PRODUCER,
+        communityId: row.communityId,
+        billingMode: "virtual",
+        data: {
+          actorId: input.actorId,
+          action: "invoice.reminder.manual",
+          target: `invoice:${invoiceId}`,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
+
+    return { invoiceId, reminderCount: reminders.length };
+  }
+
+  /**
+   * REQ-061 — batch scheduled reminders for Overdue invoices (AC-14 SendReminders).
+   * Cadence: first scheduled, then every REMINDER_INTERVAL_DAYS, at most REMINDER_MAX.
+   */
+  async sendDueReminders(
+    asOf: string,
+  ): Promise<{ accepted: true; sent: number }> {
+    return this.tx.run(() => this.performSendDueReminders(asOf));
+  }
+
+  private async performSendDueReminders(
+    asOf: string,
+  ): Promise<{ accepted: true; sent: number }> {
+    if (!asOf) {
+      throw new BadRequestException("asOf is required");
+    }
+    const interval = reminderIntervalDays();
+    const max = reminderMax();
+    let sent = 0;
+    for (const row of this.store.list()) {
+      if (row.status !== "Overdue") continue;
+      const scheduled = (row.reminders ?? []).filter(
+        (r) => r.trigger === "scheduled",
+      );
+      if (scheduled.length >= max) continue;
+      const last = scheduled[scheduled.length - 1];
+      if (last && daysBetween(last.sentOn, asOf) < interval) continue;
+      await this.performSendReminder(row.invoiceId, {
+        actorId: SCHEDULED_REMINDER_ACTOR,
+        trigger: "scheduled",
+        asOf,
+      });
+      sent += 1;
+    }
+    return { accepted: true, sent };
   }
 
   /**

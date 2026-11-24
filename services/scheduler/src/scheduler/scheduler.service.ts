@@ -169,9 +169,12 @@ export class SchedulerService {
         return { date: new Date().toISOString().slice(0, 10) };
       case "PurgeCache":
         return { before: new Date().toISOString() };
-      case "MarkOverdue":
       case "RunAutoPayouts":
         return { communityId };
+      case "MarkOverdue":
+      case "SendReminders":
+        // REQ-044 / REQ-061 — owner APIs require asOf (calendar date UTC).
+        return { communityId, asOf: now.toISOString().slice(0, 10) };
       default:
         return {};
     }

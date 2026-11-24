@@ -24,3 +24,9 @@ export {
   createTopicValidator,
   type EwdsTopicName,
 } from "./topic-validator.js";
+export {
+  adapterMode,
+  loadCgwConfig,
+  type AdapterEnvKey,
+  type AdapterMode,
+} from "./config.js";

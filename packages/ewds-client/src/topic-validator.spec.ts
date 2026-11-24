@@ -30,6 +30,13 @@ describe("createTopicValidator", () => {
     }
   });
 
+  it("loads each billing topic schema", () => {
+    for (const topic of topics) {
+      const v = createTopicValidator(topic);
+      expect(v({})).toMatchObject({ ok: false });
+    }
+  });
+
   it("rejects payloads that violate billingInvoice schema", async () => {
     const v = createTopicValidator("billingInvoice");
     const example = JSON.parse(

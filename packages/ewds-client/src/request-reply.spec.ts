@@ -132,6 +132,23 @@ describe("RequestReplyClient (REQ-001)", () => {
     await assertion;
   });
 
+  it("success:false with string error -> EwdsRemoteError", async () => {
+    const state: FakeState = {
+      sent: [],
+      acked: [],
+      receiveQueue: [
+        [msg("r1", { requestId: "r1", success: false, error: "denied" })],
+      ],
+      receiveCalls: 0,
+    };
+    const cgw = fakeCgw(state);
+    const rr = new RequestReplyClient(cgw, channel, () => "r1");
+    const p = rr.request("tradesQuery", {});
+    const assertion = expect(p).rejects.toBeInstanceOf(EwdsRemoteError);
+    await vi.runAllTimersAsync();
+    await assertion;
+  });
+
   it("success:false -> EwdsRemoteError('rate_limited', ...)", async () => {
     const state: FakeState = {
       sent: [],
@@ -155,6 +172,92 @@ describe("RequestReplyClient (REQ-001)", () => {
       code: "rate_limited",
     });
     await vi.runAllTimersAsync();
+    await assertion;
+  });
+
+  it("ignores expired orphans", async () => {
+    const state: FakeState = {
+      sent: [],
+      acked: [],
+      receiveQueue: [
+        [
+          msg("orphan", {
+            requestId: "stale",
+            success: true,
+            data: [{ stale: true }],
+          }),
+        ],
+        [],
+      ],
+      receiveCalls: 0,
+    };
+    const cgw = fakeCgw(state);
+    const rr = new RequestReplyClient(
+      cgw,
+      { ...channel, pollMs: 5, ttlMs: 10 },
+      () => "noise",
+    );
+    const p1 = rr.request("tradesQuery", {}, { timeoutMs: 30 });
+    await vi.advanceTimersByTimeAsync(35);
+    await expect(p1).rejects.toBeInstanceOf(EwdsTimeoutError);
+
+    const rr2 = new RequestReplyClient(
+      cgw,
+      { ...channel, pollMs: 5, ttlMs: 10 },
+      () => "stale",
+    );
+    const p2 = rr2.request("tradesQuery", {}, { timeoutMs: 30 });
+    await vi.advanceTimersByTimeAsync(35);
+    await expect(p2).rejects.toBeInstanceOf(EwdsTimeoutError);
+  });
+
+  it("reuses a buffered orphan when the same requestId is requested again", async () => {
+    const state: FakeState = {
+      sent: [],
+      acked: [],
+      receiveQueue: [
+        [
+          msg("orphan", {
+            requestId: "cached",
+            success: true,
+            data: [{ z: 1 }],
+          }),
+        ],
+        [],
+      ],
+      receiveCalls: 0,
+    };
+    const cgw = fakeCgw(state);
+    let n = 0;
+    const rr = new RequestReplyClient(cgw, { ...channel, pollMs: 5 }, () =>
+      n++ === 0 ? "other" : "cached",
+    );
+    const dangling = rr.request("tradesQuery", {}, { timeoutMs: 40 });
+    const hang = expect(dangling).rejects.toBeInstanceOf(EwdsTimeoutError);
+    await vi.advanceTimersByTimeAsync(50);
+    await hang;
+    await expect(rr.request("tradesQuery", {})).resolves.toEqual([{ z: 1 }]);
+  });
+
+  it("ignores malformed JSON payloads", async () => {
+    const state: FakeState = {
+      sent: [],
+      acked: [],
+      receiveQueue: [
+        [
+          {
+            ...msg("garbage", {}),
+            payload: "not-json",
+          },
+        ],
+      ],
+      receiveCalls: 0,
+    };
+    const cgw = fakeCgw(state);
+    const rr = new RequestReplyClient(cgw, { ...channel, pollMs: 5 }, () => "r1");
+    const p = rr.request("tradesQuery", {}, { timeoutMs: 50 });
+    const assertion = expect(p).rejects.toBeInstanceOf(EwdsTimeoutError);
+    await vi.advanceTimersByTimeAsync(60);
     await assertion;
   });
 

@@ -35,3 +35,16 @@ test("WS1 REQ-059: statement contract", async () => {
   assert.match(ia, /StatementStatusChanged:/);
   assert.match(await readFile("contracts/openapi/internal/invoicing.v1.yaml", "utf8"), /\/statements:[\s\S]*?operationId: listStatements/);
 });
+
+test("WS1 REQ-015/REQ-060: payout contracts", async () => {
+  const pub = await readFile("contracts/openapi/public.v1.yaml", "utf8");
+  assert.match(pub, /\/me\/payouts:[\s\S]*?operationId: listMyPayouts[\s\S]*?operationId: requestWithdrawal[\s\S]*?x-served-by: AC-07/);
+  assert.match(pub, /\/communities\/\{id\}\/payouts-overview:[\s\S]*?x-served-by: AC-09/);
+  assert.match(pub, /CommunitySettings:[\s\S]*?autoPayout:/);
+  assert.match(pub, /enum: \[kyc_required, statement_not_found, producer_invoices_unpaid, nothing_to_pay_out, funds_pending\]/);
+  const ip = await readFile("contracts/openapi/internal/payments.v1.yaml", "utf8");
+  assert.doesNotMatch(ip, /connected-customers/);
+  assert.match(ip, /\/payouts:run-auto:/);
+  assert.match(await readFile("contracts/asyncapi/payments.v1.yaml", "utf8"), /PayoutStatusChanged:/);
+  assert.match(await readFile("contracts/openapi/components/schemas.yaml", "utf8"), /RunAutoPayouts/);
+});

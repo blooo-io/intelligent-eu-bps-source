@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -25,6 +27,10 @@ import type {
   ReadinessStatus,
 } from "../domain/types.js";
 import { IDP_ADMIN_PORT, type IdpAdminPort } from "../idp/idp.port.js";
+import {
+  PSP_CAPABILITIES_PORT,
+  type PspCapabilitiesPort,
+} from "../ports/psp-capabilities.port.js";
 import { deriveReadiness, isInvoiceReady } from "./readiness.js";
 
 const PRODUCER = "AC-03";
@@ -51,17 +57,25 @@ export type ParticipantPersonalData = {
 };
 
 function invoiceNotReadyReason(
+  row: ParticipantRecord,
   status: ParticipantRecord["status"],
-  paymentBlockReason?: string | null,
 ): string {
-  if (paymentBlockReason) {
-    return paymentBlockReason;
+  if (row.paymentBlockReason) {
+    return row.paymentBlockReason;
   }
   if (status === "Offboarded") {
     return "offboarded";
   }
   if (status === "Restricted") {
     return "restricted";
+  }
+  // REQ-045 — terms + payment ready but KYC outstanding.
+  if (
+    status === "TermsAccepted" &&
+    row.paymentAccountReady &&
+    !row.kycVerified
+  ) {
+    return "kyc_not_verified";
   }
   return `readiness is ${status}`;
 }
@@ -75,6 +89,8 @@ export type ReadinessResult = {
   participantId: string;
   ready: boolean;
   status: ParticipantRecord["status"];
+  /** REQ-045 — mirror of AC-07 KYC; Ready also requires this. */
+  kycVerified: boolean;
   reason?: string;
 };
 
@@ -87,6 +103,10 @@ export type MeResult = {
   readiness: ParticipantRecord["status"];
   profile: BillingProfile;
   billingMode: CommunitySettings["billingMode"];
+  /** REQ-045 — whether KYC is complete for billing. */
+  kycVerified: boolean;
+  /** REQ-050 — when the caller accepted the current terms. */
+  termsAcceptedAt: string | null;
 };
 
 /**
@@ -106,6 +126,8 @@ export class ParticipantsService {
     @Inject(ParticipantsStore) private readonly store: ParticipantsStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
     @Inject(IDP_ADMIN_PORT) private readonly idp: IdpAdminPort,
+    @Inject(PSP_CAPABILITIES_PORT)
+    private readonly pspCapabilities: PspCapabilitiesPort,
   ) {}
 
   /** Test seam — wipe fixture state between cases. */
@@ -128,23 +150,46 @@ export class ParticipantsService {
     return this.requireCommunity(communityId);
   }
 
+  /**
+   * REQ-043 / UAT-054 / A10.1 — update settings. Billing-mode transitions:
+   * virtual→live needs operator + live PSP keys; live→virtual is refused.
+   */
   updateCommunitySettings(
     communityId: string,
     write: CommunitySettingsWrite,
+    callerRoles: string[],
   ): Promise<CommunitySettings> {
-    return this.tx.run(() => this.performUpdateCommunitySettings(communityId, write));
+    return this.tx.run(() =>
+      this.performUpdateCommunitySettings(communityId, write, callerRoles),
+    );
   }
 
-  private performUpdateCommunitySettings(
+  private async performUpdateCommunitySettings(
     communityId: string,
     write: CommunitySettingsWrite,
-  ): CommunitySettings {
-    if (!this.store.getCommunity(communityId)) {
+    callerRoles: string[],
+  ): Promise<CommunitySettings> {
+    const current = this.store.getCommunity(communityId);
+    if (!current) {
       throw new NotFoundException(`Unknown community ${communityId}`);
     }
-    // V1 communities are virtual (REQ-043); refuse live until post-V1.
-    if (write.billingMode === "live") {
-      throw new BadRequestException("V1 communities must remain virtual");
+    const modeChanging = write.billingMode !== current.billingMode;
+    if (modeChanging) {
+      // REQ-043 — live → virtual refused so real-money invoices stay live.
+      if (current.billingMode === "live" && write.billingMode === "virtual") {
+        throw new ConflictException({ code: "live_to_virtual_refused" });
+      }
+      if (current.billingMode === "virtual" && write.billingMode === "live") {
+        if (!callerRoles.includes("operator")) {
+          throw new ForbiddenException({
+            code: "operator_required_for_live",
+          });
+        }
+        const caps = await this.pspCapabilities.get();
+        if (!caps.liveConfigured) {
+          throw new ConflictException({ code: "live_keys_missing" });
+        }
+      }
     }
     const next: CommunitySettings = {
       communityId,
@@ -152,6 +197,23 @@ export class ParticipantsService {
       autoPayout: write.autoPayout ?? false,
     };
     this.store.putCommunity(next);
+    if (modeChanging && next.billingMode === "live") {
+      // REQ-043 — audit trail for live switch (identifiers only).
+      await this.outbox.append({
+        aggregateType: "CommunitySettings",
+        aggregateId: communityId,
+        type: "AuditableActionPerformed",
+        producer: PRODUCER,
+        communityId,
+        billingMode: "live",
+        data: {
+          actorId: "operator",
+          action: "community.billing-mode.live",
+          target: `community:${communityId}`,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
     return next;
   }
 
@@ -189,9 +251,10 @@ export class ParticipantsService {
       participantId,
       ready,
       status,
+      kycVerified: row.kycVerified,
     };
     if (!ready) {
-      result.reason = invoiceNotReadyReason(status, row.paymentBlockReason);
+      result.reason = invoiceNotReadyReason(row, status);
     }
     return result;
   }
@@ -278,7 +341,14 @@ export class ParticipantsService {
     }
     const created = [];
     for (const row of rows) {
-      if (this.store.findByMarketActorId(row.marketActorId)) {
+      const existingMarket = this.store.findByMarketActorId(row.marketActorId);
+      if (existingMarket) {
+        // REQ-058 — CSV must not overwrite an EWDS-sourced actor.
+        if (existingMarket.source === "ewds") {
+          throw new BadRequestException(
+            "marketActorId already sourced from EWDS",
+          );
+        }
         throw new BadRequestException(
           `marketActorId already registered: ${row.marketActorId}`,
         );
@@ -325,6 +395,7 @@ export class ParticipantsService {
         phone: null,
         termsAcceptedAt: null,
         kycVerified: false,
+        actorVersion: null,
       };
       this.store.putParticipant(record);
       await this.outbox.append({
@@ -461,6 +532,8 @@ export class ParticipantsService {
       readiness,
       profile: row.profile ?? { name: "", address: "", email: "" },
       billingMode: settings.billingMode,
+      kycVerified: row.kycVerified,
+      termsAcceptedAt: row.termsAcceptedAt,
     };
   }
 
@@ -495,57 +568,134 @@ export class ParticipantsService {
     return this.store.getTerms();
   }
 
+  /**
+   * REQ-050 / UAT-062 — record T&C acceptance with timestamp.
+   * Members store termsAcceptedAt on the participant; managers store
+   * ManagerConsent. Producer/prosumer still require the self-billing mandate.
+   */
   async acceptTerms(
     sub: string,
+    roles: string[],
     input: { termsVersion: string; selfBillingMandate: boolean },
+    communityId?: string,
   ): Promise<{
     termsVersion: string;
     selfBillingMandate: boolean;
     acceptedAt: string;
   }> {
-    return this.tx.run(() => this.performAcceptTerms(sub, input));
+    return this.tx.run(() =>
+      this.performAcceptTerms(sub, roles, input, communityId),
+    );
   }
 
   private async performAcceptTerms(
     sub: string,
+    roles: string[],
     input: { termsVersion: string; selfBillingMandate: boolean },
+    communityId?: string,
   ): Promise<{
     termsVersion: string;
     selfBillingMandate: boolean;
     acceptedAt: string;
   }> {
-    const row = this.store.findByIdpSub(sub);
-    if (!row || row.status === "Offboarded") {
-      throw new NotFoundException("Caller is not a registered participant");
-    }
     const current = this.store.getTerms();
     if (input.termsVersion !== current.termsVersion) {
       throw new BadRequestException("termsVersion does not match current terms");
     }
-    // REQ-050: producers must accept the self-billing mandate.
-    if (
-      (row.role === "producer" || row.role === "prosumer") &&
-      !input.selfBillingMandate
-    ) {
-      throw new BadRequestException(
-        "selfBillingMandate is required for producers",
+    const acceptedAt = new Date().toISOString();
+    const isManager = roles.includes("manager");
+    const isMemberPath = roles.includes("member");
+    const row = this.store.findByIdpSub(sub);
+
+    if (isMemberPath) {
+      if (!row || row.status === "Offboarded") {
+        throw new NotFoundException("Caller is not a registered participant");
+      }
+      // REQ-050: producers must accept the self-billing mandate.
+      if (
+        (row.role === "producer" || row.role === "prosumer") &&
+        !input.selfBillingMandate
+      ) {
+        throw new BadRequestException(
+          "selfBillingMandate is required for producers",
+        );
+      }
+      const previousStatus = deriveReadiness(row);
+      const next: ParticipantRecord = {
+        ...row,
+        termsVersionAccepted: input.termsVersion,
+        selfBillingMandate: input.selfBillingMandate,
+        termsAcceptedAt: acceptedAt,
+      };
+      next.status = deriveReadiness(next);
+      this.store.putParticipant(next);
+      await this.emitReadinessIfChanged(row, previousStatus, next);
+      await this.emitTermsAcceptedAudit(
+        row.participantId,
+        row.communityId,
+        input.termsVersion,
+        acceptedAt,
       );
     }
-    const previousStatus = deriveReadiness(row);
-    const acceptedAt = new Date().toISOString();
-    const next: ParticipantRecord = {
-      ...row,
-      termsVersionAccepted: input.termsVersion,
-      selfBillingMandate: input.selfBillingMandate,
-    };
-    next.status = deriveReadiness(next);
-    this.store.putParticipant(next);
-    await this.emitReadinessIfChanged(row, previousStatus, next);
+
+    if (isManager) {
+      const mgrCommunityId = communityId || row?.communityId;
+      if (!mgrCommunityId) {
+        throw new BadRequestException("communityId is required for manager consent");
+      }
+      if (!this.store.getCommunity(mgrCommunityId)) {
+        throw new NotFoundException(`Unknown community ${mgrCommunityId}`);
+      }
+      // REQ-050 — manager consent is separate from member ParticipantRecord.
+      this.store.putManagerConsent({
+        subjectId: sub,
+        communityId: mgrCommunityId,
+        termsVersion: input.termsVersion,
+        acceptedAt,
+      });
+      if (!isMemberPath) {
+        await this.emitTermsAcceptedAudit(
+          sub,
+          mgrCommunityId,
+          input.termsVersion,
+          acceptedAt,
+        );
+      }
+    }
+
+    if (!isMemberPath && !isManager) {
+      throw new NotFoundException("Caller is not a registered participant");
+    }
+
     return {
       termsVersion: input.termsVersion,
       selfBillingMandate: input.selfBillingMandate,
       acceptedAt,
     };
+  }
+
+  private async emitTermsAcceptedAudit(
+    actorId: string,
+    communityId: string,
+    termsVersion: string,
+    timestamp: string,
+  ): Promise<void> {
+    const settings = this.store.getCommunity(communityId);
+    // REQ-050 / REQ-030 — identifiers only (NFR-015).
+    await this.outbox.append({
+      aggregateType: "TermsAcceptance",
+      aggregateId: actorId,
+      type: "AuditableActionPerformed",
+      producer: PRODUCER,
+      communityId,
+      billingMode: settings?.billingMode ?? "virtual",
+      data: {
+        actorId,
+        action: "terms.accepted",
+        target: `participant:${actorId}|version:${termsVersion}`,
+        timestamp,
+      },
+    });
   }
 
   /**
@@ -582,6 +732,43 @@ export class ParticipantsService {
     return this.checkReadiness(input.participantId);
   }
 
+  /**
+   * REQ-051 / REQ-045 — apply KycStatusChanged (subjectType=participant) so
+   * readiness mirrors AC-07 KYC (BR-09 gate for invoices and statements).
+   */
+  async applyKycStatus(input: {
+    eventId: string;
+    participantId: string;
+    kycVerified: boolean;
+  }): Promise<ReadinessResult> {
+    return this.tx.run(() => this.performApplyKycStatus(input));
+  }
+
+  private async performApplyKycStatus(input: {
+    eventId: string;
+    participantId: string;
+    kycVerified: boolean;
+  }): Promise<ReadinessResult> {
+    const row = this.requireParticipant(input.participantId);
+    if (row.status === "Offboarded") {
+      throw new BadRequestException("Offboarded participant");
+    }
+    const previousStatus = deriveReadiness(row);
+    const next: ParticipantRecord = {
+      ...row,
+      kycVerified: input.kycVerified,
+      // Clear payment-block when KYC is restored without a separate payment event.
+      paymentBlockReason:
+        input.kycVerified && row.paymentBlockReason === "kyc_revoked"
+          ? null
+          : row.paymentBlockReason,
+    };
+    next.status = deriveReadiness(next);
+    this.store.putParticipant(next);
+    await this.emitReadinessIfChanged(row, previousStatus, next);
+    return this.checkReadiness(input.participantId);
+  }
+
   /** Default seeded community id for tests and local smoke. */
   seedCommunityId(): string {
     return SEED_COMMUNITY_ID;
@@ -599,20 +786,20 @@ export class ParticipantsService {
       participantId: row.participantId,
       communityId: row.communityId,
       role: row.role,
-      source: row.source ?? "import",
+      source: row.source,
       marketActorId: row.marketActorId,
       meterId: row.meterId,
       profile: row.profile ?? { name: "", address: "", email: "" },
-      postalAddress: row.postalAddress ?? null,
-      phone: row.phone ?? null,
+      postalAddress: row.postalAddress,
+      phone: row.phone,
       idpUserId: row.idpUserId,
       consents: {
         termsVersion: row.termsVersionAccepted,
-        termsAcceptedAt: row.termsAcceptedAt ?? null,
+        termsAcceptedAt: row.termsAcceptedAt,
         selfBillingMandate: row.selfBillingMandate,
       },
       readiness: deriveReadiness(row),
-      kycVerified: row.kycVerified ?? row.paymentAccountReady,
+      kycVerified: row.kycVerified,
     };
   }
 
@@ -737,8 +924,9 @@ export class ParticipantsService {
         participantId: next.participantId,
         ready: isInvoiceReady(nextStatus),
         reason:
-          next.paymentBlockReason ??
-          (nextStatus !== "Ready" ? `readiness is ${nextStatus}` : undefined),
+          nextStatus !== "Ready"
+            ? invoiceNotReadyReason(next, nextStatus)
+            : undefined,
       },
     });
   }

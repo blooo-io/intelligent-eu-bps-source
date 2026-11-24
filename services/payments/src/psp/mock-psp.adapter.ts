@@ -9,6 +9,9 @@ import type {
   PaymentMethodDetails as CollectPaymentMethodDetails,
 } from "./collect.port.js";
 import type {
+  HostedKycLink,
+  IdentityVerificationSession,
+  IdentityVerificationStatus,
   KycOnboardingPort,
   OnboardingSession as KycOnboardingSession,
   PspAccountStatus,
@@ -171,6 +174,47 @@ export class MockPspAdapter
       chargesEnabled: complete,
       payoutsEnabled: complete,
     };
+  }
+
+  /**
+   * REQ-051 / A7 — deterministic hosted KYC URL on the mock PSP domain.
+   */
+  async createHostedKycLink(
+    accountRef: string,
+    _urls: { returnUrl: string; refreshUrl: string },
+  ): Promise<HostedKycLink> {
+    return {
+      url: `https://mock-psp.local/kyc/${accountRef}`,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    };
+  }
+
+  /** REQ-051 — mock Stripe Identity for community managers. */
+  async createIdentityVerification(input: {
+    subjectId: string;
+    returnUrl: string;
+  }): Promise<IdentityVerificationSession> {
+    void input.returnUrl;
+    const verificationId = `vs_mock_${input.subjectId.replaceAll("-", "").slice(0, 12)}`;
+    return {
+      verificationId,
+      url: `https://mock-psp.local/identity/${verificationId}`,
+    };
+  }
+
+  async getIdentityVerification(
+    verificationId: string,
+  ): Promise<IdentityVerificationStatus> {
+    if (verificationId === "vs_mock_verified" || verificationId.endsWith("_verified")) {
+      return { status: "verified", errorCode: null };
+    }
+    if (verificationId.includes("canceled")) {
+      return { status: "canceled", errorCode: null };
+    }
+    if (verificationId.includes("processing")) {
+      return { status: "processing", errorCode: null };
+    }
+    return { status: "requires_input", errorCode: null };
   }
 
   // ── Neutral: CollectPort ────────────────────────────────────────────────
@@ -480,13 +524,20 @@ export class MockPspAdapter
   }
 
   async getAccountSession(pspAccountRef: string): Promise<LegacyOnboardingSession> {
-    const due = this.dueByAccount.get(pspAccountRef) ?? [];
+    const state = this.connected.get(pspAccountRef);
+    const due =
+      state?.currentlyDue ?? this.dueByAccount.get(pspAccountRef) ?? [];
+    const complete = due.length === 0;
+    const payoutsEnabled = state
+      ? state.payoutsEnabled
+      : complete;
     return {
       mode: "requirements",
-      status: due.length === 0 ? "complete" : "requirements_due",
+      status: complete ? "complete" : "requirements_due",
       pspAccountRef,
       currentlyDue: [...due],
       eventuallyDue: [],
+      payoutsEnabled,
     };
   }
 
@@ -627,12 +678,15 @@ export class MockPspAdapter
       eventId: `mock_evt_${shortId()}`,
       occurredAt: e.occurredAt ?? new Date().toISOString(),
       kind: e.kind,
+      // REQ-043 — default test; pass livemode:true to simulate live webhooks.
+      livemode: e.livemode === true,
       pspAccountRef: e.pspAccountRef,
       participantId: e.participantId,
       invoiceId: e.invoiceId,
       pspPaymentRef: e.pspPaymentRef,
       pspCheckoutRef: e.pspCheckoutRef,
       pspPayoutRef: e.pspPayoutRef,
+      verificationId: e.verificationId,
       arrivalDate: e.arrivalDate,
       method: e.method,
       failureCategory: e.failureCategory,

@@ -27,6 +27,14 @@ class ParticipantPersistence implements OnModuleInit {
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
 import { createEventBus } from "./events/nats-event-bus.js";
 import { ErasureRequestedListener } from "./events/erasure-requested.listener.js";
+import { KycStatusChangedListener } from "./events/kyc-status-changed.listener.js";
+import { ACTOR_SOURCE_PORT } from "./actors/actor-source.port.js";
+import { createActorSource } from "./actors/actor-source.factory.js";
+import { ActorSyncService } from "./actors/actor-sync.service.js";
+import {
+  createPspCapabilities,
+  PSP_CAPABILITIES_PORT,
+} from "./ports/psp-capabilities.port.js";
 
 @Module({
   imports: [
@@ -41,6 +49,13 @@ import { ErasureRequestedListener } from "./events/erasure-requested.listener.js
     { provide: IDP_ADMIN_PORT, useFactory: () => createIdpAdminPort() },
     { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
     ErasureRequestedListener,
+    // REQ-051 — mirror participant KYC into readiness (INT-431).
+    KycStatusChangedListener,
+    // REQ-008 — ActorSourcePort (mock|ewds|none); null when disabled.
+    { provide: ACTOR_SOURCE_PORT, useFactory: () => createActorSource() },
+    ActorSyncService,
+    // REQ-043 / UAT-054 — live mode needs AC-07 liveConfigured.
+    { provide: PSP_CAPABILITIES_PORT, useFactory: () => createPspCapabilities() },
   ],
 })
 export class AppModule implements NestModule {

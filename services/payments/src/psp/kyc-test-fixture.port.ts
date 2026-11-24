@@ -49,7 +49,8 @@ export type KycTestFixtureAccount = {
  * Distinct from {@link OnboardingSession} on KycOnboardingPort.
  */
 export type KycTestFixtureSession = {
-  mode: "embedded" | "requirements" | "link" | "elements";
+  /** Includes `hosted` so intersection with LegacyOnboardingSession (A7 Account Link) type-checks. */
+  mode: "embedded" | "hosted" | "requirements" | "link" | "elements";
   status: "requirements_due" | "pending_verification" | "complete";
   pspAccountRef?: string;
   currentlyDue?: string[];

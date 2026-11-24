@@ -6,17 +6,22 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
+  BILLING_MODE_RESOLVER,
   IdempotentConsumer,
   OutboxService,
   PassthroughTransaction,
+  StaticBillingModeResolver,
+  type BillingModeResolver,
   type RecordingTransaction,
 } from "@intelligent/module-template";
 import { CLOCK, type Clock } from "../domain/clock.js";
 import {
+  DEFAULT_KYC_ACCOUNT_FIELDS,
   PaymentsStore,
   type AccountRecord,
   type KycLogEntry,
@@ -39,6 +44,8 @@ import {
   PAYMENT_ACCOUNTS_STORE,
   type PaymentAccountsStore,
 } from "../ports/payment-accounts.store.js";
+import { KycService, kycReady } from "../kyc/kyc.service.js";
+import { ManagerKycService } from "../kyc/manager-kyc.service.js";
 import {
   COLLECT_PORT,
   type ChargeSettlement,
@@ -62,13 +69,48 @@ import {
 import type { PspEvent } from "../psp/psp.types.js";
 import type { MockPspAdapter } from "../psp/mock-psp.adapter.js";
 import type { StripePspAdapter } from "../psp/stripe-psp.adapter.js";
+import {
+  createTestPspRegistry,
+  PSP_REGISTRY,
+  type PspAdapter,
+  type PspRegistry,
+} from "../psp/psp-registry.js";
 
-type PspAdapter = MockPspAdapter | StripePspAdapter;
 type OnboardingSession = LegacyOnboardingSession;
 
 const PRODUCER = "AC-07";
 
 type ProvisionRole = "consumer" | "producer" | "prosumer";
+
+/**
+ * A7 — hosted KYC returnUrl must match KYC_RETURN_URL_ALLOWLIST (comma-separated
+ * origins). Missing allow-list or unmatched origin → 400.
+ */
+export function assertKycReturnUrlAllowed(
+  returnUrl: string | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  if (!returnUrl) {
+    throw new BadRequestException(
+      "returnUrl is required when surface is hosted",
+    );
+  }
+  let origin: string;
+  try {
+    origin = new URL(returnUrl).origin;
+  } catch {
+    throw new BadRequestException("returnUrl must be an absolute URL");
+  }
+  const allowlist = (env.KYC_RETURN_URL_ALLOWLIST ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (!allowlist.includes(origin)) {
+    throw new BadRequestException(
+      "returnUrl origin is not in KYC_RETURN_URL_ALLOWLIST",
+    );
+  }
+}
 
 /** REQ-013 — payment-account personal data for DSAR (never logged). */
 export type PaymentAccountPersonalData = {
@@ -144,7 +186,43 @@ export class PaymentsService {
     @Inject(PSP_EVENTS_PORT) private readonly pspEvents: PspEventsPort,
     @Inject(PAYOUT_EVENTS_HANDLER)
     private readonly payoutEvents: PayoutEventsHandler,
+    @Inject(KycService) private readonly kyc: KycService,
+    @Optional()
+    @Inject(ManagerKycService)
+    private readonly managerKyc: ManagerKycService | null = null,
+    @Optional()
+    @Inject(PSP_REGISTRY)
+    private readonly pspRegistry: PspRegistry | null = null,
+    @Optional()
+    @Inject(BILLING_MODE_RESOLVER)
+    private readonly billingMode: BillingModeResolver | null = null,
   ) {}
+
+  /**
+   * REQ-043 / UAT-054 — adapter for the community's billing mode.
+   * Wraps the port-split concrete adapter (not a single PspPort).
+   */
+  async pspFor(communityId: string): Promise<PspAdapter> {
+    const registry =
+      this.pspRegistry ??
+      createTestPspRegistry({ test: this.psp });
+    const resolver =
+      this.billingMode ?? new StaticBillingModeResolver("virtual");
+    const mode = await resolver.modeOf(communityId);
+    return registry.for(mode);
+  }
+
+  /** REQ-043 — AC-03 live-mode guard reads this via GET /psp/capabilities. */
+  pspCapabilities(): {
+    provider: "stripe" | "mock";
+    testConfigured: boolean;
+    liveConfigured: boolean;
+  } {
+    const registry =
+      this.pspRegistry ??
+      createTestPspRegistry({ test: this.psp });
+    return registry.capabilities();
+  }
 
   /** INT-326 — exposed for tests / future Prometheus scrape. */
   getWebhookDuplicateCount(): number {
@@ -222,6 +300,7 @@ export class PaymentsService {
       kycStatus: "none",
       role: input.role,
       communityId: input.communityId,
+      ...DEFAULT_KYC_ACCOUNT_FIELDS,
     });
   }
 
@@ -354,21 +433,6 @@ export class PaymentsService {
     });
   }
 
-  private async provisionConsumerAccount(
-    input: {
-      participantId: string;
-      fresh?: boolean;
-    },
-    existing: AccountRecord,
-  ): Promise<ReturnType<PaymentsService["toPaymentAccountApi"]>> {
-    const fresh = input.fresh !== false;
-    if (!fresh && existing.pspPaymentMethodRef) {
-      return this.toPaymentAccountApi(existing);
-    }
-    await this.psp.createSetupIntent(input.participantId);
-    return this.toPaymentAccountApi(existing);
-  }
-
   async provisionPaymentAccount(input: {
     participantId: string;
     communityId: string;
@@ -379,11 +443,12 @@ export class PaymentsService {
     await this.ensureParticipant(input);
     const existing = this.store.getAccount(input.participantId)!;
 
-    if (input.role === "consumer") {
-      return this.provisionConsumerAccount(input, existing);
-    }
-
+    // REQ-051 — every role gets a Connect Custom account with test KYC on the
+    // fixture path (consumers included). Buyers also get a SetupIntent.
     if (!fresh && existing.pspAccountRef) {
+      if (input.role === "consumer" && !existing.pspPaymentMethodRef) {
+        await this.psp.createSetupIntent(input.participantId);
+      }
       return this.getPaymentAccount(input.participantId);
     }
 
@@ -408,15 +473,28 @@ export class PaymentsService {
     const verified =
       session.status === "complete" || session.status === "pending_verification";
     await this.saveAccount({
-      ...existing,
+      ...this.store.getAccount(input.participantId)!,
       pspAccountRef: created.pspAccountRef,
       kycStatus: verified ? "verified" : "pending",
       role: input.role,
       communityId: input.communityId,
     });
     if (verified) {
+      // REQ-051 — fixture / seed path mirrors Connect complete into kycVerified.
+      await this.kyc.applyAccountSession(
+        input.participantId,
+        { ...session, status: "complete", payoutsEnabled: true },
+        "operator",
+        null,
+      );
       if (input.role === "prosumer") {
-        await this.attachProsumerSeedPaymentMethod(input.participantId, existing);
+        await this.attachProsumerSeedPaymentMethod(
+          input.participantId,
+          this.store.getAccount(input.participantId)!,
+        );
+      }
+      if (input.role === "consumer") {
+        await this.psp.createSetupIntent(input.participantId);
       }
       await this.emitAccountStatus(input.participantId);
     }
@@ -426,10 +504,17 @@ export class PaymentsService {
     };
   }
 
+  /**
+   * REQ-051 / UAT-063 / A7 — single onboarding path for every participant role:
+   * Connect KYC first (embedded Account Session or hosted Account Link), then
+   * a SetupIntent (`elements`) for consumer and prosumer.
+   */
   async startOnboarding(input: {
     participantId: string;
     communityId: string;
     role: ProvisionRole;
+    surface?: "embedded" | "hosted";
+    returnUrl?: string;
   }): Promise<OnboardingSession> {
     // INT-230 / INT-394 — JWT sub is the IdP id; AC-03 is keyed by participantId.
     const caller = await this.resolveCallerParticipantId(input.participantId);
@@ -439,39 +524,43 @@ export class PaymentsService {
       communityId: caller.communityId ?? input.communityId,
       role: input.role,
     });
-    const account = this.store.getAccount(participantId)!;
+    const surface = input.surface ?? "embedded";
+    let account = this.store.getAccount(participantId)!;
 
-    // INT-269 — producer: Connect only. Prosumer: Connect first, then Elements.
-    if (input.role === "producer") {
-      return this.startProducerOnboarding(account);
-    }
-    if (input.role === "prosumer") {
-      if (!account.pspAccountRef || account.kycStatus !== "verified") {
-        const connect = await this.startProducerOnboarding(account);
-        if (connect.status !== "complete") return connect;
-      }
-      // INT-362 — Connect done (possibly just now): continue to the card step.
-      return this.startConsumerElementsOnboarding(
-        participantId,
-        this.store.getAccount(participantId)!,
+    // KYC first for every role (REQ-051 / A5).
+    if (!account.pspAccountRef || account.kycStatus !== "verified") {
+      const connect = await this.startKycOnboarding(
+        account,
+        surface,
+        input.returnUrl,
       );
+      if (connect.status !== "complete") return connect;
+      account = this.store.getAccount(participantId)!;
+      if (input.role === "producer") return connect;
+    } else if (input.role === "producer") {
+      const status = await this.psp.getAccountSession(account.pspAccountRef!);
+      return { ...status, mode: surface === "hosted" ? "hosted" : "embedded" };
     }
 
-    // INT-193 — consumer SetupIntent for in-wizard Payment Element.
+    // INT-193 / INT-269 — buyers continue to the card (Elements) step.
     return this.startConsumerElementsOnboarding(participantId, account);
   }
 
   /**
-   * INT-362 — embedded Connect onboarding. The first call creates the
-   * Stripe-collected account (producer pays fees and bears disputes); every
-   * call re-reads Stripe (TP-7), so the portal refreshes the status by calling
-   * Start again when the embedded component exits.
+   * INT-362 / A7 — Connect KYC via embedded Account Session or hosted Account
+   * Link. Renamed from startProducerOnboarding: every role uses this path.
    */
-  private async startProducerOnboarding(
+  private async startKycOnboarding(
     account: AccountRecord,
+    surface: "embedded" | "hosted",
+    returnUrl?: string,
   ): Promise<OnboardingSession> {
+    if (surface === "hosted") {
+      assertKycReturnUrlAllowed(returnUrl);
+    }
     let pspAccountRef = account.pspAccountRef;
     if (!pspAccountRef) {
+      // createEmbeddedProducerAccount — payments workstream may rename to createKycAccount.
       const created = await this.psp.createEmbeddedProducerAccount({
         participantId: account.participantId,
         country: "FR",
@@ -485,7 +574,26 @@ export class PaymentsService {
       if (this.store.getAccount(account.participantId)?.kycStatus !== "verified") {
         await this.completeProducerKyc(account.participantId);
       }
-      return { ...status, mode: "embedded" };
+      return {
+        ...status,
+        mode: surface === "hosted" ? "hosted" : "embedded",
+      };
+    }
+    if (surface === "hosted") {
+      const link = await this.psp.createHostedKycLink(pspAccountRef, {
+        returnUrl: returnUrl!,
+        refreshUrl: returnUrl!,
+      });
+      return {
+        mode: "hosted",
+        status: status.status,
+        pspAccountRef,
+        url: link.url,
+        expiresAt: link.expiresAt,
+        currentlyDue: status.currentlyDue,
+        eventuallyDue: status.eventuallyDue,
+        payoutsEnabled: status.payoutsEnabled,
+      };
     }
     const { clientSecret } =
       await this.psp.createAccountOnboardingSession(pspAccountRef);
@@ -569,10 +677,12 @@ export class PaymentsService {
         input.clientIp,
       );
       if (session.status === "complete") {
-        await this.saveAccount({
-          ...this.store.getAccount(input.participantId)!,
-          kycStatus: "verified",
-        });
+        await this.kyc.applyAccountSession(
+          input.participantId,
+          { ...session, payoutsEnabled: session.payoutsEnabled ?? true },
+          "poll",
+          null,
+        );
         await this.emitAccountStatus(input.participantId);
       }
       return session;
@@ -584,10 +694,12 @@ export class PaymentsService {
       input.clientIp,
     );
     if (session.status === "complete") {
-      await this.saveAccount({
-        ...this.store.getAccount(input.participantId)!,
-        kycStatus: "verified",
-      });
+      await this.kyc.applyAccountSession(
+        input.participantId,
+        { ...session, payoutsEnabled: session.payoutsEnabled ?? true },
+        "poll",
+        null,
+      );
       await this.emitAccountStatus(input.participantId);
     }
     return session;
@@ -753,7 +865,18 @@ export class PaymentsService {
     if (!account?.pspAccountRef) {
       throw new NotFoundException("Unknown producer account");
     }
-    await this.saveAccount({ ...account, kycStatus: "verified" });
+    // REQ-051 — route through KycService so kycVerified + KycStatusChanged stay in sync.
+    const session = await this.psp.getAccountSession(account.pspAccountRef);
+    await this.kyc.applyAccountSession(
+      participantId,
+      {
+        ...session,
+        status: "complete",
+        payoutsEnabled: session.payoutsEnabled ?? true,
+      },
+      "operator",
+      null,
+    );
     await this.emitAccountStatus(participantId);
   }
 
@@ -821,6 +944,20 @@ export class PaymentsService {
     ) {
       throw new ForbiddenException("Invoice is not payable by this participant");
     }
+    // REQ-045 / UAT-056 — refuse pay when payer or payee KYC is not verified.
+    if (!account?.kycVerified) {
+      throw new ForbiddenException({
+        code: "kyc_not_verified",
+        subject: "payer",
+      });
+    }
+    const payee = await this.hydrateAccount(invoice.producerId);
+    if (!payee?.kycVerified) {
+      throw new ForbiddenException({
+        code: "kyc_not_verified",
+        subject: "payee",
+      });
+    }
     // INT-355 — replaying Pay on a settled invoice returns the original payment.
     const prior = this.store.findSucceededByInvoiceId(input.invoiceId);
     if (prior) {
@@ -860,6 +997,10 @@ export class PaymentsService {
       pspAccountRef,
     };
 
+    // REQ-043 — collect through the community's mode adapter (port-split wrap).
+    const modePsp = await this.pspFor(communityId);
+    const collect: CollectPort = modePsp;
+
     if (pspPaymentMethodRef && savedMethod === "card") {
       // D2 / A1 — per-charge PM clone on the producer account; no connected Customer.
       const failed = attempts.filter(
@@ -868,7 +1009,7 @@ export class PaymentsService {
       const idempotencyKey =
         failed === 0 ? `pay:${input.invoiceId}` : `pay:${input.invoiceId}:${failed + 1}`;
       const initiatedAt = this.clock.now().toISOString();
-      const charge = await this.collect.createDirectCharge({
+      const charge = await collect.createDirectCharge({
         invoiceId: input.invoiceId,
         amount: invoice.total,
         currency: invoice.currency,
@@ -896,7 +1037,7 @@ export class PaymentsService {
       );
     }
     const initiatedAt = this.clock.now().toISOString();
-    const session = await this.collect.createCheckoutSession({
+    const session = await collect.createCheckoutSession({
       invoiceId: input.invoiceId,
       amount: invoice.total,
       currency: invoice.currency,
@@ -973,6 +1114,13 @@ export class PaymentsService {
     return row.initiatedAt ?? this.clock.now().toISOString();
   }
 
+  /** REQ-043 — resolve community billing mode for outbox envelopes. */
+  private async modeOf(communityId: string) {
+    const resolver =
+      this.billingMode ?? new StaticBillingModeResolver("virtual");
+    return resolver.modeOf(communityId);
+  }
+
   private async announcePaymentStatus(
     row: PaymentRecord,
     payeeId: string | undefined,
@@ -983,7 +1131,7 @@ export class PaymentsService {
       type: "PaymentStatusChanged",
       producer: PRODUCER,
       communityId: row.communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(row.communityId),
       data: {
         paymentId: row.paymentId,
         invoiceId: row.invoiceId,
@@ -1019,15 +1167,18 @@ export class PaymentsService {
   private async handleAccountUpdated(event: PspEvent): Promise<void> {
     const participantId = event.participantId;
     if (!participantId) return;
-    // INT-362 — the PSP sends account.updated during embedded onboarding too;
-    // complete only once it reports nothing due (TP-7, the PSP is master).
+    // INT-362 / REQ-051 — PSP is master (TP-7); KycService maps the session.
     const pspAccountRef =
       event.pspAccountRef ?? this.store.getAccount(participantId)?.pspAccountRef;
-    if (pspAccountRef) {
-      const session = await this.psp.getAccountSession(pspAccountRef);
-      if (session.status !== "complete") return;
-    }
-    await this.completeProducerKyc(participantId);
+    if (!pspAccountRef) return;
+    const session = await this.psp.getAccountSession(pspAccountRef);
+    await this.kyc.applyAccountSession(
+      participantId,
+      session,
+      "webhook",
+      event.eventId,
+    );
+    await this.emitAccountStatus(participantId);
   }
 
   /**
@@ -1151,6 +1302,16 @@ export class PaymentsService {
       case "payout.canceled":
         // REQ-015 — producer payouts are owned by the payout workflow (WS1).
         return this.payoutEvents.onPayoutEvent(event);
+      case "identity.verification_session.verified":
+      case "identity.verification_session.requires_input":
+      case "identity.verification_session.canceled":
+        // REQ-051 — community-manager Identity (A5); no Connect account.
+        if (!event.verificationId || !this.managerKyc) return;
+        return this.managerKyc.onIdentityEvent(
+          event.eventId,
+          event.verificationId,
+          event.kind,
+        );
       default:
         return;
     }
@@ -1164,19 +1325,49 @@ export class PaymentsService {
     if (!signature) {
       throw new UnauthorizedException("Missing webhook signature");
     }
-    const verified = this.pspEvents.verifyEvent(rawBody, signature);
+    const registry =
+      this.pspRegistry ??
+      createTestPspRegistry({ test: this.psp });
+    const verified = registry.verifyWebhook(rawBody, signature);
     if (!verified.ok) {
-      throw new BadRequestException("Invalid webhook signature");
+      // Fall back to the injected events port (legacy single-adapter path).
+      const legacy = this.pspEvents.verifyEvent(rawBody, signature);
+      if (!legacy.ok) {
+        throw new BadRequestException("Invalid webhook signature");
+      }
+      return this.dispatchVerifiedWebhook(legacy.event, legacy.event.livemode === true);
     }
+    return this.dispatchVerifiedWebhook(verified.event, verified.livemode);
+  }
+
+  private async dispatchVerifiedWebhook(
+    event: PspEvent,
+    livemode: boolean,
+  ): Promise<void> {
     // INT-326 / 04 §7 — dedupe on the PSP event id (prefix avoids NATS eventId clash).
-    const eventId = verified.event.eventId.trim();
+    const eventId = event.eventId.trim();
     if (!eventId) {
       throw new BadRequestException("Webhook missing event id");
     }
+    // REQ-043 — ignore livemode mismatch (ack, no PaymentStatusChanged).
+    const communityId = this.communityIdOfPspEvent(event);
+    if (communityId) {
+      const resolver =
+        this.billingMode ?? new StaticBillingModeResolver("virtual");
+      const mode = await resolver.modeOf(communityId);
+      const eventIsLive = livemode === true;
+      const communityIsLive = mode === "live";
+      if (eventIsLive !== communityIsLive) {
+        this.logger.warn(
+          `PSP webhook livemode mismatch ignored eventId=${eventId} communityId=${communityId}`,
+        );
+        return;
+      }
+    }
     const result = await this.consumer.handle(
       `psp:${eventId}`,
-      verified.event,
-      (event) => this.dispatchPspEvent(event),
+      event,
+      (e) => this.dispatchPspEvent(e),
     );
     if (result.status === "duplicate") {
       this.webhookDuplicateCount += 1;
@@ -1188,20 +1379,36 @@ export class PaymentsService {
     }
   }
 
+  /** Resolve communityId from a PSP event using local cache only (ids). */
+  private communityIdOfPspEvent(event: PspEvent): string | undefined {
+    if (event.participantId) {
+      const account = this.store.getAccount(event.participantId);
+      if (account?.communityId) return account.communityId;
+    }
+    if (event.pspPaymentRef) {
+      const payment = this.store.findByPspPaymentRef(event.pspPaymentRef);
+      if (payment?.communityId) return payment.communityId;
+    }
+    if (event.pspCheckoutRef) {
+      const payment = this.store.findByPspCheckoutRef(event.pspCheckoutRef);
+      if (payment?.communityId) return payment.communityId;
+    }
+    if (event.invoiceId) {
+      const payment = this.store.listByInvoiceId(event.invoiceId)[0];
+      if (payment?.communityId) return payment.communityId;
+    }
+    if (event.pspAccountRef) {
+      const account = this.store.findByPspAccountRef(event.pspAccountRef);
+      if (account?.communityId) return account.communityId;
+    }
+    return undefined;
+  }
+
   /**
-   * INT-269 / REQ-051 — Ready gates by market role:
-   * consumer → PM; producer → KYC; prosumer → KYC and PM (P1 when buying).
+   * REQ-045 / REQ-051 — every role needs KYC; buyers also need a payment method.
    */
   private isPaymentAccountReady(account: AccountRecord): boolean {
-    if (account.role === "consumer") {
-      return Boolean(account.pspPaymentMethodRef);
-    }
-    if (account.role === "prosumer") {
-      return (
-        account.kycStatus === "verified" && Boolean(account.pspPaymentMethodRef)
-      );
-    }
-    return account.kycStatus === "verified";
+    return kycReady(account);
   }
 
   private async emitAccountStatus(
@@ -1219,10 +1426,11 @@ export class PaymentsService {
       type: "PaymentAccountStatusChanged",
       producer: PRODUCER,
       communityId: account.communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(account.communityId),
       data: {
         participantId,
         kycStatus: account.kycStatus,
+        kycVerified: account.kycVerified,
         paymentMethodPresent: Boolean(account.pspPaymentMethodRef),
       },
     });
@@ -1323,7 +1531,7 @@ export class PaymentsService {
       type: "ErasureCompleted",
       producer: PRODUCER,
       communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(communityId),
       data: {
         requestId: input.requestId,
         module: "AC-07",

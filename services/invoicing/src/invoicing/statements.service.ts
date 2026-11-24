@@ -1,8 +1,11 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
+  BILLING_MODE_RESOLVER,
   OutboxService,
   PassthroughTransaction,
+  StaticBillingModeResolver,
+  type BillingModeResolver,
   type RecordingTransaction,
 } from "@intelligent/module-template";
 import {
@@ -36,7 +39,17 @@ export class StatementsService {
     @Inject(OutboxService) private readonly outbox: OutboxService,
     @Inject(PARTICIPANTS_RESOLVER)
     private readonly idpResolver: ParticipantsResolverPort,
+    @Optional()
+    @Inject(BILLING_MODE_RESOLVER)
+    private readonly billingMode: BillingModeResolver | null = null,
   ) {}
+
+  /** REQ-043 — community live|virtual from AC-03 settings. */
+  private async modeOf(communityId: string) {
+    const resolver =
+      this.billingMode ?? new StaticBillingModeResolver("virtual");
+    return resolver.modeOf(communityId);
+  }
 
   /** INT-356 — same Postgres transaction as the invoices when DATABASE_URL is set. */
   useTransaction(tx: RecordingTransaction<InvoiceWrite> | PassthroughTransaction): void {
@@ -132,7 +145,7 @@ export class StatementsService {
           type: "StatementStatusChanged",
           producer: PRODUCER,
           communityId: row.communityId,
-          billingMode: "virtual",
+          billingMode: await this.modeOf(row.communityId),
           data: {
             statementId: row.statementId,
             participantId: row.participantId,
@@ -152,7 +165,7 @@ export class StatementsService {
       type: "StatementIssued",
       producer: PRODUCER,
       communityId: row.communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(row.communityId),
       data: {
         statementId: row.statementId,
         participantId: row.participantId,

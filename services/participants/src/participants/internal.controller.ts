@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ModuleAuthGuard } from "@intelligent/module-template";
+import { ActorSyncService } from "../actors/actor-sync.service.js";
 import { ParticipantsService } from "./participants.service.js";
 
 /** Internal API — contracts/openapi/internal/participants.v1.yaml */
@@ -17,6 +18,7 @@ import { ParticipantsService } from "./participants.service.js";
 export class InternalParticipantsController {
   constructor(
     @Inject(ParticipantsService) private readonly participants: ParticipantsService,
+    @Inject(ActorSyncService) private readonly actorSync: ActorSyncService,
   ) {}
 
   @Post(String.raw`parties\:resolve`)
@@ -85,5 +87,14 @@ export class InternalParticipantsController {
       ready: body.ready,
       reason: body.reason,
     });
+  }
+
+  /**
+   * REQ-008 — pull Actor records from ActorSourcePort and upsert participants.
+   */
+  @Post(String.raw`communities/:communityId/actors\:sync`)
+  @HttpCode(200)
+  syncActors(@Param("communityId") communityId: string) {
+    return this.actorSync.sync(communityId);
   }
 }

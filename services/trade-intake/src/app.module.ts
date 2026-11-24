@@ -7,7 +7,11 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 import { createMockSuite } from "@intelligent/mocks";
-import { ModuleTemplateModule } from "@intelligent/module-template";
+import {
+  BILLING_MODE_RESOLVER,
+  createBillingModeResolver,
+  ModuleTemplateModule,
+} from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
 import { TradeStore } from "./domain/store.js";
 import { IntakeController } from "./intake/intake.controller.js";
@@ -47,6 +51,11 @@ function createPartyResolver(
     {
       provide: PARTY_RESOLVER,
       useFactory: () => createPartyResolver(),
+    },
+    // REQ-043 / A10.1 — per-community billing mode from AC-03.
+    {
+      provide: BILLING_MODE_RESOLVER,
+      useFactory: () => createBillingModeResolver(),
     },
   ],
 })

@@ -1,5 +1,11 @@
 import { Inject, Injectable, MiddlewareConsumer, Module, NestModule, OnModuleInit } from "@nestjs/common";
-import { ModuleTemplateModule, OutboxService } from "@intelligent/module-template";
+import {
+  createKycStatusClient,
+  KYC_STATUS_CLIENT,
+  ModuleTemplateModule,
+  OutboxService,
+  RequireVerifiedKycGuard,
+} from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
 import { SettlementStore } from "./domain/store.js";
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
@@ -59,6 +65,12 @@ function createTradeSource(
   providers: [
     SettlementStore,
     SettlementService,
+    RequireVerifiedKycGuard,
+    {
+      provide: KYC_STATUS_CLIENT,
+      // REQ-045 — AllowAll when PAYMENTS_INTERNAL_URL unset (test-only).
+      useFactory: () => createKycStatusClient(),
+    },
     {
       provide: TRADE_SOURCE,
       useFactory: () => createTradeSource(),

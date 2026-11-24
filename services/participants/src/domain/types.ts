@@ -16,12 +16,18 @@ export type BillingProfile = {
   email: string;
 };
 
-/** Structured postal address for DSAR export (REQ-013 / Task 3.11+3.18). */
+/** Structured postal address for EWDS Actor / DSAR (REQ-008 / REQ-013). */
 export type PostalAddress = {
   street: string;
   postalCode: string;
   city: string;
   country: string;
+};
+
+/** Contact details from EWDS Actor intake (REQ-008). */
+export type ContactDetails = {
+  email: string;
+  phone?: string;
 };
 
 export type CommunitySettings = {
@@ -56,17 +62,22 @@ export type ParticipantRecord = {
   paymentAccountReady: boolean;
   paymentBlockReason: string | null;
   /**
-   * REQ-013 / Task 3.18 — provenance for DSAR. Defaults to `"import"` when
-   * unset (CSV / UAT seed). EWDS Actor intake (Task 3.11) sets `"ewds"`.
+   * REQ-008 / REQ-013 — provenance. CSV / UAT seed → `"import"`;
+   * EWDS Actor intake → `"ewds"`.
    */
-  source?: "ewds" | "import";
+  source: "ewds" | "import";
   /** Structured address when known (EWDS); otherwise null. */
-  postalAddress?: PostalAddress | null;
-  phone?: string | null;
-  /** ISO timestamp of the member's T&C acceptance when recorded. */
-  termsAcceptedAt?: string | null;
-  /** Mirror of AC-07 KYC verified flag when notified. */
-  kycVerified?: boolean;
+  postalAddress: PostalAddress | null;
+  phone: string | null;
+  /** REQ-050 — ISO timestamp of the member's T&C acceptance when recorded. */
+  termsAcceptedAt: string | null;
+  /**
+   * REQ-045 / REQ-051 — mirror of AC-07 KYC verified flag (KycStatusChanged).
+   * Ready also requires this (BR-09 readiness gate used by invoicing).
+   */
+  kycVerified: boolean;
+  /** EWDS Actor version for sync upsert (REQ-008); null for CSV import. */
+  actorVersion: string | null;
 };
 
 export type TermsDocument = {

@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ModuleAuthGuard } from "@intelligent/module-template";
+import { KycQueryService } from "../kyc/manager-kyc.service.js";
 import { PayoutsService } from "../payouts/payouts.service.js";
 import { PaymentsService } from "./payments.service.js";
 
@@ -22,7 +23,27 @@ export class InternalPaymentsController {
   constructor(
     @Inject(PaymentsService) private readonly payments: PaymentsService,
     @Inject(PayoutsService) private readonly payouts: PayoutsService,
+    @Inject(KycQueryService) private readonly kycQuery: KycQueryService,
   ) {}
+
+  /**
+   * REQ-045 / REQ-051 — KYC status for a subject (participant or manager).
+   * Used by AC-03 and the shared RequireVerifiedKycGuard (Task 3.8).
+   */
+  @Get("kyc-status/:subjectId")
+  @UseGuards(new ModuleAuthGuard({ roles: ["service"] }))
+  getKycStatus(@Param("subjectId") subjectId: string) {
+    return this.kycQuery.getStatus(subjectId);
+  }
+
+  /**
+   * REQ-043 / UAT-054 — whether live Stripe keys are configured (AC-03 live guard).
+   */
+  @Get("psp/capabilities")
+  @UseGuards(new ModuleAuthGuard({ roles: ["service", "operator"] }))
+  getPspCapabilities() {
+    return this.payments.pspCapabilities();
+  }
 
   @Get("payments/:paymentId")
   getPayment(@Param("paymentId") paymentId: string) {

@@ -472,6 +472,81 @@ describe("invoicing HTTP (INT-106)", () => {
     expect(await res.json()).toMatchObject({ accepted: true, sent: 1 });
   });
 
+  it("REQ-045: unverified manager gets 403 kyc_not_verified", async () => {
+    const { createServer } = await import("node:http");
+    const mock = createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          subjectId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          subjectType: "manager",
+          kycStatus: "pending",
+          kycVerified: false,
+          method: "identity_document",
+          updatedAt: "2026-11-24T00:00:00.000Z",
+          payoutAccountVerified: false,
+        }),
+      );
+    });
+    await new Promise<void>((resolve) => mock.listen(0, "127.0.0.1", resolve));
+    const addr = mock.address();
+    if (addr === null || typeof addr === "string") {
+      throw new Error("expected TCP address");
+    }
+    const prev = process.env.PAYMENTS_INTERNAL_URL;
+    process.env.PAYMENTS_INTERNAL_URL = `http://127.0.0.1:${addr.port}`;
+    const gated = await NestFactory.create(AppModule, { logger: false });
+    await gated.listen(0, "127.0.0.1");
+    const gatedAddr = gated.getHttpServer().address();
+    if (gatedAddr === null || typeof gatedAddr === "string") {
+      throw new Error("expected TCP address");
+    }
+    const gatedBase = `http://127.0.0.1:${gatedAddr.port}`;
+    const gatedService = gated.get(InvoicingService);
+    try {
+      const created = await gatedService.createFromSettlement({
+        settlementId: "s0450450-0450-4450-8450-045045045045",
+        runId: "r0450450-0450-4450-8450-045045045045",
+        consumerId: "11111111-2222-4333-8444-555555555555",
+        producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        tradeIds: ["0xkyc"],
+        kWh: "1.00",
+        energyAmount: "1.00",
+        vat: "0.00",
+        currency: "EUR",
+        rate: "1.0000",
+        communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+      });
+      const res = await fetch(
+        `${gatedBase}/v1/invoices/${created!.invoiceId}/status`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-intelligent-roles": "manager",
+            "x-intelligent-token-use": "user",
+            "x-intelligent-sub": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "x-intelligent-community": "c0ffee00-1234-4abc-8def-0123456789ab",
+          },
+          body: JSON.stringify({
+            status: "Paid",
+            reason: "should be blocked by KYC",
+          }),
+        },
+      );
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({
+        code: "kyc_not_verified",
+        subject: "manager",
+      });
+    } finally {
+      await gated.close();
+      mock.close();
+      if (prev === undefined) delete process.env.PAYMENTS_INTERNAL_URL;
+      else process.env.PAYMENTS_INTERNAL_URL = prev;
+    }
+  });
+
   // UAT-060 — a manager may change status only inside their community (REQ-049).
   it("UAT-060 — manager of another community cannot set invoice status (REQ-049)", async () => {
     const created = await service.createFromSettlement({

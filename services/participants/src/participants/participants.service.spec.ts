@@ -2,7 +2,11 @@
  * INT-103 — AC-03 domain behaviour (REQ-008, REQ-009, REQ-012, REQ-050, REQ-058, BR-09).
  */
 import "reflect-metadata";
-import { Logger } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  Logger,
+} from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   InMemoryOutboxStore,
@@ -11,6 +15,7 @@ import {
 import { ParticipantsStore } from "../domain/store.js";
 import type { ParticipantRecord } from "../domain/types.js";
 import { MockIdpAdapter } from "../idp/mock-idp.adapter.js";
+import type { PspCapabilitiesPort } from "../ports/psp-capabilities.port.js";
 import { ParticipantsService } from "./participants.service.js";
 import {
   S1_COMMUNITY_ID,
@@ -23,15 +28,27 @@ describe("ParticipantsService", () => {
   let idp: MockIdpAdapter;
   let service: ParticipantsService;
   let communityId: string;
+  let pspCapabilities: PspCapabilitiesPort & { liveConfigured: boolean };
 
   beforeEach(() => {
     store = new ParticipantsStore();
     outboxStore = new InMemoryOutboxStore();
     idp = new MockIdpAdapter();
+    pspCapabilities = {
+      liveConfigured: false,
+      async get() {
+        return {
+          provider: "mock" as const,
+          testConfigured: true,
+          liveConfigured: pspCapabilities.liveConfigured,
+        };
+      },
+    };
     service = new ParticipantsService(
       store,
       new OutboxService(outboxStore),
       idp,
+      pspCapabilities,
     );
     communityId = service.seedCommunityId();
   });
@@ -91,16 +108,89 @@ describe("ParticipantsService", () => {
     expect(me.readiness).toBe("Invited");
   });
 
-  it("resolves community settings and rejects live mode in V1 (REQ-043)", async () => {
+  it("REQ-043: manager cannot switch to live (403)", async () => {
     const settings = service.getCommunitySettings(communityId);
-    expect(settings.vatRate).toBe("0.00");
-    expect(settings.threshold).toBe("5.00");
+    expect(settings.billingMode).toBe("virtual");
     await expect(
-      service.updateCommunitySettings(communityId, {
-        ...settings,
-        billingMode: "live",
-      }),
-    ).rejects.toThrow(/virtual/);
+      service.updateCommunitySettings(
+        communityId,
+        { ...settings, billingMode: "live" },
+        ["manager"],
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("REQ-043: operator switch to live refused without live keys (409 live_keys_missing)", async () => {
+    const settings = service.getCommunitySettings(communityId);
+    pspCapabilities.liveConfigured = false;
+    await expect(
+      service.updateCommunitySettings(
+        communityId,
+        { ...settings, billingMode: "live" },
+        ["operator"],
+      ),
+    ).rejects.toMatchObject({
+      response: { code: "live_keys_missing" },
+    });
+    await expect(
+      service.updateCommunitySettings(
+        communityId,
+        { ...settings, billingMode: "live" },
+        ["operator"],
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("REQ-043: operator switches Greenvolt to live when live keys configured", async () => {
+    const settings = service.getCommunitySettings(communityId);
+    pspCapabilities.liveConfigured = true;
+    const next = await service.updateCommunitySettings(
+      communityId,
+      { ...settings, billingMode: "live" },
+      ["operator"],
+    );
+    expect(next.billingMode).toBe("live");
+    expect(service.getCommunitySettings(communityId).billingMode).toBe("live");
+    const events = await outboxStore.list();
+    expect(
+      events.some(
+        (e) =>
+          e.event.type === "AuditableActionPerformed" &&
+          (e.event.data as { action?: string }).action ===
+            "community.billing-mode.live",
+      ),
+    ).toBe(true);
+  });
+
+  it("REQ-043: live to virtual is refused (409)", async () => {
+    const settings = service.getCommunitySettings(communityId);
+    pspCapabilities.liveConfigured = true;
+    await service.updateCommunitySettings(
+      communityId,
+      { ...settings, billingMode: "live" },
+      ["operator"],
+    );
+    await expect(
+      service.updateCommunitySettings(
+        communityId,
+        { ...settings, billingMode: "virtual" },
+        ["operator"],
+      ),
+    ).rejects.toMatchObject({
+      response: { code: "live_to_virtual_refused" },
+    });
+  });
+
+  it("REQ-043 / UAT-054: manager edits threshold of a virtual community unchanged", async () => {
+    const settings = service.getCommunitySettings(communityId);
+    expect(settings.billingMode).toBe("virtual");
+    const next = await service.updateCommunitySettings(
+      communityId,
+      { ...settings, threshold: "9.00" },
+      ["manager"],
+    );
+    expect(next.threshold).toBe("9.00");
+    expect(next.billingMode).toBe("virtual");
   });
 
   it("INT-274: getNotificationContact returns profile e-mail (REQ-017)", async () => {
@@ -146,13 +236,13 @@ describe("ParticipantsService", () => {
     );
 
     await expect(
-      service.acceptTerms(row.idpUserId!, {
+      service.acceptTerms(row.idpUserId!, ["member"], {
         termsVersion: "v1.0.0",
         selfBillingMandate: false,
       }),
     ).rejects.toThrow(/selfBillingMandate/);
 
-    await service.acceptTerms(row.idpUserId!, {
+    await service.acceptTerms(row.idpUserId!, ["member"], {
       termsVersion: "v1.0.0",
       selfBillingMandate: true,
     });
@@ -164,9 +254,23 @@ describe("ParticipantsService", () => {
       participantId: created.participantId,
       ready: true,
     });
+    // REQ-045 — payment without KYC stays TermsAccepted.
+    expect(service.checkReadiness(created.participantId)).toMatchObject({
+      ready: false,
+      status: "TermsAccepted",
+      reason: "kyc_not_verified",
+      kycVerified: false,
+    });
+
+    await service.applyKycStatus({
+      eventId: "evt-ready-1",
+      participantId: created.participantId,
+      kycVerified: true,
+    });
     expect(service.checkReadiness(created.participantId)).toMatchObject({
       ready: true,
       status: "Ready",
+      kycVerified: true,
     });
 
     await service.applyPaymentAccountStatus({
@@ -300,7 +404,7 @@ describe("ParticipantsService", () => {
       }),
     ).rejects.toThrow(/required/);
     await expect(
-      service.acceptTerms(row.idpUserId!, {
+      service.acceptTerms(row.idpUserId!, ["member"], {
         termsVersion: "wrong",
         selfBillingMandate: false,
       }),
@@ -326,6 +430,8 @@ describe("ParticipantsService", () => {
   it("INT-230 — S1 producers reach Ready after payment-account notify", async () => {
     const producerId = "66666666-7777-4888-9999-aaaaaaaaaaaa";
     expect(service.checkReadiness(producerId).ready).toBe(false);
+    // REQ-045 — S1 seeds have kycVerified:true so payment alone → Ready.
+    expect(service.checkReadiness(producerId).kycVerified).toBe(true);
     await service.applyPaymentAccountStatus({
       participantId: producerId,
       ready: true,
@@ -333,16 +439,146 @@ describe("ParticipantsService", () => {
     expect(service.checkReadiness(producerId)).toMatchObject({
       ready: true,
       status: "Ready",
+      kycVerified: true,
+    });
+  });
+
+  it("REQ-045: checkReadiness reason kyc_not_verified", async () => {
+    const [created] = await service.importParticipants(communityId, [
+      {
+        email: "nokyc@example.com",
+        marketActorId: "actor-nokyc",
+        meterId: "meter-nokyc",
+        role: "consumer",
+      },
+    ]);
+    const row = store.getParticipant(created.participantId)!;
+    await service.updateProfile(row.idpUserId!, {
+      name: "No Kyc",
+      address: "1 Gate",
+      email: "nokyc@example.com",
+    });
+    await service.acceptTerms(row.idpUserId!, ["member"], {
+      termsVersion: "v1.0.0",
+      selfBillingMandate: false,
+    });
+    await service.applyPaymentAccountStatus({
+      participantId: created.participantId,
+      ready: true,
+    });
+    expect(service.checkReadiness(created.participantId)).toMatchObject({
+      ready: false,
+      status: "TermsAccepted",
+      reason: "kyc_not_verified",
+      kycVerified: false,
+    });
+  });
+
+  it("REQ-050 / UAT-062: acceptance records version and timestamp", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-25T09:00:00Z"));
+    try {
+      const [created] = await service.importParticipants(communityId, [
+        {
+          email: "terms@example.com",
+          marketActorId: "actor-terms-ts",
+          meterId: "meter-terms-ts",
+          role: "consumer",
+        },
+      ]);
+      const row = store.getParticipant(created.participantId)!;
+      await service.updateProfile(row.idpUserId!, {
+        name: "Terms User",
+        address: "1 Terms",
+        email: "terms@example.com",
+      });
+      const accepted = await service.acceptTerms(row.idpUserId!, ["member"], {
+        termsVersion: "v1.0.0",
+        selfBillingMandate: false,
+      });
+      expect(accepted.acceptedAt).toBe("2026-11-25T09:00:00.000Z");
+      expect(service.getMe(row.idpUserId!, ["member"]).termsAcceptedAt).toBe(
+        "2026-11-25T09:00:00.000Z",
+      );
+      const events = await outboxStore.list();
+      expect(
+        events.some(
+          (e) =>
+            e.event.type === "AuditableActionPerformed" &&
+            (e.event.data as { action?: string }).action === "terms.accepted",
+        ),
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("REQ-050: producer without self-billing mandate is refused", async () => {
+    const [created] = await service.importParticipants(communityId, [
+      {
+        email: "prod-mandate@example.com",
+        marketActorId: "actor-mandate",
+        meterId: "meter-mandate",
+        role: "producer",
+      },
+    ]);
+    const row = store.getParticipant(created.participantId)!;
+    await expect(
+      service.acceptTerms(row.idpUserId!, ["member"], {
+        termsVersion: "v1.0.0",
+        selfBillingMandate: false,
+      }),
+    ).rejects.toThrow(/selfBillingMandate/);
+  });
+
+  it("REQ-050: consumer may accept with selfBillingMandate false", async () => {
+    const [created] = await service.importParticipants(communityId, [
+      {
+        email: "cons-ok@example.com",
+        marketActorId: "actor-cons-ok",
+        meterId: "meter-cons-ok",
+        role: "consumer",
+      },
+    ]);
+    const row = store.getParticipant(created.participantId)!;
+    const result = await service.acceptTerms(row.idpUserId!, ["member"], {
+      termsVersion: "v1.0.0",
+      selfBillingMandate: false,
+    });
+    expect(result.selfBillingMandate).toBe(false);
+    expect(store.getParticipant(created.participantId)?.termsVersionAccepted).toBe(
+      "v1.0.0",
+    );
+  });
+
+  it("REQ-050: community manager acceptance is recorded as ManagerConsent", async () => {
+    const managerSub = "cccccccc-dddd-4eee-8fff-000000000001";
+    const accepted = await service.acceptTerms(
+      managerSub,
+      ["manager"],
+      { termsVersion: "v1.0.0", selfBillingMandate: false },
+      communityId,
+    );
+    expect(accepted.termsVersion).toBe("v1.0.0");
+    expect(store.getManagerConsent(communityId, managerSub)).toMatchObject({
+      subjectId: managerSub,
+      communityId,
+      termsVersion: "v1.0.0",
+      acceptedAt: accepted.acceptedAt,
     });
   });
 
   it("updates community settings when virtual (REQ-006)", async () => {
     const current = service.getCommunitySettings(communityId);
-    const next = await service.updateCommunitySettings(communityId, {
-      ...current,
-      threshold: "7.50",
-      currency: "CHF",
-    });
+    const next = await service.updateCommunitySettings(
+      communityId,
+      {
+        ...current,
+        threshold: "7.50",
+        currency: "CHF",
+      },
+      ["manager"],
+    );
     expect(next.threshold).toBe("7.50");
     expect(next.currency).toBe("CHF");
   });
@@ -350,14 +586,22 @@ describe("ParticipantsService", () => {
   it("REQ-015: autoPayout defaults to false and round-trips", async () => {
     const current = service.getCommunitySettings(communityId);
     expect(current.autoPayout).toBe(false);
-    const enabled = await service.updateCommunitySettings(communityId, {
-      ...current,
-      autoPayout: true,
-    });
+    const enabled = await service.updateCommunitySettings(
+      communityId,
+      {
+        ...current,
+        autoPayout: true,
+      },
+      ["manager"],
+    );
     expect(enabled.autoPayout).toBe(true);
     expect(service.getCommunitySettings(communityId).autoPayout).toBe(true);
     const { autoPayout: _omitted, ...withoutAutoPayout } = enabled;
-    const reset = await service.updateCommunitySettings(communityId, withoutAutoPayout);
+    const reset = await service.updateCommunitySettings(
+      communityId,
+      withoutAutoPayout,
+      ["manager"],
+    );
     expect(reset.autoPayout).toBe(false);
   });
 
@@ -419,6 +663,7 @@ describe("ParticipantsService", () => {
       phone: "+351910000000",
       termsAcceptedAt: "2026-11-20T12:00:00.000Z",
       kycVerified: true,
+      actorVersion: "1",
     };
     store.putParticipant(fixture);
 

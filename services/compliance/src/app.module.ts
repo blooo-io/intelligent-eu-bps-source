@@ -1,5 +1,9 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
-import { ModuleTemplateModule } from "@intelligent/module-template";
+import {
+  BILLING_MODE_RESOLVER,
+  createBillingModeResolver,
+  ModuleTemplateModule,
+} from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
 import { ComplianceStore } from "./domain/store.js";
 import { readRetentionPolicy } from "./domain/retention-config.js";
@@ -62,6 +66,11 @@ import { PublicComplianceController } from "./compliance/public.controller.js";
     {
       provide: PERSONAL_DATA_SOURCES,
       useFactory: () => createPersonalDataSources(),
+    },
+    // REQ-043 / A10.1 — per-community billing mode from AC-03.
+    {
+      provide: BILLING_MODE_RESOLVER,
+      useFactory: () => createBillingModeResolver(),
     },
   ],
 })

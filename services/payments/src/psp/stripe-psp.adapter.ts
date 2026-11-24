@@ -9,6 +9,9 @@ import type {
   PaymentMethodDetails as CollectPaymentMethodDetails,
 } from "./collect.port.js";
 import type {
+  HostedKycLink,
+  IdentityVerificationSession,
+  IdentityVerificationStatus,
   KycOnboardingPort,
   OnboardingSession as KycOnboardingSession,
   PspAccountStatus,
@@ -41,8 +44,9 @@ const MANUAL_PAYOUTS = {
 };
 
 /**
- * Real Stripe test-mode P-PSP adapter (INT-189 / INT-190 / INT-191 / AD-6 / BR-12).
- * Implements neutral ports (WS5 Tasks 5.4–5.5 / INT-424).
+ * Real Stripe P-PSP adapter (INT-189 / INT-190 / INT-191 / AD-6 / BR-12 / REQ-043).
+ * Default mode is test (`sk_test_`); live mode (`sk_live_`) is constructed only
+ * via {@link PspRegistry} when live keys are configured.
  *
  * Direct charges (D2 / REQ-014 / TD-6): clone the platform card onto the
  * producer Connect account and confirm a PaymentIntent off_session — no
@@ -58,12 +62,19 @@ export class StripePspAdapter
     creds: StripeEnv = readStripeEnv()!,
     /** Test seam — inject {@link createFakeStripe} (WS5 Task 5.4). */
     stripeClient?: Stripe,
+    /** REQ-043 — `"live"` accepts `sk_live_`; default `"test"` keeps BR-12. */
+    options?: { mode?: "test" | "live" },
   ) {
     if (!creds?.secretKey) {
       throw new Error("StripePspAdapter requires stripe_secret_key");
     }
-    // BR-12 — test-mode secret only (sk_test_ / rk_test_).
-    if (!/_test_/.test(creds.secretKey)) {
+    const mode = options?.mode ?? "test";
+    if (mode === "live") {
+      if (!creds.secretKey.startsWith("sk_live_")) {
+        throw new Error("StripePspAdapter live mode requires sk_live_ key");
+      }
+    } else if (!/_test_/.test(creds.secretKey)) {
+      // BR-12 — test-mode secret only (sk_test_ / rk_test_) unless live slot.
       throw new Error("StripePspAdapter refuses non-test API keys (BR-12)");
     }
     this.stripe = stripeClient ?? new Stripe(creds.secretKey);
@@ -153,6 +164,57 @@ export class StripePspAdapter
       chargesEnabled: Boolean(account.charges_enabled),
       payoutsEnabled: Boolean(account.payouts_enabled),
     };
+  }
+
+  /**
+   * REQ-051 / A7 — Account Link with eventually_due so hosted KYC collects
+   * the same fields as embedded onboarding.
+   */
+  async createHostedKycLink(
+    accountRef: string,
+    urls: { returnUrl: string; refreshUrl: string },
+  ): Promise<HostedKycLink> {
+    const link = await this.stripe.accountLinks.create({
+      account: accountRef,
+      type: "account_onboarding",
+      return_url: urls.returnUrl,
+      refresh_url: urls.refreshUrl,
+      collection_options: { fields: "eventually_due" },
+    });
+    return {
+      url: link.url,
+      expiresAt: new Date(link.expires_at * 1000).toISOString(),
+    };
+  }
+
+  /** REQ-051 — Stripe Identity (document + selfie); metadata is subjectId only. */
+  async createIdentityVerification(input: {
+    subjectId: string;
+    returnUrl: string;
+  }): Promise<IdentityVerificationSession> {
+    const session = await this.stripe.identity.verificationSessions.create({
+      type: "document",
+      metadata: { subjectId: input.subjectId },
+      return_url: input.returnUrl,
+      options: { document: { require_matching_selfie: true } },
+    });
+    return {
+      verificationId: session.id,
+      url: session.url ?? `https://verify.stripe.com/start/${session.id}`,
+    };
+  }
+
+  async getIdentityVerification(
+    verificationId: string,
+  ): Promise<IdentityVerificationStatus> {
+    const session =
+      await this.stripe.identity.verificationSessions.retrieve(verificationId);
+    const status = session.status as IdentityVerificationStatus["status"];
+    const errorCode =
+      session.last_error && typeof session.last_error === "object"
+        ? ((session.last_error as { code?: string }).code ?? null)
+        : null;
+    return { status, errorCode };
   }
 
   // ── Neutral: CollectPort ────────────────────────────────────────────────
@@ -737,6 +799,8 @@ export function normalizeStripeEvent(event: Stripe.Event): PspEvent {
   const base = {
     eventId: event.id,
     occurredAt,
+    // REQ-043 — carry Stripe livemode for community billing-mode checks.
+    livemode: event.livemode === true,
     pspAccountRef: event.account,
   };
 
@@ -830,6 +894,17 @@ export function normalizeStripeEvent(event: Stripe.Event): PspEvent {
         pspPayoutRef: payout.id,
       };
     }
+    case "identity.verification_session.verified":
+    case "identity.verification_session.requires_input":
+    case "identity.verification_session.canceled": {
+      const session = event.data.object as Stripe.Identity.VerificationSession;
+      return {
+        ...base,
+        kind: event.type as PspEvent["kind"],
+        verificationId: session.id,
+        participantId: session.metadata?.subjectId,
+      };
+    }
     default:
       return { ...base, kind: "ignored" };
   }
@@ -915,12 +990,15 @@ function sessionFromAccount(account: Stripe.Account): LegacyOnboardingSession {
   ) {
     status = "complete";
   }
+  const disabledReason = account.requirements?.disabled_reason ?? undefined;
   return {
     mode: "requirements",
     status,
     pspAccountRef: account.id,
     currentlyDue: [...currentlyDue],
     eventuallyDue: [...(account.requirements?.eventually_due ?? [])],
+    payoutsEnabled: Boolean(account.payouts_enabled),
+    ...(disabledReason ? { disabledReason } : {}),
   };
 }
 /* v8 ignore stop */

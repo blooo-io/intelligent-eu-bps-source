@@ -7,6 +7,7 @@ import {
   type TransactionClient,
 } from "@intelligent/module-template";
 import type { CommunitySettings, ParticipantRecord } from "../domain/types.js";
+import type { ManagerConsent } from "../domain/manager-consent.js";
 import type { ParticipantsStore, ParticipantWrite } from "../domain/store.js";
 
 const require = createRequire(import.meta.url);
@@ -25,6 +26,10 @@ CREATE TABLE IF NOT EXISTS communities (
   community_id TEXT PRIMARY KEY,
   payload JSONB NOT NULL
 );
+CREATE TABLE IF NOT EXISTS manager_consents (
+  consent_key TEXT PRIMARY KEY,
+  payload JSONB NOT NULL
+);
 `;
 
 /** INT-356 / REQ-005 — registry rows committed with the outbox. */
@@ -40,12 +45,21 @@ export async function applyParticipantWrites(
          ON CONFLICT (participant_id) DO UPDATE SET payload = EXCLUDED.payload`,
         [write.row.participantId, JSON.stringify(write.row)],
       );
-    } else {
+    } else if (write.kind === "community") {
       await sql.query(
         `INSERT INTO communities (community_id, payload)
          VALUES ($1, $2::jsonb)
          ON CONFLICT (community_id) DO UPDATE SET payload = EXCLUDED.payload`,
         [write.row.communityId, JSON.stringify(write.row)],
+      );
+    } else {
+      // REQ-050 — manager T&C consent (journal JSONB).
+      const key = `${write.row.communityId}:${write.row.subjectId}`;
+      await sql.query(
+        `INSERT INTO manager_consents (consent_key, payload)
+         VALUES ($1, $2::jsonb)
+         ON CONFLICT (consent_key) DO UPDATE SET payload = EXCLUDED.payload`,
+        [key, JSON.stringify(write.row)],
       );
     }
   }
@@ -58,14 +72,20 @@ export async function hydrateParticipants(
   await sql.query(SCHEMA);
   const participants = await sql.query("SELECT payload FROM participants");
   const communities = await sql.query("SELECT payload FROM communities");
+  const consents = await sql.query("SELECT payload FROM manager_consents");
   if (participants.rows.length === 0 && communities.rows.length === 0) {
     const seeded = JSON.parse(store.snapshot()) as {
       participants: ParticipantRecord[];
       communities: CommunitySettings[];
+      managerConsents?: ManagerConsent[];
     };
     await applyParticipantWrites(sql, [
       ...seeded.communities.map((row) => ({ kind: "community" as const, row })),
       ...seeded.participants.map((row) => ({ kind: "participant" as const, row })),
+      ...(seeded.managerConsents ?? []).map((row) => ({
+        kind: "manager_consent" as const,
+        row,
+      })),
     ]);
     return;
   }
@@ -81,6 +101,7 @@ export async function hydrateParticipants(
         ...(parse(row.payload) as Partial<CommunitySettings>),
       })),
       participants: participants.rows.map((row) => parse(row.payload)),
+      managerConsents: consents.rows.map((row) => parse(row.payload)),
     }),
   );
 }

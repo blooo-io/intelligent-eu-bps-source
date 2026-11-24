@@ -9,10 +9,15 @@ import {
   seedParticipants,
   seedS1CommunitySettings,
 } from "./seed.js";
+import {
+  managerConsentKey,
+  type ManagerConsent,
+} from "./manager-consent.js";
 
 export type ParticipantWrite =
   | { kind: "participant"; row: ParticipantRecord }
-  | { kind: "community"; row: CommunitySettings };
+  | { kind: "community"; row: CommunitySettings }
+  | { kind: "manager_consent"; row: ManagerConsent };
 
 /**
  * AC-03 registry. INT-356 — mutations are recorded and committed with the
@@ -22,6 +27,8 @@ export class ParticipantsStore {
   private readonly communities = new Map<string, CommunitySettings>();
   private readonly participants = new Map<string, ParticipantRecord>();
   private readonly marketIndex = new Map<string, string>();
+  /** REQ-050 — manager T&C consents (journal JSONB). */
+  private readonly managerConsents = new Map<string, ManagerConsent>();
   private terms: TermsDocument = { ...SEED_TERMS };
   private recording = false;
   private writes: ParticipantWrite[] = [];
@@ -46,6 +53,7 @@ export class ParticipantsStore {
       communities: [...this.communities.values()],
       participants: [...this.participants.values()],
       terms: this.terms,
+      managerConsents: [...this.managerConsents.values()],
     });
   }
 
@@ -54,14 +62,17 @@ export class ParticipantsStore {
       communities: CommunitySettings[];
       participants: ParticipantRecord[];
       terms: TermsDocument;
+      managerConsents?: ManagerConsent[];
     };
     const recording = this.recording;
     this.recording = false;
     this.communities.clear();
     this.participants.clear();
     this.marketIndex.clear();
+    this.managerConsents.clear();
     for (const row of data.communities) this.putCommunity(row);
     for (const row of data.participants) this.putParticipant(row);
+    for (const row of data.managerConsents ?? []) this.putManagerConsent(row);
     this.terms = { ...data.terms };
     this.recording = recording;
   }
@@ -74,6 +85,7 @@ export class ParticipantsStore {
     this.communities.clear();
     this.participants.clear();
     this.marketIndex.clear();
+    this.managerConsents.clear();
     const community = seedCommunitySettings();
     this.communities.set(community.communityId, community);
     // INT-230 — S1 fixture community alongside UAT seed.
@@ -133,6 +145,24 @@ export class ParticipantsStore {
     if (this.recording) this.writes.push({ kind: "participant", row: structuredClone(row) });
     if (row.marketActorId && row.status !== "Offboarded") {
       this.marketIndex.set(row.marketActorId, row.participantId);
+    }
+  }
+
+  getManagerConsent(
+    communityId: string,
+    subjectId: string,
+  ): ManagerConsent | undefined {
+    const row = this.managerConsents.get(
+      managerConsentKey(communityId, subjectId),
+    );
+    return row ? { ...row } : undefined;
+  }
+
+  putManagerConsent(row: ManagerConsent): void {
+    const key = managerConsentKey(row.communityId, row.subjectId);
+    this.managerConsents.set(key, { ...row });
+    if (this.recording) {
+      this.writes.push({ kind: "manager_consent", row: { ...row } });
     }
   }
 }

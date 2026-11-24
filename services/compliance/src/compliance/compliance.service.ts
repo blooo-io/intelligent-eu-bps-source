@@ -5,11 +5,15 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
+  BILLING_MODE_RESOLVER,
   IdempotentConsumer,
   OutboxService,
+  StaticBillingModeResolver,
+  type BillingModeResolver,
 } from "@intelligent/module-template";
 import { ComplianceStore } from "../domain/store.js";
 import type {
@@ -66,6 +70,9 @@ export class ComplianceService {
     private readonly personalData: PersonalDataSources,
     @Inject(ERASURE_REQUEST_PORT)
     private readonly erasureRequests: ErasureRequestPort,
+    @Optional()
+    @Inject(BILLING_MODE_RESOLVER)
+    private readonly billingMode: BillingModeResolver | null = null,
   ) {}
 
   resetStore(): void {
@@ -556,13 +563,17 @@ export class ComplianceService {
       return failed;
     }
 
+    const resolver =
+      this.billingMode ?? new StaticBillingModeResolver("virtual");
+    // REQ-043 — community live|virtual from AC-03 settings.
+    const billingMode = await resolver.modeOf(row.communityId);
     await this.outbox.append({
       aggregateType: "DataSubjectRequest",
       aggregateId: row.requestId,
       type: "ErasureRequested",
       producer: PRODUCER,
       communityId: row.communityId,
-      billingMode: "virtual",
+      billingMode,
       data: {
         requestId: row.requestId,
         participantId: row.participantId,

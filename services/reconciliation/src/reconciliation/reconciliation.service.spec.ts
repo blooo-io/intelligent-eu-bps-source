@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   InMemoryOutboxStore,
   OutboxService,
+  StaticBillingModeResolver,
 } from "@intelligent/module-template";
 import { ReconciliationStore } from "../domain/store.js";
 import { ReconciliationService } from "./reconciliation.service.js";
@@ -102,6 +103,26 @@ describe("ReconciliationService", () => {
       actualTradedQuantityKWh: "4.00",
     });
   }
+
+  it("REQ-043: discrepancy event carries community mode", async () => {
+    const liveOutbox = new InMemoryOutboxStore();
+    const liveService = new ReconciliationService(
+      store,
+      new OutboxService(liveOutbox),
+      new StaticBillingModeResolver("live"),
+    );
+    liveService.projectInvoice({
+      invoiceId: INV_MISSING,
+      total: "5.00",
+      currency: "EUR",
+      communityId: COMMUNITY,
+      status: "Open",
+    });
+    await liveService.reconcile({ scope: "invoice", communityId: COMMUNITY });
+    const events = await liveOutbox.list();
+    const detected = events.find((e) => e.event.type === "DiscrepancyDetected");
+    expect(detected?.event.billingMode).toBe("live");
+  });
 
   it("flags missing, failed and amount-mismatched payments (REQ-041, UAT-052)", async () => {
     seedUat052Fixture();

@@ -55,12 +55,19 @@ export class PublicParticipantsController {
 
   @Post("me/terms-acceptance")
   @HttpCode(201)
-  @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
+  @UseGuards(new ModuleAuthGuard({ roles: ["member", "manager"] }))
   async acceptTerms(
     @Req() req: AuthenticatedRequest,
     @Body() body: { termsVersion: string; selfBillingMandate: boolean },
   ) {
-    return this.participants.acceptTerms(req.user!.sub, body);
+    // REQ-050 — members get termsAcceptedAt; managers get ManagerConsent.
+    const user = req.user!;
+    return this.participants.acceptTerms(
+      user.sub,
+      user.roles,
+      body,
+      user.communityId,
+    );
   }
 
   @Get("communities/:communityId/settings")
@@ -77,15 +84,21 @@ export class PublicParticipantsController {
   @Put("communities/:communityId/settings")
   @UseGuards(
     new ModuleAuthGuard({
-      roles: ["manager"],
+      // REQ-043 — managers edit settings; operators may switch to live.
+      roles: ["manager", "operator"],
       requireCommunityScope: true,
     }),
   )
   putCommunitySettings(
+    @Req() req: AuthenticatedRequest,
     @Param("communityId") communityId: string,
     @Body() body: CommunitySettingsWrite,
   ) {
-    return this.participants.updateCommunitySettings(communityId, body);
+    return this.participants.updateCommunitySettings(
+      communityId,
+      body,
+      req.user!.roles,
+    );
   }
 
   @Post(String.raw`communities/:communityId/participants\:import`)

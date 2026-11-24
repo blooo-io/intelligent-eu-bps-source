@@ -8,6 +8,7 @@ import {
   InMemoryOutboxStore,
   InMemoryProcessedEventsStore,
   OutboxService,
+  StaticBillingModeResolver,
 } from "@intelligent/module-template";
 import { ComplianceStore } from "../domain/store.js";
 import { MockIdpAdapter } from "../idp/mock-idp.adapter.js";
@@ -45,6 +46,38 @@ describe("ComplianceService", () => {
       new FixturePersonalDataSources(),
       new NoneErasureRequestAdapter(),
     );
+  });
+
+  it("REQ-043: ErasureRequested carries community mode", async () => {
+    const liveOutbox = new InMemoryOutboxStore();
+    const liveService = new ComplianceService(
+      store,
+      new OutboxService(liveOutbox),
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      idp,
+      psp,
+      new NoopParticipantCommunity(),
+      new FixturePersonalDataSources(),
+      new NoneErasureRequestAdapter(),
+      new StaticBillingModeResolver("live"),
+    );
+    liveService.seedPersonal({
+      participantId: PARTICIPANT,
+      communityId: COMMUNITY,
+      relationshipEndedAt: "2020-01-01T00:00:00.000Z",
+      activeRelationship: false,
+      anonymized: false,
+      invoiceIds: [INV_RETAINED],
+    });
+    await liveService.createDataSubjectRequest({
+      type: "erasure",
+      participantId: PARTICIPANT,
+      actorId: ACTOR,
+      communityId: COMMUNITY,
+    });
+    const events = await liveOutbox.list();
+    const erasure = events.find((e) => e.event.type === "ErasureRequested");
+    expect(erasure?.event.billingMode).toBe("live");
   });
 
   it("UAT-013 / S12 — erasure propagates to modules, IdP and PSP; invoices retained", async () => {

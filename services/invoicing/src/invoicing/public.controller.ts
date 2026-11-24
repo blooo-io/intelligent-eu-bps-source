@@ -13,6 +13,7 @@ import {
 import type { Response } from "express";
 import {
   ModuleAuthGuard,
+  RequireVerifiedKycGuard,
   type AuthenticatedRequest,
 } from "@intelligent/module-template";
 import type { InvoiceStatus } from "../domain/types.js";
@@ -70,7 +71,10 @@ export class PublicInvoicingController {
 
   @Post("invoices/:id/status")
   @HttpCode(200)
-  @UseGuards(new ModuleAuthGuard({ roles: ["manager"] }))
+  @UseGuards(
+    new ModuleAuthGuard({ roles: ["manager"] }),
+    RequireVerifiedKycGuard,
+  )
   async setStatus(
     @Param("id") invoiceId: string,
     @Req() req: AuthenticatedRequest,

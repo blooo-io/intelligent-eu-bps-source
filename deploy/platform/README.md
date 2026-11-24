@@ -150,6 +150,8 @@ KUBECONFIG=… node scripts/openbao-seed-stripe-test.mjs --apply
 
    Writes `secret/dev/payments` and `secret/dev/invoicing` (`stripe_secret_key`, `stripe_webhook_secret`, optional `stripe_connect_webhook_secret`). Writes `secret/dev/web` (`stripe_publishable_key` for AC-01 Account Tokens — INT-191). Webhook URL for the sandbox account: `https://api.dev.intelligent-eu-bp.blooo.dev/webhooks/payment-provider`. Test mode only (`sk_test_` / `pk_test_`, no live money — BR-12).
 
+   **REQ-043 live placeholders (never commit values):** OpenBao path `secret/dev/payments` may also hold `stripe_live_secret_key`, `stripe_live_webhook_secret`, and `stripe_live_connect_webhook_secret` when an operator enables per-community live mode. Keys must start with `sk_live_`. Leave unset on V1 / virtual `dev`.
+
 5. `ClusterIssuer` for Let's Encrypt (public hosts) lands when DNS + APISIX exist; cert-manager itself is enough for INT-133 packaging.
 
 ## Quality — SonarQube Community Build (INT-292 / INT-294 / TP-2 exception)

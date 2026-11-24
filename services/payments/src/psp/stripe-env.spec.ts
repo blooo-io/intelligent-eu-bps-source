@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   readStripeEnv,
+  readStripeLiveEnv,
   resolvePspProvider,
   resolveStripeInvoiceProvider,
   toMinorUnits,
@@ -56,5 +57,22 @@ describe("stripe-env (INT-189)", () => {
       connectWebhookSecret: "whsec_c",
     });
     expect(readStripeEnv({})).toBeNull();
+  });
+
+  it("REQ-043: readStripeLiveEnv requires sk_live_ prefix", () => {
+    expect(
+      readStripeLiveEnv({ stripe_live_secret_key: "sk_test_x" }),
+    ).toBeNull();
+    expect(
+      readStripeLiveEnv({
+        stripe_live_secret_key: "sk_live_abc",
+        stripe_live_webhook_secret: "whsec_live",
+        stripe_live_connect_webhook_secret: "whsec_live_c",
+      }),
+    ).toEqual({
+      secretKey: "sk_live_abc",
+      webhookSecret: "whsec_live",
+      connectWebhookSecret: "whsec_live_c",
+    });
   });
 });

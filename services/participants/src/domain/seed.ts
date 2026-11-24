@@ -30,7 +30,8 @@ export const S1_INVITED_IDP_USER_ID = "c1a55e01-0005-4000-8000-000000000005";
 
 export const SEED_TERMS: TermsDocument = {
   termsVersion: "v1.0.0",
-  text: "INTELLIGENT V1 terms and self-billing mandate (REQ-050). Identifiers only in events.",
+  // Placeholder — full text lives in docs/legal/terms-v1.md (docs workstream).
+  text: "See docs/legal/terms-v1.md (REQ-050).",
 };
 
 export function seedCommunitySettings(): CommunitySettings {
@@ -85,6 +86,12 @@ export function seedUatParticipants(): ParticipantRecord[] {
       selfBillingMandate: false,
       paymentAccountReady: false,
       paymentBlockReason: null,
+      termsAcceptedAt: null,
+      kycVerified: false,
+      source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     {
       participantId: "2a3a56e5-2e71-4990-bf26-2b4708e4adcd",
@@ -103,6 +110,12 @@ export function seedUatParticipants(): ParticipantRecord[] {
       selfBillingMandate: false,
       paymentAccountReady: false,
       paymentBlockReason: null,
+      termsAcceptedAt: null,
+      kycVerified: false,
+      source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     {
       participantId: "4e1933c8-368e-45f5-9751-ac975a2de45e",
@@ -121,6 +134,12 @@ export function seedUatParticipants(): ParticipantRecord[] {
       selfBillingMandate: false,
       paymentAccountReady: false,
       paymentBlockReason: null,
+      termsAcceptedAt: null,
+      kycVerified: false,
+      source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
   ];
 }
@@ -129,9 +148,11 @@ export function seedUatParticipants(): ParticipantRecord[] {
  * INT-230 / INT-236 / INT-241 — S1 fixture parties (AC-15). Profile + terms +
  * self-billing are pre-accepted so AC-07 payment-account-status can advance
  * them to Ready (BR-09) without a member UI pass. paymentAccountReady stays
- * false until Connect / PM provision notifies AC-03. idpUserId matches
- * Keycloak S1 users so member/manager login → participantId → trades →
- * invoice is one chain. Manager enables Start run from the portal (REQ-006).
+ * false until Connect / PM provision notifies AC-03. kycVerified is seeded
+ * true for S1 Ready-path fixtures (REQ-045 / INT-431) so existing UATs keep
+ * their meaning when payment notifies. idpUserId matches Keycloak S1 users so
+ * member/manager login → participantId → trades → invoice is one chain.
+ * Manager enables Start run from the portal (REQ-006).
  */
 export function seedS1Participants(): ParticipantRecord[] {
   const communityId = S1_COMMUNITY_ID;
@@ -157,6 +178,13 @@ export function seedS1Participants(): ParticipantRecord[] {
       selfBillingMandate: false,
       paymentAccountReady: false,
       paymentBlockReason: null,
+      termsAcceptedAt: "2026-01-01T00:00:00.000Z",
+      // REQ-045 — S1 Ready fixtures: KYC already verified so payment alone → Ready.
+      kycVerified: true,
+      source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     {
       participantId: S1_PRODUCER_A_ID,
@@ -171,6 +199,12 @@ export function seedS1Participants(): ParticipantRecord[] {
       selfBillingMandate: true,
       paymentAccountReady: false,
       paymentBlockReason: null,
+      termsAcceptedAt: "2026-01-01T00:00:00.000Z",
+      kycVerified: true,
+      source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     {
       participantId: S1_PRODUCER_B_ID,
@@ -185,6 +219,12 @@ export function seedS1Participants(): ParticipantRecord[] {
       selfBillingMandate: true,
       paymentAccountReady: false,
       paymentBlockReason: null,
+      termsAcceptedAt: "2026-01-01T00:00:00.000Z",
+      kycVerified: true,
+      source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     {
       participantId: S1_MANAGER_ID,
@@ -199,6 +239,12 @@ export function seedS1Participants(): ParticipantRecord[] {
       selfBillingMandate: true,
       paymentAccountReady: false,
       paymentBlockReason: null,
+      termsAcceptedAt: "2026-01-01T00:00:00.000Z",
+      kycVerified: true,
+      source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     // INT-285 — full Get-ready wizard on Horizon Energy; Léa stays TermsAccepted
     // for the money path (trades → invoices → Pay).
@@ -219,6 +265,12 @@ export function seedS1Participants(): ParticipantRecord[] {
       selfBillingMandate: false,
       paymentAccountReady: false,
       paymentBlockReason: null,
+      termsAcceptedAt: null,
+      kycVerified: false,
+      source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
   ];
 }

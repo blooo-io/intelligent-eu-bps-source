@@ -2,13 +2,19 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Optional,
 } from "@nestjs/common";
 import {
   createMockSuite,
   type MarketPort,
   type MockSuite,
 } from "@intelligent/mocks";
-import { OutboxService } from "@intelligent/module-template";
+import {
+  BILLING_MODE_RESOLVER,
+  OutboxService,
+  StaticBillingModeResolver,
+  type BillingModeResolver,
+} from "@intelligent/module-template";
 import { TradeStore } from "../domain/store.js";
 import type { TradeDto } from "../domain/types.js";
 import { formatKWh, formatMoney } from "../money.js";
@@ -32,7 +38,17 @@ export class IntakeService {
     @Inject(TradeStore) private readonly store: TradeStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
     @Inject(PARTY_RESOLVER) private readonly parties: PartyResolverPort,
+    @Optional()
+    @Inject(BILLING_MODE_RESOLVER)
+    private readonly billingMode: BillingModeResolver | null = null,
   ) {}
+
+  /** REQ-043 — community live|virtual from AC-03 settings. */
+  private async modeOf(communityId: string) {
+    const resolver =
+      this.billingMode ?? new StaticBillingModeResolver("virtual");
+    return resolver.modeOf(communityId);
+  }
 
   /** Test seam — swap scenario / market port. */
   useSuite(suite: MockSuite): void {
@@ -111,7 +127,9 @@ export class IntakeService {
           type: "IntakeAnomalyDetected",
           producer: PRODUCER,
           communityId: market?.communityId ?? this.suite.scenario.communityId,
-          billingMode: "virtual",
+          billingMode: await this.modeOf(
+            market?.communityId ?? this.suite.scenario.communityId,
+          ),
           data: {
             type: "unknown_party",
             marketId: fixture.marketId,
@@ -150,7 +168,9 @@ export class IntakeService {
         type: "TradesIngested",
         producer: PRODUCER,
         communityId: [...communityIds][0] ?? this.suite.scenario.communityId,
-        billingMode: "virtual",
+        billingMode: await this.modeOf(
+          [...communityIds][0] ?? this.suite.scenario.communityId,
+        ),
         data: {
           window: { from: window.from, to: window.to },
           tradeIds: ingestedIds,
@@ -269,7 +289,7 @@ export class IntakeService {
       type: "IntakeAnomalyDetected",
       producer: PRODUCER,
       communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(communityId),
       data: { type, marketId, details },
     });
   }

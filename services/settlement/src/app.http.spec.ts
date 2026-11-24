@@ -178,6 +178,66 @@ describe("settlement HTTP (INT-105)", () => {
     expect(await get.json()).toMatchObject({ runId: body.runId, status: "completed" });
   });
 
+  it("REQ-045: unverified manager gets 403 kyc_not_verified", async () => {
+    const { createServer } = await import("node:http");
+    const mock = createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          subjectId: "manager-1",
+          subjectType: "manager",
+          kycStatus: "pending",
+          kycVerified: false,
+          method: "identity_document",
+          updatedAt: "2026-11-24T00:00:00.000Z",
+          payoutAccountVerified: false,
+        }),
+      );
+    });
+    await new Promise<void>((resolve) => mock.listen(0, "127.0.0.1", resolve));
+    const addr = mock.address();
+    if (addr === null || typeof addr === "string") {
+      throw new Error("expected TCP address");
+    }
+    const prev = process.env.PAYMENTS_INTERNAL_URL;
+    process.env.PAYMENTS_INTERNAL_URL = `http://127.0.0.1:${addr.port}`;
+    const gated = await NestFactory.create(AppModule, { logger: false });
+    await gated.listen(0, "127.0.0.1");
+    const gatedAddr = gated.getHttpServer().address();
+    if (gatedAddr === null || typeof gatedAddr === "string") {
+      throw new Error("expected TCP address");
+    }
+    const gatedBase = `http://127.0.0.1:${gatedAddr.port}`;
+    const gatedService = gated.get(SettlementService);
+    try {
+      gatedService.useFixtureScenario("S1", { threshold: 0.01 });
+      const res = await fetch(
+        `${gatedBase}/v1/communities/${communityId}/billing-runs`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-intelligent-roles": "manager",
+            "x-intelligent-token-use": "user",
+            "x-intelligent-sub": "manager-1",
+            "x-intelligent-community": communityId,
+          },
+          body: JSON.stringify({ type: "final" }),
+        },
+      );
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({
+        code: "kyc_not_verified",
+        subject: "manager",
+      });
+    } finally {
+      await gated.close();
+      mock.close();
+      if (prev === undefined) delete process.env.PAYMENTS_INTERNAL_URL;
+      else process.env.PAYMENTS_INTERNAL_URL = prev;
+    }
+  });
+
   // UAT-060 — community A must not start or read community B's billing run.
   it("UAT-060 — another community cannot start or read a billing run (REQ-049)", async () => {
     service.useFixtureScenario("S1", { threshold: 0.01 });

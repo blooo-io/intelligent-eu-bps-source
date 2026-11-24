@@ -5,6 +5,7 @@ import type { INestApplication } from "@nestjs/common";
 import { OutboxService } from "@intelligent/module-template";
 import { AppModule } from "./app.module.js";
 import { PaymentsStore } from "./domain/store.js";
+import { KycService } from "./kyc/kyc.service.js";
 import { PaymentsService } from "./payments/payments.service.js";
 import { PayoutsService } from "./payouts/payouts.service.js";
 import { InMemoryCommunitySettings } from "./ports/community-settings.port.js";
@@ -21,7 +22,18 @@ describe("payments HTTP (INT-107)", () => {
   let app: INestApplication;
   let base: string;
   let service: PaymentsService;
+  let kyc: KycService;
   let invoices: InMemoryInvoiceLookup;
+
+  /** REQ-045 — payInvoice requires verified KYC on payer and payee. */
+  async function verifyKyc(participantId: string): Promise<void> {
+    await kyc.applyAccountSession(
+      participantId,
+      { mode: "embedded", status: "complete", payoutsEnabled: true },
+      "operator",
+      null,
+    );
+  }
 
   beforeAll(async () => {
     app = await NestFactory.create(AppModule, { logger: false });
@@ -32,6 +44,7 @@ describe("payments HTTP (INT-107)", () => {
     }
     base = `http://127.0.0.1:${address.port}`;
     service = app.get(PaymentsService);
+    kyc = app.get(KycService);
     invoices = app.get(InMemoryInvoiceLookup);
   });
 
@@ -118,9 +131,11 @@ describe("payments HTTP (INT-107)", () => {
       },
     });
     expect(onboarding.status).toBe(200);
+    // REQ-051 — every role starts with Connect KYC (embedded by default).
     expect(await onboarding.json()).toMatchObject({
-      mode: "elements",
-      clientSecret: expect.stringMatching(/^seti_test_/),
+      mode: "embedded",
+      clientSecret: expect.stringMatching(/^accs_secret_test_/),
+      pspAccountRef: expect.stringMatching(/^acct_/),
     });
 
     await service.ensureParticipant({
@@ -129,6 +144,13 @@ describe("payments HTTP (INT-107)", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await verifyKyc(CONSUMER);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await verifyKyc(PRODUCER);
     invoices.put({
       invoiceId: INVOICE,
       pspInvoiceRef: "in_test_http",
@@ -160,6 +182,13 @@ describe("payments HTTP (INT-107)", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_sepa_debit");
+    await verifyKyc(CONSUMER);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await verifyKyc(PRODUCER);
     invoices.put({
       invoiceId: INVOICE,
       producerId: PRODUCER,
@@ -439,6 +468,10 @@ describe("payments HTTP (INT-107)", () => {
         kycStatus: "verified",
         role: "producer",
         communityId: COMMUNITY,
+        kycVerified: true,
+        kycVerifiedAt: "2026-11-25T10:00:00.000Z",
+        kycMethod: "connect_onboarding",
+        payoutAccountVerified: true,
       });
       const paid = (invoiceId: string, total: string) => ({
         invoiceId,

@@ -1,5 +1,10 @@
 import { Inject, Injectable, MiddlewareConsumer, Module, NestModule, OnModuleInit } from "@nestjs/common";
-import { ModuleTemplateModule, OutboxService } from "@intelligent/module-template";
+import {
+  BILLING_MODE_RESOLVER,
+  createBillingModeResolver,
+  ModuleTemplateModule,
+  OutboxService,
+} from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
 import { CLOCK, SystemClock } from "./domain/clock.js";
 import { PayoutsStore } from "./domain/payouts.store.js";
@@ -7,6 +12,15 @@ import { PaymentsStore } from "./domain/store.js";
 import { InternalPaymentsController } from "./payments/internal.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
 import { PaymentsService } from "./payments/payments.service.js";
+import { KycService } from "./kyc/kyc.service.js";
+import {
+  KycQueryService,
+  ManagerKycService,
+} from "./kyc/manager-kyc.service.js";
+import {
+  createManagerKycStore,
+  MANAGER_KYC_STORE,
+} from "./ports/manager-kyc.store.js";
 import { PayoutsController } from "./payouts/payouts.controller.js";
 import { PayoutsService } from "./payouts/payouts.service.js";
 import { createPaymentTransaction } from "./persistence/payment-journal.js";
@@ -36,6 +50,10 @@ import {
   createPaymentAccountsStore,
   PAYMENT_ACCOUNTS_STORE,
 } from "./ports/payment-accounts.store.js";
+import {
+  createKycLogStore,
+  KYC_LOG_STORE,
+} from "./ports/kyc-log.store.js";
 import {
   COMMUNITY_SETTINGS,
   createCommunitySettings,
@@ -70,8 +88,12 @@ import {
   PSP_ADAPTER,
   PSP_EVENTS_PORT,
 } from "./psp/psp-events.port.js";
+import {
+  createPspRegistry,
+  PSP_REGISTRY,
+  type PspRegistry,
+} from "./psp/psp-registry.js";
 import { resolvePspProvider } from "./psp/stripe-env.js";
-import { StripePspAdapter } from "./psp/stripe-psp.adapter.js";
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
 import { createEventBus } from "./events/nats-event-bus.js";
 import { ErasureRequestedListener } from "./events/erasure-requested.listener.js";
@@ -87,6 +109,9 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
   providers: [
     PaymentsStore,
     PaymentsService,
+    KycService,
+    ManagerKycService,
+    KycQueryService,
     PayoutsStore,
     PayoutsService,
     PaymentPersistence,
@@ -107,20 +132,34 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
       useFactory: () => createPaymentAccountsStore(),
     },
     {
-      provide: PSP_ADAPTER,
-      useFactory: (mock: MockPspAdapter) => {
-        if (resolvePspProvider() === "stripe") {
-          return new StripePspAdapter();
-        }
-        return mock;
-      },
+      provide: KYC_LOG_STORE,
+      useFactory: () => createKycLogStore(),
+    },
+    {
+      provide: MANAGER_KYC_STORE,
+      useFactory: () => createManagerKycStore(),
+    },
+    // REQ-043 — registry holds test + optional live adapters (port-split wrap).
+    {
+      provide: PSP_REGISTRY,
+      useFactory: (mock: MockPspAdapter) => createPspRegistry(process.env, mock),
       inject: [MockPspAdapter],
+    },
+    {
+      provide: PSP_ADAPTER,
+      useFactory: (registry: PspRegistry) => registry.for("virtual"),
+      inject: [PSP_REGISTRY],
     },
     { provide: KYC_ONBOARDING_PORT, useExisting: PSP_ADAPTER },
     { provide: COLLECT_PORT, useExisting: PSP_ADAPTER },
     { provide: PAYOUT_PORT, useExisting: PSP_ADAPTER },
     { provide: PSP_EVENTS_PORT, useExisting: PSP_ADAPTER },
     { provide: KYC_TEST_FIXTURE_PORT, useExisting: PSP_ADAPTER },
+    // REQ-043 / A10.1 — per-community billing mode from AC-03.
+    {
+      provide: BILLING_MODE_RESOLVER,
+      useFactory: () => createBillingModeResolver(),
+    },
     { provide: PAYOUT_EVENTS_HANDLER, useExisting: PayoutsService },
     {
       provide: PSP_ERASE_PORT,

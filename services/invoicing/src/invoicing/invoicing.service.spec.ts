@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   InMemoryOutboxStore,
   OutboxService,
+  StaticBillingModeResolver,
 } from "@intelligent/module-template";
 import { StatementStore } from "../domain/statement-store.js";
 import { InvoiceStore } from "../domain/store.js";
@@ -69,6 +70,30 @@ describe("InvoicingService", () => {
       new NoopParticipantsResolver(),
       statementsFor(),
     );
+  });
+
+  it("REQ-043: InvoiceIssued carries community mode", async () => {
+    const liveOutbox = new InMemoryOutboxStore();
+    const liveService = new InvoicingService(
+      store,
+      new OutboxService(liveOutbox),
+      new MapReadiness(
+        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
+      ),
+      new NoopParticipantsResolver(),
+      new StatementsService(
+        store,
+        new StatementStore(),
+        new OutboxService(liveOutbox),
+        new NoopParticipantsResolver(),
+        new StaticBillingModeResolver("live"),
+      ),
+      new StaticBillingModeResolver("live"),
+    );
+    await liveService.createFromSettlement(settlement());
+    const events = await liveOutbox.list();
+    const issued = events.find((e) => e.event.type === "InvoiceIssued");
+    expect(issued?.event.billingMode).toBe("live");
   });
 
   it("REQ-059: a settlement without a period leaves the invoice period empty", async () => {

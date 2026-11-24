@@ -24,7 +24,7 @@
 |---|---|---|---|---|
 | Day 1 contracts + ewds-client + hygiene + FX | INT-423 | Done | [#190](https://github.com/blooo-io/intelligent-eu-bps-source/pull/190) squash-merged `bd266af` | Tasks 1.1, 1.5, 1.10, 2.1–2.3, 3.1, 4.1–4.7, 5.1, 6.1–6.2 |
 | Day 2 PSP ports + early-settlement removal | INT-424 | Done | [#191](https://github.com/blooo-io/intelligent-eu-bps-source/pull/191) squash-merged `1d3373c` | Tasks 1.2–1.4 + 5.2–5.6 |
-| Day 3 CollectPort pay + webhook + statements | INT-425 | In progress | [#193](https://github.com/blooo-io/intelligent-eu-bps-source/pull/193) | 1.6 done (`a0cee45`); 5.7–5.8 + 1.7–1.9 in flight |
+| Day 3 CollectPort pay + webhook + statements | INT-425 | In progress | [#193](https://github.com/blooo-io/intelligent-eu-bps-source/pull/193) | 1.6 + 5.7 done (`6c10210`); 5.8 + 1.7–1.9 in flight |
 
 ## Decisions / deviations
 | When | What | Why |

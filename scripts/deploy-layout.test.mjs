@@ -105,6 +105,10 @@ test("synchronous module calls match the application view", async () => {
   assert.equal(/keycloak\.keycloak\.svc\.cluster\.local:8080/.test(participants), false);
   const payments = await readFile("deploy/charts/payments/values.yaml", "utf8");
   assert.match(payments, /stripeEgress: true/);
+  // REQ-015 — AC-14 RunAutoPayouts reaches AC-07.
+  assert.match(payments, /ingressFrom:[\s\S]*- scheduler-worker/);
+  const scheduler = await readFile("deploy/charts/scheduler/values.yaml", "utf8");
+  assert.match(scheduler, /egressModules:[\s\S]*- payments/);
 });
 
 test("module NetworkPolicy allows Keycloak HTTP port 80 (INT-218)", async () => {

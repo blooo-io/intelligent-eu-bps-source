@@ -18,7 +18,7 @@ import {
 } from "@intelligent/module-template";
 import type {
   BillingProfile,
-  CommunitySettings,
+  CommunitySettingsWrite,
   ParticipantImportRow,
   ParticipantPatch,
 } from "../domain/types.js";
@@ -83,7 +83,7 @@ export class PublicParticipantsController {
   )
   putCommunitySettings(
     @Param("communityId") communityId: string,
-    @Body() body: Omit<CommunitySettings, "communityId">,
+    @Body() body: CommunitySettingsWrite,
   ) {
     return this.participants.updateCommunitySettings(communityId, body);
   }

@@ -43,6 +43,8 @@ export function seedCommunitySettings(): CommunitySettings {
     // BR-07 default VAT until configured.
     vatRate: "0.00",
     billingMode: "virtual",
+    // REQ-015 — producers withdraw manually until the manager opts in.
+    autoPayout: false,
   };
 }
 
@@ -54,6 +56,7 @@ export function seedS1CommunitySettings(): CommunitySettings {
     threshold: "5.00",
     vatRate: "0.00",
     billingMode: "virtual",
+    autoPayout: false,
   };
 }
 

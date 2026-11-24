@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -9,13 +10,17 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ModuleAuthGuard } from "@intelligent/module-template";
+import { PayoutsService } from "../payouts/payouts.service.js";
 import { PaymentsService } from "./payments.service.js";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Controller("internal/v1")
 @UseGuards(new ModuleAuthGuard({ roles: ["service", "operator"] }))
 export class InternalPaymentsController {
   constructor(
     @Inject(PaymentsService) private readonly payments: PaymentsService,
+    @Inject(PayoutsService) private readonly payouts: PayoutsService,
   ) {}
 
   @Get("payments/:paymentId")
@@ -37,6 +42,17 @@ export class InternalPaymentsController {
       participantId: body?.participantId,
       pspAccountRef: body?.pspAccountRef,
     });
+  }
+
+  /** AC-14 RunAutoPayouts (REQ-015). */
+  @Post(String.raw`payouts\:run-auto`)
+  @HttpCode(202)
+  runAutoPayouts(@Body() body: { communityId?: unknown } | undefined) {
+    const communityId = body?.communityId;
+    if (typeof communityId !== "string" || !UUID.test(communityId)) {
+      throw new BadRequestException("communityId must be a UUID");
+    }
+    return this.payouts.runAutoPayouts({ communityId });
   }
 
   @Post(String.raw`payment-accounts\:provision`)

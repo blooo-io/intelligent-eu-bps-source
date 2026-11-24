@@ -13,6 +13,8 @@ egressModules:
   - participants
 ingressFrom:
   - invoicing
+  # REQ-015 — AC-14 RunAutoPayouts.
+  - scheduler-worker
 keycloakEgress: true
 stripeEgress: true
 # INT-189 — select Stripe test adapter when OpenBao secrets are present;

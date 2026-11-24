@@ -10,6 +10,7 @@ export const PAYMENT_ACCOUNTS_STORE = Symbol("PAYMENT_ACCOUNTS_STORE");
 export type PaymentAccountsStore = {
   get(participantId: string): Promise<AccountRecord | undefined>;
   put(row: AccountRecord): Promise<void>;
+  listByCommunity(communityId: string): Promise<AccountRecord[]>;
   reset?(): void;
 };
 
@@ -28,6 +29,30 @@ export class InMemoryPaymentAccountsStore implements PaymentAccountsStore {
   async put(row: AccountRecord): Promise<void> {
     this.rows.set(row.participantId, { ...row });
   }
+
+  async listByCommunity(communityId: string): Promise<AccountRecord[]> {
+    return [...this.rows.values()].filter((r) => r.communityId === communityId).map((r) => ({ ...r }));
+  }
+}
+
+type AccountRow = {
+  participant_id: string;
+  psp_account_ref: string | null;
+  psp_payment_method_ref: string | null;
+  kyc_status: string;
+  role: string;
+  community_id: string;
+};
+
+function toAccount(row: AccountRow): AccountRecord {
+  return {
+    participantId: row.participant_id,
+    pspAccountRef: row.psp_account_ref,
+    pspPaymentMethodRef: row.psp_payment_method_ref,
+    kycStatus: row.kyc_status,
+    role: row.role as AccountRecord["role"],
+    communityId: row.community_id,
+  };
 }
 
 const SCHEMA_SQL = `
@@ -70,26 +95,21 @@ export class PostgresPaymentAccountsStore implements PaymentAccountsStore {
 
   async get(participantId: string): Promise<AccountRecord | undefined> {
     await this.ensureSchema();
-    const res = await this.pool.query<{
-      participant_id: string;
-      psp_account_ref: string | null;
-      psp_payment_method_ref: string | null;
-      kyc_status: string;
-      role: string;
-      community_id: string;
-    }>("SELECT * FROM payment_accounts WHERE participant_id = $1", [
-      participantId,
-    ]);
+    const res = await this.pool.query<AccountRow>(
+      "SELECT * FROM payment_accounts WHERE participant_id = $1",
+      [participantId],
+    );
     const row = res.rows[0];
-    if (!row) return undefined;
-    return {
-      participantId: row.participant_id,
-      pspAccountRef: row.psp_account_ref,
-      pspPaymentMethodRef: row.psp_payment_method_ref,
-      kycStatus: row.kyc_status,
-      role: row.role as AccountRecord["role"],
-      communityId: row.community_id,
-    };
+    return row ? toAccount(row) : undefined;
+  }
+
+  async listByCommunity(communityId: string): Promise<AccountRecord[]> {
+    await this.ensureSchema();
+    const res = await this.pool.query<AccountRow>(
+      "SELECT * FROM payment_accounts WHERE community_id = $1",
+      [communityId],
+    );
+    return res.rows.map(toAccount);
   }
 
   async put(row: AccountRecord): Promise<void> {

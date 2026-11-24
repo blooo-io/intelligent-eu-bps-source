@@ -20,8 +20,8 @@ import {
   PaymentsStore,
   type AccountRecord,
   type PaymentRecord,
-  type PaymentWrite,
 } from "../domain/store.js";
+import type { JournalWrite } from "../persistence/payment-journal.js";
 import {
   CONNECTED_CUSTOMERS_STORE,
   type ConnectedCustomerRecord,
@@ -109,7 +109,7 @@ export class PaymentsService {
   private readonly payInFlight = new Map<string, Promise<PayInvoiceResult>>();
 
   /** INT-356 — payment attempts commit with the outbox when DATABASE_URL is set. */
-  useTransaction(tx: RecordingTransaction<PaymentWrite> | PassthroughTransaction): void {
+  useTransaction(tx: RecordingTransaction<JournalWrite> | PassthroughTransaction): void {
     this.tx = tx;
   }
 

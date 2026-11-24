@@ -190,6 +190,7 @@ export function createFakeStripe(webhookSecret = "whsec_fake_test") {
           controller?: Record<string, unknown>;
           capabilities?: Record<string, unknown>;
           account_token?: string;
+          settings?: { payouts?: { schedule?: { interval?: string } } };
         },
         _opts?: FakeRequestOptions,
       ) => {
@@ -208,7 +209,13 @@ export function createFakeStripe(webhookSecret = "whsec_fake_test") {
             eventually_due: [],
             pending_verification: [],
           },
-          settings: { payouts: { schedule: { interval: "daily" } } },
+          settings: {
+            payouts: {
+              schedule: {
+                interval: params.settings?.payouts?.schedule?.interval ?? "daily",
+              },
+            },
+          },
           balances: new Map(),
         };
         accounts.set(id, record);

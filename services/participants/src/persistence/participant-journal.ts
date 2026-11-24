@@ -75,7 +75,11 @@ export async function hydrateParticipants(
   store.restore(
     JSON.stringify({
       terms: current.terms,
-      communities: communities.rows.map((row) => parse(row.payload)),
+      // REQ-015 — rows persisted before autoPayout existed read as manual payouts.
+      communities: communities.rows.map((row) => ({
+        autoPayout: false,
+        ...(parse(row.payload) as Partial<CommunitySettings>),
+      })),
       participants: participants.rows.map((row) => parse(row.payload)),
     }),
   );

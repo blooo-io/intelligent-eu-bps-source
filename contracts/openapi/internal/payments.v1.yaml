@@ -93,7 +93,7 @@ paths:
               schema:
                 type: object
                 additionalProperties: false
-                required: [requested, blocked]
+                required: [requested, blocked, nearHoldingLimit]
                 properties:
                   requested:
                     type: integer
@@ -102,7 +102,14 @@ paths:
                   blocked:
                     type: integer
                     minimum: 0
-                    description: Producers skipped (prerequisites not met).
+                    description: Producer periods skipped (prerequisites not met or refused by the PSP).
+                  nearHoldingLimit:
+                    type: array
+                    description: >
+                      Participants whose oldest succeeded payment not yet paid out is at
+                      least 75 days old (the PSP holds manual-payout funds at most 90 days).
+                    items:
+                      $ref: '../components/schemas.yaml#/components/schemas/Uuid'
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
   /payment-accounts:provision:

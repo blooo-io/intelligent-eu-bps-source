@@ -89,6 +89,13 @@ export function buildScheduleCatalog(
       jobName: "FetchRates",
       description: "Exchange-rate refresh business days",
     },
+    {
+      scheduleId: "intelligent.run-auto-payouts.daily",
+      cronExpressions: ["0 8 * * *"],
+      jobName: "RunAutoPayouts",
+      body: { communityId },
+      description: "Automatic producer payouts daily (REQ-015)",
+    },
   ];
 }
 

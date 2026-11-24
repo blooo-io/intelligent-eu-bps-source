@@ -35,6 +35,14 @@ import {
 import { readStripeEnv, toMinorUnits, type StripeEnv } from "./stripe-env.js";
 
 /**
+ * A2 / REQ-015 — funds stay on the connected account until the participant
+ * withdraws (or the community auto-payout runs); Stripe never sweeps them.
+ */
+const MANUAL_PAYOUTS = {
+  payouts: { schedule: { interval: "manual" as const } },
+};
+
+/**
  * Real Stripe test-mode P-PSP adapter (INT-189 / INT-190 / INT-191 / AD-6 / BR-12).
  * Implements neutral ports (WS5 Tasks 5.4–5.5 / INT-424) and keeps legacy
  * legacy PspPort methods until Task 5.6 deletes the old port.
@@ -87,6 +95,7 @@ export class StripePspAdapter
         sepa_debit_payments: { requested: true },
         transfers: { requested: true },
       },
+      settings: MANUAL_PAYOUTS,
       metadata: { participantId: input.participantId },
     });
     return { pspAccountRef: account.id };
@@ -446,13 +455,7 @@ export class StripePspAdapter
       return {
         pspPayoutRef: payout.id,
         status: mapPayoutStatus(payout.status),
-        ...(typeof payout.arrival_date === "number"
-          ? {
-              arrivalDate: new Date(payout.arrival_date * 1000)
-                .toISOString()
-                .slice(0, 10),
-            }
-          : {}),
+        ...payoutArrival(payout),
       };
     } catch (err) {
       const code = (err as { code?: string }).code;
@@ -546,6 +549,7 @@ export class StripePspAdapter
         card_payments: { requested: true },
         transfers: { requested: true },
       },
+      settings: MANUAL_PAYOUTS,
       metadata: { participantId: input.participantId },
     });
     return { pspAccountRef: account.id };
@@ -569,6 +573,7 @@ export class StripePspAdapter
         card_payments: { requested: true },
         transfers: { requested: true },
       },
+      settings: MANUAL_PAYOUTS,
       metadata: { participantId: input.participantId },
     });
     return { pspAccountRef: account.id };
@@ -958,6 +963,7 @@ export function normalizeStripeEvent(event: Stripe.Event): PspEvent {
         ...base,
         kind: "payout.paid",
         pspPayoutRef: payout.id,
+        ...payoutArrival(payout),
       };
     }
     case "payout.failed": {
@@ -966,6 +972,7 @@ export function normalizeStripeEvent(event: Stripe.Event): PspEvent {
         ...base,
         kind: "payout.failed",
         pspPayoutRef: payout.id,
+        ...payoutArrival(payout),
         failureCategory: toPspFailureCategory(
           payout.failure_code ?? "processing_error",
         ),
@@ -1007,6 +1014,12 @@ function mapPaymentIntentStatus(
     return "pending";
   }
   return "failed";
+}
+
+function payoutArrival(payout: Stripe.Payout): { arrivalDate?: string } {
+  return typeof payout.arrival_date === "number"
+    ? { arrivalDate: new Date(payout.arrival_date * 1000).toISOString().slice(0, 10) }
+    : {};
 }
 
 function mapPayoutStatus(status: string | null): PayoutResult["status"] {

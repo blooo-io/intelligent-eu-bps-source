@@ -345,6 +345,20 @@ describe("ParticipantsService", () => {
     expect(next.currency).toBe("CHF");
   });
 
+  it("REQ-015: autoPayout defaults to false and round-trips", async () => {
+    const current = service.getCommunitySettings(communityId);
+    expect(current.autoPayout).toBe(false);
+    const enabled = await service.updateCommunitySettings(communityId, {
+      ...current,
+      autoPayout: true,
+    });
+    expect(enabled.autoPayout).toBe(true);
+    expect(service.getCommunitySettings(communityId).autoPayout).toBe(true);
+    const { autoPayout: _omitted, ...withoutAutoPayout } = enabled;
+    const reset = await service.updateCommunitySettings(communityId, withoutAutoPayout);
+    expect(reset.autoPayout).toBe(false);
+  });
+
   it("REQ-013 / INT-275 — erasure anonymizes profile and emits ErasureCompleted", async () => {
     const participantId = "f69e6745-3bfe-49ad-b84e-0853aa86ad05";
     const before = store.getParticipant(participantId)!;

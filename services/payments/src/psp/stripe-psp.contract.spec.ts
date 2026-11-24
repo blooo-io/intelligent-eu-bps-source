@@ -122,6 +122,9 @@ async function stripeHarness(fake: FakeStripe): Promise<PspContractHarness> {
           return "pm_sepa_debit";
       }
     },
+    payoutSchedule: async (pspAccountRef) =>
+      (await fake.accounts.retrieve(pspAccountRef)).settings.payouts.schedule
+        .interval,
     signedEvent: (e) => {
       const occurredAt = e.occurredAt ?? new Date().toISOString();
       const created = Math.floor(Date.parse(occurredAt) / 1000);

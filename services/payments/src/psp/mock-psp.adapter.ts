@@ -128,7 +128,8 @@ export class MockPspAdapter
       chargesEnabled: false,
       payoutsEnabled: false,
       status: "requirements_due",
-      manualSchedule: false,
+      // A2 / REQ-015 — same as Stripe: no automatic sweep of the balance.
+      manualSchedule: true,
       balances: new Map(),
     });
     this.dueByAccount.set(pspAccountRef, [
@@ -612,6 +613,13 @@ export class MockPspAdapter
     state.balances.set(cur, prev + toMinor(amount));
   }
 
+  /** Test seam: payout schedule of a mock connected account. */
+  payoutSchedule(pspAccountRef: string): "manual" | "automatic" | undefined {
+    const state = this.connected.get(pspAccountRef);
+    if (!state) return undefined;
+    return state.manualSchedule ? "manual" : "automatic";
+  }
+
   async paymentMethod(
     kind: "card_ok" | "card_decline" | "sepa_ok",
   ): Promise<string> {
@@ -702,6 +710,7 @@ export class MockPspAdapter
       pspPaymentRef: e.pspPaymentRef,
       pspCheckoutRef: e.pspCheckoutRef,
       pspPayoutRef: e.pspPayoutRef,
+      arrivalDate: e.arrivalDate,
       method: e.method,
       failureCategory: e.failureCategory,
     };

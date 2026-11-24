@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Card, Form, Input, Select, Typography } from "antd";
+import { Alert, Button, Card, Form, Input, Select, Switch, Typography } from "antd";
 import { ApiError, fetchMe } from "../api/me";
 import {
   fetchCommunitySettings,
@@ -19,7 +19,8 @@ type SettingsForm = CommunitySettingsWrite;
 
 /**
  * Community billing settings (INT-144 / REQ-006, REQ-043, REQ-056).
- * Manager edits currency, period, threshold, VAT and mode (BR-12).
+ * Manager edits currency, period, threshold, VAT and mode (BR-12), and
+ * whether producers are paid out automatically (REQ-015).
  */
 export function CommunitySettingsPage({
   config,
@@ -56,6 +57,7 @@ export function CommunitySettingsPage({
             threshold: settings.threshold,
             vatRate: settings.vatRate,
             billingMode: settings.billingMode,
+            autoPayout: settings.autoPayout ?? false,
           });
         }
       } catch (err) {
@@ -83,7 +85,7 @@ export function CommunitySettingsPage({
     try {
       const token = await oidc.getAccessToken();
       if (!token) throw new Error("No access token");
-      // BR-12 / REQ-006: currency, period, threshold, VAT, mode.
+      // BR-12 / REQ-006: currency, period, threshold, VAT, mode; REQ-015: automatic payout.
       const updated = await putCommunitySettings(
         config.apiBaseUrl,
         token,
@@ -94,6 +96,7 @@ export function CommunitySettingsPage({
           threshold: values.threshold,
           vatRate: values.vatRate,
           billingMode: values.billingMode,
+          autoPayout: values.autoPayout ?? false,
         },
       );
       form.setFieldsValue({
@@ -102,6 +105,7 @@ export function CommunitySettingsPage({
         threshold: updated.threshold,
         vatRate: updated.vatRate,
         billingMode: updated.billingMode,
+        autoPayout: updated.autoPayout,
       });
       setSaved(true);
     } catch (err) {
@@ -194,6 +198,14 @@ export function CommunitySettingsPage({
                     { value: "live" as BillingMode, label: "Live" },
                   ]}
                 />
+              </Form.Item>
+              <Form.Item
+                label="Pay out automatically"
+                name="autoPayout"
+                valuePropName="checked"
+                extra="When off, producers request each payout to their bank account themselves."
+              >
+                <Switch />
               </Form.Item>
               <Form.Item>
                 <Button type="primary" htmlType="submit" loading={saving}>

@@ -14,6 +14,8 @@ export type CommunitySettings = {
   threshold: string;
   vatRate: string;
   billingMode: BillingMode;
+  /** REQ-015 — AC-07 pays out producers automatically when true. */
+  autoPayout: boolean;
 };
 
 export type CommunitySettingsWrite = {
@@ -22,9 +24,10 @@ export type CommunitySettingsWrite = {
   threshold: string;
   vatRate: string;
   billingMode: BillingMode;
+  autoPayout?: boolean;
 };
 
-/** Read community currency, period, threshold, VAT and mode. */
+/** Read community currency, period, threshold, VAT, mode and automatic payout. */
 export async function fetchCommunitySettings(
   apiBaseUrl: string,
   accessToken: string,

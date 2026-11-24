@@ -49,6 +49,8 @@ export type PspEvent = {
   pspPaymentRef?: string;
   pspCheckoutRef?: string;
   pspPayoutRef?: string;
+  /** Payout events — expected arrival date (YYYY-MM-DD). */
+  arrivalDate?: string;
   method?: PspPaymentMethodType;
   failureCategory?: PspFailureCategory;
 };

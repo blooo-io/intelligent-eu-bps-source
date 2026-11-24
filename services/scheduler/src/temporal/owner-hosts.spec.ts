@@ -6,6 +6,10 @@ describe("resolveOwnerHost (INT-216)", () => {
     expect(resolveOwnerHost("AC-05")).toBe("settlement");
   });
 
+  it("maps AC-07 to payments Service DNS (RunAutoPayouts)", () => {
+    expect(resolveOwnerHost("AC-07")).toBe("payments");
+  });
+
   it("accepts chart service names", () => {
     expect(resolveOwnerHost("settlement")).toBe("settlement");
   });

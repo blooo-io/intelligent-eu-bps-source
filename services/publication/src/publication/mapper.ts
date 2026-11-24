@@ -2,7 +2,8 @@ import type { InvoiceProjection, PaymentProjection } from "../domain/types.js";
 
 /**
  * Map local projections → EWDS topic payloads (NFR-004 / REQ-048).
- * Money is numeric on the wire; grid fees stay 0 (A20 / REQ-048).
+ * Money is numeric on the wire; gridFeeAmount stays 0 until Task 2.18
+ * publishes real tariffs (A10.2 / gridFeeStatus not_published).
  * BR-11: mapper never writes trade status — tradeIds are identifiers only.
  */
 export function toBillingInvoice(
@@ -11,6 +12,7 @@ export function toBillingInvoice(
   return {
     invoiceId: invoice.invoiceId,
     billingId: invoice.billingId,
+    issuerStatementId: invoice.issuerStatementId,
     communityId: invoice.communityId,
     billingMode: invoice.billingMode,
     settlementType: invoice.settlementType,
@@ -27,6 +29,7 @@ export function toBillingInvoice(
     outstandingAmount: invoice.outstandingAmount,
     energyAmount: invoice.energyAmount,
     gridFeeAmount: 0,
+    gridFeeStatus: invoice.gridFeeStatus,
     taxAmount: invoice.taxAmount,
     totalTaxAmount: invoice.taxAmount,
     vatRate: invoice.vatRate,

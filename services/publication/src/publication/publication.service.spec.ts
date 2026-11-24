@@ -16,6 +16,8 @@ const CONSUMER = "11111111-2222-4333-8444-555555555555";
 const PRODUCER = "66666666-7777-4888-9999-aaaaaaaaaaaa";
 const INVOICE_ID = "3f1c2a9e-8b7d-4c21-9a0e-5d6f7a8b9c01";
 const PAYMENT_ID = "9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a";
+const BILLING_ID = "a2b4c6d8-1e3f-4a5b-8c7d-9e0f1a2b3c4d";
+const ISSUER_STATEMENT_ID = "d3e5f7a9-2b4c-4d6e-8f0a-1b2c3d4e5f6a";
 const TRADE_IDS = [
   "0x8f3a1c2b4d5e6f708192a3b4c5d6e7f8",
   "0x1a2b3c4d5e6f708192a3b4c5d6e7f809",
@@ -26,7 +28,8 @@ function openInvoice(overrides: Partial<InvoiceProjection> = {}): InvoiceProject
   const now = "2026-12-01T06:00:00+01:00";
   return {
     invoiceId: INVOICE_ID,
-    billingId: "a2b4c6d8-1e3f-4a5b-8c7d-9e0f1a2b3c4d",
+    billingId: BILLING_ID,
+    issuerStatementId: ISSUER_STATEMENT_ID,
     communityId: COMMUNITY,
     billingMode: "virtual",
     settlementType: "periodic",
@@ -42,6 +45,7 @@ function openInvoice(overrides: Partial<InvoiceProjection> = {}): InvoiceProject
     totalAmount: 10.2,
     outstandingAmount: 10.2,
     energyAmount: 10.2,
+    gridFeeStatus: "not_published",
     taxAmount: 0,
     vatRate: 0,
     carriedForwardAmount: 0,
@@ -187,7 +191,8 @@ describe("PublicationService", () => {
 function toValidInvoicePayload(): Record<string, unknown> {
   return {
     invoiceId: INVOICE_ID,
-    billingId: "a2b4c6d8-1e3f-4a5b-8c7d-9e0f1a2b3c4d",
+    billingId: BILLING_ID,
+    issuerStatementId: ISSUER_STATEMENT_ID,
     communityId: COMMUNITY,
     billingMode: "virtual",
     settlementType: "periodic",
@@ -204,6 +209,7 @@ function toValidInvoicePayload(): Record<string, unknown> {
     outstandingAmount: 10.2,
     energyAmount: 10.2,
     gridFeeAmount: 0,
+    gridFeeStatus: "not_published",
     taxAmount: 0,
     totalTaxAmount: 0,
     vatRate: 0,

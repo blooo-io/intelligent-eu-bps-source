@@ -63,11 +63,16 @@ export class BillingEventsListener implements OnModuleInit {
     const currency = asString(data.currency, "EUR");
     await this.publication.onInvoiceIssued({
       invoiceId,
-      // NFR-004 — billingId is the pair settlement, not a copy of invoiceId.
-      billingId: asString(data.settlementId),
+      // NFR-004 — billingId is the consumer statement (pair settlement until WS1 statements land).
+      billingId: asString(data.settlementId ?? data.recipientStatementId),
+      // Task 4.1 — producer statement; interim fallback until InvoiceIssued carries it (Task 4.12).
+      issuerStatementId: asString(
+        data.issuerStatementId ?? data.settlementId ?? data.recipientStatementId,
+      ),
       communityId: env.communityId,
       billingMode: env.billingMode,
-      settlementType: asString(data.settlementType, "periodic"),
+      // REQ-057 — early removed; coerce legacy payloads to final.
+      settlementType: settlementTypeOf(asString(data.settlementType, "periodic")),
       billingPeriodFrom: asString(data.billingPeriodFrom ?? data.periodFrom),
       billingPeriodUntil: asString(data.billingPeriodUntil ?? data.periodUntil),
       invoiceStatus: asString(data.status, "Open"),
@@ -80,6 +85,9 @@ export class BillingEventsListener implements OnModuleInit {
       totalAmount: total,
       outstandingAmount: total,
       energyAmount: energy,
+      // Task 2.18 publishes real fees; until then EWDS records stay not_published.
+      gridFeeStatus:
+        asString(data.gridFeeStatus) === "applied" ? "applied" : "not_published",
       taxAmount: vat,
       vatRate: Number(data.vatRate ?? 0),
       carriedForwardAmount: Math.abs(Number(data.carriedForwardAmount ?? 0)),
@@ -161,6 +169,12 @@ export class BillingEventsListener implements OnModuleInit {
     });
     if (result.status === "failed") throw result.error;
   }
+}
+
+/** REQ-057 — EWDS enum is periodic|final only. */
+function settlementTypeOf(value: string): string {
+  if (value === "final" || value === "early") return "final";
+  return "periodic";
 }
 
 function asEnvelope(payload: unknown): {

@@ -79,4 +79,90 @@ describe("ManagerVerificationPage (INT-429 / REQ-051)", () => {
       );
     });
   });
+
+  it("REQ-051: already-verified manager is sent home", async () => {
+    const assignLocation = vi.fn();
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          subjectId: "m1",
+          subjectType: "manager",
+          kycStatus: "verified",
+          kycVerified: true,
+          method: "identity_document",
+          updatedAt: "2026-11-24T12:00:00.000Z",
+        }),
+      }),
+    );
+
+    const { getByText } = render(
+      <MemoryRouter initialEntries={["/manager/verification"]}>
+        <Routes>
+          <Route path="/" element={<div>home</div>} />
+          <Route
+            path="/manager/verification"
+            element={
+              <ManagerVerificationPage
+                config={config}
+                oidc={oidc}
+                assignLocation={assignLocation}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getByText("home")).toBeInTheDocument();
+    });
+    expect(assignLocation).not.toHaveBeenCalled();
+  });
+
+  it("REQ-051: missing token shows an error alert", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue(null),
+    };
+
+    const { findByText } = render(
+      <MemoryRouter>
+        <ManagerVerificationPage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    expect(await findByText("No access token")).toBeInTheDocument();
+  });
+
+  it("REQ-051: non-Error failure uses the generic message", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockRejectedValue("boom"),
+    };
+
+    const { findByText } = render(
+      <MemoryRouter>
+        <ManagerVerificationPage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await findByText("Identity verification failed"),
+    ).toBeInTheDocument();
+  });
 });

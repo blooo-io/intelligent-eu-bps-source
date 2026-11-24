@@ -65,4 +65,56 @@ describe("IdentitySetupPanel (INT-429 / REQ-051)", () => {
       );
     });
   });
+
+  it("shows an error when onboarding start fails", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 500 }),
+    );
+
+    render(<IdentitySetupPanel config={config} oidc={oidc} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: /continue to identity verification/i }),
+    );
+    expect(
+      await screen.findByText(/request failed|failed|error/i),
+    ).toBeInTheDocument();
+  });
+
+  it("flags non-embedded incomplete sessions as unavailable", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          mode: "hosted",
+          status: "requirements_due",
+          url: "https://connect.stripe.com/setup/s/test",
+          pspAccountRef: "acct_1",
+        }),
+      }),
+    );
+
+    render(<IdentitySetupPanel config={config} oidc={oidc} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: /continue to identity verification/i }),
+    );
+    expect(
+      await screen.findByText("Identity verification session unavailable"),
+    ).toBeInTheDocument();
+  });
 });

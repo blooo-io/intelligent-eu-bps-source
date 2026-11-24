@@ -66,6 +66,9 @@ export class BillingEventsListener implements OnModuleInit {
     const paymentId = asString(data.paymentId);
     const invoiceId = asString(data.invoiceId);
     if (!paymentId || !invoiceId) return;
+    // REQ-046 — payerId is the emitted field; participantId mirrors it for KPIs.
+    const payerId =
+      typeof data.payerId === "string" ? data.payerId : undefined;
     this.reporting.projectPayment({
       paymentId,
       invoiceId,
@@ -82,8 +85,17 @@ export class BillingEventsListener implements OnModuleInit {
         typeof data.processingTimeMs === "number"
           ? data.processingTimeMs
           : undefined,
-      participantId:
-        typeof data.participantId === "string" ? data.participantId : undefined,
+      payerId,
+      participantId: payerId,
+      payeeId: typeof data.payeeId === "string" ? data.payeeId : undefined,
+      initiatedAt:
+        typeof data.initiatedAt === "string" ? data.initiatedAt : undefined,
+      settledAt:
+        typeof data.settledAt === "string" ? data.settledAt : undefined,
+      feeAmount:
+        typeof data.feeAmount === "string" ? data.feeAmount : undefined,
+      feeCurrency:
+        typeof data.feeCurrency === "string" ? data.feeCurrency : undefined,
     });
   }
 

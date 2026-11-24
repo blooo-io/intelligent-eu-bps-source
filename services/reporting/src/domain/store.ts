@@ -60,6 +60,11 @@ export class ReportingStore {
     this.payments.set(row.paymentId, structuredClone(row));
   }
 
+  getPayment(paymentId: string): PaymentProjection | undefined {
+    const row = this.payments.get(paymentId);
+    return row ? structuredClone(row) : undefined;
+  }
+
   listPayments(filter?: {
     communityId?: string;
     invoiceIds?: Set<string>;

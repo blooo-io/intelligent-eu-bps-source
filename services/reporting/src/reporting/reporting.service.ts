@@ -36,9 +36,18 @@ export class ReportingService {
     this.store.putInvoice(row);
   }
 
-  /** Project PaymentStatusChanged. */
+  /**
+   * Project PaymentStatusChanged.
+   * Merge-on-put: undefined fields on the next event keep previous values
+   * (a later pending event must not erase settledAt / fee — REQ-046 / UAT-057).
+   */
   projectPayment(row: PaymentProjection): void {
-    this.store.putPayment(row);
+    const previous = this.store.getPayment(row.paymentId);
+    if (!previous) {
+      this.store.putPayment(row);
+      return;
+    }
+    this.store.putPayment({ ...previous, ...definedFieldsOf(row) });
   }
 
   /** Project StatementIssued / StatementStatusChanged. */
@@ -392,4 +401,16 @@ function escapeCsv(value: string): string {
     return value;
   }
   return `"${value.replaceAll('"', '""')}"`;
+}
+
+/** Shallow copy keeping only own keys whose value is not `undefined`. */
+function definedFieldsOf<T extends object>(row: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const key of Object.keys(row) as Array<keyof T>) {
+    const value = row[key];
+    if (value !== undefined) {
+      out[key] = value;
+    }
+  }
+  return out;
 }

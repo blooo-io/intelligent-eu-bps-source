@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ReportingStore } from "../domain/store.js";
+import { ReportingService } from "../reporting/reporting.service.js";
 import { InMemoryEventBus } from "./in-memory-event-bus.js";
 import { BillingEventsListener } from "./billing-events.listener.js";
 
@@ -179,5 +181,101 @@ describe("BillingEventsListener reporting (INT-271)", () => {
     await bus.publish("PayoutStatusChanged", { communityId: "c1", data: {} });
     expect(projectStatement).not.toHaveBeenCalled();
     expect(projectPayout).not.toHaveBeenCalled();
+  });
+});
+
+describe("UAT-057 payment KPI projection (REQ-046)", () => {
+  const PAYMENT = "pay-kpi-1";
+  const INVOICE = "inv-kpi-1";
+  const PAYER = "payer-1";
+  const PAYEE = "payee-1";
+  const T0 = "2026-11-24T10:00:00.000Z";
+  const T1 = "2026-11-24T10:00:02.500Z";
+
+  let bus: InMemoryEventBus;
+  let store: ReportingStore;
+  let listener: BillingEventsListener;
+
+  beforeEach(async () => {
+    bus = new InMemoryEventBus();
+    store = new ReportingStore();
+    const reporting = new ReportingService(store);
+    listener = new BillingEventsListener(bus, reporting);
+    await listener.onModuleInit();
+  });
+
+  it("UAT-057 projects amount, timing and fee from PaymentStatusChanged", async () => {
+    await bus.publish("PaymentStatusChanged", {
+      communityId: "c1",
+      data: {
+        paymentId: PAYMENT,
+        invoiceId: INVOICE,
+        payerId: PAYER,
+        payeeId: PAYEE,
+        status: "succeeded",
+        amount: "12.34",
+        currency: "EUR",
+        method: "card",
+        initiatedAt: T0,
+        settledAt: T1,
+        processingTimeMs: 2500,
+        feeAmount: "0.44",
+        feeCurrency: "EUR",
+      },
+    });
+    expect(store.getPayment(PAYMENT)).toMatchObject({
+      amount: "12.34",
+      participantId: PAYER,
+      payerId: PAYER,
+      payeeId: PAYEE,
+      processingTimeMs: 2500,
+      feeAmount: "0.44",
+      feeCurrency: "EUR",
+      settledAt: T1,
+      initiatedAt: T0,
+    });
+  });
+
+  it("UAT-057 a later pending event does not erase settledAt/fee", async () => {
+    await bus.publish("PaymentStatusChanged", {
+      communityId: "c1",
+      data: {
+        paymentId: PAYMENT,
+        invoiceId: INVOICE,
+        payerId: PAYER,
+        payeeId: PAYEE,
+        status: "succeeded",
+        amount: "12.34",
+        currency: "EUR",
+        method: "card",
+        initiatedAt: T0,
+        settledAt: T1,
+        processingTimeMs: 2500,
+        feeAmount: "0.44",
+        feeCurrency: "EUR",
+      },
+    });
+    await bus.publish("PaymentStatusChanged", {
+      communityId: "c1",
+      data: {
+        paymentId: PAYMENT,
+        invoiceId: INVOICE,
+        payerId: PAYER,
+        payeeId: PAYEE,
+        status: "pending",
+        amount: "12.34",
+        currency: "EUR",
+        method: "card",
+        initiatedAt: T0,
+      },
+    });
+    expect(store.getPayment(PAYMENT)).toMatchObject({
+      status: "pending",
+      settledAt: T1,
+      feeAmount: "0.44",
+      feeCurrency: "EUR",
+      processingTimeMs: 2500,
+      participantId: PAYER,
+    });
   });
 });

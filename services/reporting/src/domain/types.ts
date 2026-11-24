@@ -25,8 +25,20 @@ export type PaymentProjection = {
   failureCategory?: string;
   /** End-to-end processing time in ms (REQ-046 / KPI TE-2). */
   processingTimeMs?: number;
-  /** Participant who paid / was paid (for overview filtering). */
+  /** Payer participant id (same as payerId; for overview / KPI filtering). */
   participantId?: string;
+  /** Consumer who pays (REQ-046). */
+  payerId?: string;
+  /** Producer who is paid (REQ-046). */
+  payeeId?: string;
+  /** When payment was initiated (REQ-046 / KPI TE-2). */
+  initiatedAt?: string;
+  /** When payment settled (REQ-046 / KPI TE-2). */
+  settledAt?: string;
+  /** PSP fee amount (REQ-046). */
+  feeAmount?: string;
+  /** PSP fee currency (REQ-046). */
+  feeCurrency?: string;
 };
 
 /** Local statement projection for AC-09 payout overview (REQ-060). */

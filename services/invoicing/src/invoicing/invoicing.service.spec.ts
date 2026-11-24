@@ -7,6 +7,7 @@ import {
   InMemoryOutboxStore,
   OutboxService,
 } from "@intelligent/module-template";
+import { StatementStore } from "../domain/statement-store.js";
 import { InvoiceStore } from "../domain/store.js";
 import type { InvoiceStatus, PairSettlementInput } from "../domain/types.js";
 import {
@@ -18,6 +19,7 @@ import { NoopParticipantsResolver } from "../ports/participants-resolver.port.js
 import { MapReadiness } from "../ports/readiness.port.js";
 import { MockStripeInvoiceAdapter } from "../stripe/mock-stripe-invoice.js";
 import { InvoicingService } from "./invoicing.service.js";
+import { StatementsService } from "./statements.service.js";
 
 const settlement = (
   over: Partial<PairSettlementInput> = {},
@@ -33,6 +35,7 @@ const settlement = (
   currency: "EUR",
   rate: "1.0000",
   rateDate: "2026-11-30",
+  period: "2026-11",
   periodFrom: "2026-11-01T00:00:00.000Z",
   periodUntil: "2026-12-01T00:00:00.000Z",
   settlementType: "periodic",
@@ -48,6 +51,14 @@ describe("InvoicingService", () => {
   let stripe: MockStripeInvoiceAdapter;
   let service: InvoicingService;
 
+  const statementsFor = () =>
+    new StatementsService(
+      store,
+      new StatementStore(),
+      new OutboxService(outboxStore),
+      new NoopParticipantsResolver(),
+    );
+
   beforeEach(() => {
     store = new InvoiceStore();
     outboxStore = new InMemoryOutboxStore();
@@ -61,11 +72,19 @@ describe("InvoicingService", () => {
       ),
       new NoopPaymentsClient(),
       new NoopParticipantsResolver(),
+      statementsFor(),
     );
     service.registerConnectAccount(
       "66666666-7777-4888-9999-aaaaaaaaaaaa",
       "acct_producer_a",
     );
+  });
+
+  it("REQ-059: a settlement without a period leaves the invoice period empty", async () => {
+    const invoice = await service.createFromSettlement(
+      settlement({ period: undefined, periodFrom: undefined, periodUntil: undefined }),
+    );
+    expect(invoice).toMatchObject({ period: "", periodFrom: "", periodUntil: "" });
   });
 
   it("maps a pair settlement to a Stripe invoice (TD-2, BR-10)", async () => {
@@ -76,6 +95,13 @@ describe("InvoicingService", () => {
     expect(invoice!.status).toBe("Open");
     expect(invoice!.total).toBe("2.00");
     expect(stripe.created).toHaveLength(1);
+    // REQ-059 — run and period kept on the invoice for the statements.
+    expect(invoice).toMatchObject({
+      runId: "r1111111-1111-4111-8111-111111111111",
+      period: "2026-11",
+      periodFrom: "2026-11-01T00:00:00.000Z",
+      periodUntil: "2026-12-01T00:00:00.000Z",
+    });
 
     const again = await service.createFromSettlement(settlement());
     expect(again!.invoiceId).toBe(invoice!.invoiceId);
@@ -103,6 +129,7 @@ describe("InvoicingService", () => {
       new MapReadiness(new Map()),
       new NoopPaymentsClient(),
       new NoopParticipantsResolver(),
+      statementsFor(),
     );
     await expect(service.createFromSettlement(settlement())).rejects.toThrow(
       /not[_ ]ready/,
@@ -173,6 +200,7 @@ describe("InvoicingService", () => {
       ),
       payments,
       new NoopParticipantsResolver(),
+      statementsFor(),
     );
     await expect(
       guarded.createFromSettlement(
@@ -202,6 +230,7 @@ describe("InvoicingService", () => {
       ),
       new NoopPaymentsClient(),
       new NoopParticipantsResolver(),
+      statementsFor(),
     );
     try {
       await expect(live.createFromSettlement(settlement())).rejects.toThrow(
@@ -231,6 +260,7 @@ describe("InvoicingService", () => {
       ),
       payments,
       new NoopParticipantsResolver(),
+      statementsFor(),
     );
     await expect(gated.createFromSettlement(settlement())).rejects.toThrow(
       /charges_enabled/,
@@ -255,6 +285,7 @@ describe("InvoicingService", () => {
       new MapReadiness(new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]])),
       payments,
       new NoopParticipantsResolver(),
+      statementsFor(),
     );
     const invoice = (await direct.createFromSettlement(settlement()))!;
     expect(calls).toEqual([["11111111-2222-4333-8444-555555555555", "acct_live_p"]]);
@@ -413,6 +444,7 @@ describe("InvoicingService", () => {
       ),
       new NoopPaymentsClient(),
       idp,
+      statementsFor(),
     );
     const listed = await withIdp.listInvoicesForParticipant(
       "c1a55e01-0001-4000-8000-000000000001",

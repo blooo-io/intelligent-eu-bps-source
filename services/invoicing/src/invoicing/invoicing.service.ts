@@ -33,6 +33,7 @@ import {
   STRIPE_INVOICE_PORT,
   type StripeInvoicePort,
 } from "../stripe/stripe-invoice.port.js";
+import { StatementsService } from "./statements.service.js";
 
 const PRODUCER = "AC-06";
 
@@ -59,6 +60,7 @@ export class InvoicingService {
     @Inject(PAYMENTS_CLIENT) private readonly payments: PaymentsClientPort,
     @Inject(PARTICIPANTS_RESOLVER)
     private readonly idpResolver: ParticipantsResolverPort,
+    @Inject(StatementsService) private readonly statements: StatementsService,
   ) {}
 
   resetStore(): void {
@@ -338,6 +340,10 @@ export class InvoicingService {
     const record: InvoiceRecord = {
       invoiceId,
       settlementId: settlement.settlementId,
+      runId: settlement.runId,
+      period: settlement.period ?? "",
+      periodFrom: settlement.periodFrom ?? "",
+      periodUntil: settlement.periodUntil ?? "",
       producerId: settlement.producerId,
       consumerId: settlement.consumerId,
       currency: settlement.currency,
@@ -594,6 +600,9 @@ export class InvoicingService {
         timestamp: at,
       },
     });
+
+    // REQ-059 — statement status follows its invoices, in the same transaction.
+    await this.statements.recomputeForInvoice(row.invoiceId);
 
     return next;
   }

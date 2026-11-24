@@ -34,6 +34,8 @@ export type PairSettlementInput = {
   rate: string;
   /** BR-06 — date of the ECB reference rate (YYYY-MM-DD). */
   rateDate?: string;
+  /** REQ-059 — billing period of the run (`YYYY-MM` or `YYYY-Qn`). */
+  period?: string;
   /** INT-376 — inclusive period start from the billing run (UTC date-time). */
   periodFrom?: string;
   /** INT-376 — exclusive period end from the billing run (UTC date-time). */
@@ -59,6 +61,11 @@ export type InvoiceStatusAudit = {
 export type InvoiceRecord = {
   invoiceId: string;
   settlementId: string;
+  /** REQ-059 — billing run and period the invoice was issued for (statement grouping). */
+  runId: string;
+  period: string;
+  periodFrom: string;
+  periodUntil: string;
   producerId: string;
   consumerId: string;
   currency: string;

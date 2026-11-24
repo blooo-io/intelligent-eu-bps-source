@@ -521,10 +521,25 @@ paths:
       operationId: payInvoice
       tags: [Payments]
       summary: Pay an invoice
-      description: The consumer pays the invoice. The payment goes to the producer's account (REQ-014).
+      description: >
+        The consumer pays the invoice. The payment goes to the producer's account (REQ-014).
+        A saved card is charged directly; SEPA, or no saved method, returns a
+        PSP-hosted `checkoutUrl` with status `requires_action` (A7-bis).
       x-served-by: AC-07
       parameters:
         - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                returnUrl:
+                  type: string
+                  format: uri
+                  description: Where the hosted checkout returns the payer. Required when checkout is needed.
       responses:
         '201':
           description: Payment started.
@@ -532,6 +547,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Payment'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
         '401':
           $ref: './components/schemas.yaml#/components/responses/Unauthorized'
         '403':

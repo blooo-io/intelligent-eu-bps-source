@@ -32,6 +32,10 @@ export function seedUatInvoices(): InvoiceRecord[] {
     {
       invoiceId: UAT_INVOICE_ID,
       settlementId: "s0eed000-0000-4000-8000-000000000028",
+      runId: "r0eed000-0000-4000-8000-000000000028",
+      period: "2026-11",
+      periodFrom: "2026-11-01T00:00:00.000Z",
+      periodUntil: "2026-12-01T00:00:00.000Z",
       producerId: UAT_MANAGER_IDP_SUB,
       consumerId: UAT_MEMBER_IDP_SUB,
       currency: "EUR",

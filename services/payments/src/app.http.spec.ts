@@ -161,8 +161,55 @@ describe("payments HTTP (INT-107)", () => {
     expect(await pay.json()).toMatchObject({ status: "succeeded", amount: "2.00" });
   });
 
+  it("UAT-057 REQ-014 pay forwards returnUrl to the hosted SEPA checkout (INT-425)", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_sepa_debit");
+    invoices.put({
+      invoiceId: INVOICE,
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "4.00",
+      producerPspAccountRef: "mock_acct_http",
+    });
+    const headers = {
+      "content-type": "application/json",
+      "x-intelligent-roles": "member",
+      "x-intelligent-token-use": "user",
+      "x-intelligent-sub": CONSUMER,
+      "x-intelligent-community": COMMUNITY,
+    };
+    const missing = await fetch(`${base}/v1/invoices/${INVOICE}/payments`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({}),
+    });
+    expect(missing.status).toBe(400);
+
+    const pay = await fetch(`${base}/v1/invoices/${INVOICE}/payments`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ returnUrl: "https://ewds.example/return" }),
+    });
+    expect(pay.status).toBe(201);
+    expect(await pay.json()).toMatchObject({
+      status: "requires_action",
+      checkoutUrl: expect.stringMatching(/^https:\/\//),
+      initiatedAt: expect.any(String),
+    });
+  });
+
   it("webhook accepts signed provider events", async () => {
-    const body = JSON.stringify({ id: "evt_http_ping", type: "ping", data: {} });
+    const body = JSON.stringify({
+      eventId: "evt_http_ping",
+      kind: "ignored",
+      occurredAt: "2026-11-24T10:00:00.000Z",
+    });
     const bad = await fetch(`${base}/webhooks/payment-provider`, {
       method: "POST",
       headers: { "content-type": "application/json" },

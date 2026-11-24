@@ -7,9 +7,12 @@ import { InMemoryEventBus } from "./in-memory-event-bus.js";
 import {
   isNonRetryableInvoiceError,
   mapEnvelope,
+  runIdOf,
   SettlementCompletedListener,
   unwrapEnvelope,
 } from "./settlement-completed.listener.js";
+
+const noStatements = { issueStatementsForRun: async () => [] } as never;
 
 describe("SettlementCompletedListener (INT-223)", () => {
   it("maps AsyncAPI envelope pairSettlementIds", () => {
@@ -144,6 +147,7 @@ describe("SettlementCompletedListener (INT-223)", () => {
       { createFromSettlement } as never,
       { getPairSettlement } as never,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      noStatements,
     );
     await listener.onModuleInit();
     await bus.publish("SettlementCompleted", {
@@ -178,6 +182,7 @@ describe("SettlementCompletedListener (INT-223)", () => {
       invoicing,
       settlements,
       consumer,
+      noStatements,
     );
     await listener.onModuleInit();
 
@@ -205,6 +210,7 @@ describe("SettlementCompletedListener (INT-223)", () => {
       { createFromSettlement } as never,
       { getPairSettlement: vi.fn() } as never,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      noStatements,
     );
     await listener.onModuleInit();
     await bus.publish("SettlementCompleted", {
@@ -238,6 +244,7 @@ describe("SettlementCompletedListener (INT-223)", () => {
         })),
       } as never,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      noStatements,
     );
     await listener.onModuleInit();
     await expect(
@@ -275,6 +282,7 @@ describe("SettlementCompletedListener (INT-223)", () => {
         })),
       } as never,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      noStatements,
     );
     await listener.onModuleInit();
     await expect(
@@ -283,6 +291,78 @@ describe("SettlementCompletedListener (INT-223)", () => {
         data: { pairSettlementIds: ["s1"] },
       }),
     ).resolves.toBeUndefined();
+  });
+
+  describe("REQ-059 — statements after the run", () => {
+    const pair = (id: string) => ({
+      settlementId: id,
+      runId: "R1",
+      consumerId: "c1",
+      producerId: "p1",
+      tradeIds: [],
+      kWh: "1.000",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c",
+    });
+    const envelope = (data: Record<string, unknown>) => ({ eventId: "evt-st", data });
+    const setup = (createFromSettlement: (p: { settlementId: string }) => Promise<unknown>) => {
+      const statements = { issueStatementsForRun: vi.fn(async () => []) };
+      const listener = new SettlementCompletedListener(
+        new InMemoryEventBus(),
+        { createFromSettlement: vi.fn(createFromSettlement) } as never,
+        { getPairSettlement: vi.fn(async (id: string) => pair(id)) } as never,
+        new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+        statements as never,
+      );
+      return { listener, statements };
+    };
+
+    it("REQ-059: issues statements after the pairs of the run", async () => {
+      const order: string[] = [];
+      const { listener, statements } = setup(async (p) => {
+        order.push(p.settlementId);
+      });
+      statements.issueStatementsForRun.mockImplementation(async () => {
+        order.push("statements");
+        return [];
+      });
+      await listener.onMessage(envelope({ runId: "R1", pairSettlementIds: ["s1", "s2"] }));
+      expect(statements.issueStatementsForRun).toHaveBeenCalledWith("R1");
+      expect(order).toEqual(["s1", "s2", "statements"]);
+    });
+
+    it("REQ-059: still issues statements for created invoices when a pair fails non-retryably", async () => {
+      const { listener, statements } = setup(async (p) => {
+        if (p.settlementId === "s2") throw new Error("No such account: acct_x");
+      });
+      await listener.onMessage(envelope({ runId: "R1", pairSettlementIds: ["s1", "s2"] }));
+      expect(statements.issueStatementsForRun).toHaveBeenCalledWith("R1");
+    });
+
+    it("does not issue statements on a retryable failure (redelivery will)", async () => {
+      const { listener, statements } = setup(async () => {
+        throw new Error("stripe down");
+      });
+      await expect(
+        listener.onMessage(envelope({ runId: "R1", pairSettlementIds: ["s1"] })),
+      ).rejects.toThrow("stripe down");
+      expect(statements.issueStatementsForRun).not.toHaveBeenCalled();
+    });
+
+    it("skips statements when the envelope carries no runId", async () => {
+      const { listener, statements } = setup(async () => undefined);
+      await listener.onMessage(envelope({ pairSettlementIds: ["s1"] }));
+      expect(statements.issueStatementsForRun).not.toHaveBeenCalled();
+    });
+
+    it("reads runId from data or the flattened root", () => {
+      expect(runIdOf({ eventId: "e", data: { runId: "R9", pairSettlementIds: [] } })).toBe("R9");
+      expect(runIdOf({ eventId: "e", runId: "R8", pairSettlementIds: [] })).toBe("R8");
+      expect(runIdOf({ eventId: "e", data: {} })).toBe("");
+    });
   });
 
   it("classifies Stripe account errors as non-retryable", () => {

@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { asString, IdempotentConsumer } from "@intelligent/module-template";
 import { InvoicingService } from "../invoicing/invoicing.service.js";
+import { StatementsService } from "../invoicing/statements.service.js";
 import {
   SETTLEMENT_CLIENT,
   type SettlementClientPort,
@@ -23,6 +24,7 @@ export class SettlementCompletedListener implements OnModuleInit {
     @Inject(InvoicingService) private readonly invoicing: InvoicingService,
     @Inject(SETTLEMENT_CLIENT) private readonly settlements: SettlementClientPort,
     @Inject(IdempotentConsumer) private readonly consumer: IdempotentConsumer,
+    @Inject(StatementsService) private readonly statements: StatementsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -32,6 +34,7 @@ export class SettlementCompletedListener implements OnModuleInit {
 
   async onMessage(payload: unknown): Promise<void> {
     const { eventId, pairSettlementIds } = mapEnvelope(payload);
+    const runId = runIdOf(payload);
     if (!eventId) {
       this.logger.warn(
         `SettlementCompleted missing eventId — skipping (keys=${Object.keys(asRecord(payload)).join(",")})`,
@@ -48,6 +51,7 @@ export class SettlementCompletedListener implements OnModuleInit {
         const pair = await this.settlements.getPairSettlement(settlementId);
         await this.invoicing.createFromSettlement(pair);
       }
+      await this.issueStatements(runId);
     });
     if (result.status === "failed") {
       this.logger.error(
@@ -59,11 +63,25 @@ export class SettlementCompletedListener implements OnModuleInit {
         this.logger.warn(
           `SettlementCompleted ${eventId} non-retryable — acking without rethrow`,
         );
+        // REQ-059 — the acked run is never redelivered, so the invoices it did
+        // create get their statements now.
+        await this.issueStatements(runId);
         return;
       }
       throw result.error;
     }
   }
+
+  private async issueStatements(runId: string): Promise<void> {
+    if (!runId) return;
+    await this.statements.issueStatementsForRun(runId);
+  }
+}
+
+/** REQ-059 — billing run of a SettlementCompleted envelope ("" when absent). */
+export function runIdOf(payload: unknown): string {
+  const envelope = unwrapEnvelope(payload);
+  return asString(asRecord(envelope.data).runId ?? envelope.runId, "");
 }
 
 /**

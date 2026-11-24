@@ -10,15 +10,16 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
-  asString,
   IdempotentConsumer,
   OutboxService,
   PassthroughTransaction,
   type RecordingTransaction,
 } from "@intelligent/module-template";
+import { CLOCK, type Clock } from "../domain/clock.js";
 import {
   PaymentsStore,
   type AccountRecord,
+  type PaymentRecord,
   type PaymentWrite,
 } from "../domain/store.js";
 import {
@@ -43,15 +44,26 @@ import {
   type PaymentAccountsStore,
 } from "../ports/payment-accounts.store.js";
 import {
+  COLLECT_PORT,
+  type ChargeSettlement,
+  type CollectPort,
+} from "../psp/collect.port.js";
+import {
   PSP_ERASE_PORT,
   type PspErasePort,
 } from "../psp/psp-erase.port.js";
-import {
-  PAYMENT_WEBHOOK_EVENTS,
-  type LegacyOnboardingSession,
-  type OnboardingRequirementsSubmission,
+import type {
+  LegacyOnboardingSession,
+  OnboardingRequirementsSubmission,
 } from "../psp/psp.legacy.js";
-import { PSP_ADAPTER } from "../psp/psp-events.port.js";
+import {
+  PAYOUT_EVENTS_HANDLER,
+  PSP_ADAPTER,
+  PSP_EVENTS_PORT,
+  type PayoutEventsHandler,
+  type PspEventsPort,
+} from "../psp/psp-events.port.js";
+import type { PspEvent } from "../psp/psp.types.js";
 import type { MockPspAdapter } from "../psp/mock-psp.adapter.js";
 import type { StripePspAdapter } from "../psp/stripe-psp.adapter.js";
 
@@ -62,6 +74,28 @@ const PRODUCER = "AC-07";
 
 type ProvisionRole = "consumer" | "producer" | "prosumer";
 
+export type PayInvoiceInput = {
+  invoiceId: string;
+  participantId: string;
+  communityId: string;
+  /** Where the PSP-hosted checkout sends the payer back (A7-bis). */
+  returnUrl?: string;
+};
+
+export type PayInvoiceResult = {
+  paymentId: string;
+  invoiceId: string;
+  amount: string;
+  currency: string;
+  status: PaymentRecord["status"];
+  method?: string;
+  checkoutUrl?: string;
+  failureCategory?: string;
+  initiatedAt: string;
+};
+
+const CHECKOUT_METHODS = ["card", "sepa_debit"] as const;
+
 /**
  * AC-07 payments — Stripe Connect test mode (INT-107, BR-12, P-PSP).
  */
@@ -71,6 +105,8 @@ export class PaymentsService {
   /** INT-326 — PSP webhook duplicate deliveries (in-process counter). */
   private webhookDuplicateCount = 0;
   private tx: { run<T>(fn: () => Promise<T> | T): Promise<T> } = new PassthroughTransaction();
+  /** REQ-014 — a double click on Pay joins the attempt already running in this pod. */
+  private readonly payInFlight = new Map<string, Promise<PayInvoiceResult>>();
 
   /** INT-356 — payment attempts commit with the outbox when DATABASE_URL is set. */
   useTransaction(tx: RecordingTransaction<PaymentWrite> | PassthroughTransaction): void {
@@ -92,6 +128,11 @@ export class PaymentsService {
     @Inject(IdempotentConsumer) private readonly consumer: IdempotentConsumer,
     @Inject(CONNECTED_CUSTOMERS_STORE)
     private readonly connectedCustomers: ConnectedCustomersStore,
+    @Inject(COLLECT_PORT) private readonly collect: CollectPort,
+    @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(PSP_EVENTS_PORT) private readonly pspEvents: PspEventsPort,
+    @Inject(PAYOUT_EVENTS_HANDLER)
+    private readonly payoutEvents: PayoutEventsHandler,
   ) {}
 
   /** INT-326 — exposed for tests / future Prometheus scrape. */
@@ -753,24 +794,28 @@ export class PaymentsService {
     };
   }
 
-  async payInvoice(input: Parameters<PaymentsService["performPayInvoice"]>[0]) {
-    return this.tx.run(() => this.performPayInvoice(input));
+  async payInvoice(input: PayInvoiceInput): Promise<PayInvoiceResult> {
+    const key = `${input.invoiceId}|${input.participantId}`;
+    const running = this.payInFlight.get(key);
+    if (running) {
+      return running;
+    }
+    const attempt = this.tx.run(() => this.performPayInvoice(input));
+    this.payInFlight.set(key, attempt);
+    try {
+      return await attempt;
+    } finally {
+      this.payInFlight.delete(key);
+    }
   }
 
-  private async performPayInvoice(input: {
-    invoiceId: string;
-    participantId: string;
-    communityId: string;
-  }): Promise<{
-    paymentId: string;
-    invoiceId: string;
-    amount: string;
-    currency: string;
-    status: string;
-    method?: string;
-    failureCategory?: string;
-    processingTimeMs?: number;
-  }> {
+  /**
+   * REQ-014 / BR-12 — the consumer pays the producer directly on the
+   * producer's PSP account. A saved card is charged off-session; SEPA, or no
+   * saved method, goes through a PSP-hosted checkout (B7, A7-bis).
+   * `initiatedAt` is the TE-2 start; settlement time comes from the webhook.
+   */
+  private async performPayInvoice(input: PayInvoiceInput): Promise<PayInvoiceResult> {
     // INT-230 — IdP sub → participantId when JWT sub ≠ registry UUID.
     const caller = await this.resolveCallerParticipantId(input.participantId);
     const participantId = caller.participantId;
@@ -778,11 +823,8 @@ export class PaymentsService {
 
     // INT-233 / BR-12 — hydrate durable consumer PM (survives pod restart).
     const account = await this.hydrateAccount(participantId);
-    if (!account?.pspPaymentMethodRef) {
-      throw new BadRequestException("Consumer payment method required");
-    }
 
-    // INT-193 — load amount + producer Connect id from AC-06 (drop fixtures).
+    // INT-193 — load amount + producer PSP account from AC-06.
     let invoice;
     try {
       invoice = await this.invoices.getInvoice(input.invoiceId);
@@ -800,26 +842,9 @@ export class PaymentsService {
     const prior = this.store.findSucceededByInvoiceId(input.invoiceId);
     if (prior) {
       if (invoice.status !== "Paid") {
-        await this.announcePaymentStatus({
-          paymentId: prior.paymentId,
-          invoiceId: prior.invoiceId,
-          status: prior.status,
-          communityId: prior.communityId,
-          method: prior.method,
-          processingTimeMs: prior.processingTimeMs,
-          payerId: prior.participantId,
-          payeeId: prior.payeeId ?? invoice.producerId,
-        });
+        await this.announcePaymentStatus(prior, prior.payeeId ?? invoice.producerId);
       }
-      return {
-        paymentId: prior.paymentId,
-        invoiceId: prior.invoiceId,
-        amount: prior.amount,
-        currency: prior.currency,
-        status: prior.status,
-        method: prior.method,
-        processingTimeMs: prior.processingTimeMs,
-      };
+      return this.toPayResult(prior);
     }
     // INT-340 — one payment, and only while the invoice is still payable.
     if (
@@ -831,6 +856,98 @@ export class PaymentsService {
         `Invoice status ${invoice.status} is not payable`,
       );
     }
+    const attempts = this.store.listByInvoiceId(input.invoiceId);
+    const processing = attempts.find((row) => row.status === "pending");
+    if (processing) {
+      return this.toPayResult(processing);
+    }
+    const pspAccountRef = await this.producerPspAccountRef(invoice);
+
+    const pspPaymentMethodRef = account?.pspPaymentMethodRef ?? undefined;
+    const savedMethod = pspPaymentMethodRef
+      ? await this.paymentMethodType(pspPaymentMethodRef)
+      : undefined;
+    const base = {
+      invoiceId: input.invoiceId,
+      participantId,
+      communityId,
+      amount: invoice.total,
+      currency: invoice.currency,
+      payeeId: invoice.producerId,
+      pspAccountRef,
+    };
+
+    if (pspPaymentMethodRef && savedMethod === "card") {
+      const pspCustomerRef = await this.connectedCustomerFor(participantId, pspAccountRef);
+      // A declined attempt must not replay under the PSP idempotency key.
+      const failed = attempts.filter(
+        (row) => row.status === "failed" && !row.pspCheckoutRef,
+      ).length;
+      const idempotencyKey =
+        failed === 0 ? `pay:${input.invoiceId}` : `pay:${input.invoiceId}:${failed + 1}`;
+      const initiatedAt = this.clock.now().toISOString();
+      const charge = await this.collect.createDirectCharge({
+        invoiceId: input.invoiceId,
+        amount: invoice.total,
+        currency: invoice.currency,
+        pspAccountRef,
+        pspCustomerRef,
+        pspPaymentMethodRef,
+        idempotencyKey,
+      });
+      const row: PaymentRecord = {
+        ...base,
+        paymentId: randomUUID(),
+        status: charge.status,
+        pspPaymentRef: charge.pspPaymentRef,
+        method: charge.method ?? "card",
+        ...(charge.failureCategory ? { failureCategory: charge.failureCategory } : {}),
+        initiatedAt,
+      };
+      this.store.putPayment(row);
+      await this.announcePaymentStatus(row, invoice.producerId);
+      return this.toPayResult(row);
+    }
+
+    if (!input.returnUrl) {
+      throw new BadRequestException(
+        "returnUrl required for PSP-hosted checkout (A7-bis)",
+      );
+    }
+    const pspCustomerRef = await this.connectedCustomerFor(participantId, pspAccountRef);
+    const initiatedAt = this.clock.now().toISOString();
+    const session = await this.collect.createCheckoutSession({
+      invoiceId: input.invoiceId,
+      amount: invoice.total,
+      currency: invoice.currency,
+      pspAccountRef,
+      pspCustomerRef,
+      methods: [...CHECKOUT_METHODS],
+      saveForFutureUse: true,
+      successUrl: input.returnUrl,
+      cancelUrl: input.returnUrl,
+      idempotencyKey: `co:${input.invoiceId}:${initiatedAt.slice(0, 10)}`,
+    });
+    const awaiting = attempts.find((row) => row.status === "requires_action");
+    if (awaiting?.pspCheckoutRef === session.pspCheckoutRef) {
+      return this.toPayResult(awaiting, session.checkoutUrl);
+    }
+    // The checkout URL is returned to the caller only, never stored (A7-bis).
+    const row: PaymentRecord = {
+      ...base,
+      paymentId: awaiting?.paymentId ?? randomUUID(),
+      status: "requires_action",
+      pspCheckoutRef: session.pspCheckoutRef,
+      initiatedAt,
+    };
+    this.store.putPayment(row);
+    return this.toPayResult(row, session.checkoutUrl);
+  }
+
+  private async producerPspAccountRef(invoice: {
+    producerId: string;
+    producerPspAccountRef?: string;
+  }): Promise<string> {
     const producerAccount = await this.hydrateAccount(invoice.producerId);
     const boundAccount = producerAccount?.pspAccountRef || undefined;
     if (
@@ -838,177 +955,67 @@ export class PaymentsService {
       boundAccount &&
       invoice.producerPspAccountRef !== boundAccount
     ) {
+      throw new BadRequestException("Producer PSP account does not match AC-07");
+    }
+    const pspAccountRef = boundAccount ?? invoice.producerPspAccountRef;
+    if (!pspAccountRef) {
       throw new BadRequestException(
-        "Producer Connect account does not match AC-07",
+        "Producer PSP account required for direct charge",
       );
     }
-    const producerPspAccountRef =
-      boundAccount ?? invoice.producerPspAccountRef ?? undefined;
-    if (!producerPspAccountRef) {
-      throw new BadRequestException(
-        "Producer Connect account required for direct charge",
-      );
-    }
-    if (!invoice.pspInvoiceRef) {
-      throw new BadRequestException(
-        "PSP invoice required for direct charge (REQ-014)",
-      );
-    }
+    return pspAccountRef;
+  }
 
-    const started = Date.now();
-    const connected = await this.ensureConnectedCustomer({
-      participantId,
-      pspAccountRef: producerPspAccountRef,
-    });
-    const pspResult = await this.psp.createPayment({
-      invoiceId: input.invoiceId,
-      amount: invoice.total,
-      currency: invoice.currency,
-      pspAccountRef: producerPspAccountRef,
-      pspInvoiceRef: invoice.pspInvoiceRef,
-      pspCustomerRef: connected.pspCustomerRef,
-      pspPaymentMethodRef: account.pspPaymentMethodRef!,
-    });
-    const processingTimeMs = Math.max(0, Date.now() - started);
-    const paymentId = randomUUID();
-    // INT-276 / REQ-014 — surface card vs sepa_debit (not hardcoded card).
-    let method = "card";
-    try {
-      const details = await this.psp.getPaymentMethodDetails(
-        account.pspPaymentMethodRef,
-      );
-      if (details.type === "sepa_debit") method = "sepa_debit";
-      else if (details.type) method = String(details.type);
-    } catch {
-      /* keep card default */
+  /** INT-355 — one PSP customer per consumer and producer account, reused per invoice. */
+  private async connectedCustomerFor(
+    participantId: string,
+    pspAccountRef: string,
+  ): Promise<string> {
+    const existing = await this.connectedCustomers.get(participantId, pspAccountRef);
+    if (existing) {
+      return existing.pspCustomerRef;
     }
-    this.store.putPayment({
-      paymentId,
-      invoiceId: input.invoiceId,
+    const created = await this.collect.ensureCustomer({ participantId, pspAccountRef });
+    const stored = await this.connectedCustomers.putIfAbsent({
       participantId,
-      amount: invoice.total,
-      currency: invoice.currency,
-      status: pspResult.status,
-      pspPaymentRef: pspResult.pspPaymentRef,
-      pspInvoiceRef: invoice.pspInvoiceRef,
-      failureCategory: pspResult.failureCategory,
-      communityId,
-      method,
-      processingTimeMs,
-      payeeId: invoice.producerId,
+      pspAccountRef,
+      pspCustomerRef: created.pspCustomerRef,
     });
-    await this.announcePaymentStatus({
-      paymentId,
-      invoiceId: input.invoiceId,
-      status: pspResult.status,
-      failureCategory: pspResult.failureCategory,
-      communityId,
-      method,
-      processingTimeMs,
-      payerId: participantId,
-      payeeId: invoice.producerId,
-    });
+    return stored.pspCustomerRef;
+  }
+
+  private async paymentMethodType(pspPaymentMethodRef: string): Promise<string> {
+    try {
+      const details = await this.collect.getPaymentMethodDetails(pspPaymentMethodRef);
+      return details.type ?? "card";
+    } catch {
+      return "card";
+    }
+  }
+
+  private toPayResult(row: PaymentRecord, checkoutUrl?: string): PayInvoiceResult {
     return {
-      paymentId,
-      invoiceId: input.invoiceId,
-      amount: invoice.total,
-      currency: invoice.currency,
-      status: pspResult.status,
-      method,
-      failureCategory: pspResult.failureCategory,
-      processingTimeMs,
+      paymentId: row.paymentId,
+      invoiceId: row.invoiceId,
+      amount: row.amount,
+      currency: row.currency,
+      status: row.status,
+      ...(row.method ? { method: row.method } : {}),
+      ...(row.failureCategory ? { failureCategory: row.failureCategory } : {}),
+      ...(checkoutUrl ? { checkoutUrl } : {}),
+      initiatedAt: this.initiatedAtOf(row),
     };
   }
 
-  private async announcePaymentStatus(input: {
-    paymentId: string;
-    invoiceId: string;
-    status: string;
-    failureCategory?: string;
-    communityId: string;
-    method?: string;
-    processingTimeMs?: number;
-    payerId: string;
-    payeeId: string;
-  }): Promise<void> {
-    await this.outbox.append({
-      aggregateType: "Payment",
-      aggregateId: input.paymentId,
-      type: "PaymentStatusChanged",
-      producer: PRODUCER,
-      communityId: input.communityId,
-      billingMode: "virtual",
-      data: {
-        paymentId: input.paymentId,
-        invoiceId: input.invoiceId,
-        payerId: input.payerId,
-        payeeId: input.payeeId,
-        status: input.status,
-        failureCategory: input.failureCategory,
-        method: input.method,
-        processingTimeMs: input.processingTimeMs,
-      },
-    });
+  /** Rows persisted before `initiatedAt` existed fall back to the announce time. */
+  private initiatedAtOf(row: PaymentRecord): string {
+    return row.initiatedAt ?? this.clock.now().toISOString();
   }
 
-  private async handleAccountUpdatedWebhook(
-    payload: Record<string, unknown> | undefined,
+  private async announcePaymentStatus(
+    row: PaymentRecord,
+    payeeId: string | undefined,
   ): Promise<void> {
-    const participantId = asString(payload?.participantId);
-    if (!participantId) return;
-    // INT-362 — Stripe sends account.updated during embedded onboarding too;
-    // complete only once Stripe reports nothing due (TP-7, Stripe is master).
-    const pspAccountRef =
-      asString(payload?.pspAccountRef) ??
-      this.store.getAccount(participantId)?.pspAccountRef;
-    if (pspAccountRef) {
-      const session = await this.psp.getAccountSession(pspAccountRef);
-      if (session.status !== "complete") return;
-    }
-    await this.completeProducerKyc(participantId);
-  }
-
-  /**
-   * INT-355 — payment_intent.* and invoice.* (Connect events on the producer
-   * account) both resolve to the local Payment and emit PaymentStatusChanged.
-   */
-  private async handlePaymentStatusWebhook(
-    eventType: string,
-    payload: Record<string, unknown> | undefined,
-  ): Promise<void> {
-    const pspPaymentRef = asString(payload?.pspPaymentRef);
-    const pspInvoiceRef = asString(payload?.pspInvoiceRef);
-    const row =
-      (pspPaymentRef
-        ? this.store.findByPspPaymentRef(pspPaymentRef)
-        : undefined) ??
-      (pspInvoiceRef
-        ? this.store.findByPspInvoiceRef(pspInvoiceRef)
-        : undefined);
-    if (!row) {
-      return;
-    }
-    const status =
-      eventType === "payment_intent.succeeded" || eventType === "invoice.paid"
-        ? "succeeded"
-        : "failed";
-    if (row.status === status) {
-      return;
-    }
-    const failureCategory =
-      status === "failed"
-        ? asString(payload?.failureCategory ?? row.failureCategory, "declined")
-        : undefined;
-    this.store.putPayment({ ...row, status, failureCategory });
-    // INT-376 — webhook rows created before payeeId was stored still name the producer.
-    let payeeId = row.payeeId;
-    if (!payeeId) {
-      try {
-        payeeId = (await this.invoices.getInvoice(row.invoiceId)).producerId;
-      } catch {
-        payeeId = undefined;
-      }
-    }
     await this.outbox.append({
       aggregateType: "Payment",
       aggregateId: row.paymentId,
@@ -1021,10 +1028,171 @@ export class PaymentsService {
         invoiceId: row.invoiceId,
         payerId: row.participantId,
         ...(payeeId ? { payeeId } : {}),
-        status,
-        ...(failureCategory ? { failureCategory } : {}),
+        status: row.status,
+        amount: row.amount,
+        currency: row.currency,
+        initiatedAt: this.initiatedAtOf(row),
+        ...(row.settledAt ? { settledAt: row.settledAt } : {}),
+        ...(row.processingTimeMs !== undefined
+          ? { processingTimeMs: row.processingTimeMs }
+          : {}),
+        ...(row.feeAmount
+          ? { feeAmount: row.feeAmount, feeCurrency: row.feeCurrency }
+          : {}),
+        ...(row.method ? { method: row.method } : {}),
+        ...(row.failureCategory ? { failureCategory: row.failureCategory } : {}),
       },
     });
+  }
+
+  /** INT-376 — rows stored before payeeId existed still name the producer. */
+  private async payeeOf(row: PaymentRecord): Promise<string | undefined> {
+    if (row.payeeId) return row.payeeId;
+    try {
+      return (await this.invoices.getInvoice(row.invoiceId)).producerId;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async handleAccountUpdated(event: PspEvent): Promise<void> {
+    const participantId = event.participantId;
+    if (!participantId) return;
+    // INT-362 — the PSP sends account.updated during embedded onboarding too;
+    // complete only once it reports nothing due (TP-7, the PSP is master).
+    const pspAccountRef =
+      event.pspAccountRef ?? this.store.getAccount(participantId)?.pspAccountRef;
+    if (pspAccountRef) {
+      const session = await this.psp.getAccountSession(pspAccountRef);
+      if (session.status !== "complete") return;
+    }
+    await this.completeProducerKyc(participantId);
+  }
+
+  /**
+   * The PSP does not order checkout.completed before the payment outcome, so
+   * an outcome for an unknown payment ref is linked to the invoice's open checkout.
+   */
+  private findPaymentForEvent(
+    event: PspEvent,
+    pspPaymentRef: string,
+  ): PaymentRecord | undefined {
+    const row = this.store.findByPspPaymentRef(pspPaymentRef);
+    if (row || !event.invoiceId) return row;
+    const checkout = this.store
+      .listByInvoiceId(event.invoiceId)
+      .find((candidate) => candidate.pspCheckoutRef && !candidate.pspPaymentRef);
+    return checkout ? { ...checkout, pspPaymentRef } : undefined;
+  }
+
+  /** REQ-014 / TE-2 — the payer finished the hosted checkout: processing starts now. */
+  private async handleCheckoutCompleted(event: PspEvent): Promise<void> {
+    const row = event.pspCheckoutRef
+      ? this.store.findByPspCheckoutRef(event.pspCheckoutRef)
+      : undefined;
+    // A row past requires_action was already linked by its outcome event.
+    if (row?.status !== "requires_action") return;
+    const pending: PaymentRecord = {
+      ...row,
+      status: "pending",
+      pspPaymentRef: event.pspPaymentRef ?? row.pspPaymentRef,
+      initiatedAt: event.occurredAt,
+    };
+    this.store.putPayment(pending);
+    await this.announcePaymentStatus(pending, await this.payeeOf(pending));
+  }
+
+  /**
+   * TE-2 / REQ-046 — settlement time and PSP fee come from the webhook. A
+   * synchronous success is still settled here: only `settledAt` ends processing.
+   */
+  private async handlePaymentSucceeded(event: PspEvent): Promise<void> {
+    if (!event.pspPaymentRef) return;
+    const row = this.findPaymentForEvent(event, event.pspPaymentRef);
+    if (!row || row.settledAt) return;
+    const settledAt = event.occurredAt;
+    const settled: PaymentRecord = {
+      ...row,
+      status: "succeeded",
+      settledAt,
+      ...(row.initiatedAt
+        ? {
+            processingTimeMs: Math.max(
+              0,
+              Date.parse(settledAt) - Date.parse(row.initiatedAt),
+            ),
+          }
+        : {}),
+      ...(event.method ? { method: event.method } : {}),
+    };
+    const fee = await this.chargeSettlement(
+      settled.paymentId,
+      event.pspPaymentRef,
+      row.pspAccountRef,
+    );
+    if (fee) {
+      settled.method = fee.method;
+      settled.feeAmount = fee.feeAmount;
+      settled.feeCurrency = fee.feeCurrency;
+    }
+    this.store.putPayment(settled);
+    await this.announcePaymentStatus(settled, await this.payeeOf(settled));
+  }
+
+  /** REQ-046 — a missing fee never blocks settlement; the log carries the paymentId only. */
+  private async chargeSettlement(
+    paymentId: string,
+    pspPaymentRef: string,
+    pspAccountRef: string | undefined,
+  ): Promise<ChargeSettlement | null> {
+    if (!pspAccountRef) return null;
+    let fee: ChargeSettlement | null = null;
+    try {
+      fee = await this.collect.getChargeSettlement({ pspPaymentRef, pspAccountRef });
+    } catch {
+      fee = null;
+    }
+    if (!fee) {
+      this.logger.warn(`psp.fee_unavailable paymentId=${paymentId}`);
+    }
+    return fee;
+  }
+
+  /** REQ-016 / UAT-016 — failure time and canonical category from the PSP. */
+  private async handlePaymentFailed(event: PspEvent): Promise<void> {
+    if (!event.pspPaymentRef) return;
+    const row = this.findPaymentForEvent(event, event.pspPaymentRef);
+    if (!row || row.failedAt || row.settledAt) return;
+    const failed: PaymentRecord = {
+      ...row,
+      status: "failed",
+      failedAt: event.occurredAt,
+      failureCategory: event.failureCategory ?? row.failureCategory ?? "other",
+    };
+    this.store.putPayment(failed);
+    // Pay already announced a synchronous decline; only failedAt is new.
+    if (row.status === "failed") return;
+    await this.announcePaymentStatus(failed, await this.payeeOf(failed));
+  }
+
+  private async dispatchPspEvent(event: PspEvent): Promise<void> {
+    switch (event.kind) {
+      case "account.updated":
+        return this.handleAccountUpdated(event);
+      case "checkout.completed":
+        return this.handleCheckoutCompleted(event);
+      case "payment.succeeded":
+        return this.handlePaymentSucceeded(event);
+      case "payment.failed":
+        return this.handlePaymentFailed(event);
+      case "payout.paid":
+      case "payout.failed":
+      case "payout.canceled":
+        // REQ-015 — producer payouts are owned by the payout workflow (WS1).
+        return this.payoutEvents.onPayoutEvent(event);
+      default:
+        return;
+    }
   }
 
   async receiveWebhook(rawBody: string, signature: string | undefined): Promise<void> {
@@ -1035,28 +1203,19 @@ export class PaymentsService {
     if (!signature) {
       throw new UnauthorizedException("Missing webhook signature");
     }
-    const verified = this.psp.verifyWebhook(rawBody, signature);
+    const verified = this.pspEvents.verifyEvent(rawBody, signature);
     if (!verified.ok) {
       throw new BadRequestException("Invalid webhook signature");
     }
-    // INT-326 / 04 §7 — dedupe on Stripe Event.id (prefix avoids NATS eventId clash).
-    const eventId = verified.eventId?.trim();
+    // INT-326 / 04 §7 — dedupe on the PSP event id (prefix avoids NATS eventId clash).
+    const eventId = verified.event.eventId.trim();
     if (!eventId) {
       throw new BadRequestException("Webhook missing event id");
     }
     const result = await this.consumer.handle(
       `psp:${eventId}`,
-      verified,
-      async (event) => {
-        if (event.eventType === "account.updated") {
-          await this.handleAccountUpdatedWebhook(event.payload);
-          return;
-        }
-        const eventType = event.eventType ?? "";
-        if ((PAYMENT_WEBHOOK_EVENTS as readonly string[]).includes(eventType)) {
-          await this.handlePaymentStatusWebhook(eventType, event.payload);
-        }
-      },
+      verified.event,
+      (event) => this.dispatchPspEvent(event),
     );
     if (result.status === "duplicate") {
       this.webhookDuplicateCount += 1;

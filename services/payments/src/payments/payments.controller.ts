@@ -90,13 +90,15 @@ export class PaymentsController {
   async payInvoice(
     @Req() req: AuthenticatedRequest,
     @Param("invoiceId") invoiceId: string,
+    @Body() body: { returnUrl?: unknown } | undefined,
   ) {
     const user = req.user!;
-    // INT-193 — amount + producer Connect id from AC-06 GetInvoice.
+    // INT-193 — amount + producer PSP account from AC-06 GetInvoice.
     return this.payments.payInvoice({
       invoiceId,
       participantId: user.sub,
       communityId: user.communityId,
+      returnUrl: typeof body?.returnUrl === "string" ? body.returnUrl : undefined,
     });
   }
 

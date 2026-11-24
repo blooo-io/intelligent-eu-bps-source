@@ -2,17 +2,19 @@
  * INT-107 — P-PSP Stripe test mode (BR-12, REQ-014, REQ-040, REQ-051, NFR-015).
  */
 import "reflect-metadata";
-import { BadGatewayException } from "@nestjs/common";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BadGatewayException, Logger } from "@nestjs/common";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import {
   IdempotentConsumer,
   InMemoryOutboxStore,
   InMemoryProcessedEventsStore,
   OutboxService,
 } from "@intelligent/module-template";
+import type { Clock } from "../domain/clock.js";
 import { PaymentsStore } from "../domain/store.js";
 import { MockPspAdapter } from "../psp/mock-psp.adapter.js";
 import { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
+import type { PspEvent } from "../psp/psp.types.js";
 import { InMemoryConnectedCustomersStore } from "../ports/connected-customers.store.js";
 import { InMemoryInvoiceLookup } from "../ports/invoice-lookup.port.js";
 import { InMemoryPaymentAccountsStore } from "../ports/payment-accounts.store.js";
@@ -24,6 +26,16 @@ const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
 const PRODUCER = "66666666-7777-4888-9999-aaaaaaaaaaaa";
 const CONSUMER = "11111111-2222-4333-8444-555555555555";
 
+class TestClock implements Clock {
+  private current = new Date("2026-11-24T09:00:00.000Z");
+  set(iso: string): void {
+    this.current = new Date(iso);
+  }
+  now(): Date {
+    return new Date(this.current);
+  }
+}
+
 describe("PaymentsService", () => {
   let store: PaymentsStore;
   let outboxStore: InMemoryOutboxStore;
@@ -31,9 +43,13 @@ describe("PaymentsService", () => {
   let invoices: InMemoryInvoiceLookup;
   let accountsStore: InMemoryPaymentAccountsStore;
   let pspErase: MockPspEraseAdapter;
+  let clock: TestClock;
+  let payoutEvents: { onPayoutEvent: Mock<(event: PspEvent) => Promise<void>> };
   let service: PaymentsService;
 
   beforeEach(() => {
+    clock = new TestClock();
+    payoutEvents = { onPayoutEvent: vi.fn(async (_event: PspEvent) => undefined) };
     store = new PaymentsStore();
     outboxStore = new InMemoryOutboxStore();
     psp = new MockPspAdapter();
@@ -51,6 +67,10 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
     );
   });
 
@@ -158,21 +178,21 @@ describe("PaymentsService", () => {
       communityId: COMMUNITY,
       role: "producer",
     });
-    const midway = JSON.stringify({
-      id: "evt_test_account_updated_midway",
-      type: "account.updated",
-      data: { participantId: PRODUCER, pspAccountRef: started.pspAccountRef },
+    const midway = psp.signEvent({
+      kind: "account.updated",
+      participantId: PRODUCER,
+      pspAccountRef: started.pspAccountRef,
     });
-    await service.receiveWebhook(midway, MockPspAdapter.sign(midway));
+    await service.receiveWebhook(midway.rawBody, midway.signature);
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("pending");
 
     psp.completeOnboarding(started.pspAccountRef!);
-    const done = JSON.stringify({
-      id: "evt_test_account_updated_done",
-      type: "account.updated",
-      data: { participantId: PRODUCER, pspAccountRef: started.pspAccountRef },
+    const done = psp.signEvent({
+      kind: "account.updated",
+      participantId: PRODUCER,
+      pspAccountRef: started.pspAccountRef,
     });
-    await service.receiveWebhook(done, MockPspAdapter.sign(done));
+    await service.receiveWebhook(done.rawBody, done.signature);
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
   });
 
@@ -396,6 +416,10 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
     );
     await expect(
       svc.startOnboarding({
@@ -449,14 +473,16 @@ describe("PaymentsService", () => {
       total: "12.00",
       producerPspAccountRef: "acct_test_producer",
     });
-    const paid = await service.payInvoice({
-      invoiceId: "inv-sepa-1",
-      participantId: CONSUMER,
-      communityId: COMMUNITY,
-    });
-    expect(paid.method).toBe("sepa_debit");
-    // INT-355 — direct charges cannot reuse a platform SEPA PaymentMethod (open decision).
-    expect(paid).toMatchObject({ status: "failed", failureCategory: "sepa_debit_not_shareable" });
+    // B7 — a saved SEPA mandate cannot be charged on the producer account: hosted checkout needs a returnUrl.
+    const charge = vi.spyOn(psp, "createDirectCharge");
+    await expect(
+      service.payInvoice({
+        invoiceId: "inv-sepa-1",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      }),
+    ).rejects.toThrow(/returnUrl required/);
+    expect(charge).not.toHaveBeenCalled();
   });
 
   it("getMyPaymentAccount returns dashboardUrl for Ready producer (INT-255)", async () => {
@@ -572,7 +598,7 @@ describe("PaymentsService", () => {
       communityId: COMMUNITY,
     });
     expect(payment.status).toBe("failed");
-    expect(payment.failureCategory).toBe("insufficient_funds");
+    expect(payment.failureCategory).toBe("card_declined");
 
     await service.attachPaymentMethod(CONSUMER, "pm_fail_generic");
     invoices.put({
@@ -590,7 +616,7 @@ describe("PaymentsService", () => {
       participantId: CONSUMER,
       communityId: COMMUNITY,
     });
-    expect(declined.failureCategory).toBe("declined");
+    expect(declined.failureCategory).toBe("card_declined");
   });
 
   it("rejects webhooks with invalid signature (NFR-015)", async () => {
@@ -623,16 +649,21 @@ describe("PaymentsService", () => {
     // Reset verified → pending so webhook can flip KYC again.
     const row = store.getAccount(PRODUCER)!;
     store.putAccount({ ...row, kycStatus: "pending" });
-    const body = JSON.stringify({
-      id: "evt_test_account_updated_1",
-      type: "account.updated",
-      data: { participantId: PRODUCER },
+    const { rawBody, signature } = psp.signEvent({
+      kind: "account.updated",
+      participantId: PRODUCER,
     });
-    await service.receiveWebhook(body, MockPspAdapter.sign(body));
+    await service.receiveWebhook(rawBody, signature);
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
+
+    // An account event that names no participant changes nothing.
+    store.putAccount({ ...store.getAccount(PRODUCER)!, kycStatus: "pending" });
+    const anonymous = psp.signEvent({ kind: "account.updated" });
+    await service.receiveWebhook(anonymous.rawBody, anonymous.signature);
+    expect(store.getAccount(PRODUCER)?.kycStatus).toBe("pending");
   });
 
-  it("is idempotent on Stripe event.id replay (INT-326 / 04 §7)", async () => {
+  it("is idempotent on the PSP event id replay (INT-326 / 04 §7)", async () => {
     await service.submitOnboardingRequirements({
       participantId: PRODUCER,
       communityId: COMMUNITY,
@@ -655,12 +686,10 @@ describe("PaymentsService", () => {
     });
     const row = store.getAccount(PRODUCER)!;
     store.putAccount({ ...row, kycStatus: "pending" });
-    const body = JSON.stringify({
-      id: "evt_test_dup_account",
-      type: "account.updated",
-      data: { participantId: PRODUCER },
+    const { rawBody: body, signature: sig } = psp.signEvent({
+      kind: "account.updated",
+      participantId: PRODUCER,
     });
-    const sig = MockPspAdapter.sign(body);
     await service.receiveWebhook(body, sig);
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
     store.putAccount({
@@ -672,7 +701,7 @@ describe("PaymentsService", () => {
     expect(service.getWebhookDuplicateCount()).toBe(1);
   });
 
-  it("returns consumer SetupIntent elements session and rejects pay without method (INT-193)", async () => {
+  it("returns consumer SetupIntent elements session; pay on an unknown invoice is not found (INT-193)", async () => {
     const session = await service.startOnboarding({
       participantId: CONSUMER,
       communityId: COMMUNITY,
@@ -686,7 +715,7 @@ describe("PaymentsService", () => {
         participantId: CONSUMER,
         communityId: COMMUNITY,
       }),
-    ).rejects.toThrow(/payment method/);
+    ).rejects.toThrow(/Unknown invoice inv-x/);
   });
 
   it("refunds via PSP and upgrades pending payment on webhook", async () => {
@@ -714,16 +743,16 @@ describe("PaymentsService", () => {
     });
     const row = store.getPayment(payment.paymentId)!;
     store.putPayment({ ...row, status: "pending" });
-    const body = JSON.stringify({
-      id: "evt_test_pi_succeeded_1",
-      type: "payment_intent.succeeded",
-      data: { pspPaymentRef: row.pspPaymentRef },
+    const { rawBody, signature } = psp.signEvent({
+      kind: "payment.succeeded",
+      pspAccountRef: "acct_x",
+      pspPaymentRef: row.pspPaymentRef,
     });
-    await service.receiveWebhook(body, MockPspAdapter.sign(body));
+    await service.receiveWebhook(rawBody, signature);
     expect(store.getPayment(payment.paymentId)?.status).toBe("succeeded");
   });
 
-  it("marks payment failed on payment_intent.payment_failed webhook", async () => {
+  it("marks payment failed on a payment.failed webhook", async () => {
     await service.ensureParticipant({
       participantId: CONSUMER,
       communityId: COMMUNITY,
@@ -747,13 +776,15 @@ describe("PaymentsService", () => {
     });
     const row = store.getPayment(payment.paymentId)!;
     store.putPayment({ ...row, status: "pending" });
-    const body = JSON.stringify({
-      id: "evt_test_pi_failed_1",
-      type: "payment_intent.payment_failed",
-      data: { pspPaymentRef: row.pspPaymentRef, failureCategory: "declined" },
+    const { rawBody, signature } = psp.signEvent({
+      kind: "payment.failed",
+      pspPaymentRef: row.pspPaymentRef,
     });
-    await service.receiveWebhook(body, MockPspAdapter.sign(body));
-    expect(store.getPayment(payment.paymentId)?.status).toBe("failed");
+    await service.receiveWebhook(rawBody, signature);
+    expect(store.getPayment(payment.paymentId)).toMatchObject({
+      status: "failed",
+      failureCategory: "other",
+    });
   });
 
   describe("UAT-014 / UAT-015 REQ-014 direct charge on the producer Connect account (INT-355)", () => {
@@ -779,7 +810,8 @@ describe("PaymentsService", () => {
       await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     });
 
-    it("pays the Stripe invoice as one reused Customer per consumer and connected account", async () => {
+    it("charges each invoice as one reused customer per consumer and producer account", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
       putInvoice("inv-dc-1", "acct_p1");
       putInvoice("inv-dc-2", "acct_p1");
       putInvoice("inv-dc-3", "acct_p2");
@@ -790,25 +822,31 @@ describe("PaymentsService", () => {
         "acct_p1",
         "acct_p2",
       ]);
-      const [p1, p2, p3] = psp.paymentInputs;
+      const [p1, p2, p3] = charge.mock.calls.map(([input]) => input);
       expect(p1).toMatchObject({
-        pspInvoiceRef: "in_inv-dc-1",
+        invoiceId: "inv-dc-1",
         pspAccountRef: "acct_p1",
         pspPaymentMethodRef: "pm_card_visa",
         pspCustomerRef: psp.connectedCustomers[0]!.pspCustomerRef,
+        idempotencyKey: "pay:inv-dc-1",
       });
       expect(p2!.pspCustomerRef).toBe(p1!.pspCustomerRef);
       expect(p3!.pspCustomerRef).toBe(psp.connectedCustomers[1]!.pspCustomerRef);
     });
 
-    it("rejects an invoice without a Stripe invoice id", async () => {
+    it("A6 pays an invoice that has no PSP invoice id", async () => {
       putInvoice("inv-dc-none", "acct_p1", { pspInvoiceRef: undefined });
-      await expect(
-        service.payInvoice({ invoiceId: "inv-dc-none", participantId: CONSUMER, communityId: COMMUNITY }),
-      ).rejects.toThrow(/PSP invoice required/);
+      const paid = await service.payInvoice({
+        invoiceId: "inv-dc-none",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      });
+      expect(paid.status).toBe("succeeded");
+      expect(store.getPayment(paid.paymentId)).not.toHaveProperty("pspInvoiceRef");
     });
 
     it("replays Pay on a settled invoice without a second charge", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
       putInvoice("inv-dc-twice", "acct_p1");
       const first = await service.payInvoice({
         invoiceId: "inv-dc-twice",
@@ -821,7 +859,7 @@ describe("PaymentsService", () => {
         communityId: COMMUNITY,
       });
       expect(again.paymentId).toBe(first.paymentId);
-      expect(psp.paymentInputs).toHaveLength(1);
+      expect(charge).toHaveBeenCalledTimes(1);
       const events = (await outboxStore.list()).filter(
         (e) => e.event.type === "PaymentStatusChanged",
       );
@@ -880,64 +918,66 @@ describe("PaymentsService", () => {
       expect(psp.payments).toHaveLength(1);
     });
 
-    it("maps Connect invoice.paid to PaymentStatusChanged succeeded", async () => {
+    it("INT-376 a settled row stored without payeeId still names the producer", async () => {
       putInvoice("inv-dc-hook", "acct_p1");
       const payment = await service.payInvoice({
         invoiceId: "inv-dc-hook",
         participantId: CONSUMER,
         communityId: COMMUNITY,
       });
-      const row = store.getPayment(payment.paymentId)!;
-      store.putPayment({ ...row, status: "pending" });
-      const body = JSON.stringify({
-        id: "evt_test_invoice_paid_1",
-        type: "invoice.paid",
-        data: { pspInvoiceRef: "in_inv-dc-hook", pspAccountRef: "acct_p1", status: "paid" },
+      const { payeeId: _payee, ...legacy } = store.getPayment(payment.paymentId)!;
+      store.putPayment({ ...legacy, status: "pending" });
+      const { rawBody, signature } = psp.signEvent({
+        kind: "payment.succeeded",
+        pspPaymentRef: legacy.pspPaymentRef,
       });
-      await service.receiveWebhook(body, MockPspAdapter.sign(body));
-      expect(store.getPayment(payment.paymentId)?.status).toBe("succeeded");
+      await service.receiveWebhook(rawBody, signature);
       const last = (await outboxStore.list()).at(-1)!;
       expect(last.event).toMatchObject({
         type: "PaymentStatusChanged",
-        data: { paymentId: payment.paymentId, invoiceId: "inv-dc-hook", status: "succeeded" },
+        data: { paymentId: payment.paymentId, status: "succeeded", payeeId: PRODUCER },
       });
-      // INT-326 — same Stripe event id is ignored.
-      await service.receiveWebhook(body, MockPspAdapter.sign(body));
-      expect(service.getWebhookDuplicateCount()).toBe(1);
     });
 
-    it("maps Connect invoice.payment_failed to failed with a failure category", async () => {
-      putInvoice("inv-dc-fail", "acct_p1");
-      const payment = await service.payInvoice({
-        invoiceId: "inv-dc-fail",
+    it("INT-376 an unknown invoice leaves payeeId out of the settlement event", async () => {
+      store.putPayment({
+        paymentId: "pay-orphan",
+        invoiceId: "inv-gone",
         participantId: CONSUMER,
         communityId: COMMUNITY,
+        amount: "1.00",
+        currency: "EUR",
+        status: "pending",
+        pspPaymentRef: "mock_pay_orphan",
       });
-      const row = store.getPayment(payment.paymentId)!;
-      store.putPayment({ ...row, status: "pending" });
-      const body = JSON.stringify({
-        id: "evt_test_invoice_failed_1",
-        type: "invoice.payment_failed",
-        data: { pspInvoiceRef: "in_inv-dc-fail", pspAccountRef: "acct_p1", status: "open" },
+      const { rawBody, signature } = psp.signEvent({
+        kind: "payment.succeeded",
+        pspPaymentRef: "mock_pay_orphan",
       });
-      await service.receiveWebhook(body, MockPspAdapter.sign(body));
-      expect(store.getPayment(payment.paymentId)).toMatchObject({
-        status: "failed",
-        failureCategory: "declined",
-      });
+      await service.receiveWebhook(rawBody, signature);
       const last = (await outboxStore.list()).at(-1)!;
-      expect(last.event.data).toMatchObject({ status: "failed", failureCategory: "declined" });
+      expect(last.event.data).toMatchObject({ paymentId: "pay-orphan", status: "succeeded" });
+      expect(last.event.data).not.toHaveProperty("payeeId");
+      // Rows stored before initiatedAt or a PSP account existed get no timing and no fee.
+      expect(store.getPayment("pay-orphan")).toMatchObject({ settledAt: expect.any(String) });
+      expect(store.getPayment("pay-orphan")?.processingTimeMs).toBeUndefined();
+      expect(store.getPayment("pay-orphan")?.feeAmount).toBeUndefined();
     });
 
-    it("ignores invoice events for unknown Stripe invoices", async () => {
-      const body = JSON.stringify({
-        id: "evt_test_invoice_unknown",
-        type: "invoice.paid",
-        data: { pspInvoiceRef: "in_unknown" },
-      });
+    it("ignores payment events for unknown payment refs and unmapped kinds", async () => {
       const before = (await outboxStore.list()).length;
-      await service.receiveWebhook(body, MockPspAdapter.sign(body));
+      for (const e of [
+        psp.signEvent({ kind: "payment.succeeded", pspPaymentRef: "mock_pay_unknown" }),
+        psp.signEvent({ kind: "payment.failed", pspPaymentRef: "mock_pay_unknown" }),
+        psp.signEvent({ kind: "payment.succeeded" }),
+        psp.signEvent({ kind: "checkout.completed", pspCheckoutRef: "mock_co_unknown" }),
+        psp.signEvent({ kind: "payment.processing", pspPaymentRef: "mock_pay_unknown" }),
+        psp.signEvent({ kind: "ignored" }),
+      ]) {
+        await service.receiveWebhook(e.rawBody, e.signature);
+      }
       expect((await outboxStore.list()).length).toBe(before);
+      expect(payoutEvents.onPayoutEvent).not.toHaveBeenCalled();
     });
 
     it("validates EnsureConnectedCustomer input", async () => {
@@ -950,13 +990,454 @@ describe("PaymentsService", () => {
     });
   });
 
+  describe("REQ-014 pay through CollectPort (INT-425)", () => {
+    const INV1 = "aaaaaaaa-0000-4000-8000-000000000001";
+    const INV2 = "aaaaaaaa-0000-4000-8000-000000000002";
+    const PROD_ACCT = "mock_acct_prod";
+    const RETURN_URL = "https://ewds.example/return";
+
+    const putInvoice = (invoiceId: string, extra: Record<string, unknown> = {}) =>
+      invoices.put({
+        invoiceId,
+        producerId: PRODUCER,
+        consumerId: CONSUMER,
+        currency: "EUR",
+        status: "Open",
+        total: "12.34",
+        producerPspAccountRef: PROD_ACCT,
+        ...extra,
+      });
+    const pay = (invoiceId: string, returnUrl?: string) =>
+      service.payInvoice({ invoiceId, participantId: CONSUMER, communityId: COMMUNITY, returnUrl });
+    const paymentEvents = async () =>
+      (await outboxStore.list()).filter((e) => e.event.type === "PaymentStatusChanged");
+
+    beforeEach(async () => {
+      await service.ensureParticipant({
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+        role: "consumer",
+      });
+      await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+      putInvoice(INV1);
+      putInvoice(INV2);
+    });
+
+    it("UAT-014 REQ-014 card: direct charge on the producer account, idempotent on invoice", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      clock.set("2026-11-24T10:00:00.000Z");
+      const r = await pay(INV1);
+      expect(r).toMatchObject({
+        status: "succeeded",
+        method: "card",
+        amount: "12.34",
+        currency: "EUR",
+        initiatedAt: "2026-11-24T10:00:00.000Z",
+      });
+      expect(charge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pspAccountRef: PROD_ACCT,
+          pspPaymentMethodRef: "pm_card_visa",
+          idempotencyKey: `pay:${INV1}`,
+        }),
+      );
+      // TE-2 — settledAt and processingTimeMs are set only by the webhook (Task 5.8).
+      const row = store.getPayment(r.paymentId)!;
+      expect(row).toMatchObject({ pspAccountRef: PROD_ACCT, initiatedAt: "2026-11-24T10:00:00.000Z" });
+      expect(row.settledAt).toBeUndefined();
+      expect(row.processingTimeMs).toBeUndefined();
+      const [event] = await paymentEvents();
+      expect(event!.event.data).toMatchObject({
+        amount: "12.34",
+        currency: "EUR",
+        initiatedAt: "2026-11-24T10:00:00.000Z",
+        payerId: CONSUMER,
+        payeeId: PRODUCER,
+      });
+      expect(event!.event.data).not.toHaveProperty("processingTimeMs");
+    });
+
+    it("REQ-014 payInvoice twice on the same open invoice creates one charge", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      const first = await pay(INV1);
+      const again = await pay(INV1);
+      expect(charge).toHaveBeenCalledTimes(1);
+      expect(again.paymentId).toBe(first.paymentId);
+    });
+
+    it("REQ-014 a double click while the first Pay is running joins it", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      const [a, b] = await Promise.all([pay(INV1), pay(INV1)]);
+      expect(charge).toHaveBeenCalledTimes(1);
+      expect(b.paymentId).toBe(a.paymentId);
+      expect(store.listByInvoiceId(INV1)).toHaveLength(1);
+    });
+
+    it("REQ-014 a still-processing charge is returned without a second charge", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      const first = await pay(INV1);
+      store.putPayment({ ...store.getPayment(first.paymentId)!, status: "pending" });
+      const again = await pay(INV1);
+      expect(again).toMatchObject({ paymentId: first.paymentId, status: "pending" });
+      expect(charge).toHaveBeenCalledTimes(1);
+    });
+
+    it("UAT-016 REQ-014 retry after a decline uses a fresh idempotency key", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      await service.attachPaymentMethod(CONSUMER, "pm_fail_generic");
+      const declined = await pay(INV1);
+      expect(declined).toMatchObject({ status: "failed", failureCategory: "card_declined" });
+      await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+      const retried = await pay(INV1);
+      expect(retried.status).toBe("succeeded");
+      expect(retried.paymentId).not.toBe(declined.paymentId);
+      expect(charge.mock.calls.map(([input]) => input.idempotencyKey)).toEqual([
+        `pay:${INV1}`,
+        `pay:${INV1}:2`,
+      ]);
+    });
+
+    it("UAT-057 REQ-014 SEPA: returns a PSP-hosted checkout URL, payment requires_action", async () => {
+      await service.attachPaymentMethod(CONSUMER, "pm_sepa_1");
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      const checkout = vi.spyOn(psp, "createCheckoutSession");
+      clock.set("2026-11-24T10:00:00.000Z");
+      const r = await pay(INV2, RETURN_URL);
+      expect(r).toMatchObject({
+        status: "requires_action",
+        checkoutUrl: expect.stringMatching(/^https:\/\//),
+        initiatedAt: "2026-11-24T10:00:00.000Z",
+      });
+      expect(checkout).toHaveBeenCalledWith(
+        expect.objectContaining({
+          methods: ["card", "sepa_debit"],
+          saveForFutureUse: true,
+          pspAccountRef: PROD_ACCT,
+          successUrl: RETURN_URL,
+          cancelUrl: RETURN_URL,
+          idempotencyKey: `co:${INV2}:2026-11-24`,
+        }),
+      );
+      expect(charge).not.toHaveBeenCalled();
+      const row = store.getPayment(r.paymentId)!;
+      expect(row).toMatchObject({
+        status: "requires_action",
+        pspCheckoutRef: expect.stringMatching(/^mock_co_/),
+        initiatedAt: "2026-11-24T10:00:00.000Z",
+      });
+      expect(JSON.stringify(row)).not.toContain(r.checkoutUrl!);
+      // PaymentStatusChanged has no requires_action state; the webhook announces the outcome.
+      expect(await paymentEvents()).toHaveLength(0);
+    });
+
+    it("UAT-057 REQ-014 reopening an unfinished checkout reuses the payment and the session", async () => {
+      await service.attachPaymentMethod(CONSUMER, "pm_sepa_1");
+      clock.set("2026-11-24T10:00:00.000Z");
+      const first = await pay(INV2, RETURN_URL);
+      clock.set("2026-11-24T10:05:00.000Z");
+      const again = await pay(INV2, RETURN_URL);
+      expect(again).toMatchObject({
+        paymentId: first.paymentId,
+        checkoutUrl: first.checkoutUrl,
+        initiatedAt: "2026-11-24T10:00:00.000Z",
+      });
+      clock.set("2026-11-25T08:00:00.000Z");
+      const nextDay = await pay(INV2, RETURN_URL);
+      expect(nextDay.paymentId).toBe(first.paymentId);
+      expect(nextDay.checkoutUrl).not.toBe(first.checkoutUrl);
+      expect(store.getPayment(first.paymentId)?.initiatedAt).toBe("2026-11-25T08:00:00.000Z");
+      expect(store.listByInvoiceId(INV2)).toHaveLength(1);
+    });
+
+    it("REQ-014 no saved payment method goes to hosted checkout", async () => {
+      await service.applyErasureRequested({
+        requestId: "dddddddd-0000-4000-8000-000000000001",
+        participantId: CONSUMER,
+      });
+      const r = await pay(INV2, RETURN_URL);
+      expect(r).toMatchObject({ status: "requires_action", checkoutUrl: expect.any(String) });
+    });
+
+    it("REQ-014 a payment-method lookup failure falls back to the card charge", async () => {
+      vi.spyOn(psp, "getPaymentMethodDetails").mockRejectedValueOnce(new Error("psp down"));
+      const r = await pay(INV1);
+      expect(r).toMatchObject({ status: "succeeded", method: "card" });
+    });
+
+    it("REQ-014 refuses when the producer has no connected account", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      putInvoice(INV1, { producerPspAccountRef: undefined });
+      await expect(pay(INV1)).rejects.toThrow("Producer PSP account required for direct charge");
+      expect(charge).not.toHaveBeenCalled();
+    });
+
+    it("REQ-014 refuses when the invoice names another producer account than AC-07", async () => {
+      await service.provisionPaymentAccount({
+        participantId: PRODUCER,
+        communityId: COMMUNITY,
+        role: "producer",
+        fresh: true,
+      });
+      await expect(pay(INV1)).rejects.toThrow(/does not match AC-07/);
+    });
+
+    describe("TE-2 webhook settlement (INT-425)", () => {
+      const receive = async (e: Parameters<MockPspAdapter["signEvent"]>[0]) => {
+        const signed = psp.signEvent(e);
+        await service.receiveWebhook(signed.rawBody, signed.signature);
+        return signed;
+      };
+      const lastEvent = async () => (await paymentEvents()).at(-1)!.event;
+      const payCardAt = async (at: string) => {
+        clock.set(at);
+        const r = await pay(INV1);
+        return store.getPayment(r.paymentId)!;
+      };
+
+      it("UAT-057 TE-2 settledAt from the webhook, processingTimeMs = settledAt - initiatedAt, fee recorded", async () => {
+        const row = await payCardAt("2026-11-24T10:00:00.000Z");
+        await receive({
+          kind: "payment.succeeded",
+          pspAccountRef: PROD_ACCT,
+          pspPaymentRef: row.pspPaymentRef,
+          occurredAt: "2026-11-24T10:00:02.500Z",
+        });
+        expect(store.getPayment(row.paymentId)).toMatchObject({
+          status: "succeeded",
+          settledAt: "2026-11-24T10:00:02.500Z",
+          processingTimeMs: 2500,
+          feeAmount: "0.44",
+          feeCurrency: "EUR",
+        });
+        expect((await lastEvent()).data).toMatchObject({
+          paymentId: row.paymentId,
+          status: "succeeded",
+          initiatedAt: "2026-11-24T10:00:00.000Z",
+          settledAt: "2026-11-24T10:00:02.500Z",
+          processingTimeMs: 2500,
+          feeAmount: "0.44",
+          feeCurrency: "EUR",
+          method: "card",
+          payeeId: PRODUCER,
+        });
+      });
+
+      it("UAT-057 SEPA: checkout.completed sets initiatedAt; settlement 3 days later gives 259200000 ms and 0.35 fee", async () => {
+        await service.attachPaymentMethod(CONSUMER, "pm_sepa_1");
+        clock.set("2026-11-24T09:30:00.000Z");
+        const r = await pay(INV2, RETURN_URL);
+        const cs = store.getPayment(r.paymentId)!.pspCheckoutRef!;
+
+        const completed = psp.completeCheckout(cs, "sepa_debit", "2026-11-24T10:00:00.000Z");
+        await service.receiveWebhook(completed.rawBody, completed.signature);
+        expect(store.getPayment(r.paymentId)).toMatchObject({
+          status: "pending",
+          pspPaymentRef: completed.pspPaymentRef,
+          initiatedAt: "2026-11-24T10:00:00.000Z",
+        });
+        expect((await lastEvent()).data).toMatchObject({
+          status: "pending",
+          initiatedAt: "2026-11-24T10:00:00.000Z",
+        });
+
+        const settled = psp.settleSepa(completed.pspPaymentRef, "2026-11-27T10:00:00.000Z");
+        await service.receiveWebhook(settled.rawBody, settled.signature);
+        expect(store.findByPspPaymentRef(completed.pspPaymentRef)).toMatchObject({
+          status: "succeeded",
+          method: "sepa_debit",
+          settledAt: "2026-11-27T10:00:00.000Z",
+          processingTimeMs: 259200000,
+          feeAmount: "0.35",
+          feeCurrency: "EUR",
+        });
+      });
+
+      it("TE-2 sync success is still settled by the later webhook (status already succeeded)", async () => {
+        const row = await payCardAt("2026-11-24T10:00:00.000Z");
+        expect(row).toMatchObject({ status: "succeeded" });
+        expect(row.settledAt).toBeUndefined();
+        expect(await paymentEvents()).toHaveLength(1);
+
+        const first = await receive({
+          kind: "payment.succeeded",
+          pspAccountRef: PROD_ACCT,
+          pspPaymentRef: row.pspPaymentRef,
+          occurredAt: "2026-11-24T10:00:01.000Z",
+        });
+        expect(store.getPayment(row.paymentId)?.settledAt).toBe("2026-11-24T10:00:01.000Z");
+        expect(await paymentEvents()).toHaveLength(2);
+
+        await service.receiveWebhook(first.rawBody, first.signature);
+        expect(service.getWebhookDuplicateCount()).toBe(1);
+        expect(await paymentEvents()).toHaveLength(2);
+
+        // A redelivery under a new PSP event id does not move settledAt either.
+        await receive({
+          kind: "payment.succeeded",
+          pspPaymentRef: row.pspPaymentRef,
+          occurredAt: "2026-11-24T10:05:00.000Z",
+        });
+        expect(store.getPayment(row.paymentId)?.settledAt).toBe("2026-11-24T10:00:01.000Z");
+        expect(await paymentEvents()).toHaveLength(2);
+
+        // A settled payment is not turned back into a failure.
+        await receive({ kind: "payment.failed", pspPaymentRef: row.pspPaymentRef });
+        expect(store.getPayment(row.paymentId)?.status).toBe("succeeded");
+        expect(await paymentEvents()).toHaveLength(2);
+      });
+
+      it("UAT-016 payment.failed sets failedAt and canonical category", async () => {
+        const row = await payCardAt("2026-11-24T10:00:00.000Z");
+        store.putPayment({ ...row, status: "pending" });
+        await receive({
+          kind: "payment.failed",
+          pspAccountRef: PROD_ACCT,
+          pspPaymentRef: row.pspPaymentRef,
+          failureCategory: "insufficient_funds",
+          occurredAt: "2026-11-24T10:00:03.000Z",
+        });
+        const failed = store.getPayment(row.paymentId)!;
+        expect(failed).toMatchObject({
+          status: "failed",
+          failureCategory: "insufficient_funds",
+          failedAt: "2026-11-24T10:00:03.000Z",
+        });
+        expect(failed.processingTimeMs).toBeUndefined();
+        const data = (await lastEvent()).data;
+        expect(data).toMatchObject({ status: "failed", failureCategory: "insufficient_funds" });
+        expect(data).not.toHaveProperty("failedAt");
+        expect(data).not.toHaveProperty("settledAt");
+      });
+
+      it("UAT-016 a decline already announced by Pay records failedAt without a second event", async () => {
+        await service.attachPaymentMethod(CONSUMER, "pm_fail_generic");
+        clock.set("2026-11-24T10:00:00.000Z");
+        const r = await pay(INV1);
+        expect(r.status).toBe("failed");
+        const pspPaymentRef = store.getPayment(r.paymentId)!.pspPaymentRef;
+        await receive({
+          kind: "payment.failed",
+          pspPaymentRef,
+          failureCategory: "card_declined",
+          occurredAt: "2026-11-24T10:00:00.800Z",
+        });
+        expect(store.getPayment(r.paymentId)).toMatchObject({
+          status: "failed",
+          failedAt: "2026-11-24T10:00:00.800Z",
+        });
+        expect(await paymentEvents()).toHaveLength(1);
+
+        await receive({ kind: "payment.failed", pspPaymentRef, occurredAt: "2026-11-24T10:09:00.000Z" });
+        expect(store.getPayment(r.paymentId)?.failedAt).toBe("2026-11-24T10:00:00.800Z");
+      });
+
+      it("REQ-046 fee not yet available leaves feeAmount undefined, payment still settled", async () => {
+        const row = await payCardAt("2026-11-24T10:00:00.000Z");
+        vi.spyOn(psp, "getChargeSettlement").mockResolvedValueOnce(null);
+        await receive({
+          kind: "payment.succeeded",
+          pspPaymentRef: row.pspPaymentRef,
+          occurredAt: "2026-11-24T10:00:02.000Z",
+        });
+        const settled = store.getPayment(row.paymentId)!;
+        expect(settled).toMatchObject({ status: "succeeded", settledAt: "2026-11-24T10:00:02.000Z" });
+        expect(settled.feeAmount).toBeUndefined();
+        expect((await lastEvent()).data).not.toHaveProperty("feeAmount");
+      });
+
+      it("REQ-046 a fee lookup error is logged by paymentId only and does not block settlement", async () => {
+        const row = await payCardAt("2026-11-24T10:00:00.000Z");
+        vi.spyOn(psp, "getChargeSettlement").mockRejectedValueOnce(new Error("psp down"));
+        const warn = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+        await receive({
+          kind: "payment.succeeded",
+          pspPaymentRef: row.pspPaymentRef,
+          occurredAt: "2026-11-24T10:00:02.000Z",
+        });
+        expect(store.getPayment(row.paymentId)).toMatchObject({ settledAt: "2026-11-24T10:00:02.000Z" });
+        expect(store.getPayment(row.paymentId)?.feeAmount).toBeUndefined();
+        expect(warn).toHaveBeenCalledWith(`psp.fee_unavailable paymentId=${row.paymentId}`);
+        expect(JSON.stringify(warn.mock.calls)).not.toContain(CONSUMER);
+        warn.mockRestore();
+      });
+
+      it.each(["payout.paid", "payout.failed", "payout.canceled"] as const)(
+        "REQ-015 %s events are forwarded to PAYOUT_EVENTS_HANDLER",
+        async (kind) => {
+          await receive({ kind, pspAccountRef: PROD_ACCT, pspPayoutRef: "po1" });
+          expect(payoutEvents.onPayoutEvent).toHaveBeenCalledWith(
+            expect.objectContaining({ kind, pspPayoutRef: "po1", pspAccountRef: PROD_ACCT }),
+          );
+          expect(await paymentEvents()).toHaveLength(0);
+        },
+      );
+
+      it("TE-2 negative duration (clock skew) is clamped to 0", async () => {
+        const row = await payCardAt("2026-11-24T10:00:00.000Z");
+        await receive({
+          kind: "payment.succeeded",
+          pspPaymentRef: row.pspPaymentRef,
+          occurredAt: "2026-11-24T09:59:58.000Z",
+        });
+        expect(store.getPayment(row.paymentId)).toMatchObject({
+          settledAt: "2026-11-24T09:59:58.000Z",
+          processingTimeMs: 0,
+        });
+      });
+
+      it("TE-2 a card checkout settled before checkout.completed arrives is matched by invoice", async () => {
+        await service.applyErasureRequested({
+          requestId: "dddddddd-0000-4000-8000-000000000002",
+          participantId: CONSUMER,
+        });
+        clock.set("2026-11-24T10:00:00.000Z");
+        const r = await pay(INV2, RETURN_URL);
+        const cs = store.getPayment(r.paymentId)!.pspCheckoutRef!;
+        const completed = psp.completeCheckout(cs, "card", "2026-11-24T10:01:00.000Z");
+
+        await receive({
+          kind: "payment.succeeded",
+          pspAccountRef: PROD_ACCT,
+          pspPaymentRef: completed.pspPaymentRef,
+          invoiceId: INV2,
+          method: "card",
+          occurredAt: "2026-11-24T10:01:00.500Z",
+        });
+        expect(store.getPayment(r.paymentId)).toMatchObject({
+          status: "succeeded",
+          pspPaymentRef: completed.pspPaymentRef,
+          method: "card",
+          settledAt: "2026-11-24T10:01:00.500Z",
+          processingTimeMs: 60500,
+          feeAmount: "0.44",
+        });
+
+        await service.receiveWebhook(completed.rawBody, completed.signature);
+        expect(store.getPayment(r.paymentId)).toMatchObject({
+          status: "succeeded",
+          initiatedAt: "2026-11-24T10:00:00.000Z",
+        });
+        expect(await paymentEvents()).toHaveLength(1);
+      });
+    });
+  });
+
   it("rejects webhook without signature and malformed JSON body", async () => {
     await expect(service.receiveWebhook("{}", undefined as unknown as string)).rejects.toThrow(
       /Missing webhook signature/,
     );
     const badJson = "{";
-    expect(psp.verifyWebhook(badJson, MockPspAdapter.sign(badJson)).ok).toBe(
-      false,
+    await expect(service.receiveWebhook(badJson, MockPspAdapter.sign(badJson))).rejects.toThrow(
+      /Invalid webhook signature/,
+    );
+    const blankId = JSON.stringify({ eventId: " ", kind: "ignored", occurredAt: "2026-11-24T10:00:00.000Z" });
+    await expect(service.receiveWebhook(blankId, MockPspAdapter.sign(blankId))).rejects.toThrow(
+      /Webhook missing event id/,
+    );
+    // A signed body in the legacy provider shape is not a neutral PSP event.
+    const legacy = JSON.stringify({ id: "evt_legacy", type: "payment_intent.succeeded", data: {} });
+    await expect(service.receiveWebhook(legacy, MockPspAdapter.sign(legacy))).rejects.toThrow(
+      /Invalid webhook signature/,
     );
   });
 
@@ -1022,6 +1503,10 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
     );
     const session = await service.attachCallerPaymentMethod({
       participantId: idpSub,
@@ -1073,6 +1558,10 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
     );
     await expect(
       svc.attachPaymentMethod(CONSUMER, "pm_card_visa"),
@@ -1099,6 +1588,10 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
     );
     await service.ensureParticipant({
       participantId: CONSUMER,
@@ -1144,6 +1637,10 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
     );
     await service.ensureParticipant({
       participantId: CONSUMER,
@@ -1196,6 +1693,10 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
     );
     // Poison: account whose primary key is the IdP sub (prior failed resolve).
     await accountsStore.put({
@@ -1314,6 +1815,10 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
     );
     await svc.submitOnboardingRequirements({
       participantId: PRODUCER,
@@ -1375,6 +1880,10 @@ describe("PaymentsService", () => {
       failingErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
     );
     await svc.provisionPaymentAccount({
       participantId: PRODUCER,

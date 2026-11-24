@@ -25,7 +25,7 @@ export const ACCEPTED_STATUSES: Readonly<Record<string, readonly number[]>> = {
   getInvoice: [200],
   getInvoiceDocument: [200],
   sendInvoiceReminder: [202, 409],
-  // 400: live "not payable" when the member has no Open invoice (not in the contract).
+  // 400: documented BadRequest (no Open invoice / missing returnUrl for checkout).
   payInvoice: [201, 400],
   setInvoiceStatus: [200],
   getCommunitySettings: [200],
@@ -55,6 +55,4 @@ export const ACCEPTED_STATUSES: Readonly<Record<string, readonly number[]>> = {
 /** Accepted statuses that public.v1.yaml does not document for that operation. */
 export const UNDOCUMENTED_ACCEPTED_STATUSES: Readonly<
   Record<string, readonly number[]>
-> = {
-  payInvoice: [400],
-};
+> = {};

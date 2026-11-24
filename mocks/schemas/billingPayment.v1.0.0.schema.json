@@ -34,9 +34,21 @@
       "format": "uuid"
     },
     "payeeId": {
-      "description": "[Extension] FK to the producer Actor. UUID v4.",
+      "description": "[Extension] FK to the producer Actor; funds go to the producer's connected account (direct charge, REQ-014). UUID v4.",
       "type": "string",
       "format": "uuid"
+    },
+    "initiatedAt": {
+      "description": "[Extension] When the payment was initiated (KPI ER1.4).",
+      "type": ["string", "null"],
+      "format": "date-time",
+      "default": null
+    },
+    "settledAt": {
+      "description": "[Extension] When the payment settled (KPI ER1.4).",
+      "type": ["string", "null"],
+      "format": "date-time",
+      "default": null
     },
     "paymentDate": {
       "type": [

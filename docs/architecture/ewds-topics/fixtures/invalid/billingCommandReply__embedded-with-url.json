@@ -1,0 +1,18 @@
+{
+  "requestId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+  "operation": "startPayment",
+  "success": true,
+  "data": {
+    "paymentId": "9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a",
+    "status": "requires_action",
+    "handoff": {
+      "surface": "embedded",
+      "provider": "stripe",
+      "purpose": "payment",
+      "publishableKey": "pk_test_4eC39HqLyjWDarjtT1zdp7dc",
+      "clientSecret": "pi_3Oxxxxxxxxxxxxxxxxxxxx_secret_xxx",
+      "url": "https://checkout.stripe.com/c/pay/cs_test_bad",
+      "expiresAt": "2026-11-24T11:00:00Z"
+    }
+  }
+}

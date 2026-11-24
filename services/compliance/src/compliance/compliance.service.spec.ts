@@ -14,6 +14,7 @@ import { MockIdpAdapter } from "../idp/mock-idp.adapter.js";
 import { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
 import { NoopParticipantCommunity } from "../ports/participant-community.port.js";
 import { FixturePersonalDataSources } from "../export/personal-data-sources.port.js";
+import { NoneErasureRequestAdapter } from "../erasure/erasure-request.port.js";
 import { ComplianceService, retainedUntil } from "./compliance.service.js";
 
 const PARTICIPANT = "11111111-2222-4333-8444-555555555555";
@@ -42,6 +43,7 @@ describe("ComplianceService", () => {
       psp,
       new NoopParticipantCommunity(),
       new FixturePersonalDataSources(),
+      new NoneErasureRequestAdapter(),
     );
   });
 

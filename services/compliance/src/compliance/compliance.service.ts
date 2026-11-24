@@ -37,6 +37,11 @@ import {
   PERSONAL_DATA_SOURCES,
   type PersonalDataSources,
 } from "../export/personal-data-sources.port.js";
+import {
+  ERASURE_REQUEST_PORT,
+  type ErasureRequestPort,
+  type InboundErasureRequest,
+} from "../erasure/erasure-request.port.js";
 
 const PRODUCER = "AC-12";
 
@@ -59,6 +64,8 @@ export class ComplianceService {
     private readonly directory: ParticipantCommunityPort,
     @Inject(PERSONAL_DATA_SOURCES)
     private readonly personalData: PersonalDataSources,
+    @Inject(ERASURE_REQUEST_PORT)
+    private readonly erasureRequests: ErasureRequestPort,
   ) {}
 
   resetStore(): void {
@@ -308,6 +315,7 @@ export class ComplianceService {
       createdAt: now,
       updatedAt: now,
       actorId: input.actorId,
+      origin: "portal",
       erasureResults: {},
       identityErasureSent: false,
       paymentProviderErasureSent: false,
@@ -333,6 +341,68 @@ export class ComplianceService {
       type: row.type,
       status: row.status,
     };
+  }
+
+  /**
+   * REQ-013 / Task 3.22 — accept an erasure request originated by the EWDS.
+   * Idempotent on `externalRequestId`. The subject (`actorId`) must belong to
+   * `communityId`; otherwise the outcome is reported failed with no erasure.
+   */
+  async acceptExternalErasureRequest(
+    r: InboundErasureRequest,
+  ): Promise<{ requestId: string; duplicate: boolean }> {
+    const existing = this.store.findByExternalRequestId(r.externalRequestId);
+    if (existing) {
+      return { requestId: existing.requestId, duplicate: true };
+    }
+
+    const fromDirectory = await this.directory.communityOf(r.actorId);
+    const personal = this.store.getPersonal(r.actorId)?.communityId;
+    const targetCommunity = fromDirectory ?? personal;
+    if (!targetCommunity || targetCommunity !== r.communityId) {
+      await this.erasureRequests.reportOutcome(r.externalRequestId, {
+        status: "failed",
+        requestId: "",
+        invoicesRetainedUntil: null,
+      });
+      return { requestId: "", duplicate: false };
+    }
+
+    const now = r.receivedAt || new Date().toISOString();
+    const requestId = randomUUID();
+    let row: DataSubjectRequest = {
+      requestId,
+      participantId: r.actorId,
+      communityId: r.communityId,
+      type: "erasure",
+      status: "accepted",
+      createdAt: now,
+      updatedAt: now,
+      actorId: `ewds:${r.issuedBy}`,
+      origin: "ewds",
+      externalRequestId: r.externalRequestId,
+      erasureResults: {},
+      identityErasureSent: false,
+      paymentProviderErasureSent: false,
+    };
+    this.store.putRequest(row);
+
+    await this.recordAudit({
+      actorId: row.actorId,
+      action: "data-subject-request.erasure.created",
+      target: `request:${requestId}|participant:${r.actorId}|external:${r.externalRequestId}`,
+      timestamp: now,
+    });
+
+    row = await this.startErasure(row);
+    if (row.status === "failed" && row.externalRequestId) {
+      await this.erasureRequests.reportOutcome(row.externalRequestId, {
+        status: "failed",
+        requestId: row.requestId,
+        invoicesRetainedUntil: null,
+      });
+    }
+    return { requestId: row.requestId, duplicate: false };
   }
 
   /**
@@ -406,6 +476,13 @@ export class ComplianceService {
           target: `request:${e.requestId}|module:${e.module}`,
           timestamp: next.updatedAt,
         });
+        if (next.origin === "ewds" && next.externalRequestId) {
+          await this.erasureRequests.reportOutcome(next.externalRequestId, {
+            status: "failed",
+            requestId: next.requestId,
+            invoicesRetainedUntil: null,
+          });
+        }
         return;
       }
 
@@ -547,11 +624,12 @@ export class ComplianceService {
     if (!allDone) return;
 
     const personal = this.store.getPersonal(row.participantId);
+    const invoicesRetained = personal?.invoiceIds ?? [];
     const confirmation: DataSubjectConfirmation = {
       kind: "erasure",
       requestId: row.requestId,
       participantId: row.participantId,
-      invoicesRetained: personal?.invoiceIds ?? [],
+      invoicesRetained,
       producedAt: new Date().toISOString(),
     };
     const next: DataSubjectRequest = {
@@ -567,6 +645,23 @@ export class ComplianceService {
       target: `request:${row.requestId}|participant:${row.participantId}`,
       timestamp: next.updatedAt,
     });
+
+    if (row.origin === "ewds" && row.externalRequestId) {
+      const policy = this.store.getRetentionPolicy();
+      const invoicesRetainedUntil =
+        invoicesRetained.length > 0
+          ? retainedUntil(
+              confirmation.producedAt,
+              confirmation.producedAt.slice(0, 7),
+              policy.invoiceRetentionYears,
+            )
+          : null;
+      await this.erasureRequests.reportOutcome(row.externalRequestId, {
+        status: "completed",
+        requestId: row.requestId,
+        invoicesRetainedUntil,
+      });
+    }
   }
 
   private async recordAudit(input: {

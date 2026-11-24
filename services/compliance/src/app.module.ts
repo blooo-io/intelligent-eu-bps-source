@@ -9,6 +9,11 @@ import {
   ERASE_ADAPTERS,
   type EraseAdapters,
 } from "./erasure/erase-adapters.factory.js";
+import {
+  createErasureRequestPort,
+  ERASURE_REQUEST_PORT,
+} from "./erasure/erasure-request.port.js";
+import { ErasureRequestListener } from "./erasure/erasure-request.listener.js";
 import { ComplianceService } from "./compliance/compliance.service.js";
 import {
   createParticipantCommunity,
@@ -27,6 +32,7 @@ import { PublicComplianceController } from "./compliance/public.controller.js";
   providers: [
     ComplianceStore,
     ComplianceService,
+    ErasureRequestListener,
     {
       provide: ERASE_ADAPTERS,
       useFactory: () => createEraseAdapters(),
@@ -40,6 +46,10 @@ import { PublicComplianceController } from "./compliance/public.controller.js";
       provide: PSP_ERASE_PORT,
       useFactory: (adapters: EraseAdapters) => adapters.psp,
       inject: [ERASE_ADAPTERS],
+    },
+    {
+      provide: ERASURE_REQUEST_PORT,
+      useFactory: () => createErasureRequestPort(),
     },
     {
       provide: PARTICIPANT_COMMUNITY,

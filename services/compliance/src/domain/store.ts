@@ -41,6 +41,18 @@ export class ComplianceStore {
     return row ? structuredClone(row) : undefined;
   }
 
+  /** Lookup by EWDS external request id (REQ-013 / Task 3.22 idempotency). */
+  findByExternalRequestId(
+    externalRequestId: string,
+  ): DataSubjectRequest | undefined {
+    for (const row of this.requests.values()) {
+      if (row.externalRequestId === externalRequestId) {
+        return structuredClone(row);
+      }
+    }
+    return undefined;
+  }
+
   listRequests(): DataSubjectRequest[] {
     return [...this.requests.values()].map((r) => structuredClone(r));
   }

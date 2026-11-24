@@ -9,6 +9,7 @@ import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
 
 /**
  * INT-271 — project Invoice and Payment events into AC-09 read models (03 §4).
+ * Also StatementIssued / StatementStatusChanged / PayoutStatusChanged (REQ-060).
  */
 @Injectable()
 export class BillingEventsListener implements OnModuleInit {
@@ -27,8 +28,15 @@ export class BillingEventsListener implements OnModuleInit {
     await this.bus.subscribe("InvoiceIssued", (p) => this.dedupe(p, () => this.onInvoice(p)));
     await this.bus.subscribe("InvoiceStatusChanged", (p) => this.dedupe(p, () => this.onInvoice(p)));
     await this.bus.subscribe("PaymentStatusChanged", (p) => this.dedupe(p, () => this.onPayment(p)));
+    await this.bus.subscribe("StatementIssued", (p) => this.dedupe(p, () => this.onStatement(p)));
+    await this.bus.subscribe("StatementStatusChanged", (p) =>
+      this.dedupe(p, () => this.onStatementStatus(p)),
+    );
+    await this.bus.subscribe("PayoutStatusChanged", (p) => this.dedupe(p, () => this.onPayout(p)));
     await this.bus.subscribe("BillingRunCompleted", (p) => this.dedupe(p, () => this.onBillingRun(p)));
-    this.logger.log("subscribed to Invoice*/PaymentStatusChanged/BillingRunCompleted");
+    this.logger.log(
+      "subscribed to Invoice*/Payment*/Statement*/PayoutStatusChanged/BillingRunCompleted",
+    );
   }
 
   async onInvoice(payload: unknown): Promise<void> {
@@ -76,6 +84,69 @@ export class BillingEventsListener implements OnModuleInit {
           : undefined,
       participantId:
         typeof data.participantId === "string" ? data.participantId : undefined,
+    });
+  }
+
+  async onStatement(payload: unknown): Promise<void> {
+    const env = asEnvelope(payload);
+    const data = env.data;
+    const statementId = asString(data.statementId);
+    if (!statementId) return;
+    this.reporting.projectStatement({
+      statementId,
+      participantId: asString(data.participantId),
+      communityId: env.communityId,
+      period: asString(data.period, "unknown"),
+      totalSold: asString(data.totalSold, "0.00"),
+      totalBought: asString(data.totalBought, "0.00"),
+      netBalance: asString(data.netBalance, "0.00"),
+      currency: asString(data.currency, "EUR"),
+      status: asString(data.status, "Open"),
+    });
+  }
+
+  async onStatementStatus(payload: unknown): Promise<void> {
+    const env = asEnvelope(payload);
+    const data = env.data;
+    const statementId = asString(data.statementId);
+    if (!statementId) return;
+    const prior = this.reporting.getStatement(statementId);
+    if (prior) {
+      this.reporting.projectStatement({
+        ...prior,
+        status: asString(data.status, prior.status),
+        participantId: asString(data.participantId, prior.participantId),
+        period: asString(data.period, prior.period),
+        communityId: env.communityId || prior.communityId,
+      });
+      return;
+    }
+    this.reporting.projectStatement({
+      statementId,
+      participantId: asString(data.participantId),
+      communityId: env.communityId,
+      period: asString(data.period, "unknown"),
+      totalSold: asString(data.totalSold, "0.00"),
+      totalBought: asString(data.totalBought, "0.00"),
+      netBalance: asString(data.netBalance, "0.00"),
+      currency: asString(data.currency, "EUR"),
+      status: asString(data.status, "Open"),
+    });
+  }
+
+  async onPayout(payload: unknown): Promise<void> {
+    const env = asEnvelope(payload);
+    const data = env.data;
+    const payoutId = asString(data.payoutId);
+    if (!payoutId) return;
+    this.reporting.projectPayout({
+      payoutId,
+      participantId: asString(data.participantId),
+      communityId: env.communityId,
+      period: asString(data.period, "unknown"),
+      amount: asString(data.amount, "0.00"),
+      currency: asString(data.currency, "EUR"),
+      status: asString(data.status),
     });
   }
 

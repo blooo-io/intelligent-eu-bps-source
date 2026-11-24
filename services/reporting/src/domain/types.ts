@@ -29,6 +29,30 @@ export type PaymentProjection = {
   participantId?: string;
 };
 
+/** Local statement projection for AC-09 payout overview (REQ-060). */
+export type StatementProjection = {
+  statementId: string;
+  participantId: string;
+  communityId: string;
+  period: string;
+  totalSold: string;
+  totalBought: string;
+  netBalance: string;
+  currency: string;
+  status: string;
+};
+
+/** Local payout projection for AC-09 payout overview / paidOut (REQ-060). */
+export type PayoutProjection = {
+  payoutId: string;
+  participantId: string;
+  communityId: string;
+  period: string;
+  amount: string;
+  currency: string;
+  status: string;
+};
+
 export type PeriodicSummary = {
   communityId: string;
   period: string;
@@ -36,6 +60,8 @@ export type PeriodicSummary = {
   invoiceCount: number;
   paymentCount: number;
   total: string;
+  /** Connect payouts completed in the period (REQ-032 / REQ-060). */
+  paidOut: string;
 };
 
 export type KpiExportRow = {

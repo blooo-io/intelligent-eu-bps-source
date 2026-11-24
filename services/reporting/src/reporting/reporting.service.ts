@@ -5,18 +5,21 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { suggestedCorrectiveAction } from "@intelligent/module-template";
 import { ReportingStore } from "../domain/store.js";
 import type {
   InvoiceProjection,
   PaymentProjection,
+  PayoutProjection,
   PeriodicSummary,
+  StatementProjection,
 } from "../domain/types.js";
-import { suggestedCorrectiveAction } from "@intelligent/module-template";
 import { sumMoney } from "./money.js";
 
 /**
  * AC-09 reporting — read models from projected billing events (INT-112 / INT-82).
- * REQ-018 overview, REQ-031 history, REQ-032 summary, REQ-046/047 KPI export.
+ * REQ-018 overview, REQ-031 history, REQ-032 summary, REQ-046/047 KPI export,
+ * REQ-060 payout overview.
  */
 @Injectable()
 export class ReportingService {
@@ -36,6 +39,20 @@ export class ReportingService {
   /** Project PaymentStatusChanged. */
   projectPayment(row: PaymentProjection): void {
     this.store.putPayment(row);
+  }
+
+  /** Project StatementIssued / StatementStatusChanged. */
+  projectStatement(row: StatementProjection): void {
+    this.store.putStatement(row);
+  }
+
+  getStatement(statementId: string): StatementProjection | undefined {
+    return this.store.getStatement(statementId);
+  }
+
+  /** Project PayoutStatusChanged. */
+  projectPayout(row: PayoutProjection): void {
+    this.store.putPayout(row);
   }
 
   /**
@@ -61,6 +78,63 @@ export class ReportingService {
       method: p.method,
       failureCategory: p.failureCategory,
     }));
+  }
+
+  /**
+   * Manager payout overview — one row per statement with totalSold > 0 (REQ-060 / UAT-077).
+   * Joins the latest payout for (participant, period). completed iff payout status is paid.
+   */
+  getPayoutsOverview(
+    communityId: string,
+    period?: string,
+  ): Array<{
+    participantId: string;
+    period: string;
+    expectedAmount: string;
+    currency: string;
+    status: "completed" | "open";
+    payoutId?: string;
+    paidOutAmount?: string;
+    payoutStatus?: string;
+  }> {
+    if (!communityId) throw new BadRequestException("communityId is required");
+    const statements = this.store
+      .listStatements({ communityId, period })
+      .filter((s) => Number(s.totalSold) > 0)
+      .sort((a, b) =>
+        a.participantId === b.participantId
+          ? a.period.localeCompare(b.period)
+          : a.participantId.localeCompare(b.participantId),
+      );
+    const payouts = this.store.listPayouts({ communityId, period });
+    // Latest payout per (participant, period) — Map iteration is insertion order.
+    const latestByKey = new Map<string, PayoutProjection>();
+    for (const p of payouts) {
+      latestByKey.set(`${p.participantId}:${p.period}`, p);
+    }
+    return statements.map((s) => {
+      const payout = latestByKey.get(`${s.participantId}:${s.period}`);
+      if (!payout) {
+        return {
+          participantId: s.participantId,
+          period: s.period,
+          expectedAmount: s.totalSold,
+          currency: s.currency,
+          status: "open" as const,
+        };
+      }
+      const completed = payout.status === "paid";
+      return {
+        participantId: s.participantId,
+        period: s.period,
+        expectedAmount: s.totalSold,
+        currency: s.currency,
+        status: (completed ? "completed" : "open") as "completed" | "open",
+        payoutId: payout.payoutId,
+        paidOutAmount: payout.amount,
+        payoutStatus: payout.status,
+      };
+    });
   }
 
   /**
@@ -212,7 +286,16 @@ export class ReportingService {
     const invoices = this.store.listInvoices({ communityId, period });
     const invoiceIds = new Set(invoices.map((i) => i.invoiceId));
     const payments = this.store.listPayments({ communityId, invoiceIds });
-    const currency = invoices[0]?.currency ?? payments[0]?.currency ?? "EUR";
+    const paidPayouts = this.store.listPayouts({
+      communityId,
+      period,
+      status: "paid",
+    });
+    const currency =
+      invoices[0]?.currency ??
+      payments[0]?.currency ??
+      paidPayouts[0]?.currency ??
+      "EUR";
     return {
       communityId,
       period,
@@ -220,6 +303,8 @@ export class ReportingService {
       invoiceCount: invoices.length,
       paymentCount: payments.length,
       total: sumMoney(invoices.map((i) => i.total)),
+      // REQ-032 — paidOut is the sum of paid Connect payouts in the period.
+      paidOut: sumMoney(paidPayouts.map((p) => p.amount)),
     };
   }
 

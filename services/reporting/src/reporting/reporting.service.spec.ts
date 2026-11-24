@@ -100,7 +100,155 @@ describe("ReportingService", () => {
       invoiceCount: 2,
       paymentCount: 2,
       total: "15.50",
+      paidOut: "0.00",
     });
+  });
+
+  it("UAT-077: three participants with positive balances, one payout completed and two open", () => {
+    const COM = COMMUNITY;
+    const period = "2026-10";
+    service.projectStatement({
+      statementId: "st-1",
+      participantId: "P1",
+      communityId: COM,
+      period,
+      totalSold: "10.00",
+      totalBought: "0.00",
+      netBalance: "10.00",
+      currency: "EUR",
+      status: "Open",
+    });
+    service.projectStatement({
+      statementId: "st-2",
+      participantId: "P2",
+      communityId: COM,
+      period,
+      totalSold: "20.00",
+      totalBought: "0.00",
+      netBalance: "20.00",
+      currency: "EUR",
+      status: "Open",
+    });
+    service.projectStatement({
+      statementId: "st-3",
+      participantId: "P3",
+      communityId: COM,
+      period,
+      totalSold: "30.00",
+      totalBought: "0.00",
+      netBalance: "30.00",
+      currency: "EUR",
+      status: "Open",
+    });
+    service.projectPayout({
+      payoutId: "po-1",
+      participantId: "P1",
+      communityId: COM,
+      period,
+      amount: "9.60",
+      currency: "EUR",
+      status: "paid",
+    });
+    expect(service.getPayoutsOverview(COM, "2026-10")).toEqual([
+      {
+        participantId: "P1",
+        period: "2026-10",
+        expectedAmount: "10.00",
+        currency: "EUR",
+        status: "completed",
+        payoutId: "po-1",
+        paidOutAmount: "9.60",
+        payoutStatus: "paid",
+      },
+      {
+        participantId: "P2",
+        period: "2026-10",
+        expectedAmount: "20.00",
+        currency: "EUR",
+        status: "open",
+      },
+      {
+        participantId: "P3",
+        period: "2026-10",
+        expectedAmount: "30.00",
+        currency: "EUR",
+        status: "open",
+      },
+    ]);
+  });
+
+  it("REQ-032: periodic summary reports paidOut = sum of paid payouts", () => {
+    const period = "2026-10";
+    service.projectPayout({
+      payoutId: "po-1",
+      participantId: "P1",
+      communityId: COMMUNITY,
+      period,
+      amount: "9.60",
+      currency: "EUR",
+      status: "paid",
+    });
+    service.projectPayout({
+      payoutId: "po-open",
+      participantId: "P2",
+      communityId: COMMUNITY,
+      period,
+      amount: "20.00",
+      currency: "EUR",
+      status: "in_transit",
+    });
+    const summary = service.getPeriodicSummary(COMMUNITY, period);
+    expect(summary.paidOut).toBe("9.60");
+  });
+
+  it("payout overview joins open payouts and skips zero totalSold", () => {
+    const period = "2026-11";
+    service.projectStatement({
+      statementId: "st-zero",
+      participantId: "PZ",
+      communityId: COMMUNITY,
+      period,
+      totalSold: "0.00",
+      totalBought: "1.00",
+      netBalance: "-1.00",
+      currency: "EUR",
+      status: "Open",
+    });
+    service.projectStatement({
+      statementId: "st-open",
+      participantId: "PO",
+      communityId: COMMUNITY,
+      period,
+      totalSold: "12.00",
+      totalBought: "0.00",
+      netBalance: "12.00",
+      currency: "EUR",
+      status: "Open",
+    });
+    service.projectPayout({
+      payoutId: "po-open",
+      participantId: "PO",
+      communityId: COMMUNITY,
+      period,
+      amount: "12.00",
+      currency: "EUR",
+      status: "in_transit",
+    });
+    expect(service.getStatement("st-open")?.totalSold).toBe("12.00");
+    expect(service.getStatement("missing")).toBeUndefined();
+    expect(service.getPayoutsOverview(COMMUNITY, period)).toEqual([
+      {
+        participantId: "PO",
+        period,
+        expectedAmount: "12.00",
+        currency: "EUR",
+        status: "open",
+        payoutId: "po-open",
+        paidOutAmount: "12.00",
+        payoutStatus: "in_transit",
+      },
+    ]);
+    expect(() => service.getPayoutsOverview("")).toThrow(/communityId/);
   });
 
   it("UAT-058 — KPI CSV matches invoices amounts and kWh", async () => {

@@ -218,4 +218,32 @@ describe("reporting HTTP (INT-112)", () => {
     );
     expect(unbound.status).toBe(404);
   });
+
+  // REQ-049 — community B must not read community A's payout overview.
+  it("REQ-049: another community's manager gets 403/404 on payouts-overview", async () => {
+    const denied = await fetch(
+      `${base}/v1/communities/${COMMUNITY}/payouts-overview`,
+      {
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": "manager-b",
+          "x-intelligent-community": OTHER,
+        },
+      },
+    );
+    expect([403, 404]).toContain(denied.status);
+
+    const ok = await fetch(
+      `${base}/v1/communities/${COMMUNITY}/payouts-overview?period=${PERIOD}`,
+      {
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-community": COMMUNITY,
+        },
+      },
+    );
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual([]);
+  });
 });

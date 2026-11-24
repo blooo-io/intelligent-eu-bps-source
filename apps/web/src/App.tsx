@@ -15,11 +15,14 @@ import { PaymentSetupPage } from "./pages/payment-setup-page";
 import { OnboardingWizardPage } from "./pages/onboarding-wizard-page";
 import { BalancesPage } from "./pages/balances-page";
 import { InvoicesPage } from "./pages/invoices-page";
+import { StatementsPage } from "./pages/statements-page";
+import { PayoutsPage } from "./pages/payouts-page";
 import { PrivacyPage } from "./pages/privacy-page";
 import { CommunitySettingsPage } from "./pages/community-settings-page";
 import { ParticipantsPage } from "./pages/participants-page";
 import { BillingRunsPage } from "./pages/billing-runs-page";
 import { PaymentsOverviewPage } from "./pages/payments-overview-page";
+import { PayoutsOverviewPage } from "./pages/payouts-overview-page";
 import { ReportsPage } from "./pages/reports-page";
 import { OperatorPage } from "./pages/operator-page";
 import { ApiConsolePage } from "./pages/api-console-page";
@@ -73,6 +76,11 @@ export function App({
                   />
                   <Route path="balances" element={<BalancesPage config={config} oidc={oidc} />} />
                   <Route path="invoices" element={<InvoicesPage config={config} oidc={oidc} />} />
+                  <Route
+                    path="statements"
+                    element={<StatementsPage config={config} oidc={oidc} />}
+                  />
+                  <Route path="payouts" element={<PayoutsPage config={config} oidc={oidc} />} />
                   <Route path="privacy" element={<PrivacyPage config={config} oidc={oidc} />} />
                   <Route
                     path="community-settings"
@@ -89,6 +97,10 @@ export function App({
                   <Route
                     path="payments-overview"
                     element={<PaymentsOverviewPage config={config} oidc={oidc} />}
+                  />
+                  <Route
+                    path="payouts-overview"
+                    element={<PayoutsOverviewPage config={config} oidc={oidc} />}
                   />
                   <Route path="reports" element={<ReportsPage config={config} oidc={oidc} />} />
                   <Route path="operator" element={<OperatorPage config={config} oidc={oidc} />} />

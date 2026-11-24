@@ -35,6 +35,8 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** Optional machine reason from the API body (e.g. PayoutRefused). */
+    readonly reason?: string,
   ) {
     super(message);
     this.name = "ApiError";

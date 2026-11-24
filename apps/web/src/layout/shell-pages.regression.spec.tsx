@@ -28,9 +28,12 @@ describe("shell page regression (INT-187)", () => {
         "participants-page.tsx",
         "payment-setup-page.tsx",
         "payments-overview-page.tsx",
+        "payouts-overview-page.tsx",
+        "payouts-page.tsx",
         "privacy-page.tsx",
         "profile-page.tsx",
         "reports-page.tsx",
+        "statements-page.tsx",
         "terms-page.tsx",
       ].sort(),
     );

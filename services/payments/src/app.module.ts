@@ -7,7 +7,6 @@ import { PaymentsController } from "./payments/payments.controller.js";
 import { PaymentsService } from "./payments/payments.service.js";
 import { createPaymentTransaction } from "./persistence/payment-journal.js";
 
-/** INT-356 — load payment attempts at boot and commit them with the outbox. */
 @Injectable()
 class PaymentPersistence implements OnModuleInit {
   constructor(
@@ -44,8 +43,17 @@ import {
   createParticipantsResolver,
   PARTICIPANTS_RESOLVER,
 } from "./ports/participants-resolver.port.js";
+import { COLLECT_PORT } from "./psp/collect.port.js";
+import { KYC_ONBOARDING_PORT } from "./psp/kyc-onboarding.port.js";
+import { KYC_TEST_FIXTURE_PORT } from "./psp/kyc-test-fixture.port.js";
 import { MockPspAdapter } from "./psp/mock-psp.adapter.js";
-import { PSP_PORT } from "./psp/psp.port.js";
+import { PAYOUT_PORT } from "./psp/payout.port.js";
+import {
+  NoopPayoutEventsHandler,
+  PAYOUT_EVENTS_HANDLER,
+  PSP_ADAPTER,
+  PSP_EVENTS_PORT,
+} from "./psp/psp-events.port.js";
 import { resolvePspProvider } from "./psp/stripe-env.js";
 import { StripePspAdapter } from "./psp/stripe-psp.adapter.js";
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
@@ -70,17 +78,14 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
     InMemoryInvoiceLookup,
     {
       provide: PAYMENT_ACCOUNTS_STORE,
-      // INT-228 — Postgres when DATABASE_URL is set (CNPG payments DB).
       useFactory: () => createPaymentAccountsStore(),
     },
     {
       provide: CONNECTED_CUSTOMERS_STORE,
-      // INT-355 — consumer Customer per producer Connect account (Postgres when DATABASE_URL set).
       useFactory: () => createConnectedCustomersStore(),
     },
     {
-      provide: PSP_PORT,
-      // AD-6 — configuration selects mock vs Stripe test (INT-189).
+      provide: PSP_ADAPTER,
       useFactory: (mock: MockPspAdapter) => {
         if (resolvePspProvider() === "stripe") {
           return new StripePspAdapter();
@@ -89,6 +94,12 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
       },
       inject: [MockPspAdapter],
     },
+    { provide: KYC_ONBOARDING_PORT, useExisting: PSP_ADAPTER },
+    { provide: COLLECT_PORT, useExisting: PSP_ADAPTER },
+    { provide: PAYOUT_PORT, useExisting: PSP_ADAPTER },
+    { provide: PSP_EVENTS_PORT, useExisting: PSP_ADAPTER },
+    { provide: KYC_TEST_FIXTURE_PORT, useExisting: PSP_ADAPTER },
+    { provide: PAYOUT_EVENTS_HANDLER, useClass: NoopPayoutEventsHandler },
     {
       provide: PSP_ERASE_PORT,
       useFactory: (
@@ -104,10 +115,8 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
     },
     {
       provide: INVOICE_LOOKUP,
-      // INT-193 — AC-06 GetInvoice when INVOICING_INTERNAL_URL is set.
       useFactory: (memory: InMemoryInvoiceLookup) => {
         const base = process.env.INVOICING_INTERNAL_URL;
-        // INT-287 — Keycloak client-credentials when configured; else header dual-mode.
         if (base) {
           return new HttpInvoiceLookup(base);
         }
@@ -117,7 +126,6 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
     },
     {
       provide: PARTICIPANTS_NOTIFIER,
-      // INT-193 — sync Ready update when PARTICIPANTS_INTERNAL_URL is set.
       useFactory: () => {
         const base = process.env.PARTICIPANTS_INTERNAL_URL;
         if (base) {
@@ -128,7 +136,6 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
     },
     {
       provide: PARTICIPANTS_RESOLVER,
-      // INT-230 — IdP sub → participantId for pay / onboarding.
       useFactory: () => createParticipantsResolver(),
     },
     { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },

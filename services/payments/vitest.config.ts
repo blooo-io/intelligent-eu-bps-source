@@ -14,12 +14,6 @@ export default defineConfig({
         "src/main.ts",
         // Contract-suite FakeStripe — test double, not production (Task 5.4).
         "src/psp/testing/**",
-        // Symbol + interface ports until Task 5.6 wires DI tokens.
-        "src/psp/collect.port.ts",
-        "src/psp/kyc-onboarding.port.ts",
-        "src/psp/kyc-test-fixture.port.ts",
-        "src/psp/payout.port.ts",
-        "src/psp/psp-events.port.ts",
       ],
     },
   },

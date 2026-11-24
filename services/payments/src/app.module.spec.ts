@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { afterEach, describe, expect, it } from "vitest";
+import { Test } from "@nestjs/testing";
 import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import { AppModule } from "./app.module.js";
@@ -18,8 +19,11 @@ import {
   NoopParticipantsResolver,
   PARTICIPANTS_RESOLVER,
 } from "./ports/participants-resolver.port.js";
+import { COLLECT_PORT } from "./psp/collect.port.js";
+import { KYC_ONBOARDING_PORT } from "./psp/kyc-onboarding.port.js";
 import { MockPspAdapter } from "./psp/mock-psp.adapter.js";
-import { PSP_PORT } from "./psp/psp.port.js";
+import { PAYOUT_PORT } from "./psp/payout.port.js";
+import { PSP_ADAPTER, PSP_EVENTS_PORT } from "./psp/psp-events.port.js";
 import { StripePspAdapter } from "./psp/stripe-psp.adapter.js";
 
 describe("AppModule factories (INT-193)", () => {
@@ -35,16 +39,11 @@ describe("AppModule factories (INT-193)", () => {
   };
 
   afterEach(async () => {
-    if (app) {
-      await app.close();
-      app = undefined;
-    }
+    if (app) await app.close();
+    app = undefined;
     for (const [key, value] of Object.entries(saved)) {
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
     }
   });
 
@@ -54,19 +53,26 @@ describe("AppModule factories (INT-193)", () => {
     return app;
   }
 
+  it("AD-6 one PSP adapter instance backs all neutral ports [INT-424]", async () => {
+    delete process.env.PSP_PROVIDER;
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const k = moduleRef.get(KYC_ONBOARDING_PORT);
+    expect(moduleRef.get(COLLECT_PORT)).toBe(k);
+    expect(moduleRef.get(PAYOUT_PORT)).toBe(k);
+    expect(moduleRef.get(PSP_EVENTS_PORT)).toBe(k);
+    expect(k).toBeInstanceOf(MockPspAdapter);
+    await moduleRef.close();
+  });
+
   it("defaults to in-memory invoice lookup and noop notifier", async () => {
     delete process.env.INVOICING_INTERNAL_URL;
     delete process.env.PARTICIPANTS_INTERNAL_URL;
     delete process.env.PSP_PROVIDER;
     const nest = await boot();
     expect(nest.get(INVOICE_LOOKUP)).toBeInstanceOf(InMemoryInvoiceLookup);
-    expect(nest.get(PARTICIPANTS_NOTIFIER)).toBeInstanceOf(
-      NoopParticipantsNotifier,
-    );
-    expect(nest.get(PARTICIPANTS_RESOLVER)).toBeInstanceOf(
-      NoopParticipantsResolver,
-    );
-    expect(nest.get(PSP_PORT)).toBeInstanceOf(MockPspAdapter);
+    expect(nest.get(PARTICIPANTS_NOTIFIER)).toBeInstanceOf(NoopParticipantsNotifier);
+    expect(nest.get(PARTICIPANTS_RESOLVER)).toBeInstanceOf(NoopParticipantsResolver);
+    expect(nest.get(PSP_ADAPTER)).toBeInstanceOf(MockPspAdapter);
   });
 
   it("wires HTTP invoice lookup and participants notifier from env", async () => {
@@ -76,12 +82,8 @@ describe("AppModule factories (INT-193)", () => {
     delete process.env.PSP_PROVIDER;
     const nest = await boot();
     expect(nest.get(INVOICE_LOOKUP)).toBeInstanceOf(HttpInvoiceLookup);
-    expect(nest.get(PARTICIPANTS_NOTIFIER)).toBeInstanceOf(
-      HttpParticipantsNotifier,
-    );
-    expect(nest.get(PARTICIPANTS_RESOLVER)).toBeInstanceOf(
-      HttpParticipantsResolver,
-    );
+    expect(nest.get(PARTICIPANTS_NOTIFIER)).toBeInstanceOf(HttpParticipantsNotifier);
+    expect(nest.get(PARTICIPANTS_RESOLVER)).toBeInstanceOf(HttpParticipantsResolver);
   });
 
   it("selects StripePspAdapter when PSP_PROVIDER=stripe (AD-6)", async () => {
@@ -91,6 +93,6 @@ describe("AppModule factories (INT-193)", () => {
     delete process.env.INVOICING_INTERNAL_URL;
     delete process.env.PARTICIPANTS_INTERNAL_URL;
     const nest = await boot();
-    expect(nest.get(PSP_PORT)).toBeInstanceOf(StripePspAdapter);
+    expect(nest.get(PSP_ADAPTER)).toBeInstanceOf(StripePspAdapter);
   });
 });

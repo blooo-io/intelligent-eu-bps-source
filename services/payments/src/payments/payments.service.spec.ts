@@ -62,7 +62,7 @@ describe("PaymentsService", () => {
       amount: "10.00",
       currency: "EUR",
       status: "succeeded",
-      stripePaymentId: "pi_1",
+      pspPaymentRef: "pi_1",
       communityId: COMMUNITY,
     });
     expect(service.getPaymentStatus("pay-1")).toEqual({
@@ -80,17 +80,17 @@ describe("PaymentsService", () => {
       role: "producer",
       fresh: true,
     });
-    expect(first.stripeAccountId).toMatch(/^acct_test_/);
+    expect(first.pspAccountRef).toMatch(/^acct_test_/);
     const second = await service.provisionPaymentAccount({
       participantId: PRODUCER,
       communityId: COMMUNITY,
       role: "producer",
       fresh: true,
     });
-    expect(second.stripeAccountId).toMatch(/^acct_test_/);
-    expect(second.stripeAccountId).not.toBe(first.stripeAccountId);
+    expect(second.pspAccountRef).toMatch(/^acct_test_/);
+    expect(second.pspAccountRef).not.toBe(first.pspAccountRef);
     const got = await service.getPaymentAccount(PRODUCER);
-    expect(got.stripeAccountId).toBe(second.stripeAccountId);
+    expect(got.pspAccountRef).toBe(second.pspAccountRef);
 
     const reused = await service.provisionPaymentAccount({
       participantId: PRODUCER,
@@ -98,7 +98,7 @@ describe("PaymentsService", () => {
       role: "producer",
       fresh: false,
     });
-    expect(reused.stripeAccountId).toBe(second.stripeAccountId);
+    expect(reused.pspAccountRef).toBe(second.pspAccountRef);
   });
 
   it("provisions consumer SetupIntent path (INT-228)", async () => {
@@ -109,7 +109,7 @@ describe("PaymentsService", () => {
       fresh: true,
     });
     expect(row.participantId).toBe(CONSUMER);
-    expect(row.stripeAccountId).toBeNull();
+    expect(row.pspAccountRef).toBeNull();
   });
 
   it("creates a Stripe-collected account and returns an embedded Account Session (INT-362 / REQ-051)", async () => {
@@ -121,8 +121,8 @@ describe("PaymentsService", () => {
     expect(session.mode).toBe("embedded");
     expect(session.status).toBe("requirements_due");
     expect(session.clientSecret).toMatch(/^accs_secret_test_acct_test_/);
-    expect(session.stripeAccountId).toMatch(/^acct_test_/);
-    expect(store.getAccount(PRODUCER)?.stripeAccountId).toBe(session.stripeAccountId);
+    expect(session.pspAccountRef).toMatch(/^acct_test_/);
+    expect(store.getAccount(PRODUCER)?.pspAccountRef).toBe(session.pspAccountRef);
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("pending");
 
     // A second Start reuses the account and issues a fresh Account Session.
@@ -131,7 +131,7 @@ describe("PaymentsService", () => {
       communityId: COMMUNITY,
       role: "producer",
     });
-    expect(again.stripeAccountId).toBe(session.stripeAccountId);
+    expect(again.pspAccountRef).toBe(session.pspAccountRef);
     expect(again.clientSecret).toBeTruthy();
   });
 
@@ -141,7 +141,7 @@ describe("PaymentsService", () => {
       communityId: COMMUNITY,
       role: "producer",
     });
-    psp.completeOnboarding(started.stripeAccountId!);
+    psp.completeOnboarding(started.pspAccountRef!);
     const done = await service.startOnboarding({
       participantId: PRODUCER,
       communityId: COMMUNITY,
@@ -161,16 +161,16 @@ describe("PaymentsService", () => {
     const midway = JSON.stringify({
       id: "evt_test_account_updated_midway",
       type: "account.updated",
-      data: { participantId: PRODUCER, stripeAccountId: started.stripeAccountId },
+      data: { participantId: PRODUCER, pspAccountRef: started.pspAccountRef },
     });
     await service.receiveWebhook(midway, MockPspAdapter.sign(midway));
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("pending");
 
-    psp.completeOnboarding(started.stripeAccountId!);
+    psp.completeOnboarding(started.pspAccountRef!);
     const done = JSON.stringify({
       id: "evt_test_account_updated_done",
       type: "account.updated",
-      data: { participantId: PRODUCER, stripeAccountId: started.stripeAccountId },
+      data: { participantId: PRODUCER, pspAccountRef: started.pspAccountRef },
     });
     await service.receiveWebhook(done, MockPspAdapter.sign(done));
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
@@ -202,7 +202,7 @@ describe("PaymentsService", () => {
       communityId: COMMUNITY,
       role: "producer",
     });
-    expect(session.stripeAccountId).toMatch(/^acct_test_/);
+    expect(session.pspAccountRef).toMatch(/^acct_test_/);
     expect(session.status).toBe("complete");
   });
 
@@ -225,7 +225,7 @@ describe("PaymentsService", () => {
       },
     });
     // Force remaining due then clear via update path.
-    const id = store.getAccount(PRODUCER)!.stripeAccountId!;
+    const id = store.getAccount(PRODUCER)!.pspAccountRef!;
     psp.dueByAccount.set(id, ["business_profile.mcc"]);
     store.putAccount({ ...store.getAccount(PRODUCER)!, kycStatus: "pending" });
     const session = await service.submitOnboardingRequirements({
@@ -260,7 +260,7 @@ describe("PaymentsService", () => {
     expect(createSpy).toHaveBeenCalledWith(
       expect.objectContaining({ country: "FR", accountToken: "ct_fr_default" }),
     );
-    expect(store.getAccount(PRODUCER)?.stripeAccountId).toMatch(/^acct_test_/);
+    expect(store.getAccount(PRODUCER)?.pspAccountRef).toMatch(/^acct_test_/);
   });
 
   it("creates Custom account with token on first KYC submit (INT-191 / UAT-051)", async () => {
@@ -294,7 +294,7 @@ describe("PaymentsService", () => {
       },
     });
     expect(session.status).toBe("complete");
-    expect(store.getAccount(PRODUCER)?.stripeAccountId).toMatch(/^acct_test_/);
+    expect(store.getAccount(PRODUCER)?.pspAccountRef).toMatch(/^acct_test_/);
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
     expect(psp.tokens).toEqual([]);
   });
@@ -334,7 +334,7 @@ describe("PaymentsService", () => {
       },
     });
     expect(session.status).toBe("complete");
-    expect(store.getAccount(PRODUCER)?.stripeAccountId).toMatch(/^acct_test_/);
+    expect(store.getAccount(PRODUCER)?.pspAccountRef).toMatch(/^acct_test_/);
     expect(psp.tokens).toHaveLength(1);
   });
 
@@ -345,7 +345,7 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
-    expect(store.getAccount(CONSUMER)?.paymentMethodId).toBe("pm_card_visa");
+    expect(store.getAccount(CONSUMER)?.pspPaymentMethodRef).toBe("pm_card_visa");
     const events = await outboxStore.list();
     expect(events.map((e) => e.event.type)).toContain(
       "PaymentAccountStatusChanged",
@@ -405,7 +405,7 @@ describe("PaymentsService", () => {
       }),
     ).rejects.toThrow(/failed with 503/);
     expect(failing.applyPaymentAccountStatus).toHaveBeenCalled();
-    expect(store.getAccount(CONSUMER)?.paymentMethodId).toBe("pm_card_visa");
+    expect(store.getAccount(CONSUMER)?.pspPaymentMethodRef).toBe("pm_card_visa");
   });
 
   it("getMyPaymentAccount returns brand/last4 for Ready consumer (INT-255)", async () => {
@@ -441,13 +441,13 @@ describe("PaymentsService", () => {
     });
     invoices.put({
       invoiceId: "inv-sepa-1",
-      stripeInvoiceId: "in_inv-sepa-1",
+      pspInvoiceRef: "in_inv-sepa-1",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Open",
       total: "12.00",
-      producerStripeAccountId: "acct_test_producer",
+      producerPspAccountRef: "acct_test_producer",
     });
     const paid = await service.payInvoice({
       invoiceId: "inv-sepa-1",
@@ -473,8 +473,8 @@ describe("PaymentsService", () => {
     });
     const summary = await service.getMyPaymentAccount(PRODUCER);
     expect(summary.status).toBe("complete");
-    expect(summary.stripeAccountId).toMatch(/^acct_test_/);
-    expect(summary.dashboardUrl).toContain(summary.stripeAccountId!);
+    expect(summary.pspAccountRef).toMatch(/^acct_test_/);
+    expect(summary.dashboardUrl).toContain(summary.pspAccountRef!);
   });
 
   it("INT-340 — a payment method cannot be attached to a second participant", async () => {
@@ -504,13 +504,13 @@ describe("PaymentsService", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     invoices.put({
       invoiceId: "inv-void",
-      stripeInvoiceId: "in_void",
+      pspInvoiceRef: "in_void",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Void",
       total: "2.00",
-      producerStripeAccountId: "acct_test_producer",
+      producerPspAccountRef: "acct_test_producer",
     });
     await expect(
       service.payInvoice({
@@ -530,13 +530,13 @@ describe("PaymentsService", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     invoices.put({
       invoiceId: "inv-1",
-      stripeInvoiceId: "in_inv-1",
+      pspInvoiceRef: "in_inv-1",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Open",
       total: "2.00",
-      producerStripeAccountId: "acct_test_producer",
+      producerPspAccountRef: "acct_test_producer",
     });
     const payment = await service.payInvoice({
       invoiceId: "inv-1",
@@ -558,13 +558,13 @@ describe("PaymentsService", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_fail_insufficient");
     invoices.put({
       invoiceId: "inv-2",
-      stripeInvoiceId: "in_inv-2",
+      pspInvoiceRef: "in_inv-2",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Open",
       total: "2.00",
-      producerStripeAccountId: "acct_test_producer",
+      producerPspAccountRef: "acct_test_producer",
     });
     const payment = await service.payInvoice({
       invoiceId: "inv-2",
@@ -577,13 +577,13 @@ describe("PaymentsService", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_fail_generic");
     invoices.put({
       invoiceId: "inv-3",
-      stripeInvoiceId: "in_inv-3",
+      pspInvoiceRef: "in_inv-3",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Open",
       total: "2.00",
-      producerStripeAccountId: "acct_test_producer",
+      producerPspAccountRef: "acct_test_producer",
     });
     const declined = await service.payInvoice({
       invoiceId: "inv-3",
@@ -699,13 +699,13 @@ describe("PaymentsService", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     invoices.put({
       invoiceId: "inv-pending",
-      stripeInvoiceId: "in_inv-pending",
+      pspInvoiceRef: "in_inv-pending",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Open",
       total: "1.00",
-      producerStripeAccountId: "acct_x",
+      producerPspAccountRef: "acct_x",
     });
     const payment = await service.payInvoice({
       invoiceId: "inv-pending",
@@ -717,7 +717,7 @@ describe("PaymentsService", () => {
     const body = JSON.stringify({
       id: "evt_test_pi_succeeded_1",
       type: "payment_intent.succeeded",
-      data: { stripePaymentId: row.stripePaymentId },
+      data: { pspPaymentRef: row.pspPaymentRef },
     });
     await service.receiveWebhook(body, MockPspAdapter.sign(body));
     expect(store.getPayment(payment.paymentId)?.status).toBe("succeeded");
@@ -732,13 +732,13 @@ describe("PaymentsService", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     invoices.put({
       invoiceId: "inv-fail-hook",
-      stripeInvoiceId: "in_inv-fail-hook",
+      pspInvoiceRef: "in_inv-fail-hook",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Open",
       total: "1.00",
-      producerStripeAccountId: "acct_x",
+      producerPspAccountRef: "acct_x",
     });
     const payment = await service.payInvoice({
       invoiceId: "inv-fail-hook",
@@ -750,7 +750,7 @@ describe("PaymentsService", () => {
     const body = JSON.stringify({
       id: "evt_test_pi_failed_1",
       type: "payment_intent.payment_failed",
-      data: { stripePaymentId: row.stripePaymentId, failureCategory: "declined" },
+      data: { pspPaymentRef: row.pspPaymentRef, failureCategory: "declined" },
     });
     await service.receiveWebhook(body, MockPspAdapter.sign(body));
     expect(store.getPayment(payment.paymentId)?.status).toBe("failed");
@@ -760,13 +760,13 @@ describe("PaymentsService", () => {
     const putInvoice = (invoiceId: string, acct: string, extra: Record<string, unknown> = {}) =>
       invoices.put({
         invoiceId,
-        stripeInvoiceId: `in_${invoiceId}`,
+        pspInvoiceRef: `in_${invoiceId}`,
         producerId: PRODUCER,
         consumerId: CONSUMER,
         currency: "EUR",
         status: "Open",
         total: "3.00",
-        producerStripeAccountId: acct,
+        producerPspAccountRef: acct,
         ...extra,
       });
 
@@ -786,23 +786,23 @@ describe("PaymentsService", () => {
       for (const invoiceId of ["inv-dc-1", "inv-dc-2", "inv-dc-3"]) {
         await service.payInvoice({ invoiceId, participantId: CONSUMER, communityId: COMMUNITY });
       }
-      expect(psp.connectedCustomers.map((c) => c.stripeAccountId)).toEqual([
+      expect(psp.connectedCustomers.map((c) => c.pspAccountRef)).toEqual([
         "acct_p1",
         "acct_p2",
       ]);
       const [p1, p2, p3] = psp.paymentInputs;
       expect(p1).toMatchObject({
-        stripeInvoiceId: "in_inv-dc-1",
-        producerStripeAccountId: "acct_p1",
-        consumerPaymentMethodId: "pm_card_visa",
-        connectedCustomerId: psp.connectedCustomers[0]!.stripeCustomerId,
+        pspInvoiceRef: "in_inv-dc-1",
+        producerPspAccountRef: "acct_p1",
+        pspPaymentMethodRef: "pm_card_visa",
+        pspCustomerRef: psp.connectedCustomers[0]!.pspCustomerRef,
       });
-      expect(p2!.connectedCustomerId).toBe(p1!.connectedCustomerId);
-      expect(p3!.connectedCustomerId).toBe(psp.connectedCustomers[1]!.stripeCustomerId);
+      expect(p2!.pspCustomerRef).toBe(p1!.pspCustomerRef);
+      expect(p3!.pspCustomerRef).toBe(psp.connectedCustomers[1]!.pspCustomerRef);
     });
 
     it("rejects an invoice without a Stripe invoice id", async () => {
-      putInvoice("inv-dc-none", "acct_p1", { stripeInvoiceId: undefined });
+      putInvoice("inv-dc-none", "acct_p1", { pspInvoiceRef: undefined });
       await expect(
         service.payInvoice({ invoiceId: "inv-dc-none", participantId: CONSUMER, communityId: COMMUNITY }),
       ).rejects.toThrow(/Stripe invoice required/);
@@ -869,10 +869,10 @@ describe("PaymentsService", () => {
         invoiceId: "inv-x",
         amount: "1.00",
         currency: "EUR",
-        producerStripeAccountId: "acct_p1",
-        stripeInvoiceId: "in_x",
-        connectedCustomerId: "cus_x",
-        consumerPaymentMethodId: "pm_card_visa",
+        producerPspAccountRef: "acct_p1",
+        pspInvoiceRef: "in_x",
+        pspCustomerRef: "cus_x",
+        pspPaymentMethodRef: "pm_card_visa",
       };
       const a = await psp.createPayment(input);
       const b = await psp.createPayment(input);
@@ -892,7 +892,7 @@ describe("PaymentsService", () => {
       const body = JSON.stringify({
         id: "evt_test_invoice_paid_1",
         type: "invoice.paid",
-        data: { stripeInvoiceId: "in_inv-dc-hook", stripeAccountId: "acct_p1", status: "paid" },
+        data: { pspInvoiceRef: "in_inv-dc-hook", pspAccountRef: "acct_p1", status: "paid" },
       });
       await service.receiveWebhook(body, MockPspAdapter.sign(body));
       expect(store.getPayment(payment.paymentId)?.status).toBe("succeeded");
@@ -918,7 +918,7 @@ describe("PaymentsService", () => {
       const body = JSON.stringify({
         id: "evt_test_invoice_failed_1",
         type: "invoice.payment_failed",
-        data: { stripeInvoiceId: "in_inv-dc-fail", stripeAccountId: "acct_p1", status: "open" },
+        data: { pspInvoiceRef: "in_inv-dc-fail", pspAccountRef: "acct_p1", status: "open" },
       });
       await service.receiveWebhook(body, MockPspAdapter.sign(body));
       expect(store.getPayment(payment.paymentId)).toMatchObject({
@@ -933,7 +933,7 @@ describe("PaymentsService", () => {
       const body = JSON.stringify({
         id: "evt_test_invoice_unknown",
         type: "invoice.paid",
-        data: { stripeInvoiceId: "in_unknown" },
+        data: { pspInvoiceRef: "in_unknown" },
       });
       const before = (await outboxStore.list()).length;
       await service.receiveWebhook(body, MockPspAdapter.sign(body));
@@ -942,10 +942,10 @@ describe("PaymentsService", () => {
 
     it("validates EnsureConnectedCustomer input", async () => {
       await expect(
-        service.ensureConnectedCustomer({ participantId: CONSUMER, stripeAccountId: "cus_1" }),
+        service.ensureConnectedCustomer({ participantId: CONSUMER, pspAccountRef: "cus_1" }),
       ).rejects.toThrow(/acct_/);
       await expect(
-        service.ensureConnectedCustomer({ participantId: "", stripeAccountId: "acct_1" }),
+        service.ensureConnectedCustomer({ participantId: "", pspAccountRef: "acct_1" }),
       ).rejects.toThrow(/participantId/);
     });
   });
@@ -967,7 +967,7 @@ describe("PaymentsService", () => {
     await expect(service.completeProducerKyc(PRODUCER)).rejects.toThrow(
       /Unknown/,
     );
-    expect(store.findByStripePaymentId("missing")).toBeUndefined();
+    expect(store.findByPspPaymentRef("missing")).toBeUndefined();
     expect(store.getPayment("missing")).toBeUndefined();
   });
 
@@ -982,13 +982,13 @@ describe("PaymentsService", () => {
     store.reset();
     invoices.put({
       invoiceId: "inv-durable",
-      stripeInvoiceId: "in_inv-durable",
+      pspInvoiceRef: "in_inv-durable",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Open",
       total: "3.00",
-      producerStripeAccountId: "acct_durable_producer",
+      producerPspAccountRef: "acct_durable_producer",
     });
     const payment = await service.payInvoice({
       invoiceId: "inv-durable",
@@ -1038,7 +1038,7 @@ describe("PaymentsService", () => {
       }),
     );
     expect(store.getAccount(idpSub)).toBeUndefined();
-    expect(store.getAccount(CONSUMER)?.paymentMethodId).toBe("pm_card_visa");
+    expect(store.getAccount(CONSUMER)?.pspPaymentMethodRef).toBe("pm_card_visa");
     await expect(service.getMyPaymentAccount(idpSub)).resolves.toMatchObject({
       status: "complete",
       last4: "4242",
@@ -1077,7 +1077,7 @@ describe("PaymentsService", () => {
     await expect(
       svc.attachPaymentMethod(CONSUMER, "pm_card_visa"),
     ).rejects.toBeInstanceOf(BadGatewayException);
-    expect(store.getAccount(CONSUMER)?.paymentMethodId).toBe("pm_card_visa");
+    expect(store.getAccount(CONSUMER)?.pspPaymentMethodRef).toBe("pm_card_visa");
   });
 
   it("INT-230 — payInvoice resolves IdP sub to participantId", async () => {
@@ -1108,13 +1108,13 @@ describe("PaymentsService", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     invoices.put({
       invoiceId: "inv-idp",
-      stripeInvoiceId: "in_inv-idp",
+      pspInvoiceRef: "in_inv-idp",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Open",
       total: "1.50",
-      producerStripeAccountId: "acct_idp",
+      producerPspAccountRef: "acct_idp",
     });
     const payment = await service.payInvoice({
       invoiceId: "inv-idp",
@@ -1153,13 +1153,13 @@ describe("PaymentsService", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     invoices.put({
       invoiceId: "inv-idp-consumer",
-      stripeInvoiceId: "in_inv-idp-consumer",
+      pspInvoiceRef: "in_inv-idp-consumer",
       producerId: PRODUCER,
       consumerId: idpSub,
       currency: "EUR",
       status: "Paid",
       total: "22.00",
-      producerStripeAccountId: "acct_idp_consumer",
+      producerPspAccountRef: "acct_idp_consumer",
     });
     await expect(
       service.payInvoice({
@@ -1202,8 +1202,8 @@ describe("PaymentsService", () => {
       participantId: idpSub,
       communityId: COMMUNITY,
       role: "consumer",
-      stripeAccountId: null,
-      paymentMethodId: "pm_poison",
+      pspAccountRef: null,
+      pspPaymentMethodRef: "pm_poison",
       kycStatus: "none",
     });
     await service.ensureParticipant({
@@ -1214,13 +1214,13 @@ describe("PaymentsService", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     invoices.put({
       invoiceId: "inv-poison",
-      stripeInvoiceId: "in_inv-poison",
+      pspInvoiceRef: "in_inv-poison",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Open",
       total: "2.00",
-      producerStripeAccountId: "acct_ok",
+      producerPspAccountRef: "acct_ok",
     });
     const payment = await service.payInvoice({
       invoiceId: "inv-poison",
@@ -1264,7 +1264,7 @@ describe("PaymentsService", () => {
       },
     });
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
-    expect(store.getAccount(PRODUCER)?.paymentMethodId).toBeFalsy();
+    expect(store.getAccount(PRODUCER)?.pspPaymentMethodRef).toBeFalsy();
 
     const second = await service.startOnboarding({
       participantId: PRODUCER,
@@ -1283,7 +1283,7 @@ describe("PaymentsService", () => {
       role: "prosumer",
     });
     expect(first.mode).toBe("embedded");
-    psp.completeOnboarding(first.stripeAccountId!);
+    psp.completeOnboarding(first.pspAccountRef!);
     const next = await service.startOnboarding({
       participantId: PRODUCER,
       communityId: COMMUNITY,
@@ -1346,7 +1346,7 @@ describe("PaymentsService", () => {
     const summary = await svc.getMyPaymentAccount(PRODUCER);
     expect(summary.status).toBe("complete");
     expect(summary.last4).toBeTruthy();
-    expect(summary.stripeAccountId).toMatch(/^acct_test_/);
+    expect(summary.pspAccountRef).toMatch(/^acct_test_/);
   });
 
   it("INT-269 — provision prosumer attaches Connect and test PM", async () => {
@@ -1356,8 +1356,8 @@ describe("PaymentsService", () => {
       role: "prosumer",
       fresh: true,
     });
-    expect(row.stripeAccountId).toMatch(/^acct_test_/);
-    expect(store.getAccount(PRODUCER)?.paymentMethodId).toBe("pm_card_visa");
+    expect(row.pspAccountRef).toMatch(/^acct_test_/);
+    expect(store.getAccount(PRODUCER)?.pspPaymentMethodRef).toBe("pm_card_visa");
     expect(store.getAccount(PRODUCER)?.kycStatus).toBe("verified");
   });
 
@@ -1408,14 +1408,14 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
-    expect(store.getAccount(CONSUMER)?.paymentMethodId).toBe("pm_card_visa");
+    expect(store.getAccount(CONSUMER)?.pspPaymentMethodRef).toBe("pm_card_visa");
 
     const result = await service.applyErasureRequested({
       requestId: "cccccccc-dddd-4eee-8fff-000000000001",
       participantId: CONSUMER,
     });
     expect(result.result).toBe("completed");
-    expect(store.getAccount(CONSUMER)?.paymentMethodId).toBeNull();
+    expect(store.getAccount(CONSUMER)?.pspPaymentMethodRef).toBeNull();
 
     const events = await outboxStore.list();
     const completed = events.find((e) => e.event.type === "ErasureCompleted");

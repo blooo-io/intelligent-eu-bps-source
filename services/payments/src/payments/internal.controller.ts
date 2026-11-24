@@ -11,7 +11,6 @@ import {
 import { ModuleAuthGuard } from "@intelligent/module-template";
 import { PaymentsService } from "./payments.service.js";
 
-/** Internal API — contracts/openapi/internal/payments.v1.yaml (INT-228). */
 @Controller("internal/v1")
 @UseGuards(new ModuleAuthGuard({ roles: ["service", "operator"] }))
 export class InternalPaymentsController {
@@ -32,11 +31,11 @@ export class InternalPaymentsController {
   @Post(String.raw`connected-customers\:ensure`)
   @HttpCode(200)
   ensureConnectedCustomer(
-    @Body() body: { participantId: string; stripeAccountId: string },
+    @Body() body: { participantId: string; pspAccountRef: string },
   ) {
     return this.payments.ensureConnectedCustomer({
       participantId: body?.participantId,
-      stripeAccountId: body?.stripeAccountId,
+      pspAccountRef: body?.pspAccountRef,
     });
   }
 

@@ -48,11 +48,15 @@ import {
 } from "../psp/psp-erase.port.js";
 import {
   PAYMENT_WEBHOOK_EVENTS,
-  PSP_PORT,
+  type LegacyOnboardingSession,
   type OnboardingRequirementsSubmission,
-  type OnboardingSession,
-  type PspPort,
-} from "../psp/psp.port.js";
+} from "../psp/psp.legacy.js";
+import { PSP_ADAPTER } from "../psp/psp-events.port.js";
+import type { MockPspAdapter } from "../psp/mock-psp.adapter.js";
+import type { StripePspAdapter } from "../psp/stripe-psp.adapter.js";
+
+type PspAdapter = MockPspAdapter | StripePspAdapter;
+type OnboardingSession = LegacyOnboardingSession;
 
 const PRODUCER = "AC-07";
 
@@ -64,7 +68,7 @@ type ProvisionRole = "consumer" | "producer" | "prosumer";
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
-  /** INT-326 — Stripe webhook duplicate deliveries (in-process counter). */
+  /** INT-326 — PSP webhook duplicate deliveries (in-process counter). */
   private webhookDuplicateCount = 0;
   private tx: { run<T>(fn: () => Promise<T> | T): Promise<T> } = new PassthroughTransaction();
 
@@ -76,7 +80,7 @@ export class PaymentsService {
   constructor(
     @Inject(PaymentsStore) private readonly store: PaymentsStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
-    @Inject(PSP_PORT) private readonly psp: PspPort,
+    @Inject(PSP_ADAPTER) private readonly psp: PspAdapter,
     @Inject(INVOICE_LOOKUP) private readonly invoices: InvoiceLookupPort,
     @Inject(PARTICIPANTS_NOTIFIER)
     private readonly participants: ParticipantsNotifierPort,
@@ -108,14 +112,14 @@ export class PaymentsService {
    */
   async ensureConnectedCustomer(input: {
     participantId: string;
-    stripeAccountId: string;
+    pspAccountRef: string;
   }): Promise<ConnectedCustomerRecord> {
-    if (!input.participantId || !/^acct_/.test(input.stripeAccountId ?? "")) {
-      throw new BadRequestException("participantId and acct_ stripeAccountId required");
+    if (!input.participantId || !/^acct_/.test(input.pspAccountRef ?? "")) {
+      throw new BadRequestException("participantId and acct_ pspAccountRef required");
     }
     const existing = await this.connectedCustomers.get(
       input.participantId,
-      input.stripeAccountId,
+      input.pspAccountRef,
     );
     if (existing) {
       return existing;
@@ -123,8 +127,8 @@ export class PaymentsService {
     const created = await this.psp.createConnectedCustomer(input);
     return this.connectedCustomers.putIfAbsent({
       participantId: input.participantId,
-      stripeAccountId: input.stripeAccountId,
-      stripeCustomerId: created.stripeCustomerId,
+      pspAccountRef: input.pspAccountRef,
+      pspCustomerRef: created.pspCustomerRef,
     });
   }
 
@@ -189,8 +193,8 @@ export class PaymentsService {
     }
     await this.saveAccount({
       participantId: input.participantId,
-      stripeAccountId: null,
-      paymentMethodId: null,
+      pspAccountRef: null,
+      pspPaymentMethodRef: null,
       kycStatus: "none",
       role: input.role,
       communityId: input.communityId,
@@ -200,8 +204,31 @@ export class PaymentsService {
   /**
    * INT-228 — GetPaymentAccount for AC-06 (Stripe Connect master, TP-7).
    */
+  private toPaymentAccountApi(
+    row: AccountRecord,
+    chargesEnabled?: boolean,
+  ): {
+    participantId: string;
+    pspAccountRef: string | null;
+    paymentMethodId: string | null;
+    kycStatus: string;
+    role: AccountRecord["role"];
+    communityId: string;
+    chargesEnabled?: boolean;
+  } {
+    return {
+      participantId: row.participantId,
+      pspAccountRef: row.pspAccountRef,
+      paymentMethodId: row.pspPaymentMethodRef,
+      kycStatus: row.kycStatus,
+      role: row.role,
+      communityId: row.communityId,
+      chargesEnabled,
+    };
+  }
+
   async getPaymentAccount(participantId: string): Promise<
-    AccountRecord & { chargesEnabled?: boolean }
+    ReturnType<PaymentsService["toPaymentAccountApi"]>
   > {
     let row = this.store.getAccount(participantId);
     if (!row) {
@@ -212,15 +239,15 @@ export class PaymentsService {
       throw new NotFoundException(`Unknown payment account ${participantId}`);
     }
     let chargesEnabled: boolean | undefined;
-    if (row.stripeAccountId) {
+    if (row.pspAccountRef) {
       try {
-        const session = await this.psp.getAccountSession(row.stripeAccountId);
+        const session = await this.psp.getAccountSession(row.pspAccountRef);
         chargesEnabled = session.status === "complete";
       } catch {
         chargesEnabled = false;
       }
     }
-    return { ...row, chargesEnabled };
+    return this.toPaymentAccountApi(row, chargesEnabled);
   }
 
   /**
@@ -261,12 +288,12 @@ export class PaymentsService {
   }
 
   private async submitSeedProducerRequirements(
-    stripeAccountId: string,
+    pspAccountRef: string,
     submission: OnboardingRequirementsSubmission,
   ): Promise<OnboardingSession> {
     try {
       return await this.psp.submitAccountRequirements(
-        stripeAccountId,
+        pspAccountRef,
         {
           businessProfileUrl: submission.businessProfileUrl,
           businessProfileMcc: submission.businessProfileMcc,
@@ -280,7 +307,7 @@ export class PaymentsService {
         throw err;
       }
       return this.psp.submitAccountRequirements(
-        stripeAccountId,
+        pspAccountRef,
         {
           businessProfileMcc: submission.businessProfileMcc,
           externalAccount: submission.externalAccount,
@@ -294,12 +321,12 @@ export class PaymentsService {
     participantId: string,
     existing: AccountRecord,
   ): Promise<void> {
-    if (existing.paymentMethodId) return;
+    if (existing.pspPaymentMethodRef) return;
     await this.psp.createSetupIntent(participantId);
     await this.psp.attachPaymentMethod(participantId, "pm_card_visa");
     await this.saveAccount({
       ...this.store.getAccount(participantId)!,
-      paymentMethodId: "pm_card_visa",
+      pspPaymentMethodRef: "pm_card_visa",
     });
   }
 
@@ -309,13 +336,13 @@ export class PaymentsService {
       fresh?: boolean;
     },
     existing: AccountRecord,
-  ): Promise<AccountRecord & { chargesEnabled?: boolean }> {
+  ): Promise<ReturnType<PaymentsService["toPaymentAccountApi"]>> {
     const fresh = input.fresh !== false;
-    if (!fresh && existing.paymentMethodId) {
-      return { ...existing, chargesEnabled: undefined };
+    if (!fresh && existing.pspPaymentMethodRef) {
+      return this.toPaymentAccountApi(existing);
     }
     await this.psp.createSetupIntent(input.participantId);
-    return { ...existing, chargesEnabled: undefined };
+    return this.toPaymentAccountApi(existing);
   }
 
   async provisionPaymentAccount(input: {
@@ -323,7 +350,7 @@ export class PaymentsService {
     communityId: string;
     role: ProvisionRole;
     fresh?: boolean;
-  }): Promise<AccountRecord & { chargesEnabled?: boolean }> {
+  }): Promise<ReturnType<PaymentsService["toPaymentAccountApi"]>> {
     const fresh = input.fresh !== false;
     await this.ensureParticipant(input);
     const existing = this.store.getAccount(input.participantId)!;
@@ -332,7 +359,7 @@ export class PaymentsService {
       return this.provisionConsumerAccount(input, existing);
     }
 
-    if (!fresh && existing.stripeAccountId) {
+    if (!fresh && existing.pspAccountRef) {
       return this.getPaymentAccount(input.participantId);
     }
 
@@ -345,20 +372,20 @@ export class PaymentsService {
     });
     await this.saveAccount({
       ...existing,
-      stripeAccountId: created.stripeAccountId,
+      pspAccountRef: created.pspAccountRef,
       kycStatus: "pending",
       role: input.role,
       communityId: input.communityId,
     });
     const session = await this.submitSeedProducerRequirements(
-      created.stripeAccountId,
+      created.pspAccountRef,
       submission,
     );
     const verified =
       session.status === "complete" || session.status === "pending_verification";
     await this.saveAccount({
       ...existing,
-      stripeAccountId: created.stripeAccountId,
+      pspAccountRef: created.pspAccountRef,
       kycStatus: verified ? "verified" : "pending",
       role: input.role,
       communityId: input.communityId,
@@ -395,7 +422,7 @@ export class PaymentsService {
       return this.startProducerOnboarding(account);
     }
     if (input.role === "prosumer") {
-      if (!account.stripeAccountId || account.kycStatus !== "verified") {
+      if (!account.pspAccountRef || account.kycStatus !== "verified") {
         const connect = await this.startProducerOnboarding(account);
         if (connect.status !== "complete") return connect;
       }
@@ -419,16 +446,16 @@ export class PaymentsService {
   private async startProducerOnboarding(
     account: AccountRecord,
   ): Promise<OnboardingSession> {
-    let stripeAccountId = account.stripeAccountId;
-    if (!stripeAccountId) {
+    let pspAccountRef = account.pspAccountRef;
+    if (!pspAccountRef) {
       const created = await this.psp.createEmbeddedProducerAccount({
         participantId: account.participantId,
         country: "FR",
       });
-      stripeAccountId = created.stripeAccountId;
-      await this.saveAccount({ ...account, stripeAccountId, kycStatus: "pending" });
+      pspAccountRef = created.pspAccountRef;
+      await this.saveAccount({ ...account, pspAccountRef, kycStatus: "pending" });
     }
-    const status = await this.psp.getAccountSession(stripeAccountId);
+    const status = await this.psp.getAccountSession(pspAccountRef);
     if (status.status === "complete") {
       // account.updated may lag behind the component exit; sync readiness here too.
       if (this.store.getAccount(account.participantId)?.kycStatus !== "verified") {
@@ -437,7 +464,7 @@ export class PaymentsService {
       return { ...status, mode: "embedded" };
     }
     const { clientSecret } =
-      await this.psp.createAccountOnboardingSession(stripeAccountId);
+      await this.psp.createAccountOnboardingSession(pspAccountRef);
     return { ...status, mode: "embedded", clientSecret };
   }
 
@@ -445,7 +472,7 @@ export class PaymentsService {
     participantId: string,
     account: AccountRecord,
   ): Promise<OnboardingSession> {
-    if (account.paymentMethodId) {
+    if (account.pspPaymentMethodRef) {
       // INT-255 / ANO-006 — a saved card must update AC-03. Swallowing the
       // notify left the member on TermsAccepted with no next step.
       try {
@@ -483,9 +510,9 @@ export class PaymentsService {
     };
     await this.ensureParticipant(input);
     const account = this.store.getAccount(input.participantId)!;
-    let stripeAccountId = account.stripeAccountId;
+    let pspAccountRef = account.pspAccountRef;
 
-    if (!stripeAccountId) {
+    if (!pspAccountRef) {
       // INT-191 — create Custom account with account_token (client or server-side).
       let accountToken = input.submission.accountToken;
       if (!accountToken) {
@@ -501,15 +528,15 @@ export class PaymentsService {
         accountToken,
         country,
       });
-      stripeAccountId = created.stripeAccountId;
+      pspAccountRef = created.pspAccountRef;
       await this.saveAccount({
         ...account,
-        stripeAccountId,
+        pspAccountRef,
         kycStatus: "pending",
       });
       // Account tokens are single-use — only non-token fields on the follow-up update.
       const session = await this.psp.submitAccountRequirements(
-        stripeAccountId,
+        pspAccountRef,
         {
           businessProfileUrl: input.submission.businessProfileUrl,
           businessProfileMcc: input.submission.businessProfileMcc,
@@ -528,7 +555,7 @@ export class PaymentsService {
     }
 
     const session = await this.psp.submitAccountRequirements(
-      stripeAccountId,
+      pspAccountRef,
       input.submission,
       input.clientIp,
     );
@@ -582,7 +609,7 @@ export class PaymentsService {
     }
     await this.saveAccount({
       ...account,
-      paymentMethodId,
+      pspPaymentMethodRef: paymentMethodId,
     });
     try {
       await this.emitAccountStatus(participantId, { notFound: "fail" });
@@ -610,17 +637,17 @@ export class PaymentsService {
   }
 
   private async paymentMethodSummary(row: AccountRecord) {
-    if (!row.paymentMethodId) {
+    if (!row.pspPaymentMethodRef) {
       return { brand: undefined, last4: undefined, method: undefined };
     }
-    const details = await this.psp.getPaymentMethodDetails(row.paymentMethodId);
+    const details = await this.psp.getPaymentMethodDetails(row.pspPaymentMethodRef);
     return { brand: details.brand, last4: details.last4, method: details.type };
   }
 
   private async connectAccountSummary(row: AccountRecord) {
-    if (!row.stripeAccountId) {
+    if (!row.pspAccountRef) {
       return {
-        stripeAccountId: undefined,
+        pspAccountRef: undefined,
         dashboardUrl: undefined,
         connectStatus: undefined,
       };
@@ -631,15 +658,15 @@ export class PaymentsService {
       | "complete"
       | undefined;
     try {
-      const session = await this.psp.getAccountSession(row.stripeAccountId);
+      const session = await this.psp.getAccountSession(row.pspAccountRef);
       connectStatus = session.status;
     } catch {
       connectStatus =
         row.kycStatus === "verified" ? "complete" : "requirements_due";
     }
     return {
-      stripeAccountId: row.stripeAccountId,
-      dashboardUrl: `https://dashboard.stripe.com/test/connect/accounts/${row.stripeAccountId}`,
+      pspAccountRef: row.pspAccountRef,
+      dashboardUrl: `https://dashboard.stripe.com/test/connect/accounts/${row.pspAccountRef}`,
       connectStatus,
     };
   }
@@ -658,7 +685,7 @@ export class PaymentsService {
     if (connectStatus) {
       return connectStatus;
     }
-    return row.paymentMethodId ? "complete" : "requirements_due";
+    return row.pspPaymentMethodRef ? "complete" : "requirements_due";
   }
 
   async getMyPaymentAccount(participantId: string): Promise<{
@@ -667,7 +694,7 @@ export class PaymentsService {
     method?: string;
     brand?: string;
     last4?: string;
-    stripeAccountId?: string;
+    pspAccountRef?: string;
     dashboardUrl?: string;
   }> {
     const caller = await this.resolveCallerParticipantId(participantId);
@@ -677,16 +704,16 @@ export class PaymentsService {
     }
 
     const { brand, last4, method } = await this.paymentMethodSummary(row);
-    const { stripeAccountId, dashboardUrl, connectStatus } =
+    const { pspAccountRef, dashboardUrl, connectStatus } =
       await this.connectAccountSummary(row);
 
-    if (brand || last4 || stripeAccountId) {
+    if (brand || last4 || pspAccountRef) {
       return {
         status: this.myPaymentAccountStatus(row, connectStatus),
         method,
         brand,
         last4,
-        stripeAccountId,
+        pspAccountRef,
         dashboardUrl,
       };
     }
@@ -699,7 +726,7 @@ export class PaymentsService {
 
   async completeProducerKyc(participantId: string): Promise<void> {
     const account = this.store.getAccount(participantId);
-    if (!account?.stripeAccountId) {
+    if (!account?.pspAccountRef) {
       throw new NotFoundException("Unknown producer account");
     }
     await this.saveAccount({ ...account, kycStatus: "verified" });
@@ -805,42 +832,42 @@ export class PaymentsService {
       );
     }
     const producerAccount = await this.hydrateAccount(invoice.producerId);
-    const boundAccount = producerAccount?.stripeAccountId || undefined;
+    const boundAccount = producerAccount?.pspAccountRef || undefined;
     if (
-      invoice.producerStripeAccountId &&
+      invoice.producerPspAccountRef &&
       boundAccount &&
-      invoice.producerStripeAccountId !== boundAccount
+      invoice.producerPspAccountRef !== boundAccount
     ) {
       throw new BadRequestException(
         "Producer Connect account does not match AC-07",
       );
     }
-    const producerStripeAccountId =
-      boundAccount ?? invoice.producerStripeAccountId ?? undefined;
-    if (!producerStripeAccountId) {
+    const producerPspAccountRef =
+      boundAccount ?? invoice.producerPspAccountRef ?? undefined;
+    if (!producerPspAccountRef) {
       throw new BadRequestException(
         "Producer Connect account required for direct charge",
       );
     }
-    if (!invoice.stripeInvoiceId) {
+    if (!invoice.pspInvoiceRef) {
       throw new BadRequestException(
-        "Stripe invoice required for direct charge (REQ-014)",
+        "PSP invoice required for direct charge (REQ-014)",
       );
     }
 
     const started = Date.now();
     const connected = await this.ensureConnectedCustomer({
       participantId,
-      stripeAccountId: producerStripeAccountId,
+      pspAccountRef: producerPspAccountRef,
     });
     const pspResult = await this.psp.createPayment({
       invoiceId: input.invoiceId,
       amount: invoice.total,
       currency: invoice.currency,
-      producerStripeAccountId,
-      stripeInvoiceId: invoice.stripeInvoiceId,
-      connectedCustomerId: connected.stripeCustomerId,
-      consumerPaymentMethodId: account.paymentMethodId,
+      pspAccountRef: producerPspAccountRef,
+      pspInvoiceRef: invoice.pspInvoiceRef,
+      pspCustomerRef: connected.pspCustomerRef,
+      pspPaymentMethodRef: account.pspPaymentMethodRef!,
     });
     const processingTimeMs = Math.max(0, Date.now() - started);
     const paymentId = randomUUID();
@@ -848,7 +875,7 @@ export class PaymentsService {
     let method = "card";
     try {
       const details = await this.psp.getPaymentMethodDetails(
-        account.paymentMethodId,
+        account.pspPaymentMethodRef,
       );
       if (details.type === "sepa_debit") method = "sepa_debit";
       else if (details.type) method = String(details.type);
@@ -862,8 +889,8 @@ export class PaymentsService {
       amount: invoice.total,
       currency: invoice.currency,
       status: pspResult.status,
-      stripePaymentId: pspResult.stripePaymentId,
-      stripeInvoiceId: invoice.stripeInvoiceId,
+      pspPaymentRef: pspResult.pspPaymentRef,
+      pspInvoiceRef: invoice.pspInvoiceRef,
       failureCategory: pspResult.failureCategory,
       communityId,
       method,
@@ -931,11 +958,11 @@ export class PaymentsService {
     if (!participantId) return;
     // INT-362 — Stripe sends account.updated during embedded onboarding too;
     // complete only once Stripe reports nothing due (TP-7, Stripe is master).
-    const stripeAccountId =
-      asString(payload?.stripeAccountId) ??
-      this.store.getAccount(participantId)?.stripeAccountId;
-    if (stripeAccountId) {
-      const session = await this.psp.getAccountSession(stripeAccountId);
+    const pspAccountRef =
+      asString(payload?.pspAccountRef) ??
+      this.store.getAccount(participantId)?.pspAccountRef;
+    if (pspAccountRef) {
+      const session = await this.psp.getAccountSession(pspAccountRef);
       if (session.status !== "complete") return;
     }
     await this.completeProducerKyc(participantId);
@@ -949,14 +976,14 @@ export class PaymentsService {
     eventType: string,
     payload: Record<string, unknown> | undefined,
   ): Promise<void> {
-    const stripePaymentId = asString(payload?.stripePaymentId);
-    const stripeInvoiceId = asString(payload?.stripeInvoiceId);
+    const pspPaymentRef = asString(payload?.pspPaymentRef);
+    const pspInvoiceRef = asString(payload?.pspInvoiceRef);
     const row =
-      (stripePaymentId
-        ? this.store.findByStripePaymentId(stripePaymentId)
+      (pspPaymentRef
+        ? this.store.findByPspPaymentRef(pspPaymentRef)
         : undefined) ??
-      (stripeInvoiceId
-        ? this.store.findByStripeInvoiceId(stripeInvoiceId)
+      (pspInvoiceRef
+        ? this.store.findByPspInvoiceRef(pspInvoiceRef)
         : undefined);
     if (!row) {
       return;
@@ -1006,7 +1033,7 @@ export class PaymentsService {
 
   private async performReceiveWebhook(rawBody: string, signature: string | undefined): Promise<void> {
     if (!signature) {
-      throw new UnauthorizedException("Missing Stripe-Signature");
+      throw new UnauthorizedException("Missing webhook signature");
     }
     const verified = this.psp.verifyWebhook(rawBody, signature);
     if (!verified.ok) {
@@ -1018,7 +1045,7 @@ export class PaymentsService {
       throw new BadRequestException("Webhook missing event id");
     }
     const result = await this.consumer.handle(
-      `stripe:${eventId}`,
+      `psp:${eventId}`,
       verified,
       async (event) => {
         if (event.eventType === "account.updated") {
@@ -1033,7 +1060,7 @@ export class PaymentsService {
     );
     if (result.status === "duplicate") {
       this.webhookDuplicateCount += 1;
-      this.logger.warn(`Stripe webhook duplicate ignored eventId=${eventId}`);
+      this.logger.warn(`PSP webhook duplicate ignored eventId=${eventId}`);
       return;
     }
     if (result.status === "failed") {
@@ -1047,11 +1074,11 @@ export class PaymentsService {
    */
   private isPaymentAccountReady(account: AccountRecord): boolean {
     if (account.role === "consumer") {
-      return Boolean(account.paymentMethodId);
+      return Boolean(account.pspPaymentMethodRef);
     }
     if (account.role === "prosumer") {
       return (
-        account.kycStatus === "verified" && Boolean(account.paymentMethodId)
+        account.kycStatus === "verified" && Boolean(account.pspPaymentMethodRef)
       );
     }
     return account.kycStatus === "verified";
@@ -1076,7 +1103,7 @@ export class PaymentsService {
       data: {
         participantId,
         kycStatus: account.kycStatus,
-        paymentMethodPresent: Boolean(account.paymentMethodId),
+        paymentMethodPresent: Boolean(account.pspPaymentMethodRef),
       },
     });
     // INT-193 — sync notify AC-03 until NATS consumer is wired.
@@ -1098,12 +1125,12 @@ export class PaymentsService {
   }): Promise<{ result: "completed" | "failed" }> {
     const account = await this.hydrateAccount(input.participantId);
     let result: "completed" | "failed" = "completed";
-    if (account?.stripeAccountId) {
+    if (account?.pspAccountRef) {
       try {
         await this.pspErase.erase({
           requestId: input.requestId,
           participantId: input.participantId,
-          stripeCustomerId: account.stripeAccountId,
+          pspAccountRef: account.pspAccountRef,
         });
       } catch {
         result = "failed";
@@ -1112,7 +1139,7 @@ export class PaymentsService {
     if (account) {
       await this.saveAccount({
         ...account,
-        paymentMethodId: null,
+        pspPaymentMethodRef: null,
       });
     }
     const communityId =

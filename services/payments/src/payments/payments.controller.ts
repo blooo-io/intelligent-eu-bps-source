@@ -15,7 +15,7 @@ import {
   ModuleAuthGuard,
   type AuthenticatedRequest,
 } from "@intelligent/module-template";
-import type { OnboardingRequirementsSubmission } from "../psp/psp.port.js";
+import type { KycTestFixtureSubmission } from "../psp/kyc-test-fixture.port.js";
 import { PaymentsService } from "./payments.service.js";
 
 @Controller()
@@ -48,7 +48,7 @@ export class PaymentsController {
   @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
   async submitRequirements(
     @Req() req: AuthenticatedRequest,
-    @Body() body: OnboardingRequirementsSubmission,
+    @Body() body: KycTestFixtureSubmission,
     @Headers("x-forwarded-for") forwardedFor: string | undefined,
   ) {
     const user = req.user!;

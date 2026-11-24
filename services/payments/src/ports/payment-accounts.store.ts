@@ -4,8 +4,8 @@ import type { AccountRecord } from "../domain/store.js";
 export const PAYMENT_ACCOUNTS_STORE = Symbol("PAYMENT_ACCOUNTS_STORE");
 
 /**
- * INT-228 — durable participant → Stripe Connect / PM binding so restarts
- * keep consuming real Stripe ids (TP-7) instead of inventing acct_test_*.
+ * INT-228 — durable participant → PSP Connect / PM binding so restarts
+ * keep consuming real PSP ids (TP-7) instead of inventing acct_test_*.
  */
 export type PaymentAccountsStore = {
   get(participantId: string): Promise<AccountRecord | undefined>;
@@ -30,25 +30,41 @@ export class InMemoryPaymentAccountsStore implements PaymentAccountsStore {
   }
 }
 
+const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS payment_accounts (
+  participant_id        TEXT PRIMARY KEY,
+  psp_account_ref       TEXT,
+  psp_payment_method_ref TEXT,
+  kyc_status            TEXT NOT NULL DEFAULT 'none',
+  role                  TEXT NOT NULL,
+  community_id          TEXT NOT NULL,
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'payment_accounts' AND column_name = 'stripe_account_id'
+  ) THEN
+    ALTER TABLE payment_accounts RENAME COLUMN stripe_account_id TO psp_account_ref;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'payment_accounts' AND column_name = 'payment_method_id'
+  ) THEN
+    ALTER TABLE payment_accounts RENAME COLUMN payment_method_id TO psp_payment_method_ref;
+  END IF;
+END $$;
+`;
+
 export class PostgresPaymentAccountsStore implements PaymentAccountsStore {
   private ready: Promise<void> | null = null;
 
   constructor(private readonly pool: Pool) {}
 
   private async ensureSchema(): Promise<void> {
-    this.ready ??= this.pool
-        .query(
-          `CREATE TABLE IF NOT EXISTS payment_accounts (
-             participant_id     TEXT PRIMARY KEY,
-             stripe_account_id  TEXT,
-             payment_method_id  TEXT,
-             kyc_status         TEXT NOT NULL DEFAULT 'none',
-             role               TEXT NOT NULL,
-             community_id       TEXT NOT NULL,
-             updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
-           )`,
-        )
-        .then(() => undefined);
+    this.ready ??= this.pool.query(SCHEMA_SQL).then(() => undefined);
     await this.ready;
   }
 
@@ -56,8 +72,8 @@ export class PostgresPaymentAccountsStore implements PaymentAccountsStore {
     await this.ensureSchema();
     const res = await this.pool.query<{
       participant_id: string;
-      stripe_account_id: string | null;
-      payment_method_id: string | null;
+      psp_account_ref: string | null;
+      psp_payment_method_ref: string | null;
       kyc_status: string;
       role: string;
       community_id: string;
@@ -68,8 +84,8 @@ export class PostgresPaymentAccountsStore implements PaymentAccountsStore {
     if (!row) return undefined;
     return {
       participantId: row.participant_id,
-      stripeAccountId: row.stripe_account_id,
-      paymentMethodId: row.payment_method_id,
+      pspAccountRef: row.psp_account_ref,
+      pspPaymentMethodRef: row.psp_payment_method_ref,
       kycStatus: row.kyc_status,
       role: row.role as AccountRecord["role"],
       communityId: row.community_id,
@@ -80,20 +96,20 @@ export class PostgresPaymentAccountsStore implements PaymentAccountsStore {
     await this.ensureSchema();
     await this.pool.query(
       `INSERT INTO payment_accounts (
-         participant_id, stripe_account_id, payment_method_id,
+         participant_id, psp_account_ref, psp_payment_method_ref,
          kyc_status, role, community_id, updated_at
        ) VALUES ($1, $2, $3, $4, $5, $6, now())
        ON CONFLICT (participant_id) DO UPDATE SET
-         stripe_account_id = EXCLUDED.stripe_account_id,
-         payment_method_id = EXCLUDED.payment_method_id,
+         psp_account_ref = EXCLUDED.psp_account_ref,
+         psp_payment_method_ref = EXCLUDED.psp_payment_method_ref,
          kyc_status = EXCLUDED.kyc_status,
          role = EXCLUDED.role,
          community_id = EXCLUDED.community_id,
          updated_at = now()`,
       [
         row.participantId,
-        row.stripeAccountId,
-        row.paymentMethodId,
+        row.pspAccountRef,
+        row.pspPaymentMethodRef,
         row.kycStatus,
         row.role,
         row.communityId,

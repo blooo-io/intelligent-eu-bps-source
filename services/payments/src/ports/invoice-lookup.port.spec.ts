@@ -14,11 +14,11 @@ describe("InvoiceLookupPort (INT-193)", () => {
       currency: "EUR",
       status: "Open",
       total: "2.00",
-      producerStripeAccountId: "acct_1",
+      producerPspAccountRef: "acct_1",
     });
     await expect(mem.getInvoice("inv-1")).resolves.toMatchObject({
       total: "2.00",
-      producerStripeAccountId: "acct_1",
+      producerPspAccountRef: "acct_1",
     });
     await expect(mem.getInvoice("missing")).rejects.toThrow(/Unknown invoice/);
   });

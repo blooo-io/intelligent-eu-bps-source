@@ -21,20 +21,19 @@ import type {
 } from "./kyc-test-fixture.port.js";
 import type { PayoutPort, PayoutResult } from "./payout.port.js";
 import type { PspEventsPort, PspEventVerification } from "./psp-events.port.js";
-import { PRODUCER_ONBOARDING_DUE } from "./psp.port.js";
-import type {
-  CreateEmbeddedProducerAccountInput,
-  CreateProducerAccountInput,
-  OnboardingRequirementsSubmission,
-  OnboardingSession,
-  PaymentMethodDetails,
-  PaymentMethodRef,
-  ProducerAccount,
-  PspPaymentInput,
-  PspPaymentResult,
-  PspPort,
-  WebhookVerification,
-} from "./psp.port.js";
+import {
+  PRODUCER_ONBOARDING_DUE,
+  type CreateEmbeddedProducerAccountInput,
+  type CreateProducerAccountInput,
+  type LegacyOnboardingSession,
+  type OnboardingRequirementsSubmission,
+  type PaymentMethodDetails,
+  type PaymentMethodRef,
+  type ProducerAccount,
+  type PspPaymentInput,
+  type PspPaymentResult,
+  type WebhookVerification,
+} from "./psp.legacy.js";
 import { PspError, type PspEvent, type PspPaymentMethodType } from "./psp.types.js";
 
 const TEST_SECRET = "whsec_test_intelligent";
@@ -82,7 +81,7 @@ function shortId(): string {
 /**
  * Stripe test-mode stand-in (BR-12). No network; signatures use a local HMAC.
  * Implements neutral PSP ports (WS5 Task 5.3 / INT-424) and keeps legacy
- * {@link PspPort} methods for callers until Task 5.6 deletes the old port.
+ * Temporary legacy helpers remain until Tasks 5.7 / 5.8 rewrite pay + webhook.
  * S10-style card failure can be forced via paymentMethodId prefix `pm_fail_`.
  */
 export class MockPspAdapter
@@ -91,8 +90,7 @@ export class MockPspAdapter
     CollectPort,
     PayoutPort,
     PspEventsPort,
-    KycTestFixturePort,
-    PspPort
+    KycTestFixturePort
 {
   readonly accounts = new Map<string, string>();
   readonly methods = new Map<string, string>();
@@ -102,8 +100,8 @@ export class MockPspAdapter
   readonly tokens: string[] = [];
   readonly connectedCustomers: Array<{
     participantId: string;
-    stripeAccountId: string;
-    stripeCustomerId: string;
+    pspAccountRef: string;
+    pspCustomerRef: string;
   }> = [];
   readonly paymentInputs: PspPaymentInput[] = [];
   private readonly paidInvoices = new Map<string, PspPaymentResult>();
@@ -203,7 +201,7 @@ export class MockPspAdapter
     }
     this.methodOwners.set(paymentMethodId, participantId);
     this.methods.set(participantId, paymentMethodId);
-    return { paymentMethodId, pspPaymentMethodRef: paymentMethodId };
+    return { pspPaymentMethodRef: paymentMethodId };
   }
 
   async getPaymentMethodDetails(
@@ -211,8 +209,10 @@ export class MockPspAdapter
   ): Promise<PaymentMethodDetails & CollectPaymentMethodDetails> {
     const base = await this.resolvePaymentMethodDetails(paymentMethodId);
     return {
-      ...base,
       pspPaymentMethodRef: paymentMethodId,
+      type: base.type,
+      brand: base.brand,
+      last4: base.last4,
     };
   }
 
@@ -227,8 +227,8 @@ export class MockPspAdapter
     this.customers.set(key, pspCustomerRef);
     this.connectedCustomers.push({
       participantId: input.participantId,
-      stripeAccountId: input.pspAccountRef,
-      stripeCustomerId: pspCustomerRef,
+      pspAccountRef: input.pspAccountRef,
+      pspCustomerRef,
     });
     return { pspCustomerRef };
   }
@@ -424,23 +424,23 @@ export class MockPspAdapter
     }
     // INT-228 — each create returns a new id (mirrors live Stripe accounts.create).
     this.accountSeq += 1;
-    const stripeAccountId = `acct_test_${input.participantId.replaceAll("-", "").slice(0, 12)}${this.accountSeq}`;
-    this.accounts.set(input.participantId, stripeAccountId);
+    const pspAccountRef = `acct_test_${input.participantId.replaceAll("-", "").slice(0, 12)}${this.accountSeq}`;
+    this.accounts.set(input.participantId, pspAccountRef);
     // Token covers legal entity / ToS; remaining due are outside the token.
-    this.dueByAccount.set(stripeAccountId, [
+    this.dueByAccount.set(pspAccountRef, [
       "business_profile.url",
       "business_profile.mcc",
       "external_account",
     ]);
-    return { stripeAccountId, pspAccountRef: stripeAccountId };
+    return { pspAccountRef };
   }
 
   async submitAccountRequirements(
-    stripeAccountId: string,
+    pspAccountRef: string,
     submission: OnboardingRequirementsSubmission | KycTestFixtureSubmission,
     _clientIp: string,
-  ): Promise<OnboardingSession & KycTestFixtureSession> {
-    const remaining = new Set(this.dueByAccount.get(stripeAccountId) ?? []);
+  ): Promise<LegacyOnboardingSession & KycTestFixtureSession> {
+    const remaining = new Set(this.dueByAccount.get(pspAccountRef) ?? []);
     if (submission.accountToken || submission.tosAccepted) {
       remaining.delete("tos_acceptance.date");
       remaining.delete("business_type");
@@ -467,36 +467,36 @@ export class MockPspAdapter
     if (submission.externalAccount?.accountNumber) {
       remaining.delete("external_account");
     }
-    this.dueByAccount.set(stripeAccountId, [...remaining]);
-    const session = await this.getAccountSession(stripeAccountId);
+    this.dueByAccount.set(pspAccountRef, [...remaining]);
+    const session = await this.getAccountSession(pspAccountRef);
     return {
       ...session,
-      pspAccountRef: stripeAccountId,
+      pspAccountRef,
     };
   }
 
-  // ── Legacy PspPort (kept until Task 5.6) ────────────────────────────────
+  // ── Temporary helpers until Tasks 5.7 / 5.8 ─────────────────────────────
 
   async createEmbeddedProducerAccount(
     input: CreateEmbeddedProducerAccountInput,
   ): Promise<ProducerAccount> {
     this.accountSeq += 1;
-    const stripeAccountId = `acct_test_${input.participantId.replaceAll("-", "").slice(0, 12)}${this.accountSeq}`;
-    this.accounts.set(input.participantId, stripeAccountId);
-    this.dueByAccount.set(stripeAccountId, [...PRODUCER_ONBOARDING_DUE]);
-    return { stripeAccountId };
+    const pspAccountRef = `acct_test_${input.participantId.replaceAll("-", "").slice(0, 12)}${this.accountSeq}`;
+    this.accounts.set(input.participantId, pspAccountRef);
+    this.dueByAccount.set(pspAccountRef, [...PRODUCER_ONBOARDING_DUE]);
+    return { pspAccountRef };
   }
 
   async createAccountOnboardingSession(
-    stripeAccountId: string,
+    pspAccountRef: string,
   ): Promise<{ clientSecret: string }> {
-    return { clientSecret: `accs_secret_test_${stripeAccountId}` };
+    return { clientSecret: `accs_secret_test_${pspAccountRef}` };
   }
 
-  /** Test seam: the producer finished the embedded component (Stripe side). */
-  completeOnboarding(stripeAccountId: string): void {
-    this.dueByAccount.set(stripeAccountId, []);
-    const state = this.connected.get(stripeAccountId);
+  /** Test seam: the producer finished the embedded component (PSP side). */
+  completeOnboarding(pspAccountRef: string): void {
+    this.dueByAccount.set(pspAccountRef, []);
+    const state = this.connected.get(pspAccountRef);
     if (state) {
       state.currentlyDue = [];
       state.chargesEnabled = true;
@@ -505,12 +505,12 @@ export class MockPspAdapter
     }
   }
 
-  async getAccountSession(stripeAccountId: string): Promise<OnboardingSession> {
-    const due = this.dueByAccount.get(stripeAccountId) ?? [];
+  async getAccountSession(pspAccountRef: string): Promise<LegacyOnboardingSession> {
+    const due = this.dueByAccount.get(pspAccountRef) ?? [];
     return {
       mode: "requirements",
       status: due.length === 0 ? "complete" : "requirements_due",
-      stripeAccountId,
+      pspAccountRef,
       currentlyDue: [...due],
       eventuallyDue: [],
     };
@@ -526,50 +526,49 @@ export class MockPspAdapter
 
   async createConnectedCustomer(input: {
     participantId: string;
-    stripeAccountId: string;
-  }): Promise<{ stripeCustomerId: string }> {
-    const stripeCustomerId = `cus_test_${randomUUID().replaceAll("-", "").slice(0, 14)}`;
-    this.connectedCustomers.push({ ...input, stripeCustomerId });
-    return { stripeCustomerId };
+    pspAccountRef: string;
+  }): Promise<{ pspCustomerRef: string }> {
+    const pspCustomerRef = `cus_test_${randomUUID().replaceAll("-", "").slice(0, 14)}`;
+    this.connectedCustomers.push({ ...input, pspCustomerRef });
+    return { pspCustomerRef };
   }
 
-  /** INT-355 — mirrors Stripe: a paid invoice is never charged twice. */
+  /** INT-355 — mirrors PSP: a paid invoice is never charged twice (until Task 5.7). */
   async createPayment(input: PspPaymentInput): Promise<PspPaymentResult> {
     this.paymentInputs.push({ ...input });
-    const alreadyPaid = this.paidInvoices.get(input.stripeInvoiceId);
+    const alreadyPaid = this.paidInvoices.get(input.pspInvoiceRef);
     if (alreadyPaid) {
       return { ...alreadyPaid };
     }
-    const { consumerPaymentMethodId } = input;
-    // Mirrors Stripe: sepa_debit cannot be shared with a connected account.
+    const { pspPaymentMethodRef } = input;
     if (
-      (await this.resolvePaymentMethodDetails(consumerPaymentMethodId)).type ===
+      (await this.resolvePaymentMethodDetails(pspPaymentMethodRef)).type ===
       "sepa_debit"
     ) {
       const refused: PspPaymentResult = {
-        stripePaymentId: `pi_test_${randomUUID().slice(0, 8)}`,
+        pspPaymentRef: `pi_test_${randomUUID().slice(0, 8)}`,
         status: "failed",
         failureCategory: "sepa_debit_not_shareable",
       };
       this.payments.push(refused);
       return refused;
     }
-    const fail = consumerPaymentMethodId.startsWith("pm_fail_");
+    const fail = pspPaymentMethodRef.startsWith("pm_fail_");
     const result: PspPaymentResult = fail
       ? {
-          stripePaymentId: `pi_test_${randomUUID().slice(0, 8)}`,
+          pspPaymentRef: `pi_test_${randomUUID().slice(0, 8)}`,
           status: "failed",
-          failureCategory: consumerPaymentMethodId.includes("insufficient")
+          failureCategory: pspPaymentMethodRef.includes("insufficient")
             ? "insufficient_funds"
             : "declined",
         }
       : {
-          stripePaymentId: `pi_test_${randomUUID().slice(0, 8)}`,
+          pspPaymentRef: `pi_test_${randomUUID().slice(0, 8)}`,
           status: "succeeded",
         };
     this.payments.push(result);
     if (result.status === "succeeded") {
-      this.paidInvoices.set(input.stripeInvoiceId, result);
+      this.paidInvoices.set(input.pspInvoiceRef, result);
     }
     return result;
   }

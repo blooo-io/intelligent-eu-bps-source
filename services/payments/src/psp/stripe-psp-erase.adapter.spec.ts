@@ -18,7 +18,7 @@ describe("StripePspEraseAdapter (INT-275)", () => {
     const result = await adapter.erase({
       requestId: "req-2",
       participantId: "part-2",
-      stripeCustomerId: "acct_test_2",
+      pspAccountRef: "acct_test_2",
     });
     expect(result.ok).toBe(true);
     expect(adapter.recorded()).toHaveLength(1);

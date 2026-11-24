@@ -18,16 +18,15 @@ import type { PspEventsPort, PspEventVerification } from "./psp-events.port.js";
 import type {
   CreateEmbeddedProducerAccountInput,
   CreateProducerAccountInput,
+  LegacyOnboardingSession,
   OnboardingRequirementsSubmission,
-  OnboardingSession,
   PaymentMethodDetails,
   PaymentMethodRef,
   ProducerAccount,
   PspPaymentInput,
   PspPaymentResult,
-  PspPort,
   WebhookVerification,
-} from "./psp.port.js";
+} from "./psp.legacy.js";
 import {
   PspError,
   type PspEvent,
@@ -39,14 +38,14 @@ import { readStripeEnv, toMinorUnits, type StripeEnv } from "./stripe-env.js";
 /**
  * Real Stripe test-mode P-PSP adapter (INT-189 / INT-190 / INT-191 / AD-6 / BR-12).
  * Implements neutral ports (WS5 Tasks 5.4–5.5 / INT-424) and keeps legacy
- * {@link PspPort} methods until Task 5.6 deletes the old port.
+ * legacy PspPort methods until Task 5.6 deletes the old port.
  *
  * Direct charges (neutral): PaymentIntent confirm off_session on the producer
  * Connect account (REQ-014 / TD-6). Legacy {@link createPayment} still pays the
  * producer's Stripe invoice until Task 5.7 rewires the service.
  */
 export class StripePspAdapter
-  implements KycOnboardingPort, CollectPort, PayoutPort, PspEventsPort, PspPort
+  implements KycOnboardingPort, CollectPort, PayoutPort, PspEventsPort
 {
   private readonly stripe: Stripe;
   private readonly webhookSecrets: string[];
@@ -176,7 +175,7 @@ export class StripePspAdapter
         throw new Error("payment_method_owned_by_other");
       }
     }
-    return { paymentMethodId: pm.id, pspPaymentMethodRef: pm.id };
+    return { pspPaymentMethodRef: pm.id };
   }
 
   async getPaymentMethodDetails(
@@ -186,7 +185,6 @@ export class StripePspAdapter
     const type = pm.type ?? "card";
     if (type === "sepa_debit") {
       return {
-        paymentMethodId: pm.id,
         pspPaymentMethodRef: pm.id,
         type: "sepa_debit",
         brand: "sepa_debit",
@@ -194,7 +192,6 @@ export class StripePspAdapter
       };
     }
     return {
-      paymentMethodId: pm.id,
       pspPaymentMethodRef: pm.id,
       type: "card",
       brand: pm.card?.brand ?? undefined,
@@ -552,7 +549,7 @@ export class StripePspAdapter
       },
       metadata: { participantId: input.participantId },
     });
-    return { stripeAccountId: account.id };
+    return { pspAccountRef: account.id };
   }
 
   async createEmbeddedProducerAccount(
@@ -575,29 +572,29 @@ export class StripePspAdapter
       },
       metadata: { participantId: input.participantId },
     });
-    return { stripeAccountId: account.id };
+    return { pspAccountRef: account.id };
   }
 
   async createAccountOnboardingSession(
-    stripeAccountId: string,
+    pspAccountRef: string,
   ): Promise<{ clientSecret: string }> {
     const session = await this.stripe.accountSessions.create({
-      account: stripeAccountId,
+      account: pspAccountRef,
       components: { account_onboarding: { enabled: true } },
     });
     return { clientSecret: session.client_secret };
   }
 
-  async getAccountSession(stripeAccountId: string): Promise<OnboardingSession> {
-    const account = await this.stripe.accounts.retrieve(stripeAccountId);
+  async getAccountSession(pspAccountRef: string): Promise<LegacyOnboardingSession> {
+    const account = await this.stripe.accounts.retrieve(pspAccountRef);
     return sessionFromAccount(account);
   }
 
   async submitAccountRequirements(
-    stripeAccountId: string,
+    pspAccountRef: string,
     submission: OnboardingRequirementsSubmission,
     _clientIp: string,
-  ): Promise<OnboardingSession> {
+  ): Promise<LegacyOnboardingSession> {
     const params: Stripe.AccountUpdateParams = {};
 
     // INT-191 — legal entity / ToS via account_token (required for FR platforms).
@@ -634,7 +631,7 @@ export class StripePspAdapter
       };
     }
 
-    const account = await this.stripe.accounts.update(stripeAccountId, params);
+    const account = await this.stripe.accounts.update(pspAccountRef, params);
     return sessionFromAccount(account);
   }
 
@@ -710,13 +707,12 @@ export class StripePspAdapter
 
   async createConnectedCustomer(input: {
     participantId: string;
-    stripeAccountId: string;
-  }): Promise<{ stripeCustomerId: string }> {
-    const { pspCustomerRef } = await this.ensureCustomer({
+    pspAccountRef: string;
+  }): Promise<{ pspCustomerRef: string }> {
+    return this.ensureCustomer({
       participantId: input.participantId,
-      pspAccountRef: input.stripeAccountId,
+      pspAccountRef: input.pspAccountRef,
     });
-    return { stripeCustomerId: pspCustomerRef };
   }
 
   /**
@@ -725,23 +721,23 @@ export class StripePspAdapter
    */
   async createPayment(input: PspPaymentInput): Promise<PspPaymentResult> {
     const opts: Stripe.RequestOptions = {
-      stripeAccount: input.producerStripeAccountId,
+      stripeAccount: input.pspAccountRef,
     };
     try {
       const invoice = await this.stripe.invoices.retrieve(
-        input.stripeInvoiceId,
+        input.pspInvoiceRef,
         { expand: ["payments"] },
         opts,
       );
       if (invoice.status === "paid") {
         return {
-          stripePaymentId: invoicePaymentIntentId(invoice),
+          pspPaymentRef: invoicePaymentIntentId(invoice),
           status: "succeeded",
         };
       }
       if (invoice.status !== "open") {
         return {
-          stripePaymentId: invoicePaymentIntentId(invoice),
+          pspPaymentRef: invoicePaymentIntentId(invoice),
           status: "failed",
           failureCategory: "invoice_not_payable",
         };
@@ -751,34 +747,34 @@ export class StripePspAdapter
         invoice.currency !== input.currency.toLowerCase()
       ) {
         return {
-          stripePaymentId: invoicePaymentIntentId(invoice),
+          pspPaymentRef: invoicePaymentIntentId(invoice),
           status: "failed",
           failureCategory: "amount_mismatch",
         };
       }
 
       const platformPm = await this.stripe.paymentMethods.retrieve(
-        input.consumerPaymentMethodId,
+        input.pspPaymentMethodRef,
       );
       if (platformPm.type === "sepa_debit") {
         return {
-          stripePaymentId: invoicePaymentIntentId(invoice),
+          pspPaymentRef: invoicePaymentIntentId(invoice),
           status: "failed",
           failureCategory: "sepa_debit_not_shareable",
         };
       }
       const shareable = await this.shareablePlatformCard(
         platformPm,
-        input.consumerPaymentMethodId,
+        input.pspPaymentMethodRef,
       );
       if (!shareable) {
         return {
-          stripePaymentId: invoicePaymentIntentId(invoice),
+          pspPaymentRef: invoicePaymentIntentId(invoice),
           status: "failed",
           failureCategory: "payment_method_not_attached",
         };
       }
-      const customer = stripeId(invoice.customer) ?? input.connectedCustomerId;
+      const customer = stripeId(invoice.customer) ?? input.pspCustomerRef;
       const cloned = await this.stripe.paymentMethods.create(
         { customer: shareable.customerId, payment_method: shareable.id },
         opts,
@@ -800,14 +796,14 @@ export class StripePspAdapter
         { ...opts, idempotencyKey: `pay:${input.invoiceId}` },
       );
       await this.tagProducerCharge(paid, input.invoiceId, opts);
-      const stripePaymentId = invoicePaymentIntentId(paid);
+      const pspPaymentRef = invoicePaymentIntentId(paid);
       if (paid.status === "paid") {
-        return { stripePaymentId, status: "succeeded" };
+        return { pspPaymentRef, status: "succeeded" };
       }
       if (paid.status === "open") {
-        return { stripePaymentId, status: "pending" };
+        return { pspPaymentRef, status: "pending" };
       }
-      return { stripePaymentId, status: "failed", failureCategory: "declined" };
+      return { pspPaymentRef, status: "failed", failureCategory: "declined" };
     } catch (err) {
       const stripeErr = err as {
         decline_code?: string;
@@ -822,7 +818,7 @@ export class StripePspAdapter
           ? stripeErr.message.slice(0, 64)
           : "declined");
       return {
-        stripePaymentId: stripeErr.payment_intent?.id ?? input.stripeInvoiceId,
+        pspPaymentRef: stripeErr.payment_intent?.id ?? input.pspInvoiceRef,
         status: "failed",
         failureCategory: legacyMapFailureCategory(String(code)),
       };
@@ -1067,7 +1063,7 @@ function legacyNormalizeStripeEvent(event: Stripe.Event): WebhookVerification {
       eventType: event.type,
       payload: {
         participantId: account.metadata?.participantId,
-        stripeAccountId: account.id,
+        pspAccountRef: account.id,
       },
     };
   }
@@ -1081,9 +1077,9 @@ function legacyNormalizeStripeEvent(event: Stripe.Event): WebhookVerification {
       eventId: event.id,
       eventType: event.type,
       payload: {
-        stripePaymentId: intent.id,
+        pspPaymentRef: intent.id,
         status: intent.status,
-        ...(event.account ? { stripeAccountId: event.account } : {}),
+        ...(event.account ? { pspAccountRef: event.account } : {}),
         ...(intent.last_payment_error
           ? {
               failureCategory: legacyMapFailureCategory(
@@ -1103,9 +1099,9 @@ function legacyNormalizeStripeEvent(event: Stripe.Event): WebhookVerification {
       eventId: event.id,
       eventType: event.type,
       payload: {
-        stripeInvoiceId: invoice.id,
+        pspInvoiceRef: invoice.id,
         status: invoice.status,
-        ...(event.account ? { stripeAccountId: event.account } : {}),
+        ...(event.account ? { pspAccountRef: event.account } : {}),
       },
     };
   }
@@ -1131,10 +1127,10 @@ function invoicePaymentIntentId(invoice: Stripe.Invoice): string {
   return stripeId(chosen?.payment.payment_intent) ?? invoice.id;
 }
 
-function sessionFromAccount(account: Stripe.Account): OnboardingSession {
+function sessionFromAccount(account: Stripe.Account): LegacyOnboardingSession {
   const currentlyDue = account.requirements?.currently_due ?? [];
   const pending = account.requirements?.pending_verification ?? [];
-  let status: OnboardingSession["status"] = "requirements_due";
+  let status: LegacyOnboardingSession["status"] = "requirements_due";
   if (currentlyDue.length === 0 && pending.length > 0) {
     status = "pending_verification";
   } else if (
@@ -1146,7 +1142,7 @@ function sessionFromAccount(account: Stripe.Account): OnboardingSession {
   return {
     mode: "requirements",
     status,
-    stripeAccountId: account.id,
+    pspAccountRef: account.id,
     currentlyDue: [...currentlyDue],
     eventuallyDue: [...(account.requirements?.eventually_due ?? [])],
   };

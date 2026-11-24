@@ -22,7 +22,7 @@
 ## Task groups
 | Group | Jira | Status | PR | Notes |
 |---|---|---|---|---|
-| Day 1 contracts + ewds-client + hygiene + FX | INT-423 | CI | [#190](https://github.com/blooo-io/intelligent-eu-bps-source/pull/190) | Tasks 1.1, 1.5, 1.10, 2.1–2.3, 3.1, 4.1–4.7, 5.1, 6.1–6.2; web PUBLIC_OPERATIONS synced to 41 ops (`e519e76`) |
+| Day 1 contracts + ewds-client + hygiene + FX | INT-423 | CI | [#190](https://github.com/blooo-io/intelligent-eu-bps-source/pull/190) | Tasks 1.1, 1.5, 1.10, 2.1–2.3, 3.1, 4.1–4.7, 5.1, 6.1–6.2; web ops 41; S13 rejects missing `issuerStatementId` (grid fee may be non-zero) |
 
 ## Decisions / deviations
 | When | What | Why |

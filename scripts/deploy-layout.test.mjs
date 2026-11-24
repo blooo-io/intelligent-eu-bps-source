@@ -157,6 +157,25 @@ test("docs-portal disables ExternalSecret (INT-249)", async () => {
   assert.match(values, /externalSecret:\s*false/);
 });
 
+test("A8-live: every deployed environment runs the EWDS adapters live", async () => {
+  const adapters = [
+    "MARKET_ADAPTER",
+    "DATASPACE_ADAPTER",
+    "ACTOR_SOURCE_ADAPTER",
+    "ERASURE_SOURCE_ADAPTER",
+    "TARIFF_ADAPTER",
+  ];
+  // A8 — mock remains for local/tests; only cluster envs (dev/demo) go live.
+  for (const envName of ["dev", "demo"]) {
+    const text = await readFile(`deploy/envs/${envName}/values.yaml`, "utf8");
+    for (const key of adapters) {
+      assert.match(text, new RegExp(`${key}:\\s*ewds`), `${envName} ${key}`);
+    }
+    assert.match(text, /COMMAND_CHANNEL_ENABLED:\s*"true"/);
+    assert.match(text, /INTAKE_BOOTSTRAP_S1:\s*"false"/);
+  }
+});
+
 async function yamlFiles(directory) {
   const found = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {

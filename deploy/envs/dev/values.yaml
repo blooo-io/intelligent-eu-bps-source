@@ -11,3 +11,12 @@ image:
   tag: "develop"
   pullPolicy: Always
   pullSecret: ghcr-pull
+# A8-live (INT-429) — deployed environments run EWDS adapters live; chart defaults stay mock.
+env:
+  MARKET_ADAPTER: ewds
+  DATASPACE_ADAPTER: ewds
+  ACTOR_SOURCE_ADAPTER: ewds
+  ERASURE_SOURCE_ADAPTER: ewds
+  TARIFF_ADAPTER: ewds
+  COMMAND_CHANNEL_ENABLED: "true"
+  INTAKE_BOOTSTRAP_S1: "false"

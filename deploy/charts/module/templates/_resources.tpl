@@ -42,6 +42,10 @@ spec:
     metadata:
       labels:
         {{- include "module.labels" . | nindent 8 }}
+        {{- if .Values.ewdsClient }}
+        # INT-429 / NFR-017 — CGW NetworkPolicy allows :3333 only from ewds-client pods.
+        ewds-client: "true"
+        {{- end }}
     spec:
       serviceAccountName: {{ .Values.name }}
       automountServiceAccountToken: false
@@ -74,13 +78,20 @@ spec:
             - secretRef:
                 name: nats-client
                 optional: true
-          {{- with .Values.env }}
           env:
-            {{- range $k, $v := . }}
+            {{- range $k, $v := .Values.env }}
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
-          {{- end }}
+            {{- if .Values.ewdsClient }}
+            # INT-429 / NFR-017 — CGW_API_KEY from OpenBao path ddhub/api-key (never Helm values).
+            - name: CGW_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.name }}-cgw
+                  key: CGW_API_KEY
+                  optional: true
+            {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -212,6 +223,18 @@ spec:
         - port: 443
           protocol: TCP
     {{- end }}
+    {{- if .Values.ewdsClient }}
+    # INT-429 — DDHub Client Gateway API (cluster DNS :80 → CG :3333).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ddhub
+      ports:
+        - port: 80
+          protocol: TCP
+        - port: 3333
+          protocol: TCP
+    {{- end }}
 {{- /* INT-249 — skip OpenBao sync when the workload needs no secret (e.g. docs-portal). */ -}}
 {{- if ne .Values.externalSecret false }}
 ---
@@ -232,6 +255,29 @@ spec:
   dataFrom:
     - extract:
         key: {{ .Values.environment }}/{{ .Values.name }}
+{{- if .Values.ewdsClient }}
+---
+# INT-429 / NFR-017 — CGW API key from OpenBao `ddhub/api-key` (placeholder until INT-309).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .Values.name }}-cgw
+  labels:
+    {{- include "module.labels" . | nindent 4 }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: openbao
+    kind: ClusterSecretStore
+  target:
+    name: {{ .Values.name }}-cgw
+    creationPolicy: Owner
+  data:
+    - secretKey: CGW_API_KEY
+      remoteRef:
+        key: ddhub/api-key
+        property: CGW_API_KEY
+{{- end }}
 {{- /* One owner per namespace — every module reads Secret nats-client. */ -}}
 {{- if eq .Values.name "invoicing" }}
 ---

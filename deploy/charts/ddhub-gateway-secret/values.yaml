@@ -12,3 +12,8 @@ gatewayPodLabels:
   app.kubernetes.io/name: ddhub-client-gateway
 esoReaderServiceAccount: ddhub-eso-reader
 k8sStoreName: ddhub-k8s
+# INT-429 / NFR-017 — CGW API ingress from ewds-client pods in billing apps namespaces.
+ewdsClientNamespaces:
+  - int-apps
+  - demo-apps
+  - local-apps

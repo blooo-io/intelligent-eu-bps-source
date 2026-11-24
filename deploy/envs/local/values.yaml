@@ -1,4 +1,5 @@
 # Local k3d environment (TD-12). Same chart set as int/demo; Mailpit catches mail (REQ-017).
+# A8 — mock adapters stay on chart defaults (no live EWDS overlay).
 environment: local
 appsNamespace: local-apps
 dataNamespace: local-data

@@ -10,6 +10,12 @@ test("INT-308 OpenBao DDHub CG seed documents KV v1 mount ddhub/", () => {
   assert.equal(layout.property, "vault_token");
 });
 
+test("INT-429 OpenBao DDHub CG seed documents CGW API key placeholder path", () => {
+  const layout = checkLayout();
+  assert.equal(layout.apiKeyPath, "secret/ddhub/api-key");
+  assert.equal(layout.apiKeyProperty, "CGW_API_KEY");
+});
+
 test("INT-308 seed script CLI uses Set.has and is documented", async () => {
   const source = await readFile(
     new URL("./openbao-seed-ddhub-cg.mjs", import.meta.url),
@@ -25,4 +31,8 @@ test("INT-308 seed script CLI uses Set.has and is documented", async () => {
   );
   assert.match(release, /openbao-seed-ddhub-cg\.mjs/);
   assert.match(release, /ddhub\//);
+
+  assert.match(source, /ddhub\/api-key/);
+  assert.match(source, /CGW_API_KEY/);
+  assert.match(source, /dev-only-replace-me/);
 });

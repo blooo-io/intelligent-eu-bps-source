@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 /**
- * INT-308 — prepare OpenBao for DDHub Client Gateway (Phase 1).
+ * INT-308 / INT-429 — prepare OpenBao for DDHub Client Gateway (Phase 1).
  *
  * Enables KV v1 at mount path `ddhub/` (CG writes `ddhub/mnemonic` etc., not
  * under secret/), creates a limited token, stores it at secret/platform/ddhub.
+ * Also seeds a placeholder CGW API key at secret/ddhub/api-key (NFR-017;
+ * real key is minted when USER_AUTH_ENABLED is switched on in INT-309).
  *
  * Usage (merged branch — INT-157):
  *   KUBECONFIG=… node scripts/openbao-seed-ddhub-cg.mjs --check
@@ -74,7 +76,9 @@ export function checkLayout() {
     mount: "ddhub/ (KV v1)",
     kvPath: "secret/platform/ddhub",
     property: "vault_token",
-    note: "CG SECRET_PREFIX=ddhub/ expects a KV engine mounted at ddhub/, not secret/ddhub",
+    apiKeyPath: "secret/ddhub/api-key",
+    apiKeyProperty: "CGW_API_KEY",
+    note: "CG SECRET_PREFIX=ddhub/ expects a KV engine mounted at ddhub/, not secret/ddhub; billing modules read CGW_API_KEY from secret/ddhub/api-key via ExternalSecret",
   };
 }
 
@@ -103,10 +107,16 @@ export function applyDdhubCgOpenbao() {
     token,
     `bao kv put -mount=secret platform/ddhub vault_token='${cgToken}' seeded=true`,
   );
+  // INT-429 / NFR-017 — placeholder only; real key lands with USER_AUTH_ENABLED (INT-309).
+  bao(
+    token,
+    "bao kv put -mount=secret ddhub/api-key CGW_API_KEY='dev-only-replace-me' seeded=true",
+  );
   return {
     applied: true,
     mount: "ddhub/",
     platformPath: "secret/platform/ddhub",
+    apiKeyPath: "secret/ddhub/api-key",
     tokenTtl: "768h",
   };
 }

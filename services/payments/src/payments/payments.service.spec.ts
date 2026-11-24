@@ -10,6 +10,7 @@ import {
   InMemoryProcessedEventsStore,
   OutboxService,
 } from "@intelligent/module-template";
+import type { Clock } from "../domain/clock.js";
 import { PaymentsStore } from "../domain/store.js";
 import { MockPspAdapter } from "../psp/mock-psp.adapter.js";
 import { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
@@ -24,6 +25,16 @@ const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
 const PRODUCER = "66666666-7777-4888-9999-aaaaaaaaaaaa";
 const CONSUMER = "11111111-2222-4333-8444-555555555555";
 
+class TestClock implements Clock {
+  private current = new Date("2026-11-24T09:00:00.000Z");
+  set(iso: string): void {
+    this.current = new Date(iso);
+  }
+  now(): Date {
+    return new Date(this.current);
+  }
+}
+
 describe("PaymentsService", () => {
   let store: PaymentsStore;
   let outboxStore: InMemoryOutboxStore;
@@ -31,9 +42,11 @@ describe("PaymentsService", () => {
   let invoices: InMemoryInvoiceLookup;
   let accountsStore: InMemoryPaymentAccountsStore;
   let pspErase: MockPspEraseAdapter;
+  let clock: TestClock;
   let service: PaymentsService;
 
   beforeEach(() => {
+    clock = new TestClock();
     store = new PaymentsStore();
     outboxStore = new InMemoryOutboxStore();
     psp = new MockPspAdapter();
@@ -51,6 +64,8 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
     );
   });
 
@@ -396,6 +411,8 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
     );
     await expect(
       svc.startOnboarding({
@@ -449,14 +466,16 @@ describe("PaymentsService", () => {
       total: "12.00",
       producerPspAccountRef: "acct_test_producer",
     });
-    const paid = await service.payInvoice({
-      invoiceId: "inv-sepa-1",
-      participantId: CONSUMER,
-      communityId: COMMUNITY,
-    });
-    expect(paid.method).toBe("sepa_debit");
-    // INT-355 — direct charges cannot reuse a platform SEPA PaymentMethod (open decision).
-    expect(paid).toMatchObject({ status: "failed", failureCategory: "sepa_debit_not_shareable" });
+    // B7 — a saved SEPA mandate cannot be charged on the producer account: hosted checkout needs a returnUrl.
+    const charge = vi.spyOn(psp, "createDirectCharge");
+    await expect(
+      service.payInvoice({
+        invoiceId: "inv-sepa-1",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      }),
+    ).rejects.toThrow(/returnUrl required/);
+    expect(charge).not.toHaveBeenCalled();
   });
 
   it("getMyPaymentAccount returns dashboardUrl for Ready producer (INT-255)", async () => {
@@ -572,7 +591,7 @@ describe("PaymentsService", () => {
       communityId: COMMUNITY,
     });
     expect(payment.status).toBe("failed");
-    expect(payment.failureCategory).toBe("insufficient_funds");
+    expect(payment.failureCategory).toBe("card_declined");
 
     await service.attachPaymentMethod(CONSUMER, "pm_fail_generic");
     invoices.put({
@@ -590,7 +609,7 @@ describe("PaymentsService", () => {
       participantId: CONSUMER,
       communityId: COMMUNITY,
     });
-    expect(declined.failureCategory).toBe("declined");
+    expect(declined.failureCategory).toBe("card_declined");
   });
 
   it("rejects webhooks with invalid signature (NFR-015)", async () => {
@@ -672,7 +691,7 @@ describe("PaymentsService", () => {
     expect(service.getWebhookDuplicateCount()).toBe(1);
   });
 
-  it("returns consumer SetupIntent elements session and rejects pay without method (INT-193)", async () => {
+  it("returns consumer SetupIntent elements session; pay on an unknown invoice is not found (INT-193)", async () => {
     const session = await service.startOnboarding({
       participantId: CONSUMER,
       communityId: COMMUNITY,
@@ -686,7 +705,7 @@ describe("PaymentsService", () => {
         participantId: CONSUMER,
         communityId: COMMUNITY,
       }),
-    ).rejects.toThrow(/payment method/);
+    ).rejects.toThrow(/Unknown invoice inv-x/);
   });
 
   it("refunds via PSP and upgrades pending payment on webhook", async () => {
@@ -779,7 +798,8 @@ describe("PaymentsService", () => {
       await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     });
 
-    it("pays the Stripe invoice as one reused Customer per consumer and connected account", async () => {
+    it("charges each invoice as one reused customer per consumer and producer account", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
       putInvoice("inv-dc-1", "acct_p1");
       putInvoice("inv-dc-2", "acct_p1");
       putInvoice("inv-dc-3", "acct_p2");
@@ -790,25 +810,31 @@ describe("PaymentsService", () => {
         "acct_p1",
         "acct_p2",
       ]);
-      const [p1, p2, p3] = psp.paymentInputs;
+      const [p1, p2, p3] = charge.mock.calls.map(([input]) => input);
       expect(p1).toMatchObject({
-        pspInvoiceRef: "in_inv-dc-1",
+        invoiceId: "inv-dc-1",
         pspAccountRef: "acct_p1",
         pspPaymentMethodRef: "pm_card_visa",
         pspCustomerRef: psp.connectedCustomers[0]!.pspCustomerRef,
+        idempotencyKey: "pay:inv-dc-1",
       });
       expect(p2!.pspCustomerRef).toBe(p1!.pspCustomerRef);
       expect(p3!.pspCustomerRef).toBe(psp.connectedCustomers[1]!.pspCustomerRef);
     });
 
-    it("rejects an invoice without a Stripe invoice id", async () => {
+    it("A6 pays an invoice that has no PSP invoice id", async () => {
       putInvoice("inv-dc-none", "acct_p1", { pspInvoiceRef: undefined });
-      await expect(
-        service.payInvoice({ invoiceId: "inv-dc-none", participantId: CONSUMER, communityId: COMMUNITY }),
-      ).rejects.toThrow(/PSP invoice required/);
+      const paid = await service.payInvoice({
+        invoiceId: "inv-dc-none",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      });
+      expect(paid.status).toBe("succeeded");
+      expect(store.getPayment(paid.paymentId)?.pspInvoiceRef).toBeUndefined();
     });
 
     it("replays Pay on a settled invoice without a second charge", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
       putInvoice("inv-dc-twice", "acct_p1");
       const first = await service.payInvoice({
         invoiceId: "inv-dc-twice",
@@ -821,7 +847,7 @@ describe("PaymentsService", () => {
         communityId: COMMUNITY,
       });
       expect(again.paymentId).toBe(first.paymentId);
-      expect(psp.paymentInputs).toHaveLength(1);
+      expect(charge).toHaveBeenCalledTimes(1);
       const events = (await outboxStore.list()).filter(
         (e) => e.event.type === "PaymentStatusChanged",
       );
@@ -950,6 +976,198 @@ describe("PaymentsService", () => {
     });
   });
 
+  describe("REQ-014 pay through CollectPort (INT-425)", () => {
+    const INV1 = "aaaaaaaa-0000-4000-8000-000000000001";
+    const INV2 = "aaaaaaaa-0000-4000-8000-000000000002";
+    const PROD_ACCT = "mock_acct_prod";
+    const RETURN_URL = "https://ewds.example/return";
+
+    const putInvoice = (invoiceId: string, extra: Record<string, unknown> = {}) =>
+      invoices.put({
+        invoiceId,
+        producerId: PRODUCER,
+        consumerId: CONSUMER,
+        currency: "EUR",
+        status: "Open",
+        total: "12.34",
+        producerPspAccountRef: PROD_ACCT,
+        ...extra,
+      });
+    const pay = (invoiceId: string, returnUrl?: string) =>
+      service.payInvoice({ invoiceId, participantId: CONSUMER, communityId: COMMUNITY, returnUrl });
+    const paymentEvents = async () =>
+      (await outboxStore.list()).filter((e) => e.event.type === "PaymentStatusChanged");
+
+    beforeEach(async () => {
+      await service.ensureParticipant({
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+        role: "consumer",
+      });
+      await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+      putInvoice(INV1);
+      putInvoice(INV2);
+    });
+
+    it("UAT-014 REQ-014 card: direct charge on the producer account, idempotent on invoice", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      clock.set("2026-11-24T10:00:00.000Z");
+      const r = await pay(INV1);
+      expect(r).toMatchObject({
+        status: "succeeded",
+        method: "card",
+        amount: "12.34",
+        currency: "EUR",
+        initiatedAt: "2026-11-24T10:00:00.000Z",
+      });
+      expect(charge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pspAccountRef: PROD_ACCT,
+          pspPaymentMethodRef: "pm_card_visa",
+          idempotencyKey: `pay:${INV1}`,
+        }),
+      );
+      // TE-2 — settledAt and processingTimeMs are set only by the webhook (Task 5.8).
+      const row = store.getPayment(r.paymentId)!;
+      expect(row).toMatchObject({ pspAccountRef: PROD_ACCT, initiatedAt: "2026-11-24T10:00:00.000Z" });
+      expect(row.settledAt).toBeUndefined();
+      expect(row.processingTimeMs).toBeUndefined();
+      const [event] = await paymentEvents();
+      expect(event!.event.data).toMatchObject({
+        amount: "12.34",
+        currency: "EUR",
+        initiatedAt: "2026-11-24T10:00:00.000Z",
+        payerId: CONSUMER,
+        payeeId: PRODUCER,
+      });
+      expect(event!.event.data).not.toHaveProperty("processingTimeMs");
+    });
+
+    it("REQ-014 payInvoice twice on the same open invoice creates one charge", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      const first = await pay(INV1);
+      const again = await pay(INV1);
+      expect(charge).toHaveBeenCalledTimes(1);
+      expect(again.paymentId).toBe(first.paymentId);
+    });
+
+    it("REQ-014 a double click while the first Pay is running joins it", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      const [a, b] = await Promise.all([pay(INV1), pay(INV1)]);
+      expect(charge).toHaveBeenCalledTimes(1);
+      expect(b.paymentId).toBe(a.paymentId);
+      expect(store.listByInvoiceId(INV1)).toHaveLength(1);
+    });
+
+    it("REQ-014 a still-processing charge is returned without a second charge", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      const first = await pay(INV1);
+      store.putPayment({ ...store.getPayment(first.paymentId)!, status: "pending" });
+      const again = await pay(INV1);
+      expect(again).toMatchObject({ paymentId: first.paymentId, status: "pending" });
+      expect(charge).toHaveBeenCalledTimes(1);
+    });
+
+    it("UAT-016 REQ-014 retry after a decline uses a fresh idempotency key", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      await service.attachPaymentMethod(CONSUMER, "pm_fail_generic");
+      const declined = await pay(INV1);
+      expect(declined).toMatchObject({ status: "failed", failureCategory: "card_declined" });
+      await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+      const retried = await pay(INV1);
+      expect(retried.status).toBe("succeeded");
+      expect(retried.paymentId).not.toBe(declined.paymentId);
+      expect(charge.mock.calls.map(([input]) => input.idempotencyKey)).toEqual([
+        `pay:${INV1}`,
+        `pay:${INV1}:2`,
+      ]);
+    });
+
+    it("UAT-057 REQ-014 SEPA: returns a PSP-hosted checkout URL, payment requires_action", async () => {
+      await service.attachPaymentMethod(CONSUMER, "pm_sepa_1");
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      const checkout = vi.spyOn(psp, "createCheckoutSession");
+      clock.set("2026-11-24T10:00:00.000Z");
+      const r = await pay(INV2, RETURN_URL);
+      expect(r).toMatchObject({
+        status: "requires_action",
+        checkoutUrl: expect.stringMatching(/^https:\/\//),
+        initiatedAt: "2026-11-24T10:00:00.000Z",
+      });
+      expect(checkout).toHaveBeenCalledWith(
+        expect.objectContaining({
+          methods: ["card", "sepa_debit"],
+          saveForFutureUse: true,
+          pspAccountRef: PROD_ACCT,
+          successUrl: RETURN_URL,
+          cancelUrl: RETURN_URL,
+          idempotencyKey: `co:${INV2}:2026-11-24`,
+        }),
+      );
+      expect(charge).not.toHaveBeenCalled();
+      const row = store.getPayment(r.paymentId)!;
+      expect(row).toMatchObject({
+        status: "requires_action",
+        pspCheckoutRef: expect.stringMatching(/^mock_co_/),
+        initiatedAt: "2026-11-24T10:00:00.000Z",
+      });
+      expect(JSON.stringify(row)).not.toContain(r.checkoutUrl!);
+      // PaymentStatusChanged has no requires_action state; the webhook announces the outcome.
+      expect(await paymentEvents()).toHaveLength(0);
+    });
+
+    it("UAT-057 REQ-014 reopening an unfinished checkout reuses the payment and the session", async () => {
+      await service.attachPaymentMethod(CONSUMER, "pm_sepa_1");
+      clock.set("2026-11-24T10:00:00.000Z");
+      const first = await pay(INV2, RETURN_URL);
+      clock.set("2026-11-24T10:05:00.000Z");
+      const again = await pay(INV2, RETURN_URL);
+      expect(again).toMatchObject({
+        paymentId: first.paymentId,
+        checkoutUrl: first.checkoutUrl,
+        initiatedAt: "2026-11-24T10:00:00.000Z",
+      });
+      clock.set("2026-11-25T08:00:00.000Z");
+      const nextDay = await pay(INV2, RETURN_URL);
+      expect(nextDay.paymentId).toBe(first.paymentId);
+      expect(nextDay.checkoutUrl).not.toBe(first.checkoutUrl);
+      expect(store.getPayment(first.paymentId)?.initiatedAt).toBe("2026-11-25T08:00:00.000Z");
+      expect(store.listByInvoiceId(INV2)).toHaveLength(1);
+    });
+
+    it("REQ-014 no saved payment method goes to hosted checkout", async () => {
+      await service.applyErasureRequested({
+        requestId: "dddddddd-0000-4000-8000-000000000001",
+        participantId: CONSUMER,
+      });
+      const r = await pay(INV2, RETURN_URL);
+      expect(r).toMatchObject({ status: "requires_action", checkoutUrl: expect.any(String) });
+    });
+
+    it("REQ-014 a payment-method lookup failure falls back to the card charge", async () => {
+      vi.spyOn(psp, "getPaymentMethodDetails").mockRejectedValueOnce(new Error("psp down"));
+      const r = await pay(INV1);
+      expect(r).toMatchObject({ status: "succeeded", method: "card" });
+    });
+
+    it("REQ-014 refuses when the producer has no connected account", async () => {
+      const charge = vi.spyOn(psp, "createDirectCharge");
+      putInvoice(INV1, { producerPspAccountRef: undefined });
+      await expect(pay(INV1)).rejects.toThrow("Producer PSP account required for direct charge");
+      expect(charge).not.toHaveBeenCalled();
+    });
+
+    it("REQ-014 refuses when the invoice names another producer account than AC-07", async () => {
+      await service.provisionPaymentAccount({
+        participantId: PRODUCER,
+        communityId: COMMUNITY,
+        role: "producer",
+        fresh: true,
+      });
+      await expect(pay(INV1)).rejects.toThrow(/does not match AC-07/);
+    });
+  });
+
   it("rejects webhook without signature and malformed JSON body", async () => {
     await expect(service.receiveWebhook("{}", undefined as unknown as string)).rejects.toThrow(
       /Missing webhook signature/,
@@ -1022,6 +1240,8 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
     );
     const session = await service.attachCallerPaymentMethod({
       participantId: idpSub,
@@ -1073,6 +1293,8 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
     );
     await expect(
       svc.attachPaymentMethod(CONSUMER, "pm_card_visa"),
@@ -1099,6 +1321,8 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
     );
     await service.ensureParticipant({
       participantId: CONSUMER,
@@ -1144,6 +1368,8 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
     );
     await service.ensureParticipant({
       participantId: CONSUMER,
@@ -1196,6 +1422,8 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
     );
     // Poison: account whose primary key is the IdP sub (prior failed resolve).
     await accountsStore.put({
@@ -1314,6 +1542,8 @@ describe("PaymentsService", () => {
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
     );
     await svc.submitOnboardingRequirements({
       participantId: PRODUCER,
@@ -1375,6 +1605,8 @@ describe("PaymentsService", () => {
       failingErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       new InMemoryConnectedCustomersStore(),
+      psp,
+      clock,
     );
     await svc.provisionPaymentAccount({
       participantId: PRODUCER,

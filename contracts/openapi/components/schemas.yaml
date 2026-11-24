@@ -133,8 +133,8 @@ components:
       enum: [Open, PartiallyPaid, Paid, Overdue, Void]
     PaymentStatus:
       type: string
-      description: Payment lifecycle (02 §5).
-      enum: [pending, succeeded, failed, cancelled, refunded]
+      description: Payment lifecycle (02 §5). `requires_action` waits for the payer on a PSP-hosted checkout (A7-bis).
+      enum: [pending, requires_action, succeeded, failed, cancelled, refunded]
     PayoutStatus:
       type: string
       description: Connect payout lifecycle (REQ-015, REQ-060).

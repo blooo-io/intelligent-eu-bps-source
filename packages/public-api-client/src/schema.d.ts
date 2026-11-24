@@ -360,7 +360,7 @@ export interface paths {
         put?: never;
         /**
          * Pay an invoice
-         * @description The consumer pays the invoice. The payment goes to the producer's account (REQ-014).
+         * @description The consumer pays the invoice. The payment goes to the producer's account (REQ-014). A saved card is charged directly; SEPA, or no saved method, returns a PSP-hosted `checkoutUrl` with status `requires_action` (A7-bis).
          */
         post: operations["payInvoice"];
         delete?: never;
@@ -1364,10 +1364,10 @@ export interface components {
          */
         StatementStatus: "Open" | "PartiallyPaid" | "Paid" | "Overdue" | "Void";
         /**
-         * @description Payment lifecycle (02 §5).
+         * @description Payment lifecycle (02 §5). `requires_action` waits for the payer on a PSP-hosted checkout (A7-bis).
          * @enum {string}
          */
-        PaymentStatus: "pending" | "succeeded" | "failed" | "cancelled" | "refunded";
+        PaymentStatus: "pending" | "requires_action" | "succeeded" | "failed" | "cancelled" | "refunded";
         /**
          * @description Kind of billing run (02 §6). Early settlement removed (REQ-057 deprecated).
          * @enum {string}
@@ -1926,7 +1926,17 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uri
+                     * @description Where the hosted checkout returns the payer. Required when checkout is needed.
+                     */
+                    returnUrl?: string;
+                };
+            };
+        };
         responses: {
             /** @description Payment started. */
             201: {
@@ -1937,6 +1947,7 @@ export interface operations {
                     "application/json": components["schemas"]["Payment"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

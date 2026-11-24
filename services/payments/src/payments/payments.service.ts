@@ -16,9 +16,11 @@ import {
   PassthroughTransaction,
   type RecordingTransaction,
 } from "@intelligent/module-template";
+import { CLOCK, type Clock } from "../domain/clock.js";
 import {
   PaymentsStore,
   type AccountRecord,
+  type PaymentRecord,
   type PaymentWrite,
 } from "../domain/store.js";
 import {
@@ -42,6 +44,7 @@ import {
   PAYMENT_ACCOUNTS_STORE,
   type PaymentAccountsStore,
 } from "../ports/payment-accounts.store.js";
+import { COLLECT_PORT, type CollectPort } from "../psp/collect.port.js";
 import {
   PSP_ERASE_PORT,
   type PspErasePort,
@@ -62,6 +65,28 @@ const PRODUCER = "AC-07";
 
 type ProvisionRole = "consumer" | "producer" | "prosumer";
 
+export type PayInvoiceInput = {
+  invoiceId: string;
+  participantId: string;
+  communityId: string;
+  /** Where the PSP-hosted checkout sends the payer back (A7-bis). */
+  returnUrl?: string;
+};
+
+export type PayInvoiceResult = {
+  paymentId: string;
+  invoiceId: string;
+  amount: string;
+  currency: string;
+  status: PaymentRecord["status"];
+  method?: string;
+  checkoutUrl?: string;
+  failureCategory?: string;
+  initiatedAt: string;
+};
+
+const CHECKOUT_METHODS = ["card", "sepa_debit"] as const;
+
 /**
  * AC-07 payments — Stripe Connect test mode (INT-107, BR-12, P-PSP).
  */
@@ -71,6 +96,8 @@ export class PaymentsService {
   /** INT-326 — PSP webhook duplicate deliveries (in-process counter). */
   private webhookDuplicateCount = 0;
   private tx: { run<T>(fn: () => Promise<T> | T): Promise<T> } = new PassthroughTransaction();
+  /** REQ-014 — a double click on Pay joins the attempt already running in this pod. */
+  private readonly payInFlight = new Map<string, Promise<PayInvoiceResult>>();
 
   /** INT-356 — payment attempts commit with the outbox when DATABASE_URL is set. */
   useTransaction(tx: RecordingTransaction<PaymentWrite> | PassthroughTransaction): void {
@@ -92,6 +119,8 @@ export class PaymentsService {
     @Inject(IdempotentConsumer) private readonly consumer: IdempotentConsumer,
     @Inject(CONNECTED_CUSTOMERS_STORE)
     private readonly connectedCustomers: ConnectedCustomersStore,
+    @Inject(COLLECT_PORT) private readonly collect: CollectPort,
+    @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
   /** INT-326 — exposed for tests / future Prometheus scrape. */
@@ -753,24 +782,28 @@ export class PaymentsService {
     };
   }
 
-  async payInvoice(input: Parameters<PaymentsService["performPayInvoice"]>[0]) {
-    return this.tx.run(() => this.performPayInvoice(input));
+  async payInvoice(input: PayInvoiceInput): Promise<PayInvoiceResult> {
+    const key = `${input.invoiceId}|${input.participantId}`;
+    const running = this.payInFlight.get(key);
+    if (running) {
+      return running;
+    }
+    const attempt = this.tx.run(() => this.performPayInvoice(input));
+    this.payInFlight.set(key, attempt);
+    try {
+      return await attempt;
+    } finally {
+      this.payInFlight.delete(key);
+    }
   }
 
-  private async performPayInvoice(input: {
-    invoiceId: string;
-    participantId: string;
-    communityId: string;
-  }): Promise<{
-    paymentId: string;
-    invoiceId: string;
-    amount: string;
-    currency: string;
-    status: string;
-    method?: string;
-    failureCategory?: string;
-    processingTimeMs?: number;
-  }> {
+  /**
+   * REQ-014 / BR-12 — the consumer pays the producer directly on the
+   * producer's PSP account. A saved card is charged off-session; SEPA, or no
+   * saved method, goes through a PSP-hosted checkout (B7, A7-bis).
+   * `initiatedAt` is the TE-2 start; settlement time comes from the webhook.
+   */
+  private async performPayInvoice(input: PayInvoiceInput): Promise<PayInvoiceResult> {
     // INT-230 — IdP sub → participantId when JWT sub ≠ registry UUID.
     const caller = await this.resolveCallerParticipantId(input.participantId);
     const participantId = caller.participantId;
@@ -778,11 +811,8 @@ export class PaymentsService {
 
     // INT-233 / BR-12 — hydrate durable consumer PM (survives pod restart).
     const account = await this.hydrateAccount(participantId);
-    if (!account?.pspPaymentMethodRef) {
-      throw new BadRequestException("Consumer payment method required");
-    }
 
-    // INT-193 — load amount + producer Connect id from AC-06 (drop fixtures).
+    // INT-193 — load amount + producer PSP account from AC-06.
     let invoice;
     try {
       invoice = await this.invoices.getInvoice(input.invoiceId);
@@ -800,26 +830,9 @@ export class PaymentsService {
     const prior = this.store.findSucceededByInvoiceId(input.invoiceId);
     if (prior) {
       if (invoice.status !== "Paid") {
-        await this.announcePaymentStatus({
-          paymentId: prior.paymentId,
-          invoiceId: prior.invoiceId,
-          status: prior.status,
-          communityId: prior.communityId,
-          method: prior.method,
-          processingTimeMs: prior.processingTimeMs,
-          payerId: prior.participantId,
-          payeeId: prior.payeeId ?? invoice.producerId,
-        });
+        await this.announcePaymentStatus(prior, prior.payeeId ?? invoice.producerId);
       }
-      return {
-        paymentId: prior.paymentId,
-        invoiceId: prior.invoiceId,
-        amount: prior.amount,
-        currency: prior.currency,
-        status: prior.status,
-        method: prior.method,
-        processingTimeMs: prior.processingTimeMs,
-      };
+      return this.toPayResult(prior);
     }
     // INT-340 — one payment, and only while the invoice is still payable.
     if (
@@ -831,6 +844,100 @@ export class PaymentsService {
         `Invoice status ${invoice.status} is not payable`,
       );
     }
+    const attempts = this.store.listByInvoiceId(input.invoiceId);
+    const processing = attempts.find((row) => row.status === "pending");
+    if (processing) {
+      return this.toPayResult(processing);
+    }
+    const pspAccountRef = await this.producerPspAccountRef(invoice);
+
+    const pspPaymentMethodRef = account?.pspPaymentMethodRef ?? undefined;
+    const savedMethod = pspPaymentMethodRef
+      ? await this.paymentMethodType(pspPaymentMethodRef)
+      : undefined;
+    const base = {
+      invoiceId: input.invoiceId,
+      participantId,
+      communityId,
+      amount: invoice.total,
+      currency: invoice.currency,
+      payeeId: invoice.producerId,
+      pspAccountRef,
+      // Legacy invoice.* webhooks still resolve the row until Task 5.8.
+      ...(invoice.pspInvoiceRef ? { pspInvoiceRef: invoice.pspInvoiceRef } : {}),
+    };
+
+    if (pspPaymentMethodRef && savedMethod === "card") {
+      const pspCustomerRef = await this.connectedCustomerFor(participantId, pspAccountRef);
+      // A declined attempt must not replay under the PSP idempotency key.
+      const failed = attempts.filter(
+        (row) => row.status === "failed" && !row.pspCheckoutRef,
+      ).length;
+      const idempotencyKey =
+        failed === 0 ? `pay:${input.invoiceId}` : `pay:${input.invoiceId}:${failed + 1}`;
+      const initiatedAt = this.clock.now().toISOString();
+      const charge = await this.collect.createDirectCharge({
+        invoiceId: input.invoiceId,
+        amount: invoice.total,
+        currency: invoice.currency,
+        pspAccountRef,
+        pspCustomerRef,
+        pspPaymentMethodRef,
+        idempotencyKey,
+      });
+      const row: PaymentRecord = {
+        ...base,
+        paymentId: randomUUID(),
+        status: charge.status,
+        pspPaymentRef: charge.pspPaymentRef,
+        method: charge.method ?? "card",
+        ...(charge.failureCategory ? { failureCategory: charge.failureCategory } : {}),
+        initiatedAt,
+      };
+      this.store.putPayment(row);
+      await this.announcePaymentStatus(row, invoice.producerId);
+      return this.toPayResult(row);
+    }
+
+    if (!input.returnUrl) {
+      throw new BadRequestException(
+        "returnUrl required for PSP-hosted checkout (A7-bis)",
+      );
+    }
+    const pspCustomerRef = await this.connectedCustomerFor(participantId, pspAccountRef);
+    const initiatedAt = this.clock.now().toISOString();
+    const session = await this.collect.createCheckoutSession({
+      invoiceId: input.invoiceId,
+      amount: invoice.total,
+      currency: invoice.currency,
+      pspAccountRef,
+      pspCustomerRef,
+      methods: [...CHECKOUT_METHODS],
+      saveForFutureUse: true,
+      successUrl: input.returnUrl,
+      cancelUrl: input.returnUrl,
+      idempotencyKey: `co:${input.invoiceId}:${initiatedAt.slice(0, 10)}`,
+    });
+    const awaiting = attempts.find((row) => row.status === "requires_action");
+    if (awaiting?.pspCheckoutRef === session.pspCheckoutRef) {
+      return this.toPayResult(awaiting, session.checkoutUrl);
+    }
+    // The checkout URL is returned to the caller only, never stored (A7-bis).
+    const row: PaymentRecord = {
+      ...base,
+      paymentId: awaiting?.paymentId ?? randomUUID(),
+      status: "requires_action",
+      pspCheckoutRef: session.pspCheckoutRef,
+      initiatedAt,
+    };
+    this.store.putPayment(row);
+    return this.toPayResult(row, session.checkoutUrl);
+  }
+
+  private async producerPspAccountRef(invoice: {
+    producerId: string;
+    producerPspAccountRef?: string;
+  }): Promise<string> {
     const producerAccount = await this.hydrateAccount(invoice.producerId);
     const boundAccount = producerAccount?.pspAccountRef || undefined;
     if (
@@ -838,115 +945,85 @@ export class PaymentsService {
       boundAccount &&
       invoice.producerPspAccountRef !== boundAccount
     ) {
+      throw new BadRequestException("Producer PSP account does not match AC-07");
+    }
+    const pspAccountRef = boundAccount ?? invoice.producerPspAccountRef;
+    if (!pspAccountRef) {
       throw new BadRequestException(
-        "Producer Connect account does not match AC-07",
+        "Producer PSP account required for direct charge",
       );
     }
-    const producerPspAccountRef =
-      boundAccount ?? invoice.producerPspAccountRef ?? undefined;
-    if (!producerPspAccountRef) {
-      throw new BadRequestException(
-        "Producer Connect account required for direct charge",
-      );
-    }
-    if (!invoice.pspInvoiceRef) {
-      throw new BadRequestException(
-        "PSP invoice required for direct charge (REQ-014)",
-      );
-    }
+    return pspAccountRef;
+  }
 
-    const started = Date.now();
-    const connected = await this.ensureConnectedCustomer({
-      participantId,
-      pspAccountRef: producerPspAccountRef,
-    });
-    const pspResult = await this.psp.createPayment({
-      invoiceId: input.invoiceId,
-      amount: invoice.total,
-      currency: invoice.currency,
-      pspAccountRef: producerPspAccountRef,
-      pspInvoiceRef: invoice.pspInvoiceRef,
-      pspCustomerRef: connected.pspCustomerRef,
-      pspPaymentMethodRef: account.pspPaymentMethodRef!,
-    });
-    const processingTimeMs = Math.max(0, Date.now() - started);
-    const paymentId = randomUUID();
-    // INT-276 / REQ-014 — surface card vs sepa_debit (not hardcoded card).
-    let method = "card";
-    try {
-      const details = await this.psp.getPaymentMethodDetails(
-        account.pspPaymentMethodRef,
-      );
-      if (details.type === "sepa_debit") method = "sepa_debit";
-      else if (details.type) method = String(details.type);
-    } catch {
-      /* keep card default */
+  /** INT-355 — one PSP customer per consumer and producer account, reused per invoice. */
+  private async connectedCustomerFor(
+    participantId: string,
+    pspAccountRef: string,
+  ): Promise<string> {
+    const existing = await this.connectedCustomers.get(participantId, pspAccountRef);
+    if (existing) {
+      return existing.pspCustomerRef;
     }
-    this.store.putPayment({
-      paymentId,
-      invoiceId: input.invoiceId,
+    const created = await this.collect.ensureCustomer({ participantId, pspAccountRef });
+    const stored = await this.connectedCustomers.putIfAbsent({
       participantId,
-      amount: invoice.total,
-      currency: invoice.currency,
-      status: pspResult.status,
-      pspPaymentRef: pspResult.pspPaymentRef,
-      pspInvoiceRef: invoice.pspInvoiceRef,
-      failureCategory: pspResult.failureCategory,
-      communityId,
-      method,
-      processingTimeMs,
-      payeeId: invoice.producerId,
+      pspAccountRef,
+      pspCustomerRef: created.pspCustomerRef,
     });
-    await this.announcePaymentStatus({
-      paymentId,
-      invoiceId: input.invoiceId,
-      status: pspResult.status,
-      failureCategory: pspResult.failureCategory,
-      communityId,
-      method,
-      processingTimeMs,
-      payerId: participantId,
-      payeeId: invoice.producerId,
-    });
+    return stored.pspCustomerRef;
+  }
+
+  private async paymentMethodType(pspPaymentMethodRef: string): Promise<string> {
+    try {
+      const details = await this.collect.getPaymentMethodDetails(pspPaymentMethodRef);
+      return details.type ?? "card";
+    } catch {
+      return "card";
+    }
+  }
+
+  private toPayResult(row: PaymentRecord, checkoutUrl?: string): PayInvoiceResult {
     return {
-      paymentId,
-      invoiceId: input.invoiceId,
-      amount: invoice.total,
-      currency: invoice.currency,
-      status: pspResult.status,
-      method,
-      failureCategory: pspResult.failureCategory,
-      processingTimeMs,
+      paymentId: row.paymentId,
+      invoiceId: row.invoiceId,
+      amount: row.amount,
+      currency: row.currency,
+      status: row.status,
+      ...(row.method ? { method: row.method } : {}),
+      ...(row.failureCategory ? { failureCategory: row.failureCategory } : {}),
+      ...(checkoutUrl ? { checkoutUrl } : {}),
+      initiatedAt: this.initiatedAtOf(row),
     };
   }
 
-  private async announcePaymentStatus(input: {
-    paymentId: string;
-    invoiceId: string;
-    status: string;
-    failureCategory?: string;
-    communityId: string;
-    method?: string;
-    processingTimeMs?: number;
-    payerId: string;
-    payeeId: string;
-  }): Promise<void> {
+  /** Rows persisted before `initiatedAt` existed fall back to the announce time. */
+  private initiatedAtOf(row: PaymentRecord): string {
+    return row.initiatedAt ?? this.clock.now().toISOString();
+  }
+
+  private async announcePaymentStatus(
+    row: PaymentRecord,
+    payeeId: string,
+  ): Promise<void> {
     await this.outbox.append({
       aggregateType: "Payment",
-      aggregateId: input.paymentId,
+      aggregateId: row.paymentId,
       type: "PaymentStatusChanged",
       producer: PRODUCER,
-      communityId: input.communityId,
+      communityId: row.communityId,
       billingMode: "virtual",
       data: {
-        paymentId: input.paymentId,
-        invoiceId: input.invoiceId,
-        payerId: input.payerId,
-        payeeId: input.payeeId,
-        status: input.status,
-        failureCategory: input.failureCategory,
-        method: input.method,
-        processingTimeMs: input.processingTimeMs,
+        paymentId: row.paymentId,
+        invoiceId: row.invoiceId,
+        payerId: row.participantId,
+        payeeId,
+        status: row.status,
+        amount: row.amount,
+        currency: row.currency,
+        initiatedAt: this.initiatedAtOf(row),
+        ...(row.method ? { method: row.method } : {}),
+        ...(row.failureCategory ? { failureCategory: row.failureCategory } : {}),
       },
     });
   }
@@ -1022,6 +1099,9 @@ export class PaymentsService {
         payerId: row.participantId,
         ...(payeeId ? { payeeId } : {}),
         status,
+        amount: row.amount,
+        currency: row.currency,
+        initiatedAt: this.initiatedAtOf(row),
         ...(failureCategory ? { failureCategory } : {}),
       },
     });

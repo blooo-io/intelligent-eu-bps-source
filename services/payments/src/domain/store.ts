@@ -129,6 +129,12 @@ export class PaymentsStore {
     return found ? { ...found } : undefined;
   }
 
+  listByInvoiceId(invoiceId: string): PaymentRecord[] {
+    return [...this.payments.values()]
+      .filter((row) => row.invoiceId === invoiceId)
+      .map((row) => ({ ...row }));
+  }
+
   findSucceededByInvoiceId(invoiceId: string): PaymentRecord | undefined {
     for (const row of this.payments.values()) {
       if (row.invoiceId === invoiceId && row.status === "succeeded") {

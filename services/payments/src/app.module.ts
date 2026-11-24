@@ -1,6 +1,7 @@
 import { Inject, Injectable, MiddlewareConsumer, Module, NestModule, OnModuleInit } from "@nestjs/common";
 import { ModuleTemplateModule, OutboxService } from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
+import { CLOCK, SystemClock } from "./domain/clock.js";
 import { PaymentsStore } from "./domain/store.js";
 import { InternalPaymentsController } from "./payments/internal.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
@@ -72,6 +73,7 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
     PaymentsStore,
     PaymentsService,
     PaymentPersistence,
+    { provide: CLOCK, useClass: SystemClock },
     MockPspAdapter,
     MockPspEraseAdapter,
     StripePspEraseAdapter,

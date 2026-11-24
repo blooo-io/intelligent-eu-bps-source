@@ -4,6 +4,7 @@
 import "reflect-metadata";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ReportingStore } from "../domain/store.js";
+import type { StatementProjection } from "../domain/types.js";
 import { ReportingService } from "./reporting.service.js";
 
 const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
@@ -14,6 +15,30 @@ const INV1 = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const INV2 = "bbbbbbbb-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const PAY_OK = "cccccccc-cccc-4ccc-8ddd-eeeeeeeeeeee";
 const PAY_FAIL = "dddddddd-dddd-4ddd-8ddd-eeeeeeeeeeee";
+
+/** Minimal StatementProjection for payout-overview fixtures (Task 1.19 + 5.12 defaults). */
+function statementFixture(
+  overrides: Partial<StatementProjection> &
+    Pick<
+      StatementProjection,
+      "statementId" | "participantId" | "communityId" | "period"
+    >,
+): StatementProjection {
+  const net = overrides.netAmount ?? overrides.netBalance ?? "0.00";
+  return {
+    totalSold: "0.00",
+    totalBought: "0.00",
+    currency: "EUR",
+    status: "Open",
+    energyBoughtKwh: "0.000",
+    energySoldKwh: "0.000",
+    components: { energy: "0.00", gridFee: "0.00", levies: "0.00", vat: "0.00" },
+    invoiceIds: [],
+    ...overrides,
+    netBalance: overrides.netBalance ?? net,
+    netAmount: overrides.netAmount ?? net,
+  };
+}
 
 describe("ReportingService", () => {
   let service: ReportingService;
@@ -107,7 +132,7 @@ describe("ReportingService", () => {
   it("UAT-077: three participants with positive balances, one payout completed and two open", () => {
     const COM = COMMUNITY;
     const period = "2026-10";
-    service.projectStatement({
+    service.projectStatement(statementFixture({
       statementId: "st-1",
       participantId: "P1",
       communityId: COM,
@@ -115,10 +140,9 @@ describe("ReportingService", () => {
       totalSold: "10.00",
       totalBought: "0.00",
       netBalance: "10.00",
-      currency: "EUR",
-      status: "Open",
-    });
-    service.projectStatement({
+      netAmount: "10.00",
+    }));
+    service.projectStatement(statementFixture({
       statementId: "st-2",
       participantId: "P2",
       communityId: COM,
@@ -126,10 +150,9 @@ describe("ReportingService", () => {
       totalSold: "20.00",
       totalBought: "0.00",
       netBalance: "20.00",
-      currency: "EUR",
-      status: "Open",
-    });
-    service.projectStatement({
+      netAmount: "20.00",
+    }));
+    service.projectStatement(statementFixture({
       statementId: "st-3",
       participantId: "P3",
       communityId: COM,
@@ -137,9 +160,8 @@ describe("ReportingService", () => {
       totalSold: "30.00",
       totalBought: "0.00",
       netBalance: "30.00",
-      currency: "EUR",
-      status: "Open",
-    });
+      netAmount: "30.00",
+    }));
     service.projectPayout({
       payoutId: "po-1",
       participantId: "P1",
@@ -203,7 +225,7 @@ describe("ReportingService", () => {
 
   it("payout overview joins open payouts and skips zero totalSold", () => {
     const period = "2026-11";
-    service.projectStatement({
+    service.projectStatement(statementFixture({
       statementId: "st-zero",
       participantId: "PZ",
       communityId: COMMUNITY,
@@ -211,10 +233,9 @@ describe("ReportingService", () => {
       totalSold: "0.00",
       totalBought: "1.00",
       netBalance: "-1.00",
-      currency: "EUR",
-      status: "Open",
-    });
-    service.projectStatement({
+      netAmount: "-1.00",
+    }));
+    service.projectStatement(statementFixture({
       statementId: "st-open",
       participantId: "PO",
       communityId: COMMUNITY,
@@ -222,9 +243,8 @@ describe("ReportingService", () => {
       totalSold: "12.00",
       totalBought: "0.00",
       netBalance: "12.00",
-      currency: "EUR",
-      status: "Open",
-    });
+      netAmount: "12.00",
+    }));
     service.projectPayout({
       payoutId: "po-open",
       participantId: "PO",
@@ -255,10 +275,58 @@ describe("ReportingService", () => {
     await service.exportKpi({ communityId: COMMUNITY, period: PERIOD });
     const file = service.getKpiExport(PERIOD, COMMUNITY);
     const text = file.body.toString("utf8");
+    expect(text.split("\n")[0].split(",")).toHaveLength(27);
     expect(text).toContain("recordType,communityId,period,participantId,invoiceId");
     expect(text).toContain(`invoice,${COMMUNITY},${PERIOD},${CONSUMER},${INV1},,10.00,4.50,EUR`);
     expect(text).toContain(`invoice,${COMMUNITY},${PERIOD},${CONSUMER},${INV2},,5.50,2.00,EUR`);
     expect(text).toContain(CONSUMER);
+  });
+
+  it("UAT-058 REQ-047 one participant row per statement, matching the statement totals", async () => {
+    const S1 = "ssssssss-ssss-4sss-8sss-ssssssssssss";
+    const U1 = PRODUCER;
+    const period = "2026-11";
+    service.projectStatement(
+      statementFixture({
+        statementId: S1,
+        participantId: U1,
+        communityId: COMMUNITY,
+        period,
+        currency: "EUR",
+        status: "Issued",
+        energyBoughtKwh: "120.000",
+        energySoldKwh: "45.500",
+        totalBought: "24.00",
+        totalSold: "9.10",
+        netBalance: "-14.90",
+        netAmount: "-14.90",
+        components: {
+          energy: "13.50",
+          gridFee: "1.10",
+          levies: "0.30",
+          vat: "0.00",
+        },
+        invoiceIds: [INV1, INV2],
+      }),
+    );
+    const csv = service.getKpiExport(period, COMMUNITY).body.toString("utf8");
+    expect(csv.split("\n")[0].split(",")).toHaveLength(27);
+    expect(csv).toContain(
+      `participant,${COMMUNITY},2026-11,${U1},,,-14.90,,EUR,Issued,,,,,,,,,120.000,45.500,24.00,9.10,-14.90,13.50,1.10,0.30,0.00`,
+    );
+  });
+
+  it("UAT-058 participant rows are absent when WS1 has not issued statements (invoice/payment rows unchanged)", async () => {
+    await service.exportKpi({ communityId: COMMUNITY, period: PERIOD });
+    const text = service.getKpiExport(PERIOD, COMMUNITY).body.toString("utf8");
+    const dataRows = text
+      .trim()
+      .split("\n")
+      .slice(1)
+      .filter((l) => l.trim());
+    expect(dataRows.every((l) => !l.startsWith("participant,"))).toBe(true);
+    expect(dataRows.some((l) => l.startsWith("invoice,"))).toBe(true);
+    expect(dataRows.some((l) => l.startsWith("payment,"))).toBe(true);
   });
 
   it("UAT-057 — KPI CSV logs failure cause, corrective action and processing time (REQ-046)", async () => {
@@ -273,6 +341,30 @@ describe("ReportingService", () => {
     );
     expect(text).toContain(
       `payment,${COMMUNITY},${PERIOD},${CONSUMER},${INV1},${PAY_OK},10.00,,EUR,succeeded,card,420,,`,
+    );
+  });
+
+  it("UAT-057 payment rows carry initiatedAt, settledAt, fee and fee currency", async () => {
+    const T0 = "2026-11-24T10:00:00.000Z";
+    const T1 = "2026-11-24T10:00:02.500Z";
+    service.projectPayment({
+      paymentId: PAY_OK,
+      invoiceId: INV1,
+      communityId: COMMUNITY,
+      amount: "10.00",
+      currency: "EUR",
+      status: "succeeded",
+      method: "card",
+      processingTimeMs: 2500,
+      participantId: CONSUMER,
+      initiatedAt: T0,
+      settledAt: T1,
+      feeAmount: "0.44",
+      feeCurrency: "EUR",
+    });
+    const text = service.getKpiExport(PERIOD, COMMUNITY).body.toString("utf8");
+    expect(text).toContain(
+      `payment,${COMMUNITY},${PERIOD},${CONSUMER},${INV1},${PAY_OK},10.00,,EUR,succeeded,card,2500,,,${T0},${T1},0.44,EUR,,,,,,,,,`,
     );
   });
 

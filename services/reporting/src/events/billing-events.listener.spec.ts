@@ -100,8 +100,88 @@ describe("BillingEventsListener reporting (INT-271)", () => {
         participantId: "P1",
         communityId: "c1",
         totalSold: "10.00",
+        netAmount: "10.00",
+        netBalance: "10.00",
       }),
     );
+  });
+
+  it("projects ParticipantStatementIssued with KPI fields (Task 5.12)", async () => {
+    await bus.publish("ParticipantStatementIssued", {
+      communityId: "c1",
+      data: {
+        statementId: "st-kpi",
+        participantId: "P1",
+        communityId: "c1",
+        period: "2026-11",
+        currency: "EUR",
+        status: "Issued",
+        energyBoughtKwh: "120.000",
+        energySoldKwh: "45.500",
+        totalBought: "24.00",
+        totalSold: "9.10",
+        netAmount: "-14.90",
+        components: {
+          energy: "13.50",
+          gridFee: "1.10",
+          levies: "0.30",
+          vat: "0.00",
+        },
+        invoiceIds: ["inv-a", "inv-b"],
+      },
+    });
+    expect(projectStatement).toHaveBeenCalledWith({
+      statementId: "st-kpi",
+      participantId: "P1",
+      communityId: "c1",
+      period: "2026-11",
+      totalSold: "9.10",
+      totalBought: "24.00",
+      netBalance: "-14.90",
+      netAmount: "-14.90",
+      currency: "EUR",
+      status: "Issued",
+      energyBoughtKwh: "120.000",
+      energySoldKwh: "45.500",
+      components: {
+        energy: "13.50",
+        gridFee: "1.10",
+        levies: "0.30",
+        vat: "0.00",
+      },
+      invoiceIds: ["inv-a", "inv-b"],
+    });
+  });
+
+  it("drops statement events when money fields are not strings", async () => {
+    await bus.publish("ParticipantStatementIssued", {
+      communityId: "c1",
+      data: {
+        statementId: "st-bad",
+        participantId: "P1",
+        period: "2026-11",
+        totalBought: 24,
+        totalSold: "9.10",
+        netAmount: "-14.90",
+      },
+    });
+    expect(projectStatement).not.toHaveBeenCalled();
+  });
+
+  it("drops statement events when component money fields are not strings", async () => {
+    await bus.publish("ParticipantStatementIssued", {
+      communityId: "c1",
+      data: {
+        statementId: "st-bad-comp",
+        participantId: "P1",
+        period: "2026-11",
+        totalBought: "24.00",
+        totalSold: "9.10",
+        netAmount: "-14.90",
+        components: { energy: 13.5, gridFee: "1.10", levies: "0.30", vat: "0.00" },
+      },
+    });
+    expect(projectStatement).not.toHaveBeenCalled();
   });
 
   it("projects PayoutStatusChanged", async () => {
@@ -135,8 +215,13 @@ describe("BillingEventsListener reporting (INT-271)", () => {
       totalSold: "10.00",
       totalBought: "0.00",
       netBalance: "10.00",
+      netAmount: "10.00",
       currency: "EUR",
       status: "Open",
+      energyBoughtKwh: "0.000",
+      energySoldKwh: "0.000",
+      components: { energy: "0.00", gridFee: "0.00", levies: "0.00", vat: "0.00" },
+      invoiceIds: [],
     });
     await bus.publish("StatementStatusChanged", {
       communityId: "c1",
@@ -171,12 +256,16 @@ describe("BillingEventsListener reporting (INT-271)", () => {
         statementId: "st-new",
         participantId: "P9",
         status: "Open",
+        netAmount: "0.00",
+        energyBoughtKwh: "0.000",
+        invoiceIds: [],
       }),
     );
   });
 
   it("ignores statement and payout envelopes without ids", async () => {
     await bus.publish("StatementIssued", { communityId: "c1", data: {} });
+    await bus.publish("ParticipantStatementIssued", { communityId: "c1", data: {} });
     await bus.publish("StatementStatusChanged", { communityId: "c1", data: {} });
     await bus.publish("PayoutStatusChanged", { communityId: "c1", data: {} });
     expect(projectStatement).not.toHaveBeenCalled();

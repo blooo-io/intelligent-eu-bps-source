@@ -358,35 +358,58 @@ export class ReportingService {
   }
 
   /**
-   * KPI CSV — invoice rows (REQ-047) and payment rows (REQ-046 / UAT-057).
-   * recordType distinguishes the two line shapes in one file.
+   * KPI CSV — participant rows (REQ-047 / UAT-058), then invoice and payment rows
+   * (REQ-046 / UAT-057). First 14 columns stay stable for existing readers; columns
+   * 15–27 add fee/timing and statement totals (Task 5.12).
    */
   private buildKpiCsv(communityId: string, period: string): string {
-    const header =
-      "recordType,communityId,period,participantId,invoiceId,paymentId,amount,energyKwh,currency,status,method,processingTimeMs,failureCategory,correctiveAction";
-    const lines = [header];
+    const lines = [COLUMNS.join(",")];
+
+    // Participant rows first — one per projected statement for the period.
+    const statements = this.store
+      .listStatements({ communityId, period })
+      .sort((a, b) => a.participantId.localeCompare(b.participantId));
+    for (const st of statements) {
+      lines.push(
+        row({
+          recordType: "participant",
+          communityId: st.communityId,
+          period: st.period,
+          participantId: st.participantId,
+          amount: st.netAmount,
+          currency: st.currency,
+          status: st.status,
+          energyBought: st.energyBoughtKwh,
+          energySold: st.energySoldKwh,
+          amountBought: st.totalBought,
+          amountSold: st.totalSold,
+          netAmount: st.netAmount,
+          componentEnergy: st.components.energy,
+          componentGridFee: st.components.gridFee,
+          componentLevies: st.components.levies,
+          componentVat: st.components.vat,
+        }),
+      );
+    }
+
     const invoices = this.store.listInvoices({ communityId, period });
     for (const inv of invoices) {
       // One row per consumer; producer side is the same invoice id (identifiers only).
       lines.push(
-        [
-          "invoice",
-          inv.communityId,
-          inv.period,
-          inv.consumerId,
-          inv.invoiceId,
-          "",
-          inv.total,
-          inv.energyKwh ?? "0.00",
-          inv.currency,
-          inv.status,
-          "",
-          "",
-          "",
-          "",
-        ].join(","),
+        row({
+          recordType: "invoice",
+          communityId: inv.communityId,
+          period: inv.period,
+          participantId: inv.consumerId,
+          invoiceId: inv.invoiceId,
+          amount: inv.total,
+          energyKwh: inv.energyKwh ?? "0.00",
+          currency: inv.currency,
+          status: inv.status,
+        }),
       );
     }
+
     const invoiceIds = new Set(invoices.map((i) => i.invoiceId));
     for (const pay of this.store.listPayments({ communityId, invoiceIds })) {
       const corrective =
@@ -394,24 +417,29 @@ export class ReportingService {
           ? suggestedCorrectiveAction(pay.failureCategory)
           : "";
       lines.push(
-        [
-          "payment",
-          pay.communityId,
+        row({
+          recordType: "payment",
+          communityId: pay.communityId,
           period,
-          pay.participantId ?? "",
-          pay.invoiceId,
-          pay.paymentId,
-          pay.amount,
-          "",
-          pay.currency,
-          pay.status,
-          pay.method ?? "",
-          pay.processingTimeMs !== undefined
-            ? String(pay.processingTimeMs)
-            : "",
-          pay.failureCategory ?? "",
-          escapeCsv(corrective),
-        ].join(","),
+          participantId: pay.participantId ?? "",
+          invoiceId: pay.invoiceId,
+          paymentId: pay.paymentId,
+          amount: pay.amount,
+          currency: pay.currency,
+          status: pay.status,
+          method: pay.method ?? "",
+          processingTimeMs:
+            pay.processingTimeMs !== undefined
+              ? String(pay.processingTimeMs)
+              : "",
+          failureCategory: pay.failureCategory ?? "",
+          correctiveAction: escapeCsv(corrective),
+          // Task 5.10 fields — fee and settlement timing (UAT-057).
+          initiatedAt: pay.initiatedAt ?? "",
+          settledAt: pay.settledAt ?? "",
+          feeAmount: pay.feeAmount ?? "",
+          feeCurrency: pay.feeCurrency ?? "",
+        }),
       );
     }
     return `${lines.join("\n")}\n`;
@@ -441,6 +469,44 @@ function escapeCsv(value: string): string {
     return value;
   }
   return `"${value.replaceAll('"', '""')}"`;
+}
+
+/** 27-column KPI CSV header (Task 5.12). First 14 columns unchanged for existing readers. */
+const COLUMNS = [
+  "recordType",
+  "communityId",
+  "period",
+  "participantId",
+  "invoiceId",
+  "paymentId",
+  "amount",
+  "energyKwh",
+  "currency",
+  "status",
+  "method",
+  "processingTimeMs",
+  "failureCategory",
+  "correctiveAction",
+  "initiatedAt",
+  "settledAt",
+  "feeAmount",
+  "feeCurrency",
+  "energyBought",
+  "energySold",
+  "amountBought",
+  "amountSold",
+  "netAmount",
+  "componentEnergy",
+  "componentGridFee",
+  "componentLevies",
+  "componentVat",
+] as const;
+
+type Column = (typeof COLUMNS)[number];
+
+/** Pad every KPI row to 27 columns so no record type can lose a column. */
+function row(cols: Partial<Record<Column, string>>): string {
+  return COLUMNS.map((c) => cols[c] ?? "").join(",");
 }
 
 /** Shallow copy keeping only own keys whose value is not `undefined`. */

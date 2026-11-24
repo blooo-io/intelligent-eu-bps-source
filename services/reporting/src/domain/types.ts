@@ -41,7 +41,19 @@ export type PaymentProjection = {
   feeCurrency?: string;
 };
 
-/** Local statement projection for AC-09 payout overview (REQ-060). */
+/** Statement money components aligned with WS1 (REQ-047 / REQ-059). */
+export type StatementComponents = {
+  energy: string;
+  gridFee: string;
+  levies: string;
+  vat: string;
+};
+
+/**
+ * Local statement projection for AC-09 payout overview (REQ-060) and KPI CSV (REQ-047).
+ * Task 1.19 fields (totalSold / totalBought / netBalance) stay for payout overview;
+ * Task 5.12 adds energy, netAmount, components and invoiceIds for WS1 alignment.
+ */
 export type StatementProjection = {
   statementId: string;
   participantId: string;
@@ -49,9 +61,18 @@ export type StatementProjection = {
   period: string;
   totalSold: string;
   totalBought: string;
+  /** Signed balance for payout overview (REQ-060); mirrors netAmount when issued from WS1. */
   netBalance: string;
   currency: string;
   status: string;
+  /** Energy bought in the period (kWh decimal string). */
+  energyBoughtKwh: string;
+  /** Energy sold in the period (kWh decimal string). */
+  energySoldKwh: string;
+  /** Signed net for KPI CSV (REQ-047); same money as netBalance. */
+  netAmount: string;
+  components: StatementComponents;
+  invoiceIds: string[];
 };
 
 /** Local payout projection for AC-09 payout overview / paidOut (REQ-060). */

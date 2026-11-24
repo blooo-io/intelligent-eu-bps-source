@@ -28,7 +28,11 @@ export class BillingEventsListener implements OnModuleInit {
     await this.bus.subscribe("InvoiceIssued", (p) => this.dedupe(p, () => this.onInvoice(p)));
     await this.bus.subscribe("InvoiceStatusChanged", (p) => this.dedupe(p, () => this.onInvoice(p)));
     await this.bus.subscribe("PaymentStatusChanged", (p) => this.dedupe(p, () => this.onPayment(p)));
+    // StatementIssued (WS1 / AC-06) and ParticipantStatementIssued (WS5 alias) share onStatement.
     await this.bus.subscribe("StatementIssued", (p) => this.dedupe(p, () => this.onStatement(p)));
+    await this.bus.subscribe("ParticipantStatementIssued", (p) =>
+      this.dedupe(p, () => this.onStatement(p)),
+    );
     await this.bus.subscribe("StatementStatusChanged", (p) =>
       this.dedupe(p, () => this.onStatementStatus(p)),
     );
@@ -99,21 +103,77 @@ export class BillingEventsListener implements OnModuleInit {
     });
   }
 
+  /**
+   * Project StatementIssued / ParticipantStatementIssued into StatementProjection.
+   * Money fields must already be strings (BR-08); otherwise the event is dropped (Task 5.12).
+   */
   async onStatement(payload: unknown): Promise<void> {
     const env = asEnvelope(payload);
     const data = env.data;
     const statementId = asString(data.statementId);
     if (!statementId) return;
+
+    const totalSold = data.totalSold;
+    const totalBought = data.totalBought;
+    // WS1 StatementIssued uses netBalance; WS5 ParticipantStatementIssued uses netAmount.
+    const netAmountRaw = data.netAmount ?? data.netBalance;
+    if (
+      typeof totalSold !== "string" ||
+      typeof totalBought !== "string" ||
+      typeof netAmountRaw !== "string"
+    ) {
+      return;
+    }
+
+    const componentsRaw = data.components as Record<string, unknown> | undefined;
+    let components = {
+      energy: "0.00",
+      gridFee: "0.00",
+      levies: "0.00",
+      vat: "0.00",
+    };
+    if (componentsRaw) {
+      // Components are money fields — drop when any is not a string (BR-08).
+      if (
+        typeof componentsRaw.energy !== "string" ||
+        typeof componentsRaw.gridFee !== "string" ||
+        typeof componentsRaw.levies !== "string" ||
+        typeof componentsRaw.vat !== "string"
+      ) {
+        return;
+      }
+      components = {
+        energy: componentsRaw.energy,
+        gridFee: componentsRaw.gridFee,
+        levies: componentsRaw.levies,
+        vat: componentsRaw.vat,
+      };
+    }
+
+    const communityId =
+      (typeof data.communityId === "string" && data.communityId) || env.communityId;
+    const invoiceIds = Array.isArray(data.invoiceIds)
+      ? data.invoiceIds.filter((id): id is string => typeof id === "string")
+      : [];
+
+    // projectStatement is idempotent on statementId (Map put).
     this.reporting.projectStatement({
       statementId,
       participantId: asString(data.participantId),
-      communityId: env.communityId,
+      communityId,
       period: asString(data.period, "unknown"),
-      totalSold: asString(data.totalSold, "0.00"),
-      totalBought: asString(data.totalBought, "0.00"),
-      netBalance: asString(data.netBalance, "0.00"),
+      totalSold,
+      totalBought,
+      netBalance: netAmountRaw,
+      netAmount: netAmountRaw,
       currency: asString(data.currency, "EUR"),
       status: asString(data.status, "Open"),
+      energyBoughtKwh:
+        typeof data.energyBoughtKwh === "string" ? data.energyBoughtKwh : "0.000",
+      energySoldKwh:
+        typeof data.energySoldKwh === "string" ? data.energySoldKwh : "0.000",
+      components,
+      invoiceIds,
     });
   }
 
@@ -133,6 +193,7 @@ export class BillingEventsListener implements OnModuleInit {
       });
       return;
     }
+    const netBalance = asString(data.netBalance ?? data.netAmount, "0.00");
     this.reporting.projectStatement({
       statementId,
       participantId: asString(data.participantId),
@@ -140,9 +201,14 @@ export class BillingEventsListener implements OnModuleInit {
       period: asString(data.period, "unknown"),
       totalSold: asString(data.totalSold, "0.00"),
       totalBought: asString(data.totalBought, "0.00"),
-      netBalance: asString(data.netBalance, "0.00"),
+      netBalance,
+      netAmount: netBalance,
       currency: asString(data.currency, "EUR"),
       status: asString(data.status, "Open"),
+      energyBoughtKwh: "0.000",
+      energySoldKwh: "0.000",
+      components: { energy: "0.00", gridFee: "0.00", levies: "0.00", vat: "0.00" },
+      invoiceIds: [],
     });
   }
 

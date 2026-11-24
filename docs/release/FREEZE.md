@@ -17,7 +17,7 @@
 
 ## Carried known limitations
 
-See [`RELEASE-NOTES.md`](RELEASE-NOTES.md) for the current v6.1 limitations (two-level model, monthly period, live per community, remaining Connect/KYC/EWDS gaps).
+See [`RELEASE-NOTES.md`](RELEASE-NOTES.md) for the current v6.1 / `v1.2.0` limitations (two-level model, monthly period, live per community, remaining Connect / OpenAPI / report gaps).
 
 The INT-97 source freeze on 2026-10-18 carried in-scope UAT **62 Pass / 0 Blocked / 0 Fail** (INT-204). The v6.1 re-run campaign (INT-430) refreshes those counts in the release notes and in [`../testing/v6.1-rerun.md`](../testing/v6.1-rerun.md); partner optimisations (NFR-008 SLA number, NFR-016 step-count) remain deferred, not Blocked.
 
@@ -26,7 +26,7 @@ The INT-97 source freeze on 2026-10-18 carried in-scope UAT **62 Pass / 0 Blocke
 1. Do not create or move `v1.0.0`. It was named on 2026-10-18 and never pushed; creating it now would point at a different tree.
 2. The first published snapshot is `v1.0.1` (INT-359), cut with [`VERSIONING.md`](VERSIONING.md) / `cut-release.mjs` (INT-305). Later fixes are a new tag.
 3. `dev` continues on floating `:develop` images (INT-178). `demo` pins the published tag.
-4. The v6.1 realignment (INT-423…INT-430) lands on `develop` under SemVer; the next published tag is cut separately (package version still `1.1.6` until that cut).
+4. The v6.1 realignment (INT-423…INT-432) lands on `develop` under SemVer; the upcoming published tag is `v1.2.0` (package version `1.2.0`, INT-430). The annotated tag is cut by `stable-release` / `cut-release.mjs` after merge — not claimed here.
 
 ## Remaining partner-report gate (Blooo D5.5 report owner)
 

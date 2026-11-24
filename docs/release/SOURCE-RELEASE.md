@@ -4,7 +4,7 @@
 **Package version:** `1.0.1` (root `package.json`)  
 **Intended freeze name:** `v1.0.0` (INT-92, 2026-10-18) — recorded in this note, **never pushed**
 
-> **Ongoing release train:** SemVer tags, `scripts/cut-release.mjs`, and the `release` GitHub Actions workflow are documented in [`VERSIONING.md`](VERSIONING.md) (INT-305). This page records the historical V1 freeze tag only.
+> **Ongoing release train:** SemVer tags, `scripts/cut-release.mjs`, and the `release` GitHub Actions workflow are documented in [`VERSIONING.md`](VERSIONING.md) (INT-305). This page records the historical V1 freeze tag only. The upcoming v6.1 cut is `v1.2.0` (package `1.2.0`, INT-430); it is created by `stable-release` after merge, not claimed as published here.
 
 ## What the tag means
 
@@ -28,7 +28,7 @@ INT-92 (2026-10-18) recorded `v1.0.0` as the freeze tag and set the package vers
 
 `v1.0.1` is the first tag actually published. It is cut from `develop` after this note merges, with [`VERSIONING.md`](VERSIONING.md) / `node scripts/cut-release.mjs --push` (INT-359). `demo` Argo applications pin `targetRevision: v1.0.1`.
 
-Do not retag. A later fix is a new `v1.0.x` / `v1.1.0` under a new Jira issue.
+Do not retag. A later fix is a new `v1.0.x` / `v1.1.0` / `v1.2.0` under a new Jira issue.
 
 ## Consistency prerequisites (INT-96)
 

@@ -14,6 +14,10 @@ export type LegacyOnboardingSession = {
   eventuallyDue?: string[];
   url?: string;
   clientSecret?: string;
+  /** REQ-045 / REQ-051 — mirror of account.payouts_enabled. */
+  payoutsEnabled?: boolean;
+  /** REQ-051 — account.requirements.disabled_reason when present. */
+  disabledReason?: string;
 };
 export type CreateProducerAccountInput = {
   participantId: string; accountToken: string; country?: string;

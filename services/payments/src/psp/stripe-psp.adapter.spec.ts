@@ -358,6 +358,63 @@ describe("StripePspAdapter mapping (INT-424)", () => {
     });
   });
 
+  it("REQ-051: hosted KYC link uses account_onboarding with eventually_due", async () => {
+    const create = vi.fn(async (params: Record<string, unknown>) => ({
+      object: "account_link",
+      url: "https://connect.stripe.com/setup/e/acct_1/link_test",
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      ...params,
+    }));
+    fake.accountLinks.create = create as never;
+    const result = await adapter.createHostedKycLink("acct_1", {
+      returnUrl: "https://r",
+      refreshUrl: "https://f",
+    });
+    expect(create).toHaveBeenCalledWith({
+      account: "acct_1",
+      type: "account_onboarding",
+      return_url: "https://r",
+      refresh_url: "https://f",
+      collection_options: { fields: "eventually_due" },
+    });
+    expect(result.url).toBe("https://connect.stripe.com/setup/e/acct_1/link_test");
+  });
+
+  it("REQ-051: identity verification session is document + selfie with subject metadata only", async () => {
+    const create = vi.fn(async () => ({
+      id: "vs_1",
+      url: "https://verify.stripe.com/start/vs_1",
+      status: "requires_input",
+    }));
+    (fake as { identity?: { verificationSessions: { create: unknown } } }).identity = {
+      verificationSessions: { create },
+    };
+    const result = await adapter.createIdentityVerification({
+      subjectId: "m-1",
+      returnUrl: "https://r",
+    });
+    expect(create).toHaveBeenCalledWith({
+      type: "document",
+      metadata: { subjectId: "m-1" },
+      return_url: "https://r",
+      options: { document: { require_matching_selfie: true } },
+    });
+    expect(result).toEqual({
+      verificationId: "vs_1",
+      url: "https://verify.stripe.com/start/vs_1",
+    });
+  });
+
+  it("REQ-045: getAccountSession exposes payoutsEnabled", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
+      participantId: "part-payouts",
+      country: "FR",
+    });
+    fake.completeKyc(pspAccountRef);
+    const session = await adapter.getAccountSession(pspAccountRef);
+    expect(session.payoutsEnabled).toBe(true);
+  });
+
   it("createPaymentMethodSetup delegates to SetupIntent", async () => {
     const { clientSecret } = await adapter.createPaymentMethodSetup("part-setup");
     expect(clientSecret).toMatch(/\S+/);

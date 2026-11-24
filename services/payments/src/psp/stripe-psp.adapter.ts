@@ -9,6 +9,9 @@ import type {
   PaymentMethodDetails as CollectPaymentMethodDetails,
 } from "./collect.port.js";
 import type {
+  HostedKycLink,
+  IdentityVerificationSession,
+  IdentityVerificationStatus,
   KycOnboardingPort,
   OnboardingSession as KycOnboardingSession,
   PspAccountStatus,
@@ -153,6 +156,57 @@ export class StripePspAdapter
       chargesEnabled: Boolean(account.charges_enabled),
       payoutsEnabled: Boolean(account.payouts_enabled),
     };
+  }
+
+  /**
+   * REQ-051 / A7 — Account Link with eventually_due so hosted KYC collects
+   * the same fields as embedded onboarding.
+   */
+  async createHostedKycLink(
+    accountRef: string,
+    urls: { returnUrl: string; refreshUrl: string },
+  ): Promise<HostedKycLink> {
+    const link = await this.stripe.accountLinks.create({
+      account: accountRef,
+      type: "account_onboarding",
+      return_url: urls.returnUrl,
+      refresh_url: urls.refreshUrl,
+      collection_options: { fields: "eventually_due" },
+    });
+    return {
+      url: link.url,
+      expiresAt: new Date(link.expires_at * 1000).toISOString(),
+    };
+  }
+
+  /** REQ-051 — Stripe Identity (document + selfie); metadata is subjectId only. */
+  async createIdentityVerification(input: {
+    subjectId: string;
+    returnUrl: string;
+  }): Promise<IdentityVerificationSession> {
+    const session = await this.stripe.identity.verificationSessions.create({
+      type: "document",
+      metadata: { subjectId: input.subjectId },
+      return_url: input.returnUrl,
+      options: { document: { require_matching_selfie: true } },
+    });
+    return {
+      verificationId: session.id,
+      url: session.url ?? `https://verify.stripe.com/start/${session.id}`,
+    };
+  }
+
+  async getIdentityVerification(
+    verificationId: string,
+  ): Promise<IdentityVerificationStatus> {
+    const session =
+      await this.stripe.identity.verificationSessions.retrieve(verificationId);
+    const status = session.status as IdentityVerificationStatus["status"];
+    const errorCode =
+      session.last_error && typeof session.last_error === "object"
+        ? ((session.last_error as { code?: string }).code ?? null)
+        : null;
+    return { status, errorCode };
   }
 
   // ── Neutral: CollectPort ────────────────────────────────────────────────
@@ -915,12 +969,15 @@ function sessionFromAccount(account: Stripe.Account): LegacyOnboardingSession {
   ) {
     status = "complete";
   }
+  const disabledReason = account.requirements?.disabled_reason ?? undefined;
   return {
     mode: "requirements",
     status,
     pspAccountRef: account.id,
     currentlyDue: [...currentlyDue],
     eventuallyDue: [...(account.requirements?.eventually_due ?? [])],
+    payoutsEnabled: Boolean(account.payouts_enabled),
+    ...(disabledReason ? { disabledReason } : {}),
   };
 }
 /* v8 ignore stop */

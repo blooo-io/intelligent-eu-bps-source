@@ -1,0 +1,106 @@
+asyncapi: 3.0.0
+info:
+  title: Billing EWDS topics and command channel
+  version: 1.0.0
+  description: >-
+    AsyncAPI view of Blooo billing EWDS channels (REQ-048, REQ-052, A7 / A7-bis).
+    Record topics are published on blooo.intelligent.billing.pub; the project UI
+    dispatches commands on commands.sub and receives correlated replies on replies.pub.
+  license:
+    name: Apache-2.0
+defaultContentType: application/json
+x-ewds-topic-owner: integration.apps.intelligent.auth.ewc
+channels:
+  blooo.intelligent.billing.pub:
+    address: blooo.intelligent.billing.pub
+    description: Billing record topics (statement, invoice, payment, payout, KYC status).
+    messages:
+      billingStatement:
+        $ref: '#/components/messages/billingStatement'
+      billingInvoice:
+        $ref: '#/components/messages/billingInvoice'
+      billingPayment:
+        $ref: '#/components/messages/billingPayment'
+      billingPayout:
+        $ref: '#/components/messages/billingPayout'
+      billingKycStatus:
+        $ref: '#/components/messages/billingKycStatus'
+  blooo.intelligent.billing.commands.sub:
+    address: blooo.intelligent.billing.commands.sub
+    description: Incoming billing command requests (subscriber = Billing poller).
+    messages:
+      billingCommandRequest:
+        $ref: '#/components/messages/billingCommandRequest'
+  blooo.intelligent.billing.replies.pub:
+    address: blooo.intelligent.billing.replies.pub
+    description: Correlated command replies (transactionId = requestId).
+    messages:
+      billingCommandReply:
+        $ref: '#/components/messages/billingCommandReply'
+operations:
+  publishBillingRecords:
+    action: send
+    channel:
+      $ref: '#/channels/blooo.intelligent.billing.pub'
+    messages:
+      - $ref: '#/channels/blooo.intelligent.billing.pub/messages/billingStatement'
+      - $ref: '#/channels/blooo.intelligent.billing.pub/messages/billingInvoice'
+      - $ref: '#/channels/blooo.intelligent.billing.pub/messages/billingPayment'
+      - $ref: '#/channels/blooo.intelligent.billing.pub/messages/billingPayout'
+      - $ref: '#/channels/blooo.intelligent.billing.pub/messages/billingKycStatus'
+  receiveBillingCommand:
+    action: receive
+    channel:
+      $ref: '#/channels/blooo.intelligent.billing.commands.sub'
+    messages:
+      - $ref: '#/channels/blooo.intelligent.billing.commands.sub/messages/billingCommandRequest'
+  publishBillingCommandReply:
+    action: send
+    channel:
+      $ref: '#/channels/blooo.intelligent.billing.replies.pub'
+    messages:
+      - $ref: '#/channels/blooo.intelligent.billing.replies.pub/messages/billingCommandReply'
+components:
+  messages:
+    billingStatement:
+      name: billingStatement
+      title: billingStatement v1.0.0
+      contentType: application/json
+      payload:
+        $ref: ../../docs/architecture/ewds-topics/billingStatement.v1.0.0.schema.json
+    billingInvoice:
+      name: billingInvoice
+      title: billingInvoice v1.0.0
+      contentType: application/json
+      payload:
+        $ref: ../../docs/architecture/ewds-topics/billingInvoice.v1.0.0.schema.json
+    billingPayment:
+      name: billingPayment
+      title: billingPayment v1.0.0
+      contentType: application/json
+      payload:
+        $ref: ../../docs/architecture/ewds-topics/billingPayment.v1.0.0.schema.json
+    billingPayout:
+      name: billingPayout
+      title: billingPayout v1.0.0
+      contentType: application/json
+      payload:
+        $ref: ../../docs/architecture/ewds-topics/billingPayout.v1.0.0.schema.json
+    billingKycStatus:
+      name: billingKycStatus
+      title: billingKycStatus v1.0.0
+      contentType: application/json
+      payload:
+        $ref: ../../docs/architecture/ewds-topics/billingKycStatus.v1.0.0.schema.json
+    billingCommandRequest:
+      name: billingCommandRequest
+      title: billingCommandRequest v1.0.0
+      contentType: application/json
+      payload:
+        $ref: ../../docs/architecture/ewds-topics/billingCommandRequest.v1.0.0.schema.json
+    billingCommandReply:
+      name: billingCommandReply
+      title: billingCommandReply v1.0.0
+      contentType: application/json
+      payload:
+        $ref: ../../docs/architecture/ewds-topics/billingCommandReply.v1.0.0.schema.json

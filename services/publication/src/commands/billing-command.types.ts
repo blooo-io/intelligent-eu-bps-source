@@ -42,3 +42,42 @@ export type ActorAuthzView = {
     participantRole?: "consumer" | "producer" | "prosumer";
   }>;
 };
+
+/** A7-bis — Stripe-hosted or embedded handoff (never a Blooo URL). */
+export type PspHandoff =
+  | {
+      surface: "hosted";
+      provider: "stripe";
+      purpose: "checkout" | "setup" | "connect_onboarding" | "identity";
+      url: string;
+      expiresAt: string;
+    }
+  | {
+      surface: "embedded";
+      provider: "stripe";
+      purpose: "payment" | "setup" | "connect_onboarding" | "identity";
+      publishableKey: string;
+      clientSecret: string;
+      connectedAccountRef?: string;
+      expiresAt: string;
+    };
+
+export type BillingCommandErrorCode =
+  | "forbidden"
+  | "not_found"
+  | "invalid"
+  | "conflict"
+  | "unavailable";
+
+/** REQ-052 / A7 — EWDS billingCommandReply envelope. */
+export type BillingCommandReply = {
+  requestId: string;
+  operation: BillingCommandOperation;
+  success: boolean;
+  data?: Record<string, unknown>;
+  error?: { code: BillingCommandErrorCode; message: string };
+};
+
+/** Hosted Stripe URL allow-list (A7 / A7-bis). */
+export const STRIPE_HOSTED_URL_RE =
+  /^https:\/\/(checkout|connect|verify)\.stripe\.com\//;

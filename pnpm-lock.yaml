@@ -518,6 +518,9 @@ importers:
 
   services/publication:
     dependencies:
+      '@intelligent/ewds-client':
+        specifier: workspace:*
+        version: link:../../packages/ewds-client
       '@intelligent/mocks':
         specifier: workspace:*
         version: link:../../mocks

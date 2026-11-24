@@ -3,6 +3,7 @@
  */
 
 import { ApiError } from "./me";
+import { followHostedCheckoutUrl } from "./payment";
 
 export type InvoiceAmounts = {
   energy: string;
@@ -42,6 +43,8 @@ export type Payment = {
   currency: string;
   status: string;
   method?: string;
+  /** Hosted checkout URL when payment requires redirect (A7-bis / REQ-014). */
+  checkoutUrl?: string;
 };
 
 export async function fetchMyInvoices(
@@ -87,12 +90,38 @@ export function invoiceDocumentUrl(apiBaseUrl: string, invoiceId: string): strin
   return `${apiBaseUrl.replace(/\/$/, "")}/v1/invoices/${invoiceId}/document`;
 }
 
+export type PayInvoiceOptions = {
+  /** Where hosted checkout returns the payer (required by AC-07 for SEPA). */
+  returnUrl?: string;
+  fetchImpl?: typeof fetch;
+  /** Override for window.location.assign (tests). */
+  navigate?: (url: string) => void;
+};
+
 export async function payInvoice(
   apiBaseUrl: string,
   accessToken: string,
   invoiceId: string,
-  fetchImpl: typeof fetch = fetch,
+  fetchOrOptions: typeof fetch | PayInvoiceOptions = fetch,
 ): Promise<Payment> {
+  const options: PayInvoiceOptions =
+    typeof fetchOrOptions === "function"
+      ? { fetchImpl: fetchOrOptions }
+      : fetchOrOptions;
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const returnUrl =
+    options.returnUrl ??
+    (typeof globalThis !== "undefined" &&
+    typeof (globalThis as { location?: { href?: string } }).location?.href ===
+      "string"
+      ? (globalThis as { location: { href: string } }).location.href
+      : undefined);
+  const navigate =
+    options.navigate ??
+    ((url: string) => {
+      window.location.assign(url);
+    });
+
   const res = await fetchImpl(
     `${apiBaseUrl.replace(/\/$/, "")}/v1/invoices/${invoiceId}/payments`,
     {
@@ -100,7 +129,9 @@ export async function payInvoice(
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${accessToken}`,
+        ...(returnUrl ? { "Content-Type": "application/json" } : {}),
       },
+      ...(returnUrl ? { body: JSON.stringify({ returnUrl }) } : {}),
     },
   );
   if (!res.ok) {
@@ -109,7 +140,10 @@ export async function payInvoice(
       `POST /v1/invoices/{id}/payments failed with ${res.status}`,
     );
   }
-  return (await res.json()) as Payment;
+  const payment = (await res.json()) as Payment;
+  // REQ-014 / UAT-014 — SEPA (or no saved card) returns a PSP-hosted checkoutUrl.
+  followHostedCheckoutUrl(payment.checkoutUrl, navigate);
+  return payment;
 }
 
 /** Download PDF with bearer (REQ-039 — Stripe-hosted document via API). */

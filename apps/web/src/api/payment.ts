@@ -1,6 +1,6 @@
 /**
- * Public API client for payment-account onboarding (REQ-051 / UAT-063 / INT-190 / INT-193 / INT-255).
- * Served by AC-07.
+ * Public API client for payment-account onboarding (REQ-051 / UAT-063 / INT-190 / INT-193 / INT-255)
+ * and invoice pay handoff helpers (REQ-014 / UAT-014). Served by AC-07.
  */
 
 /** INT-255 — Ready Payment method / Payout account summary. */
@@ -8,7 +8,8 @@ export type MePaymentAccount = {
   status: "none" | "requirements_due" | "pending_verification" | "complete";
   brand?: string;
   last4?: string;
-  stripeAccountId?: string;
+  /** PSP Connect account reference (REQ-051 / INT-427). */
+  pspAccountRef?: string;
   dashboardUrl?: string;
 };
 
@@ -16,13 +17,31 @@ export type OnboardingSession = {
   /** INT-362 — producer `embedded` (Connect Account onboarding component). */
   mode: "embedded" | "requirements" | "link" | "elements";
   status: "requirements_due" | "pending_verification" | "complete";
-  stripeAccountId?: string;
+  /** PSP Connect account reference once created. */
+  pspAccountRef?: string;
   currentlyDue?: string[];
   eventuallyDue?: string[];
   url?: string;
   /** SetupIntent (elements) or Account Session (embedded) client secret. */
   clientSecret?: string;
 };
+
+/**
+ * REQ-014 / UAT-014 — follow a PSP-hosted checkout URL (https only).
+ * Used after payInvoice when status is requires_action (SEPA / no saved card).
+ */
+export function followHostedCheckoutUrl(
+  checkoutUrl: string | undefined,
+  navigate: (url: string) => void = (url) => {
+    window.location.assign(url);
+  },
+): boolean {
+  if (typeof checkoutUrl === "string" && checkoutUrl.startsWith("https://")) {
+    navigate(checkoutUrl);
+    return true;
+  }
+  return false;
+}
 
 /** INT-255 — read brand/last4 or Connect dashboard link for Ready UI. */
 export async function fetchMyPaymentAccount(

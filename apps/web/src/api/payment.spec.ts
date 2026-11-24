@@ -3,7 +3,9 @@ import {
   attachMyPaymentMethod,
   createPaymentOnboarding,
   fetchMyPaymentAccount,
+  followHostedCheckoutUrl,
 } from "./payment";
+import { payInvoice } from "./invoices";
 
 describe("createPaymentOnboarding (REQ-051 / INT-190)", () => {
   beforeEach(() => {
@@ -18,7 +20,7 @@ describe("createPaymentOnboarding (REQ-051 / INT-190)", () => {
         json: async () => ({
           mode: "requirements",
           status: "requirements_due",
-          stripeAccountId: "acct_1",
+          pspAccountRef: "acct_1",
           currentlyDue: ["business_type"],
         }),
       }),
@@ -92,5 +94,52 @@ describe("createPaymentOnboarding (REQ-051 / INT-190)", () => {
     await expect(
       attachMyPaymentMethod("https://api.example", "tok", "pm_1"),
     ).rejects.toThrow(/503/);
+  });
+});
+
+describe("payInvoice hosted checkout (REQ-014 / UAT-014)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const P = "66666666-6666-6666-6666-666666666666";
+  const I = "55555555-5555-5555-5555-555555555555";
+
+  it("UAT-014 payInvoice follows the PSP-hosted checkoutUrl for SEPA", async () => {
+    const navigate = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        paymentId: P,
+        invoiceId: I,
+        amount: "42.50",
+        currency: "EUR",
+        status: "requires_action",
+        checkoutUrl: "https://checkout.stripe.com/c/pay/cs_1",
+      }),
+    });
+    await payInvoice("https://api.example", "tok", I, {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      returnUrl: "https://app.example/invoices",
+      navigate,
+    });
+    expect(navigate).toHaveBeenCalledWith(
+      "https://checkout.stripe.com/c/pay/cs_1",
+    );
+  });
+
+  it("does not navigate when checkoutUrl is missing or non-https", () => {
+    const navigate = vi.fn();
+    expect(followHostedCheckoutUrl(undefined, navigate)).toBe(false);
+    expect(followHostedCheckoutUrl("http://insecure.example/pay", navigate)).toBe(
+      false,
+    );
+    expect(navigate).not.toHaveBeenCalled();
+    expect(
+      followHostedCheckoutUrl("https://checkout.stripe.com/c/pay/cs_ok", navigate),
+    ).toBe(true);
+    expect(navigate).toHaveBeenCalledWith(
+      "https://checkout.stripe.com/c/pay/cs_ok",
+    );
   });
 });

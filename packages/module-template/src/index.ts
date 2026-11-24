@@ -3,6 +3,7 @@ export type { ModuleConfig } from "./config/module-config.js";
 
 export { redactPersonalData } from "./logging/redact.js";
 export { asString } from "./util/as-string.js";
+export { suggestedCorrectiveAction } from "./util/corrective-action.js";
 
 export { OutboxService } from "./outbox/outbox.service.js";
 export type { AppendOutboxInput } from "./outbox/outbox.service.js";

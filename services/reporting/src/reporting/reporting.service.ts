@@ -3,23 +3,31 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { suggestedCorrectiveAction } from "@intelligent/module-template";
 import { ReportingStore } from "../domain/store.js";
 import type {
   InvoiceProjection,
+  PaymentMethodReport,
   PaymentProjection,
+  PayoutProjection,
   PeriodicSummary,
+  StatementProjection,
 } from "../domain/types.js";
-import { suggestedCorrectiveAction } from "./corrective-action.js";
 import { sumMoney } from "./money.js";
+import { buildPaymentMethodReport } from "./payment-method-report.js";
 
 /**
  * AC-09 reporting — read models from projected billing events (INT-112 / INT-82).
- * REQ-018 overview, REQ-031 history, REQ-032 summary, REQ-046/047 KPI export.
+ * REQ-018 overview, REQ-031 history, REQ-032 summary, REQ-046/047 KPI export,
+ * REQ-060 payout overview.
  */
 @Injectable()
 export class ReportingService {
+  private readonly logger = new Logger(ReportingService.name);
+
   constructor(
     @Inject(ReportingStore) private readonly store: ReportingStore,
   ) {}
@@ -33,9 +41,32 @@ export class ReportingService {
     this.store.putInvoice(row);
   }
 
-  /** Project PaymentStatusChanged. */
+  /**
+   * Project PaymentStatusChanged.
+   * Merge-on-put: undefined fields on the next event keep previous values
+   * (a later pending event must not erase settledAt / fee — REQ-046 / UAT-057).
+   */
   projectPayment(row: PaymentProjection): void {
-    this.store.putPayment(row);
+    const previous = this.store.getPayment(row.paymentId);
+    if (!previous) {
+      this.store.putPayment(row);
+      return;
+    }
+    this.store.putPayment({ ...previous, ...definedFieldsOf(row) });
+  }
+
+  /** Project StatementIssued / StatementStatusChanged. */
+  projectStatement(row: StatementProjection): void {
+    this.store.putStatement(row);
+  }
+
+  getStatement(statementId: string): StatementProjection | undefined {
+    return this.store.getStatement(statementId);
+  }
+
+  /** Project PayoutStatusChanged. */
+  projectPayout(row: PayoutProjection): void {
+    this.store.putPayout(row);
   }
 
   /**
@@ -61,6 +92,63 @@ export class ReportingService {
       method: p.method,
       failureCategory: p.failureCategory,
     }));
+  }
+
+  /**
+   * Manager payout overview — one row per statement with totalSold > 0 (REQ-060 / UAT-077).
+   * Joins the latest payout for (participant, period). completed iff payout status is paid.
+   */
+  getPayoutsOverview(
+    communityId: string,
+    period?: string,
+  ): Array<{
+    participantId: string;
+    period: string;
+    expectedAmount: string;
+    currency: string;
+    status: "completed" | "open";
+    payoutId?: string;
+    paidOutAmount?: string;
+    payoutStatus?: string;
+  }> {
+    if (!communityId) throw new BadRequestException("communityId is required");
+    const statements = this.store
+      .listStatements({ communityId, period })
+      .filter((s) => Number(s.totalSold) > 0)
+      .sort((a, b) =>
+        a.participantId === b.participantId
+          ? a.period.localeCompare(b.period)
+          : a.participantId.localeCompare(b.participantId),
+      );
+    const payouts = this.store.listPayouts({ communityId, period });
+    // Latest payout per (participant, period) — Map iteration is insertion order.
+    const latestByKey = new Map<string, PayoutProjection>();
+    for (const p of payouts) {
+      latestByKey.set(`${p.participantId}:${p.period}`, p);
+    }
+    return statements.map((s) => {
+      const payout = latestByKey.get(`${s.participantId}:${s.period}`);
+      if (!payout) {
+        return {
+          participantId: s.participantId,
+          period: s.period,
+          expectedAmount: s.totalSold,
+          currency: s.currency,
+          status: "open" as const,
+        };
+      }
+      const completed = payout.status === "paid";
+      return {
+        participantId: s.participantId,
+        period: s.period,
+        expectedAmount: s.totalSold,
+        currency: s.currency,
+        status: (completed ? "completed" : "open") as "completed" | "open",
+        payoutId: payout.payoutId,
+        paidOutAmount: payout.amount,
+        payoutStatus: payout.status,
+      };
+    });
   }
 
   /**
@@ -134,6 +222,41 @@ export class ReportingService {
     const built = this.store.getReport(communityId, period);
     if (built) return built.summary;
     return this.computeSummary(communityId, period);
+  }
+
+  /**
+   * Per-payment-method KPIs for a community period (REQ-046 / TE-2 / ER1.4).
+   * Selects payments whose invoice projection has the requested period;
+   * payments with no projected invoice are excluded and logged.
+   */
+  getPaymentMethodReport(
+    communityId: string,
+    period: string,
+  ): PaymentMethodReport {
+    if (!communityId || !period) {
+      throw new BadRequestException("communityId and period are required");
+    }
+    const selected: PaymentProjection[] = [];
+    let missingInvoice = 0;
+    for (const pay of this.store.listPayments({ communityId })) {
+      const invoice = this.store.getInvoice(pay.invoiceId);
+      if (!invoice) {
+        missingInvoice += 1;
+        continue;
+      }
+      if (invoice.period !== period) continue;
+      selected.push(pay);
+    }
+    if (missingInvoice > 0) {
+      this.logger.warn(
+        `payment-method report excluded ${missingInvoice} payment(s) with no projected invoice (communityId=${communityId} period=${period})`,
+      );
+    }
+    return {
+      communityId,
+      period,
+      rows: buildPaymentMethodReport(selected),
+    };
   }
 
   /** BuildReport — AC-14 after period close (REQ-032). */
@@ -212,7 +335,16 @@ export class ReportingService {
     const invoices = this.store.listInvoices({ communityId, period });
     const invoiceIds = new Set(invoices.map((i) => i.invoiceId));
     const payments = this.store.listPayments({ communityId, invoiceIds });
-    const currency = invoices[0]?.currency ?? payments[0]?.currency ?? "EUR";
+    const paidPayouts = this.store.listPayouts({
+      communityId,
+      period,
+      status: "paid",
+    });
+    const currency =
+      invoices[0]?.currency ??
+      payments[0]?.currency ??
+      paidPayouts[0]?.currency ??
+      "EUR";
     return {
       communityId,
       period,
@@ -220,39 +352,64 @@ export class ReportingService {
       invoiceCount: invoices.length,
       paymentCount: payments.length,
       total: sumMoney(invoices.map((i) => i.total)),
+      // REQ-032 — paidOut is the sum of paid Connect payouts in the period.
+      paidOut: sumMoney(paidPayouts.map((p) => p.amount)),
     };
   }
 
   /**
-   * KPI CSV — invoice rows (REQ-047) and payment rows (REQ-046 / UAT-057).
-   * recordType distinguishes the two line shapes in one file.
+   * KPI CSV — participant rows (REQ-047 / UAT-058), then invoice and payment rows
+   * (REQ-046 / UAT-057). First 14 columns stay stable for existing readers; columns
+   * 15–27 add fee/timing and statement totals (Task 5.12).
    */
   private buildKpiCsv(communityId: string, period: string): string {
-    const header =
-      "recordType,communityId,period,participantId,invoiceId,paymentId,amount,energyKwh,currency,status,method,processingTimeMs,failureCategory,correctiveAction";
-    const lines = [header];
+    const lines = [COLUMNS.join(",")];
+
+    // Participant rows first — one per projected statement for the period.
+    const statements = this.store
+      .listStatements({ communityId, period })
+      .sort((a, b) => a.participantId.localeCompare(b.participantId));
+    for (const st of statements) {
+      lines.push(
+        row({
+          recordType: "participant",
+          communityId: st.communityId,
+          period: st.period,
+          participantId: st.participantId,
+          amount: st.netAmount,
+          currency: st.currency,
+          status: st.status,
+          energyBought: st.energyBoughtKwh,
+          energySold: st.energySoldKwh,
+          amountBought: st.totalBought,
+          amountSold: st.totalSold,
+          netAmount: st.netAmount,
+          componentEnergy: st.components.energy,
+          componentGridFee: st.components.gridFee,
+          componentLevies: st.components.levies,
+          componentVat: st.components.vat,
+        }),
+      );
+    }
+
     const invoices = this.store.listInvoices({ communityId, period });
     for (const inv of invoices) {
       // One row per consumer; producer side is the same invoice id (identifiers only).
       lines.push(
-        [
-          "invoice",
-          inv.communityId,
-          inv.period,
-          inv.consumerId,
-          inv.invoiceId,
-          "",
-          inv.total,
-          inv.energyKwh ?? "0.00",
-          inv.currency,
-          inv.status,
-          "",
-          "",
-          "",
-          "",
-        ].join(","),
+        row({
+          recordType: "invoice",
+          communityId: inv.communityId,
+          period: inv.period,
+          participantId: inv.consumerId,
+          invoiceId: inv.invoiceId,
+          amount: inv.total,
+          energyKwh: inv.energyKwh ?? "0.00",
+          currency: inv.currency,
+          status: inv.status,
+        }),
       );
     }
+
     const invoiceIds = new Set(invoices.map((i) => i.invoiceId));
     for (const pay of this.store.listPayments({ communityId, invoiceIds })) {
       const corrective =
@@ -260,24 +417,29 @@ export class ReportingService {
           ? suggestedCorrectiveAction(pay.failureCategory)
           : "";
       lines.push(
-        [
-          "payment",
-          pay.communityId,
+        row({
+          recordType: "payment",
+          communityId: pay.communityId,
           period,
-          pay.participantId ?? "",
-          pay.invoiceId,
-          pay.paymentId,
-          pay.amount,
-          "",
-          pay.currency,
-          pay.status,
-          pay.method ?? "",
-          pay.processingTimeMs !== undefined
-            ? String(pay.processingTimeMs)
-            : "",
-          pay.failureCategory ?? "",
-          escapeCsv(corrective),
-        ].join(","),
+          participantId: pay.participantId ?? "",
+          invoiceId: pay.invoiceId,
+          paymentId: pay.paymentId,
+          amount: pay.amount,
+          currency: pay.currency,
+          status: pay.status,
+          method: pay.method ?? "",
+          processingTimeMs:
+            pay.processingTimeMs !== undefined
+              ? String(pay.processingTimeMs)
+              : "",
+          failureCategory: pay.failureCategory ?? "",
+          correctiveAction: escapeCsv(corrective),
+          // Task 5.10 fields — fee and settlement timing (UAT-057).
+          initiatedAt: pay.initiatedAt ?? "",
+          settledAt: pay.settledAt ?? "",
+          feeAmount: pay.feeAmount ?? "",
+          feeCurrency: pay.feeCurrency ?? "",
+        }),
       );
     }
     return `${lines.join("\n")}\n`;
@@ -307,4 +469,54 @@ function escapeCsv(value: string): string {
     return value;
   }
   return `"${value.replaceAll('"', '""')}"`;
+}
+
+/** 27-column KPI CSV header (Task 5.12). First 14 columns unchanged for existing readers. */
+const COLUMNS = [
+  "recordType",
+  "communityId",
+  "period",
+  "participantId",
+  "invoiceId",
+  "paymentId",
+  "amount",
+  "energyKwh",
+  "currency",
+  "status",
+  "method",
+  "processingTimeMs",
+  "failureCategory",
+  "correctiveAction",
+  "initiatedAt",
+  "settledAt",
+  "feeAmount",
+  "feeCurrency",
+  "energyBought",
+  "energySold",
+  "amountBought",
+  "amountSold",
+  "netAmount",
+  "componentEnergy",
+  "componentGridFee",
+  "componentLevies",
+  "componentVat",
+] as const;
+
+type Column = (typeof COLUMNS)[number];
+
+/** Pad every KPI row to 27 columns so no record type can lose a column. */
+function row(cols: Partial<Record<Column, string>>): string {
+  return COLUMNS.map((c) => cols[c] ?? "").join(",");
+}
+
+/** Shallow copy keeping only own keys whose value is not `undefined`. */
+function definedFieldsOf<T extends object>(row: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const key of Object.keys(row) as Array<keyof T>) {
+    const value = row[key];
+    if (value !== undefined) {
+      out[key] = value;
+    }
+  }
+  return out;
 }

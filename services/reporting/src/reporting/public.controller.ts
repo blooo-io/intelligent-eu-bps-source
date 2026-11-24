@@ -41,6 +41,21 @@ export class PublicReportingController {
     return this.reporting.getPaymentsOverview(communityId);
   }
 
+  @Get("communities/:communityId/payouts-overview")
+  @UseGuards(
+    new ModuleAuthGuard({
+      roles: ["manager", "operator"],
+      // REQ-049 — token community must be this community.
+      requireCommunityScope: true,
+    }),
+  )
+  payoutsOverview(
+    @Param("communityId") communityId: string,
+    @Query("period") period?: string,
+  ) {
+    return this.reporting.getPayoutsOverview(communityId, period);
+  }
+
   @Get("participants/:id/history")
   @UseGuards(
     new ModuleAuthGuard({ roles: ["member", "manager", "operator"] }),
@@ -82,6 +97,21 @@ export class PublicReportingController {
     @Query("period") period: string,
   ) {
     return this.reporting.getPeriodicSummary(communityId, period);
+  }
+
+  @Get("reports/payment-methods")
+  @UseGuards(
+    new ModuleAuthGuard({
+      roles: ["manager", "operator"],
+      // REQ-049 / UAT-060 — same community-scope as reports/summary.
+      requireCommunityScope: true,
+    }),
+  )
+  paymentMethods(
+    @Query("communityId") communityId: string,
+    @Query("period") period: string,
+  ) {
+    return this.reporting.getPaymentMethodReport(communityId, period);
   }
 
   @Get("kpi-exports/:period")

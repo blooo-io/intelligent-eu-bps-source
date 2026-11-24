@@ -3,17 +3,23 @@ import type {
   BuiltReport,
   InvoiceProjection,
   PaymentProjection,
+  PayoutProjection,
+  StatementProjection,
 } from "./types.js";
 
 export class ReportingStore {
   private readonly invoices = new Map<string, InvoiceProjection>();
   private readonly payments = new Map<string, PaymentProjection>();
+  private readonly statements = new Map<string, StatementProjection>();
+  private readonly payouts = new Map<string, PayoutProjection>();
   private readonly reports = new Map<string, BuiltReport>();
   private readonly kpiExports = new Map<string, BuiltKpiExport>();
 
   reset(): void {
     this.invoices.clear();
     this.payments.clear();
+    this.statements.clear();
+    this.payouts.clear();
     this.reports.clear();
     this.kpiExports.clear();
   }
@@ -54,6 +60,11 @@ export class ReportingStore {
     this.payments.set(row.paymentId, structuredClone(row));
   }
 
+  getPayment(paymentId: string): PaymentProjection | undefined {
+    const row = this.payments.get(paymentId);
+    return row ? structuredClone(row) : undefined;
+  }
+
   listPayments(filter?: {
     communityId?: string;
     invoiceIds?: Set<string>;
@@ -66,6 +77,51 @@ export class ReportingStore {
         if (filter?.invoiceIds && !filter.invoiceIds.has(row.invoiceId)) {
           return false;
         }
+        return true;
+      })
+      .map((r) => structuredClone(r));
+  }
+
+  putStatement(row: StatementProjection): void {
+    this.statements.set(row.statementId, structuredClone(row));
+  }
+
+  getStatement(statementId: string): StatementProjection | undefined {
+    const row = this.statements.get(statementId);
+    return row ? structuredClone(row) : undefined;
+  }
+
+  listStatements(filter?: {
+    communityId?: string;
+    period?: string;
+  }): StatementProjection[] {
+    return [...this.statements.values()]
+      .filter((row) => {
+        if (filter?.communityId && row.communityId !== filter.communityId) {
+          return false;
+        }
+        if (filter?.period && row.period !== filter.period) return false;
+        return true;
+      })
+      .map((r) => structuredClone(r));
+  }
+
+  putPayout(row: PayoutProjection): void {
+    this.payouts.set(row.payoutId, structuredClone(row));
+  }
+
+  listPayouts(filter?: {
+    communityId?: string;
+    period?: string;
+    status?: string;
+  }): PayoutProjection[] {
+    return [...this.payouts.values()]
+      .filter((row) => {
+        if (filter?.communityId && row.communityId !== filter.communityId) {
+          return false;
+        }
+        if (filter?.period && row.period !== filter.period) return false;
+        if (filter?.status && row.status !== filter.status) return false;
         return true;
       })
       .map((r) => structuredClone(r));

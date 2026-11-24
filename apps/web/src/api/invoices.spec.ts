@@ -48,14 +48,63 @@ describe("invoices API (REQ-007 / REQ-014 / REQ-039)", () => {
         status: "Succeeded",
       }),
     });
+    const navigate = vi.fn();
     const payment = await payInvoice(
       "https://api.example",
       "tok",
       sample.invoiceId,
-      fetchImpl as unknown as typeof fetch,
+      {
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        navigate,
+      },
     );
     expect(payment.status).toBe("Succeeded");
     expect(fetchImpl.mock.calls[0][1].method).toBe("POST");
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("UAT-014 redirects to https checkoutUrl and ignores non-https", async () => {
+    const navigate = vi.fn();
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        paymentId: "66666666-6666-6666-6666-666666666666",
+        invoiceId: sample.invoiceId,
+        amount: "42.50",
+        currency: "EUR",
+        status: "requires_action",
+        checkoutUrl: "https://checkout.stripe.com/c/pay/cs_1",
+      }),
+    });
+    await payInvoice("https://api.example", "tok", sample.invoiceId, {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      returnUrl: "https://app.example/invoices",
+      navigate,
+    });
+    expect(navigate).toHaveBeenCalledWith(
+      "https://checkout.stripe.com/c/pay/cs_1",
+    );
+    expect(fetchImpl.mock.calls[0][1].body).toBe(
+      JSON.stringify({ returnUrl: "https://app.example/invoices" }),
+    );
+
+    navigate.mockClear();
+    fetchImpl.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        paymentId: "66666666-6666-6666-6666-666666666666",
+        invoiceId: sample.invoiceId,
+        amount: "42.50",
+        currency: "EUR",
+        status: "requires_action",
+        checkoutUrl: "javascript:alert(1)",
+      }),
+    });
+    await payInvoice("https://api.example", "tok", sample.invoiceId, {
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      navigate,
+    });
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   it("builds document URL and fetches PDF blob", async () => {
@@ -78,7 +127,9 @@ describe("invoices API (REQ-007 / REQ-014 / REQ-039)", () => {
   it("throws ApiError on pay failure", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 403 });
     await expect(
-      payInvoice("https://api.example", "tok", "id", fetchImpl as unknown as typeof fetch),
+      payInvoice("https://api.example", "tok", "id", {
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      }),
     ).rejects.toBeInstanceOf(ApiError);
   });
 

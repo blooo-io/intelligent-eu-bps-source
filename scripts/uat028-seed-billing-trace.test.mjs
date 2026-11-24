@@ -9,7 +9,9 @@ test("UAT-028 seed script documents INT-196 bridge path", async () => {
   assert.match(src, /UAT-028/);
   assert.match(src, /invoices:from-settlement/);
   assert.match(src, /billing-runs/);
-  assert.match(src, /PRODUCER_STRIPE_ACCOUNT_ID/);
-  assert.match(src, /producerStripeAccountId/);
+  assert.match(src, /PRODUCER_PSP_ACCOUNT_REF/);
+  assert.match(src, /producerPspAccountRef/);
+  assert.doesNotMatch(src, /producerStripeAccountId/);
+  assert.doesNotMatch(src, /PRODUCER_STRIPE_ACCOUNT_ID/);
   assert.match(src, /c0ffee00-1234-4abc-8def-0123456789ab/);
 });

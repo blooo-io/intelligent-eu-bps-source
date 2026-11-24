@@ -100,9 +100,9 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / INT-254 / UAT-063)", (
     };
     // Start returns an Account Session twice (mount, then expiry refresh), then complete.
     const sessions = [
-      { mode: "embedded", status: "requirements_due", stripeAccountId: "acct_1", clientSecret: "accs_secret_1" },
-      { mode: "embedded", status: "requirements_due", stripeAccountId: "acct_1", clientSecret: "accs_secret_2" },
-      { mode: "embedded", status: "complete", stripeAccountId: "acct_1" },
+      { mode: "embedded", status: "requirements_due", pspAccountRef: "acct_1", clientSecret: "accs_secret_1" },
+      { mode: "embedded", status: "requirements_due", pspAccountRef: "acct_1", clientSecret: "accs_secret_2" },
+      { mode: "embedded", status: "complete", pspAccountRef: "acct_1" },
     ];
     const fetchImpl = vi.fn().mockImplementation(async (url: string) => {
       const path = String(url);
@@ -110,7 +110,7 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / INT-254 / UAT-063)", (
         return { ok: true, json: async () => meBody("producer") };
       }
       if (path.endsWith("/v1/me/payment-account")) {
-        return { ok: true, json: async () => ({ status: "complete", stripeAccountId: "acct_1" }) };
+        return { ok: true, json: async () => ({ status: "complete", pspAccountRef: "acct_1" }) };
       }
       const next = sessions.shift();
       return { ok: true, json: async () => next };
@@ -353,7 +353,7 @@ describe("PaymentSetupPage (INT-140 / INT-191 / INT-252 / INT-254 / UAT-063)", (
             ok: true,
             json: async () => ({
               status: "complete",
-              stripeAccountId: "acct_test_1",
+              pspAccountRef: "acct_test_1",
               dashboardUrl:
                 "https://dashboard.stripe.com/test/connect/accounts/acct_test_1",
             }),

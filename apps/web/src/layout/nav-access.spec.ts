@@ -16,16 +16,20 @@ describe("visibleNavItems (INT-243 / INT-250 / INT-252)", () => {
     expect(keys).not.toContain("/operator");
   });
 
-  it("gates balances/invoices until TermsAccepted", () => {
+  it("gates balances/invoices/statements/payouts until TermsAccepted", () => {
     const invited = visibleNavItems(["member"], "Invited").map((i) => i.key);
     expect(invited).toContain("/onboarding");
     expect(invited).toContain("/api");
     expect(invited).not.toContain("/balances");
     expect(invited).not.toContain("/invoices");
+    expect(invited).not.toContain("/statements");
+    expect(invited).not.toContain("/payouts");
 
     const terms = visibleNavItems(["member"], "TermsAccepted").map((i) => i.key);
     expect(terms).toContain("/balances");
     expect(terms).toContain("/invoices");
+    expect(terms).toContain("/statements");
+    expect(terms).toContain("/payouts");
   });
 
   it("hides setup links once the member is Ready but keeps payment account", () => {
@@ -111,6 +115,7 @@ describe("visibleNavItems (INT-243 / INT-250 / INT-252)", () => {
     expect(billing).toEqual([
       "/billing-runs",
       "/payments-overview",
+      "/payouts-overview",
       "/reports",
     ]);
     expect(groups.find((g) => g.group === "Money")!.items.map((i) => i.key)).toEqual([
@@ -118,14 +123,25 @@ describe("visibleNavItems (INT-243 / INT-250 / INT-252)", () => {
     ]);
   });
 
-  it("orders member Money as Home → Balances → Invoices → My history (INT-255)", () => {
+  it("orders member Money as Home → Balances → Invoices → Statements → Payouts → My history (INT-255 / INT-427)", () => {
     const items = visibleNavItems(["member"], "Ready");
     const money = navItemsByGroup(items).find((g) => g.group === "Money")!;
     expect(money.items.map((i) => i.key)).toEqual([
       "/",
       "/balances",
       "/invoices",
+      "/statements",
+      "/payouts",
       "/reports",
     ]);
+  });
+
+  it("shows Payouts overview for managers and hides it from members", () => {
+    expect(
+      visibleNavItems(["manager"], "Ready").map((i) => i.key),
+    ).toContain("/payouts-overview");
+    expect(
+      visibleNavItems(["member"], "Ready").map((i) => i.key),
+    ).not.toContain("/payouts-overview");
   });
 });

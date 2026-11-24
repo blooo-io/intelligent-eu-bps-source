@@ -124,8 +124,14 @@ export function InvoicesPage({
     try {
       const token = await oidc.getAccessToken();
       if (!token) throw new Error("No access token");
-      // REQ-014: payment to the producer's Stripe Connect account.
-      const result = await payInvoice(config.apiBaseUrl, token, invoiceId);
+      // REQ-014: payment to the producer's PSP account; SEPA follows checkoutUrl.
+      const result = await payInvoice(config.apiBaseUrl, token, invoiceId, {
+        returnUrl: window.location.href,
+      });
+      // Hosted checkout navigates away via window.location.assign inside payInvoice.
+      if (result.checkoutUrl?.startsWith("https://")) {
+        return;
+      }
       setPayment(result);
       setInvoices(await reload());
       setSelected(await fetchInvoice(config.apiBaseUrl, token, invoiceId));

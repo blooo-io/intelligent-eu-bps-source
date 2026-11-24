@@ -7,8 +7,8 @@ import { isSellerRole } from "./role-home";
  * Aligns with architecture §3.1 / §6 and Volt mockups per persona.
  * Roles come from the IdP token only (REQ-049); marketRole from GET /v1/me.
  *
- * Manager IA: Money (Home) → Community → Billing (runs, payments, reports).
- * Member Money order: Home → Balances → Invoices → My history.
+ * Manager IA: Money (Home) → Community → Billing (runs, payments, payouts, reports).
+ * Member Money order: Home → Balances → Invoices → Statements → Payouts → My history.
  */
 
 export type NavGroup = "Money" | "Account" | "Community" | "Billing" | "Ops" | "API";
@@ -90,6 +90,24 @@ export const NAV_CATALOG: readonly NavItemDef[] = [
     minMemberReadiness: "TermsAccepted",
   },
   {
+    // INT-427 / REQ-059 — member billing statements.
+    key: "/statements",
+    label: "Statements",
+    to: "/statements",
+    group: "Money",
+    roles: ["member"],
+    minMemberReadiness: "TermsAccepted",
+  },
+  {
+    // INT-427 / REQ-015 — member payouts and withdrawals.
+    key: "/payouts",
+    label: "Payouts",
+    to: "/payouts",
+    group: "Money",
+    roles: ["member"],
+    minMemberReadiness: "TermsAccepted",
+  },
+  {
     key: "/privacy",
     label: "Privacy",
     to: "/privacy",
@@ -125,7 +143,15 @@ export const NAV_CATALOG: readonly NavItemDef[] = [
     roles: ["manager"],
   },
   {
-    // INT-255 — manager Reports under Billing (after Payments).
+    // INT-427 / REQ-060 — manager payout overview under Billing.
+    key: "/payouts-overview",
+    label: "Payouts overview",
+    to: "/payouts-overview",
+    group: "Billing",
+    roles: ["manager"],
+  },
+  {
+    // INT-255 — manager Reports under Billing (after Payments / Payouts overview).
     key: "/reports",
     label: "Reports",
     to: "/reports",
@@ -133,7 +159,7 @@ export const NAV_CATALOG: readonly NavItemDef[] = [
     roles: ["manager"],
   },
   {
-    // INT-255 — member My history under Money (Home → Balances → Invoices → history).
+    // INT-255 — member My history under Money (after Statements / Payouts).
     key: "/reports",
     label: "Reports",
     to: "/reports",

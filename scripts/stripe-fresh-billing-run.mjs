@@ -153,17 +153,17 @@ async function provisionProducers() {
     const body = await res.json();
     assert.equal(res.status, 201, JSON.stringify(body));
     assert.ok(
-      typeof body.stripeAccountId === "string" &&
-        body.stripeAccountId.startsWith("acct_"),
+      typeof body.pspAccountRef === "string" &&
+        body.pspAccountRef.startsWith("acct_"),
       JSON.stringify(body),
     );
     assert.ok(
-      !String(body.stripeAccountId).startsWith("acct_test_"),
-      `expected real Stripe Connect id, got ${body.stripeAccountId}`,
+      !String(body.pspAccountRef).startsWith("acct_test_"),
+      `expected real Stripe Connect id, got ${body.pspAccountRef}`,
     );
     provisioned.push({
       participantId,
-      stripeAccountId: body.stripeAccountId,
+      pspAccountRef: body.pspAccountRef,
       chargesEnabled: body.chargesEnabled,
       kycStatus: body.kycStatus,
     });
@@ -178,7 +178,7 @@ async function waitAllChargesEnabled() {
       JSON.stringify({
         step: "chargesEnabled",
         participantId,
-        stripeAccountId: account.stripeAccountId,
+        pspAccountRef: account.pspAccountRef,
         chargesEnabled: account.chargesEnabled,
       }),
     );

@@ -37,7 +37,7 @@ describe("decidePairBalance (BR-04, BR-05, REQ-056)", () => {
     expect(money(d.carriedOutCanonical)).toBe("-4.00");
   });
 
-  it("forces the invoice on early and final runs", () => {
+  it("forces the invoice on final runs", () => {
     const d = decide("0", "1.5", "5", true);
     expect(money(d.invoiced)).toBe("1.50");
     expect(d.carriedOutOriented).toBe(ZERO);

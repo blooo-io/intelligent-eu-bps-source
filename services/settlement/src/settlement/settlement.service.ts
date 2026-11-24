@@ -28,7 +28,6 @@ import {
 } from "../domain/period.js";
 import {
   type CanonicalPairBucket,
-  canonicalPair,
   netCanonicalPairs,
 } from "../domain/netting.js";
 import type { UnbilledTrade } from "../domain/types.js";
@@ -228,29 +227,6 @@ export class SettlementService {
     return rows;
   }
 
-  /** INT-211 / BR-05 — early settle one consumer→producer pair. */
-  async createEarlySettlement(input: {
-    consumerId: string;
-    producerId: string;
-    communityId: string;
-  }) {
-    if (!input.producerId) {
-      throw new BadRequestException("producerId is required");
-    }
-    if (!input.communityId) {
-      throw new BadRequestException("communityId is required");
-    }
-    const { runId } = await this.startRun({
-      communityId: input.communityId,
-      type: "early",
-      onlyPair: {
-        consumerId: input.consumerId,
-        producerId: input.producerId,
-      },
-    });
-    return this.getPublicBillingRun(runId);
-  }
-
   /** Manager/operator community billing run (public). */
   async startPublicRun(input: {
     communityId: string;
@@ -265,8 +241,6 @@ export class SettlementService {
     communityId: string;
     type: BillingRunType;
     period?: string;
-    /** When set, only settle this consumer→producer pair (early settle-now). */
-    onlyPair?: { consumerId: string; producerId: string };
     /** INT-273 — offboard final: settle pairs involving this participant. */
     onlyParticipantId?: string;
   }): Promise<{ runId: string }> {
@@ -277,13 +251,12 @@ export class SettlementService {
     communityId: string;
     type: BillingRunType;
     period?: string;
-    onlyPair?: { consumerId: string; producerId: string };
     onlyParticipantId?: string;
   }): Promise<{ runId: string }> {
     if (!input.communityId) {
       throw new BadRequestException("communityId is required");
     }
-    if (!["periodic", "early", "final"].includes(input.type)) {
+    if (!["periodic", "final"].includes(input.type)) {
       throw new BadRequestException("invalid run type");
     }
     if (input.period !== undefined && !isPeriod(input.period)) {
@@ -313,14 +286,13 @@ export class SettlementService {
       if (closed) return { runId: closed.runId };
     }
     const bounds = parsePeriod(period);
-    // A periodic run covers trades delivered up to the end of the period; early
-    // and final runs settle everything delivered so far.
+    // A periodic run covers trades delivered up to the end of the period; a
+    // final run settles everything delivered so far.
     const until = input.type === "periodic" ? untilOf(bounds) : now.toISOString();
     const unbilled = await this.trades.getUnbilled(input.communityId, until);
-    const forceInvoice = input.type === "early" || input.type === "final";
+    const forceInvoice = input.type === "final";
     const threshold = dec(this.context.threshold);
     const pairs = this.collectPairs(input.communityId, unbilled, {
-      onlyPair: input.onlyPair,
       onlyParticipantId: input.onlyParticipantId,
       // BR-05 — a carried-only pair is settled when the run forces invoicing
       // or when the threshold no longer holds it back.
@@ -332,7 +304,7 @@ export class SettlementService {
     // INT-278 / BR-13 / REQ-005 — correction appends a new version; never overwrite.
     const version = this.store.nextRunVersion(input.communityId, period);
     // BR-06 — ECB rate of the last business day of the period, or of the
-    // settlement date for early and final runs.
+    // settlement date for final runs.
     const { rate: fxRate, rateDate } = await this.resolveFxRate(
       input.type === "periodic" ? lastBusinessDayOf(bounds) : businessDayOnOrBefore(now),
     );
@@ -431,13 +403,12 @@ export class SettlementService {
 
   /**
    * BR-04 / BR-05 — period buckets plus carried-only pairs of the community,
-   * scoped to one pair (early settlement) or one participant (final / balances).
+   * optionally scoped to one participant (final / balances).
    */
   private collectPairs(
     communityId: string,
     unbilled: UnbilledTrade[],
     scope: {
-      onlyPair?: { consumerId: string; producerId: string };
       onlyParticipantId?: string;
       includeCarriedOnly: (carry: Dec) => boolean;
     },
@@ -459,11 +430,7 @@ export class SettlementService {
         });
       }
     }
-    const onlyKey = scope.onlyPair
-      ? canonicalPair(scope.onlyPair.consumerId, scope.onlyPair.producerId).join("|")
-      : undefined;
     return [...pairs.entries()]
-      .filter(([key]) => onlyKey === undefined || key === onlyKey)
       .filter(
         ([, p]) =>
           scope.onlyParticipantId === undefined ||

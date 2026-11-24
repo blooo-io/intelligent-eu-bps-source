@@ -88,12 +88,24 @@ describe("SettlementService", () => {
     expect(Number(s.carriedForwardOut)).toBeLessThan(5);
   });
 
-  it("early settlement ignores threshold (BR-05)", async () => {
+  it("REQ-057 removed: startRun rejects type early", async () => {
+    service.useFixtureScenario("S3");
+    communityId = trades.communityId();
+    await expect(
+      service.startRun({
+        communityId,
+        type: "early" as "periodic",
+        period: "2026-11",
+      }),
+    ).rejects.toThrow(/invalid run type/);
+  });
+
+  it("final settlement ignores threshold (BR-05)", async () => {
     service.useFixtureScenario("S3");
     communityId = trades.communityId();
     const { runId } = await service.startRun({
       communityId,
-      type: "early",
+      type: "final",
       period: "2026-11",
     });
     const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]);
@@ -401,13 +413,14 @@ describe("SettlementService", () => {
       expect(store.getRun(again.runId)!.version).toBe(2);
     });
 
-    it("early settlement converts at the settlement date, back to the previous business day", async () => {
+    it("final settlement converts at the settlement date, back to the previous business day", async () => {
       build();
       service.useClock(() => new Date("2026-11-15T10:30:00Z"));
-      const run = await service.createEarlySettlement({ consumerId: A, producerId: B, communityId: COM });
+      const { runId } = await service.startRun({ communityId: COM, type: "final" });
+      const run = service.getPublicBillingRun(runId);
       expect(run.period).toBe("2026-11");
       expect(untils).toEqual(["2026-11-15T10:30:00.000Z"]);
-      const s = service.getPairSettlement(store.getRun(run.runId)!.settlementIds[0]!);
+      const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]!);
       expect(s.rateDate).toBe("2026-11-13");
     });
 
@@ -501,8 +514,8 @@ describe("SettlementService", () => {
           pricePerKWhEur: 0.25,
         })),
       );
-      const early = await service.startRun({ communityId: COM, type: "early", onlyPair: { consumerId: A, producerId: B } });
-      expect(await settlementsOf(early.runId)).toEqual([
+      const final = await service.startRun({ communityId: COM, type: "final" });
+      expect(await settlementsOf(final.runId)).toEqual([
         expect.objectContaining({ kWh: "0.384", energyAmount: "0.10" }),
       ]);
     });
@@ -520,7 +533,7 @@ describe("SettlementService", () => {
           deliveryEnd: "2026-11-01T00:30:00Z",
         },
       ]);
-      const run = await service.startRun({ communityId: COM, type: "early" });
+      const run = await service.startRun({ communityId: COM, type: "final" });
       const [settlement] = await settlementsOf(run.runId);
       expect(settlement).toMatchObject({ energyAmount: "10.00", vat: "0.00" });
       expect(settlement!.lines).toEqual([
@@ -589,15 +602,14 @@ describe("SettlementService", () => {
       expect(store.listCarries(COM)).toEqual([]);
     });
 
-    it("early settlement of a pair includes its carried balance in either direction", async () => {
+    it("final settlement of a pair includes its carried balance in either direction", async () => {
       queue.push([trade("t1", B, A, 2)], []);
       await service.startRun({ communityId: COM, type: "periodic", period: "2026-11" });
-      const early = await service.startRun({
+      const final = await service.startRun({
         communityId: COM,
-        type: "early",
-        onlyPair: { consumerId: A, producerId: B },
+        type: "final",
       });
-      expect(await settlementsOf(early.runId)).toEqual([
+      expect(await settlementsOf(final.runId)).toEqual([
         expect.objectContaining({ consumerId: B, producerId: A, energyAmount: "2.00" }),
       ]);
     });

@@ -70,7 +70,7 @@ export function lastBusinessDayOf(bounds: PeriodBounds): string {
   return businessDayOnOrBefore(new Date(bounds.end.getTime() - DAY_MS));
 }
 
-/** BR-06 — ECB rate date for an early settlement: the settlement date, or the business day before. */
+/** BR-06 — ECB rate date for a final settlement (or balances): the settlement date, or the business day before. */
 export function businessDayOnOrBefore(at: Date): string {
   let day = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
   while (!isTargetBusinessDay(day)) {

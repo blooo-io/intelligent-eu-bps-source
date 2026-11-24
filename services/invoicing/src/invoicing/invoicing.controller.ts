@@ -67,8 +67,6 @@ export class InvoicingController {
       tradeIds: invoice.tradeIds,
       pairSettlementId: invoice.settlementId,
       legalNumber: invoice.legalNumber ?? undefined,
-      producerStripeAccountId: invoice.producerStripeAccountId,
-      hostedInvoiceUrl: invoice.hostedInvoiceUrl ?? undefined,
     };
   }
 }

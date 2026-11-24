@@ -24,7 +24,7 @@ baseline: 03-application-architecture.md v1.0 (validated 2026-10-07); 02 logical
 | TP-4 | **EU hosting and data minimisation** in every product choice: no personal data sent to services outside the EU/adequacy area. | NFR-002 |
 | TP-5 | **Stripe test mode is the only real external integration in V1.** Everything else runs as a mock or a local instance behind the same adapter. | A32 |
 | TP-6 | **Licence check by local `git clone`** of each candidate. The result is recorded in §4 with date and commit date. | brain rule 9 |
-| TP-7 | **Single master per data item.** Data mastered by an external system, Stripe in particular, is never copied as a source of truth. Only identifiers and links are stored, plus a rebuildable read cache where lists or reports need it. | 2026-10-07 |
+| TP-7 | **Single master per data item.** Billing is master of invoices (numbering, PDF, e-mail); Stripe is master of accounts, KYC and payments. Data mastered by an external system is never copied as a source of truth — only identifiers and links are stored, plus a rebuildable read cache where lists or reports need it. | 2026-10-07; A6 / INT-428 2026-11-24 |
 | TP-8 | **API-first, contract-first.** Every interface is described by a versioned contract **before** it is implemented: OpenAPI 3.1 for the public and internal REST APIs, AsyncAPI 3 for the events. The contracts live in the repository, are reviewed like code, and are the single source for mocks, clients, validation and documentation. The web app and the project UI consume only the public API. | 2026-10-07 |
 
 ## 2. Reuse map: what can replace custom code
@@ -38,7 +38,7 @@ For each application component, the existing open-source building blocks (all MI
 | AC-03 Participants | **Keycloak** (Apache-2.0) admin API for accounts and invitations; framework CRUD | Registry, readiness rules, CSV import | Medium |
 | AC-04 Trade intake | Stripe/HTTP clients; EWDS client patterns from the GSY/EWAG repos | Window querying, deduplication, attribution, completeness | Low (core logic) |
 | AC-05 Settlement | **Formance Ledger** (MIT) or **TigerBeetle** (Apache-2.0) for the immutable double-entry ledger and the carry-forward balances | Pair computation, netting, threshold, FX and VAT rules | Medium |
-| AC-06 Invoicing | **Stripe Invoicing on the producer's connected account** (numbering per account, hosted PDF, e-mail, payment link). Alternatively **Gotenberg** (MIT) for a custom PDF template | Mapping a pair settlement to an invoice; self-billing mention | **High if Stripe Invoicing is used** |
+| AC-06 Invoicing | **In-house PDF with pdf-lib (MIT)**, stored in the invoicing database; legal number sequential per producer, owned by billing; e-mail by AC-11. Stripe Invoicing removed (A6) | Mapping a pair settlement to an invoice; self-billing mention; numbering; PDF layout | Medium |
 | AC-07 Payments | **stripe-node / stripe-java** (MIT); Stripe Connect, Identity, hosted onboarding, webhooks | Readiness sync, failure categorisation | High |
 | AC-08 Reconciliation | SQL over read models | Matching rules | Low |
 | AC-09 Reporting & exports | Read models in the database; optionally a BI tool (see §5, Grafana is AGPL) | Report queries, KPI export format | Medium |
@@ -60,11 +60,11 @@ For each application component, the existing open-source building blocks (all MI
 | # | Topic | Decision | Date |
 |---|---|---|---|
 | TD-1 | Reuse strategy and licences | TP-1 / TP-2 adopted. Explicit TP-2 exceptions for separate unmodified services: OpenBao (MPL-2.0, TD-9), SonarQube Community Build (INT-292), and DDHub Client Gateway (GPL-3.0, INT-308 / NFR-017) | 2026-10-07; INT-292 2026-10-22; INT-308 2026-10-23 |
-| TD-2 | Invoicing engine | **Stripe Invoicing on each producer's connected account.** Stripe handles numbering per producer, the hosted PDF, the e-mail and the payment link. Self-billing mention, trade summary and ECB rate go in Stripe custom fields, footer and metadata. Custom code is limited to mapping a pair settlement to a Stripe invoice | 2026-10-07 |
+| TD-2 | Invoicing engine | **In-house PDF with pdf-lib (MIT)**, stored in the invoicing database; legal number sequential per producer, owned by billing; e-mail by AC-11. Stripe Invoicing removed (A6). Self-billing mention, trade summary and ECB rate are rendered on the billing PDF | 2026-10-07; A6 / INT-428 2026-11-24 |
 | TD-3 | Workflow and scheduling | **Temporal** (MIT; TypeScript SDK and Helm charts MIT) for all time-based jobs, billing runs, early settlements and multi-step sagas (DSAR propagation, retries). It implements AC-14 | 2026-10-07 |
 | TD-4 | Back-end language and framework | **TypeScript + NestJS** (MIT) for the 13 modules, with stripe-node (MIT), Temporal TS SDK (MIT), OpenAPI contracts written first (TD-13), with express-openapi-validator (MIT) validating requests and responses against them and OpenTelemetry JS (Apache-2.0). A shared module template covers health, configuration, outbox, idempotent consumers and telemetry | 2026-10-07 |
 | TD-5 | Front-end framework | **Refine** (MIT), React, with an MIT UI kit (Ant Design or MUI, to fix at implementation), OIDC auth provider and REST data provider on the public API | 2026-10-07 |
-| TD-6 | Data and database | **Single master per data item (TP-7):** Stripe is master of accounts and KYC, customers, invoices and payments, and we keep only Stripe ids and links. **PostgreSQL** on **CloudNativePG** (Apache-2.0), **one database and one user per module**, holds the data we master; calculation tables are append-only. A **read-only cache** of Stripe invoice and payment fields, fed by webhooks, is used only for lists, reports and reconciliation. It is rebuildable from Stripe and checked nightly. Detail screens read Stripe live | 2026-10-07 |
+| TD-6 | Data and database | **Single master per data item (TP-7):** Billing is master of invoices (numbering, PDF, e-mail); Stripe is master of accounts, KYC and payments, and we keep only Stripe ids and links for those. **PostgreSQL** on **CloudNativePG** (Apache-2.0), **one database and one user per module**, holds the data we master (including invoice documents); calculation tables are append-only. A **read-only cache** of Stripe payment fields, fed by webhooks, is used only for lists, reports and reconciliation. It is rebuildable from Stripe and checked nightly | 2026-10-07; A6 / INT-428 2026-11-24 |
 | TD-7 | Event transport and outbox | **NATS JetStream** (Apache-2.0; NACK operator Apache-2.0) as the event channel. **Debezium Server** (Apache-2.0) reads each module's outbox table (PostgreSQL CDC) and publishes to JetStream, so there is no custom relay code. Consumers are idempotent (module template) | 2026-10-07 |
 | TD-8 | API gateway | **Apache APISIX** (Apache-2.0) + APISIX Ingress Controller (Apache-2.0): openid-connect plugin (Keycloak), routing, rate limiting, CORS, public OpenAPI | 2026-10-07 |
 | TD-9 | Secrets and certificates | **External Secrets Operator** (Apache-2.0) syncs Kubernetes secrets from **OpenBao** (MPL-2.0). OpenBao is accepted as an exception to TP-2: it is deployed as a separate, unmodified service and never linked into our code. ESO keeps the secret backend replaceable later (cloud KMS, another vault). TLS certificates come from **cert-manager** (Apache-2.0) | 2026-10-07 |
@@ -80,21 +80,15 @@ For each application component, the existing open-source building blocks (all MI
 | AC-01 Web app | Refine + React + MIT UI kit, OIDC (Keycloak) |
 | AC-02 API gateway | APISIX + openid-connect plugin, APISIX Ingress Controller |
 | AC-03 … AC-13 modules | NestJS (TypeScript), PostgreSQL (own database), outbox → Debezium Server → NATS JetStream, OpenTelemetry |
-| AC-06 Invoicing / AC-07 Payments | + stripe-node, Stripe Connect, Invoicing, Identity, webhooks (test mode in V1) |
+| AC-06 Invoicing | + pdf-lib (MIT) for invoice PDF |
+| AC-07 Payments | + stripe-node, Stripe Connect, Identity, webhooks (test mode in V1) |
 | AC-03 Participants | + Keycloak admin REST API |
 | AC-14 Scheduler | Temporal (workflows and timers), TypeScript workers |
 | AC-15 Mock suite | NestJS mock services + fixtures; Stripe test mode is real |
 | Platform | Keycloak, Temporal, NATS JetStream, CloudNativePG, Debezium Server, ESO + OpenBao, cert-manager, OTel + Prometheus + Jaeger + VictoriaLogs + Perses, Argo CD |
 
 ### 3.2 Consequences to track
-- **Stripe Invoicing (TD-2), working assumption WA-21 / A33:**
-  - Stripe numbering per connected account must meet the legal sequential numbering for self-billing in each country;
-  - the self-billing mention must be acceptable on the Stripe PDF;
-  - invoice personal data held by Stripe must be compatible with NFR-002 (to check with the project DPO);
-  - production cost of Stripe Invoicing must be checked.
-  
-  REQ-039 (PDF and e-mail) and REQ-042 (numbering) are implemented by Stripe.
-- **TP-7, single master:** add to the logical data model in the next revision. Invoice and Payment in AC-06/AC-07 become Stripe references plus the read cache.
+- **TP-7, single master (done in v2.0 / A6):** Billing is master of invoices (numbering, PDF, e-mail); Stripe is master of accounts, KYC and payments. REQ-039 and REQ-042 are implemented by AC-06 / AC-11.
 - **13 NestJS services:** the shared module template and the helmfile layout are the first implementation deliverables.
 
 ### 3.3 Contract-first workflow
@@ -314,7 +308,7 @@ sequenceDiagram
 | Service-to-service       | Internal APIs require a service token: a Keycloak client-credentials grant per module, validated by the module guard. Kubernetes **NetworkPolicies** use default deny and only allow the synchronous dependencies of 03 §2.2, plus NATS, PostgreSQL, Temporal and the OTel collector. A service mesh for mTLS between pods is **deferred**. | NFR-001                                |
 | Secrets                  | ESO syncs Kubernetes secrets from OpenBao, with one path per module and per environment. They cover Stripe secret keys, the webhook signing secret and the Keycloak client secrets. Database credentials are generated by CloudNativePG. No secret is stored in Git or in container images (gitleaks in CI).                                | NFR-005, NFR-015                       |
 | Transport security       | TLS at the edge (cert-manager certificates), TLS to PostgreSQL (CloudNativePG default), TLS to NATS. Stripe is called over HTTPS.                                                                                                                                                                                                           | NFR-001, NFR-015                       |
-| Data at rest             | PostgreSQL volumes are encrypted by the storage layer (physical view). Personal data is limited to AC-03 profiles and AC-12 audit records; invoice documents are held by Stripe (TP-7).                                                                                                                                                     | NFR-001, NFR-002                       |
+| Data at rest             | PostgreSQL volumes are encrypted by the storage layer (physical view). Personal data is limited to AC-03 profiles, AC-06 invoice party fields under legal retention, and AC-12 audit records; invoice documents are stored by billing (TP-7 / A6).                                                                                              | NFR-001, NFR-002                       |
 | Webhooks                 | Public route only for `/webhooks/payment-provider`, rate-limited. Stripe signature verification with timestamp tolerance. Idempotency on the Stripe event id. Raw body preserved by the gateway.                                                                                                                                            | NFR-015, REQ-016                       |
 | Logs and telemetry       | Structured logs without personal data. The OTel Collector applies a redaction processor (e-mail, names, IBAN patterns). Traces carry only identifiers.                                                                                                                                                                                      | NFR-015, REQ-030                       |
 | Audit                    | Every module emits `AuditableActionPerformed` for access to or changes of personal or payment data. AC-12 stores them append-only. Keycloak admin events are enabled.                                                                                                                                                                       | REQ-030                                |

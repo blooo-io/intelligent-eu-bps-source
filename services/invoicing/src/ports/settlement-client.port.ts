@@ -72,9 +72,6 @@ export class HttpSettlementClient implements SettlementClientPort {
         ? { settlementType: body.settlementType }
         : {}),
       ...(typeof body.vatRate === "number" ? { vatRate: body.vatRate } : {}),
-      ...(typeof body.producerStripeAccountId === "string"
-        ? { producerStripeAccountId: body.producerStripeAccountId }
-        : {}),
     };
   }
 }

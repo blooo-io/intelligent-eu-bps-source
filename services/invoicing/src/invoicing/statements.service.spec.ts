@@ -12,11 +12,9 @@ import {
 import { StatementStore } from "../domain/statement-store.js";
 import { InvoiceStore } from "../domain/store.js";
 import type { InvoiceRecord } from "../domain/types.js";
-import { NoopPaymentsClient } from "../ports/payments-client.port.js";
 import type { ParticipantsResolverPort } from "../ports/participants-resolver.port.js";
 import { NoopParticipantsResolver } from "../ports/participants-resolver.port.js";
 import { MapReadiness } from "../ports/readiness.port.js";
-import { MockStripeInvoiceAdapter } from "../stripe/mock-stripe-invoice.js";
 import { InvoicingService } from "./invoicing.service.js";
 import { StatementsService } from "./statements.service.js";
 
@@ -45,12 +43,9 @@ const invoice = (
   total,
   tradeIds: [],
   lines: [],
-  stripeInvoiceId: `in_${invoiceId}`,
   legalNumber: null,
-  hostedInvoiceUrl: null,
   energyAmount: total,
   vatAmount: "0.00",
-  producerStripeAccountId: null,
   dueDate: "2026-11-15",
   communityId: COM,
   statusAudit: [],
@@ -244,9 +239,7 @@ describe("StatementsService (REQ-059)", () => {
       invoicing = new InvoicingService(
         invoices,
         new OutboxService(outboxStore),
-        new MockStripeInvoiceAdapter(),
         new MapReadiness(new Map()),
-        new NoopPaymentsClient(),
         new NoopParticipantsResolver(),
         svc,
       );

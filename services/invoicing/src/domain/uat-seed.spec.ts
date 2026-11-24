@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { InvoiceStore } from "./store.js";
 import {
-  UAT_HOSTED_INVOICE_URL,
   UAT_INLINE_PDF,
   UAT_INVOICE_ID,
   UAT_MEMBER_IDP_SUB,
@@ -16,9 +15,10 @@ describe("UAT invoice seed (INT-218)", () => {
       invoiceId: UAT_INVOICE_ID,
       consumerId: UAT_MEMBER_IDP_SUB,
       status: "Paid",
-      hostedInvoiceUrl: UAT_HOSTED_INVOICE_URL,
+      legalNumber: "SB-ACA5ADB7-000001",
     });
-    expect(UAT_HOSTED_INVOICE_URL.startsWith("seed:")).toBe(true);
+    expect(rows[0]).not.toHaveProperty("hostedInvoiceUrl");
+    expect(rows[0]).not.toHaveProperty("stripeInvoiceId");
     expect(UAT_INLINE_PDF.toString("utf8")).toContain("%PDF");
   });
 

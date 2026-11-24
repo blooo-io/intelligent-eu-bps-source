@@ -17,6 +17,18 @@ import {
 } from "./invoicing/statements.controller.js";
 import { StatementsService } from "./invoicing/statements.service.js";
 import { createInvoiceTransaction } from "./persistence/invoice-journal.js";
+import {
+  createParticipantsResolver,
+  PARTICIPANTS_RESOLVER,
+} from "./ports/participants-resolver.port.js";
+import {
+  createReadiness,
+  READINESS_PORT,
+} from "./ports/readiness.port.js";
+import {
+  createSettlementClient,
+  SETTLEMENT_CLIENT,
+} from "./ports/settlement-client.port.js";
 
 /** INT-356 / REQ-059 — load invoices and statements at boot and commit them with the outbox. */
 @Injectable()
@@ -40,36 +52,6 @@ class InvoicePersistence implements OnModuleInit {
     this.statements.useTransaction(transaction);
   }
 }
-import {
-  createPaymentsClient,
-  PAYMENTS_CLIENT,
-} from "./ports/payments-client.port.js";
-import {
-  createParticipantsResolver,
-  PARTICIPANTS_RESOLVER,
-} from "./ports/participants-resolver.port.js";
-import {
-  createReadiness,
-  READINESS_PORT,
-} from "./ports/readiness.port.js";
-import {
-  createSettlementClient,
-  SETTLEMENT_CLIENT,
-} from "./ports/settlement-client.port.js";
-import { MockStripeInvoiceAdapter } from "./stripe/mock-stripe-invoice.js";
-import { STRIPE_INVOICE_PORT } from "./stripe/stripe-invoice.port.js";
-import { StripeInvoiceAdapter } from "./stripe/stripe-invoice.adapter.js";
-
-function resolveInvoiceProvider(): "stripe" | "mock" {
-  const explicit = (
-    process.env.STRIPE_INVOICE_PROVIDER ??
-    process.env.stripe_invoice_provider ??
-    process.env.PSP_PROVIDER ??
-    process.env.psp_provider ??
-    ""
-  ).toLowerCase();
-  return explicit === "stripe" ? "stripe" : "mock";
-}
 
 @Module({
   imports: [
@@ -87,18 +69,6 @@ function resolveInvoiceProvider(): "stripe" | "mock" {
     InvoicingService,
     StatementsService,
     InvoicePersistence,
-    MockStripeInvoiceAdapter,
-    {
-      provide: STRIPE_INVOICE_PORT,
-      // AD-6 — configuration selects mock vs Stripe test (INT-189).
-      useFactory: (mock: MockStripeInvoiceAdapter) => {
-        if (resolveInvoiceProvider() === "stripe") {
-          return new StripeInvoiceAdapter();
-        }
-        return mock;
-      },
-      inject: [MockStripeInvoiceAdapter],
-    },
     {
       provide: READINESS_PORT,
       // INT-231 — HttpReadiness when PARTICIPANTS_INTERNAL_URL is set (BR-09).
@@ -109,11 +79,6 @@ function resolveInvoiceProvider(): "stripe" | "mock" {
     {
       provide: SETTLEMENT_CLIENT,
       useFactory: () => createSettlementClient(),
-    },
-    {
-      provide: PAYMENTS_CLIENT,
-      // INT-228 — resolve Connect ids from AC-07 (Stripe master).
-      useFactory: () => createPaymentsClient(),
     },
     {
       provide: PARTICIPANTS_RESOLVER,

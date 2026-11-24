@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * INT-203 / UAT-053 — two producers on distinct Connect accounts; optional
- * multi-period seeding and Stripe sequence validation (REQ-042 / BR-10).
+ * INT-203 / UAT-053 — two producers; multi-period seeding and billing-owned
+ * legal-number sequence validation (REQ-042 / BR-10 / A6).
  *
  * Prerequisites (GitOps / INT-157):
  * - kubectl context for k8s-intelligent-eu-dev
@@ -13,9 +13,8 @@
  *   SETTLEMENT_URL=… INVOICING_URL=… PERIOD=2026-11 \
  *     node scripts/uat053-seed-numbering.mjs seed
  *
- * Validate both Connect sequences (after two period seeds):
- *   STRIPE_SECRET_KEY=sk_test_… \
- *     node scripts/uat053-seed-numbering.mjs validate
+ * Validate legal numbers via GET /internal/v1/invoices/{id} (not Stripe):
+ *   node scripts/uat053-seed-numbering.mjs validate
  */
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -29,7 +28,6 @@ const SETTLEMENT_URL = (
 const INVOICING_URL = (
   process.env.INVOICING_URL ?? "http://127.0.0.1:18086"
 ).replace(/\/$/, "");
-const STRIPE_SECRET_KEY = (process.env.STRIPE_SECRET_KEY ?? "").trim();
 const PERIOD = (process.env.PERIOD ?? "2026-11").trim();
 /** Prefer a repo-local path over world-writable /tmp (javascript:S5443). */
 const EVIDENCE_PATH =
@@ -38,36 +36,24 @@ const EVIDENCE_PATH =
 
 /** Mock S1 community (AC-15). */
 const COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
-/** S1 producer UUIDs → distinct PSP Connect accounts with charges_enabled. */
-const PRODUCER_PSP_ACCOUNT_MAP = {
-  "66666666-7777-4888-9999-aaaaaaaaaaaa": "acct_1URyv9FGX8DfzG09",
-  "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff": "acct_1URvtiF4LYz7qY6g",
-};
+/** S1 producer UUIDs (REQ-042 series is per producerId, not Connect account). */
+const PRODUCER_IDS = [
+  "66666666-7777-4888-9999-aaaaaaaaaaaa",
+  "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+];
 
 const headers = {
   "content-type": "application/json",
   "x-intelligent-roles": "service,operator",
 };
 
-async function stripeGet(path, stripeAccount) {
-  const res = await fetch(`https://api.stripe.com/v1${path}`, {
-    headers: {
-      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
-      "Stripe-Account": stripeAccount,
-    },
-  });
-  const body = await res.json();
-  assert.equal(res.status, 200, JSON.stringify(body));
-  return body;
-}
-
 /** REQ-042 — EWDS shares invoiceId; legal number stays off the wire. */
 function assertEwdsCarriesInvoiceIdOnly(sampleInvoiceId) {
   assert.equal(typeof sampleInvoiceId, "string");
   assert.doesNotMatch(
     sampleInvoiceId,
-    /^[A-Z0-9]{6,}-\d+$/,
-    "EWDS identifier must be invoiceId, not Stripe legal number",
+    /^SB-[A-F0-9]{8}-\d{6}$/,
+    "EWDS identifier must be invoiceId, not billing legal number",
   );
 }
 
@@ -105,10 +91,9 @@ async function seedPeriod(period) {
     const settlement = await sRes.json();
     assert.equal(sRes.status, 200, JSON.stringify(settlement));
 
-    const pspAccountRef = PRODUCER_PSP_ACCOUNT_MAP[settlement.producerId];
     assert.ok(
-      pspAccountRef,
-      `no Connect map for producer ${settlement.producerId}`,
+      PRODUCER_IDS.includes(settlement.producerId),
+      `unexpected producer ${settlement.producerId}`,
     );
 
     const invRes = await fetch(
@@ -128,7 +113,6 @@ async function seedPeriod(period) {
           vat: settlement.vat,
           currency: settlement.currency,
           rate: settlement.rate,
-          producerPspAccountRef: pspAccountRef,
         }),
       },
     );
@@ -143,8 +127,8 @@ async function seedPeriod(period) {
       runId,
       producerId: settlement.producerId,
       settlementId: settlement.settlementId,
-      pspAccountRef,
       invoiceId: invBody.invoiceId,
+      legalNumber: invBody.legalNumber ?? null,
       total: invBody.total,
       tradeIds: invBody.tradeIds,
     });
@@ -175,8 +159,17 @@ async function cmdSeed() {
   );
 }
 
+async function fetchInvoice(invoiceId) {
+  const res = await fetch(
+    `${INVOICING_URL}/internal/v1/invoices/${invoiceId}`,
+    { headers },
+  );
+  const body = await res.json();
+  assert.equal(res.status, 200, JSON.stringify(body));
+  return body;
+}
+
 async function cmdValidate() {
-  assert.ok(STRIPE_SECRET_KEY, "STRIPE_SECRET_KEY required");
   const seeded = await loadEvidence();
   assert.ok(seeded.length >= 4, `need ≥4 seeded invoices, got ${seeded.length}`);
   const producers = new Set(seeded.map((s) => s.producerId));
@@ -184,56 +177,55 @@ async function cmdValidate() {
   assert.equal(producers.size, 2, "two producers");
   assert.ok(periods.size >= 2, "two periods");
 
-  const byAccount = new Map();
+  const byProducer = new Map();
   for (const row of seeded) {
-    const list = byAccount.get(row.pspAccountRef) ?? [];
+    const list = byProducer.get(row.producerId) ?? [];
     list.push(row);
-    byAccount.set(row.pspAccountRef, list);
+    byProducer.set(row.producerId, list);
   }
-  assert.equal(byAccount.size, 2, "two Connect accounts");
+  assert.equal(byProducer.size, 2, "two producer series");
 
   const evidence = [];
-  for (const [acct, rows] of byAccount) {
-    const listed = await stripeGet("/invoices?limit=30", acct);
+  for (const [producerId, rows] of byProducer) {
     const matched = [];
     for (const row of rows) {
-      const hit = (listed.data ?? []).find(
-        (inv) => inv.metadata?.settlementId === row.settlementId,
-      );
+      const inv = await fetchInvoice(row.invoiceId);
+      assert.equal(inv.producerId, producerId);
       assert.ok(
-        hit,
-        `Stripe invoice missing for settlement ${row.settlementId} on ${acct}`,
+        typeof inv.legalNumber === "string" && inv.legalNumber.length > 0,
+        "legal number present (billing)",
       );
-      assert.ok(hit.number, "legal number present (PDF)");
-      assert.ok(hit.invoice_pdf, "invoice_pdf present");
-      assert.ok(hit.total > 0, "non-zero total");
+      assert.match(
+        inv.legalNumber,
+        /^SB-[A-F0-9]{8}-\d{6}$/,
+        `legal number format ${inv.legalNumber}`,
+      );
+      assert.ok(Number(inv.total) > 0, "non-zero total");
       matched.push({
         settlementId: row.settlementId,
         period: row.period,
         invoiceId: row.invoiceId,
-        stripeInvoiceId: hit.id,
-        number: hit.number,
-        total: hit.total,
-        hasPdf: Boolean(hit.invoice_pdf),
+        legalNumber: inv.legalNumber,
+        total: inv.total,
       });
       assertEwdsCarriesInvoiceIdOnly(row.invoiceId);
     }
     const suffixes = matched
       .map((m) => {
-        const n = Number(String(m.number).split("-").pop());
-        assert.ok(Number.isFinite(n), `parse number ${m.number}`);
-        return { n, number: m.number };
+        const n = Number(String(m.legalNumber).split("-").pop());
+        assert.ok(Number.isFinite(n), `parse number ${m.legalNumber}`);
+        return { n, number: m.legalNumber };
       })
       .sort((a, b) => a.n - b.n);
     for (let i = 1; i < suffixes.length; i++) {
       assert.equal(
         suffixes[i].n,
         suffixes[i - 1].n + 1,
-        `gap in sequence on ${acct}: ${suffixes.map((s) => s.number).join(",")}`,
+        `gap in sequence for ${producerId}: ${suffixes.map((s) => s.number).join(",")}`,
       );
     }
     evidence.push({
-      pspAccountRef: acct,
+      producerId,
       invoices: matched,
       sequence: suffixes.map((s) => s.number),
     });

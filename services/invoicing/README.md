@@ -1,6 +1,6 @@
 # `services/invoicing` (AC-06)
 
-Maps pair settlements to Stripe invoices on the producer's Connect account (INT-106 / TD-2).
+Maps pair settlements to billing-owned invoices: sequential legal numbers per producer, PDF and e-mail (INT-428 / A6 / TD-2).
 
 | Operation | Path | Spec |
 |---|---|---|
@@ -9,13 +9,13 @@ Maps pair settlements to Stripe invoices on the producer's Connect account (INT-
 | SetInvoiceStatus | `POST /v1/invoices/{id}/status` | REQ-044, UAT-055 |
 | createFromSettlement | domain (SettlementCompleted) | TD-2, BR-09, BR-10 |
 
-Stripe remains master of numbering, PDF and e-mail (BR-10 / TP-7).
+**Billing is master of invoices (numbering, PDF, e-mail); Stripe is master of accounts, KYC and payments.**
 
-## Adapter selection (INT-189 / AD-6)
+## Reminders (REQ-061)
 
-| `STRIPE_INVOICE_PROVIDER` / `PSP_PROVIDER` | Behaviour |
-|---|---|
-| unset / `mock` | `MockStripeInvoiceAdapter` (unit tests) |
-| `stripe` | `StripeInvoiceAdapter` (dev Helm; test-mode secrets required) |
+| Env | Default | Behaviour |
+|---|---|---|
+| `REMINDER_INTERVAL_DAYS` | `7` | Days between scheduled reminders on Overdue invoices |
+| `REMINDER_MAX` | `3` | Maximum scheduled reminders per invoice |
 
-Secrets: OpenBao `dev/invoicing` → External Secrets (`stripe_secret_key`, …). NetworkPolicy `stripeEgress: true`.
+NetworkPolicy: `stripeEgress: false`; egress to `settlement` and `participants`; ingress from `payments`, `scheduler-worker` and `notification`.

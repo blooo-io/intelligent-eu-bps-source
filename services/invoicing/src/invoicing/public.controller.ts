@@ -1,5 +1,4 @@
 import {
-  BadGatewayException,
   Body,
   Controller,
   Get,
@@ -17,8 +16,6 @@ import {
   type AuthenticatedRequest,
 } from "@intelligent/module-template";
 import type { InvoiceStatus } from "../domain/types.js";
-import { UAT_INLINE_PDF } from "../domain/uat-seed.js";
-import { loadStripeInvoicePdf } from "./invoice-pdf.js";
 import { InvoicingService } from "./invoicing.service.js";
 
 /**
@@ -57,33 +54,18 @@ export class PublicInvoicingController {
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
   ) {
-    const { url } = await this.invoicing.getDocumentUrlForParticipant(
+    // REQ-039 / A6 — PDF generated and stored by billing (no Stripe fetch).
+    const { legalNumber, content } = await this.invoicing.getDocumentForCaller(
       invoiceId,
       req.user!.sub,
     );
-    // INT-218 — UAT seed serves an inline stub PDF (no external redirect).
-    if (url.startsWith("seed:")) {
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `inline; filename="invoice-${invoiceId}.pdf"`,
-      );
-      return res.status(200).send(UAT_INLINE_PDF);
-    }
-    // REQ-039 / ANO-008 — return the PDF bytes. A 302 to Stripe fails the
-    // browser fetch the reference UI uses (cross-origin redirect).
-    try {
-      const bytes = await loadStripeInvoicePdf(url);
-      res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `inline; filename="invoice-${invoiceId}.pdf"`,
-      );
-      res.setHeader("Cache-Control", "private, no-store");
-      return res.status(200).send(bytes);
-    } catch {
-      throw new BadGatewayException("Invoice document could not be loaded");
-    }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${legalNumber}.pdf"`,
+    );
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.status(200).send(content);
   }
 
   @Post("invoices/:id/status")

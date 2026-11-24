@@ -57,8 +57,7 @@ export class SettlementCompletedListener implements OnModuleInit {
       this.logger.error(
         `SettlementCompleted ${eventId} failed: ${result.error.message}`,
       );
-      // INT-223 — permanent Stripe Connect / fixture acct_test_* errors must not
-      // nak forever; ack so JetStream stops redelivering poison messages.
+      // INT-223 / INT-368 — permanent settlement 404s must not nak forever.
       if (isNonRetryableInvoiceError(result.error)) {
         this.logger.warn(
           `SettlementCompleted ${eventId} non-retryable — acking without rethrow`,
@@ -85,29 +84,22 @@ export function runIdOf(payload: unknown): string {
 }
 
 /**
- * Permanent Stripe / fixture errors — ack without redelivery.
- * INT-231 — readiness / charges_enabled / missing Connect (not yet provisioned)
- * stay retryable so KYC and AC-07 provision can catch up.
+ * Permanent errors — ack without redelivery.
+ * INT-231 — readiness stays retryable so KYC can catch up.
+ * A6 — Stripe Connect / acct_test_* patterns removed with Stripe Invoicing.
  */
 export function isNonRetryableInvoiceError(error: Error): boolean {
   const msg = error.message.toLowerCase();
   // Waitable integration signals — keep nak / redelivery.
   if (
-    msg.includes("charges_enabled") ||
     msg.includes("producer_not_ready") ||
-    msg.includes("producer not ready") ||
-    msg.includes("connect account required")
+    msg.includes("producer not ready")
   ) {
     return false;
   }
   // INT-368 — AC-05 commits the settlement with the outbox row, so a 404 on
   // GetPairSettlement never heals by redelivery.
-  return (
-    msg.includes("does not have access to account") ||
-    msg.includes("acct_test_") ||
-    msg.includes("no such account") ||
-    /getpairsettlement \S+ failed with 404/.test(msg)
-  );
+  return /getpairsettlement \S+ failed with 404/.test(msg);
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

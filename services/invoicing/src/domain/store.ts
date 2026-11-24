@@ -1,3 +1,4 @@
+import { formatLegalNumber, legalNumberSeq } from "./legal-number.js";
 import type { StatementRecord } from "./statement-store.js";
 import type { InvoiceRecord } from "./types.js";
 import { seedUatInvoices } from "./uat-seed.js";
@@ -7,7 +8,7 @@ export type InvoiceWrite =
   | { kind: "statement"; row: StatementRecord };
 
 /**
- * Rebuildable Stripe read cache + local invoice ids (TP-7).
+ * Billing-owned invoice store (TP-7 / A6): legal numbers and documents live here.
  * INT-356 — recorded puts are committed with the outbox.
  */
 export class InvoiceStore {
@@ -86,5 +87,18 @@ export class InvoiceStore {
       (row) =>
         row.consumerId === participantId || row.producerId === participantId,
     );
+  }
+
+  /**
+   * REQ-042 / BR-10 — next gapless legal number for the producer (issuer).
+   * Assigned inside the issue transaction so a rolled-back write leaves no gap.
+   */
+  nextLegalNumber(producerId: string): string {
+    let max = 0;
+    for (const row of this.byId.values()) {
+      if (row.producerId !== producerId) continue;
+      max = Math.max(max, legalNumberSeq(row.legalNumber));
+    }
+    return formatLegalNumber(producerId, max + 1);
   }
 }

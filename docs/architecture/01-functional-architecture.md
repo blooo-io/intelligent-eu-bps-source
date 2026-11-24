@@ -259,7 +259,7 @@ erDiagram
 | BR-07 | VAT is applied at the community rate (0 by default). There are no grid-fee, tax or levy lines from suppliers or DSOs. | REQ-007 |
 | BR-08 | Amounts are computed in exact decimals and rounded to the cent per invoice line. The total is the sum of the lines. | A17 |
 | BR-09 | Nothing is invoiced in a producer's name until the producer has accepted the terms (self-billing mandate) and completed KYC. Until then, their trades stay unbilled. | REQ-045, REQ-050 |
-| BR-10 | Legal invoice numbers are sequential, without gaps, per producer, and never change. | REQ-042 |
+| BR-10 | Legal invoice numbers are sequential, without gaps, per producer, and never change. Billing owns the series (numbering, PDF, e-mail); Stripe is master of accounts, KYC and payments. | REQ-042 |
 | BR-11 | Billing never changes a trade's status. "Paid" is read from the published invoices and payments. | REQ-048 |
 | BR-12 | In virtual mode no real money moves. Payments run in the payment provider's test environment. | REQ-043 |
 | BR-13 | A computed result is never overwritten. A correction creates a new version. | REQ-005 |

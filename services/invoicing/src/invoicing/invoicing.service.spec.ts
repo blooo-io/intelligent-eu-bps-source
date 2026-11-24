@@ -1,5 +1,5 @@
 /**
- * INT-106 / INT-128 — TD-2 mapping, BR-09, BR-10.
+ * INT-106 / INT-128 / INT-428 — TD-2 mapping, BR-09, BR-10 (billing-owned).
  */
 import "reflect-metadata";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -10,14 +10,9 @@ import {
 import { StatementStore } from "../domain/statement-store.js";
 import { InvoiceStore } from "../domain/store.js";
 import type { InvoiceStatus, PairSettlementInput } from "../domain/types.js";
-import {
-  NoopPaymentsClient,
-  type PaymentsClientPort,
-} from "../ports/payments-client.port.js";
 import type { ParticipantsResolverPort } from "../ports/participants-resolver.port.js";
 import { NoopParticipantsResolver } from "../ports/participants-resolver.port.js";
 import { MapReadiness } from "../ports/readiness.port.js";
-import { MockStripeInvoiceAdapter } from "../stripe/mock-stripe-invoice.js";
 import { InvoicingService } from "./invoicing.service.js";
 import { StatementsService } from "./statements.service.js";
 
@@ -48,7 +43,6 @@ const settlement = (
 describe("InvoicingService", () => {
   let store: InvoiceStore;
   let outboxStore: InMemoryOutboxStore;
-  let stripe: MockStripeInvoiceAdapter;
   let service: InvoicingService;
 
   const statementsFor = () =>
@@ -62,21 +56,14 @@ describe("InvoicingService", () => {
   beforeEach(() => {
     store = new InvoiceStore();
     outboxStore = new InMemoryOutboxStore();
-    stripe = new MockStripeInvoiceAdapter();
     service = new InvoicingService(
       store,
       new OutboxService(outboxStore),
-      stripe,
       new MapReadiness(
         new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
       ),
-      new NoopPaymentsClient(),
       new NoopParticipantsResolver(),
       statementsFor(),
-    );
-    service.registerConnectAccount(
-      "66666666-7777-4888-9999-aaaaaaaaaaaa",
-      "acct_producer_a",
     );
   });
 
@@ -87,14 +74,13 @@ describe("InvoicingService", () => {
     expect(invoice).toMatchObject({ period: "", periodFrom: "", periodUntil: "" });
   });
 
-  it("maps a pair settlement to a Stripe invoice (TD-2, BR-10)", async () => {
+  it("maps a pair settlement to a billing-owned invoice (TD-2, BR-10, A6)", async () => {
     const invoice = await service.createFromSettlement(settlement());
     expect(invoice).not.toBeNull();
-    expect(invoice!.stripeInvoiceId).toMatch(/^in_test_/);
-    expect(invoice!.legalNumber).toMatch(/^ACCT_PRO-000001$/);
+    expect(invoice!.legalNumber).toBe("SB-66666666-000001");
     expect(invoice!.status).toBe("Open");
     expect(invoice!.total).toBe("2.00");
-    expect(stripe.created).toHaveLength(1);
+    expect(invoice).not.toHaveProperty("stripeInvoiceId");
     // REQ-059 — run and period kept on the invoice for the statements.
     expect(invoice).toMatchObject({
       runId: "r1111111-1111-4111-8111-111111111111",
@@ -105,7 +91,6 @@ describe("InvoicingService", () => {
 
     const again = await service.createFromSettlement(settlement());
     expect(again!.invoiceId).toBe(invoice!.invoiceId);
-    expect(stripe.created).toHaveLength(1);
 
     const events = await outboxStore.list();
     const issued = events.find((e) => e.event.type === "InvoiceIssued");
@@ -119,22 +104,29 @@ describe("InvoicingService", () => {
       carriedForwardAmount: "0.00",
       exchangeRate: null,
     });
+    expect(JSON.stringify(issued?.event.data)).not.toMatch(/legalNumber/);
+  });
+
+  it("UAT-053 two invoices of one producer get consecutive numbers", async () => {
+    const first = await service.createFromSettlement(settlement());
+    const second = await service.createFromSettlement(
+      settlement({ settlementId: "s2222222-2222-4222-8222-222222222222" }),
+    );
+    expect(first!.legalNumber).toBe("SB-66666666-000001");
+    expect(second!.legalNumber).toBe("SB-66666666-000002");
   });
 
   it("holds invoicing until producer is ready (BR-09)", async () => {
     service = new InvoicingService(
       store,
       new OutboxService(outboxStore),
-      stripe,
       new MapReadiness(new Map()),
-      new NoopPaymentsClient(),
       new NoopParticipantsResolver(),
       statementsFor(),
     );
     await expect(service.createFromSettlement(settlement())).rejects.toThrow(
       /not[_ ]ready/,
     );
-    expect(stripe.created).toHaveLength(0);
   });
 
   it("exposes per-trade lines to both parties and sums energy, VAT and total (INT-354 / REQ-007 / UAT-007)", async () => {
@@ -182,146 +174,8 @@ describe("InvoicingService", () => {
     expect(result).toBeNull();
   });
 
-  it("INT-340 — rejects an override that disagrees with the AC-07 account", async () => {
-    const payments: PaymentsClientPort = {
-      getProducerStripeAccountId: async () => "acct_real",
-      getPaymentAccount: async () => ({
-        stripeAccountId: "acct_real",
-        chargesEnabled: true,
-      }),
-      ensureConnectedCustomer: async () => "cus_real",
-    };
-    const guarded = new InvoicingService(
-      store,
-      new OutboxService(outboxStore),
-      stripe,
-      new MapReadiness(
-        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
-      ),
-      payments,
-      new NoopParticipantsResolver(),
-      statementsFor(),
-    );
-    await expect(
-      guarded.createFromSettlement(
-        settlement({ producerStripeAccountId: "acct_other" }),
-      ),
-    ).rejects.toThrow(/does not match AC-07/);
-  });
-
-  it("uses producerStripeAccountId override when provided (INT-197 / UAT-028)", async () => {
-    const invoice = await service.createFromSettlement(
-      settlement({ producerStripeAccountId: "acct_override_live" }),
-    );
-    expect(invoice!.producerStripeAccountId).toBe("acct_override_live");
-    // Mock legal number is derived from the Connect account id (BR-10).
-    expect(invoice!.legalNumber).toMatch(/^ACCT_OVE-000001$/);
-  });
-
-  it("refuses synthetic acct_test_* when Stripe invoice provider is live (INT-228)", async () => {
-    const prev = process.env.STRIPE_INVOICE_PROVIDER;
-    process.env.STRIPE_INVOICE_PROVIDER = "stripe";
-    const live = new InvoicingService(
-      store,
-      new OutboxService(outboxStore),
-      stripe,
-      new MapReadiness(
-        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
-      ),
-      new NoopPaymentsClient(),
-      new NoopParticipantsResolver(),
-      statementsFor(),
-    );
-    try {
-      await expect(live.createFromSettlement(settlement())).rejects.toThrow(
-        /Connect account required/,
-      );
-    } finally {
-      if (prev === undefined) delete process.env.STRIPE_INVOICE_PROVIDER;
-      else process.env.STRIPE_INVOICE_PROVIDER = prev;
-    }
-  });
-
-  it("INT-231 — holds invoice when charges_enabled is false (retryable)", async () => {
-    const payments: PaymentsClientPort = {
-      getProducerStripeAccountId: async () => "acct_pending",
-      getPaymentAccount: async () => ({
-        stripeAccountId: "acct_pending",
-        chargesEnabled: false,
-      }),
-      ensureConnectedCustomer: async () => "cus_unused",
-    };
-    const gated = new InvoicingService(
-      store,
-      new OutboxService(outboxStore),
-      stripe,
-      new MapReadiness(
-        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
-      ),
-      payments,
-      new NoopParticipantsResolver(),
-      statementsFor(),
-    );
-    await expect(gated.createFromSettlement(settlement())).rejects.toThrow(
-      /charges_enabled/,
-    );
-    expect(stripe.created).toHaveLength(0);
-  });
-
-  it("UAT-014 REQ-014 bills the consumer's AC-07 connected-account Customer and exposes the Stripe invoice id (INT-355)", async () => {
-    const calls: Array<[string, string]> = [];
-    const payments: PaymentsClientPort = {
-      getProducerStripeAccountId: async () => "acct_live_p",
-      getPaymentAccount: async () => ({ stripeAccountId: "acct_live_p", chargesEnabled: true }),
-      ensureConnectedCustomer: async (consumerId, stripeAccountId) => {
-        calls.push([consumerId, stripeAccountId]);
-        return "cus_conn_1";
-      },
-    };
-    const direct = new InvoicingService(
-      store,
-      new OutboxService(outboxStore),
-      stripe,
-      new MapReadiness(new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]])),
-      payments,
-      new NoopParticipantsResolver(),
-      statementsFor(),
-    );
-    const invoice = (await direct.createFromSettlement(settlement()))!;
-    expect(calls).toEqual([["11111111-2222-4333-8444-555555555555", "acct_live_p"]]);
-    expect(stripe.requests).toEqual([
-      { stripeAccountId: "acct_live_p", stripeCustomerId: "cus_conn_1" },
-    ]);
-    expect(direct.getInvoice(invoice.invoiceId)).toMatchObject({
-      producerStripeAccountId: "acct_live_p",
-      stripeInvoiceId: invoice.stripeInvoiceId,
-    });
-    expect(direct.getInvoiceBySettlement(invoice.settlementId).stripeInvoiceId).toBe(
-      invoice.stripeInvoiceId,
-    );
-  });
-
-  it("uses a synthetic Customer only with the mock invoice provider (INT-355)", async () => {
-    await service.createFromSettlement(settlement());
-    expect(stripe.requests[0]!.stripeCustomerId).toMatch(/^cus_test_/);
-
-    const prev = process.env.STRIPE_INVOICE_PROVIDER;
-    process.env.STRIPE_INVOICE_PROVIDER = "stripe";
-    try {
-      await expect(
-        service.createFromSettlement(
-          settlement({ settlementId: "s2222222-2222-4222-8222-222222222222" }),
-        ),
-      ).rejects.toThrow(/connected-account Customer required/);
-    } finally {
-      if (prev === undefined) delete process.env.STRIPE_INVOICE_PROVIDER;
-      else process.env.STRIPE_INVOICE_PROVIDER = prev;
-    }
-  });
-
   it("marks open invoices overdue (REQ-044)", async () => {
     const invoice = (await service.createFromSettlement(settlement()))!;
-    // Force due date in the past via store.
     store.put({ ...invoice, dueDate: "2020-01-01" });
     const result = await service.markOverdue("2026-11-01");
     expect(result.marked).toBe(1);
@@ -387,16 +241,6 @@ describe("InvoicingService", () => {
     ).rejects.toThrow(/reason/);
   });
 
-  it("applies Stripe webhook status into the cache (TD-6)", async () => {
-    const invoice = (await service.createFromSettlement(settlement()))!;
-    const next = await service.applyStripeStatus({
-      stripeInvoiceId: invoice.stripeInvoiceId,
-      status: "Paid",
-    });
-    expect(next?.status).toBe("Paid");
-    expect(service.listStatusAudit(invoice.invoiceId)[0]?.source).toBe("stripe");
-  });
-
   it("INT-270 — PaymentStatusChanged succeeded marks invoice Paid", async () => {
     const invoice = (await service.createFromSettlement(settlement()))!;
     expect(invoice.status).toBe("Open");
@@ -406,6 +250,7 @@ describe("InvoicingService", () => {
       status: "succeeded",
     });
     expect(next?.status).toBe("Paid");
+    expect(service.listStatusAudit(invoice.invoiceId)[0]?.source).toBe("payment");
     const again = await service.applyPaymentStatusChanged({
       invoiceId: invoice.invoiceId,
       paymentId: "pay-1",
@@ -421,6 +266,9 @@ describe("InvoicingService", () => {
     const invoice = (await service.createFromSettlement(settlement()))!;
     expect(service.getInvoiceBySettlement(invoice.settlementId).invoiceId).toBe(
       invoice.invoiceId,
+    );
+    expect(service.getInvoice(invoice.invoiceId).legalNumber).toBe(
+      "SB-66666666-000001",
     );
   });
 
@@ -438,11 +286,9 @@ describe("InvoicingService", () => {
     const withIdp = new InvoicingService(
       store,
       new OutboxService(outboxStore),
-      stripe,
       new MapReadiness(
         new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
       ),
-      new NoopPaymentsClient(),
       idp,
       statementsFor(),
     );

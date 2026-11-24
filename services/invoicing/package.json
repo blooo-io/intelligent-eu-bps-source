@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "Apache-2.0",
-  "description": "AC-06 invoicing \u2014 map pair settlements to Stripe invoices (INT-106, TD-2, BR-09, BR-10)",
+  "description": "AC-06 invoicing \u2014 billing-owned invoices, legal numbering and PDF (INT-428, A6, TD-2, BR-09, BR-10)",
   "type": "module",
   "files": [
     "dist"
@@ -22,8 +22,7 @@
     "nats": "^2.29.3",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2",
-    "stripe": "23.2.0"
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

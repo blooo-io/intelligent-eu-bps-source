@@ -9,8 +9,8 @@
       "surface": "embedded",
       "provider": "stripe",
       "purpose": "payment",
-      "publishableKey": "pk_test_4eC39HqLyjWDarjtT1zdp7dc",
-      "clientSecret": "pi_3Oxxxxxxxxxxxxxxxxxxxx_secret_xxx",
+      "publishableKey": "pk_test_fixture_invalid_embedded_url",
+      "clientSecret": "pi_fixture_secret_invalid_embedded",
       "url": "https://checkout.stripe.com/c/pay/cs_test_bad",
       "expiresAt": "2026-11-24T11:00:00Z"
     }

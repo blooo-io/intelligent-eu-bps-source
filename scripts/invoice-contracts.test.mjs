@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { parse as parseYaml } from "../apps/site/node_modules/yaml/dist/index.js";
+import { parse as parseYaml } from "yaml";
 
 test("REQ-039/REQ-042 invoicing contracts carry no Stripe invoice fields", async () => {
   const text = await readFile("contracts/openapi/internal/invoicing.v1.yaml", "utf8");

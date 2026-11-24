@@ -41,7 +41,8 @@ test("A7: command targets are declared in internal contracts", async () => {
     );
     assert.match(
       yaml,
-      new RegExp(`^  ${pathKey.replace(/[{}]/g, "\\$&")}:`, "m"),
+      // Escape every RegExp metacharacter (incl. `\`) before interpolating the path.
+      new RegExp(`^  ${pathKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`, "m"),
       `${file}.v1.yaml missing path ${pathKey}`,
     );
   }

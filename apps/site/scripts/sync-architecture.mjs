@@ -10,6 +10,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
@@ -114,13 +115,16 @@ function syncEwdsTopicsIndex() {
   mkdirSync(publicTopicsDir, { recursive: true });
   for (const name of readdirSync(topicsSrc)) {
     const from = path.join(topicsSrc, name);
-    cpSync(from, path.join(publicTopicsDir, name));
+    // fixtures/ is a directory (invalid EWDS samples); copy recursively.
+    cpSync(from, path.join(publicTopicsDir, name), { recursive: true });
   }
 
   // Static copies under public/. Skip README.md: VitePress strips ".md" from
   // links and would treat /architecture/ewds-topics/README as a missing page.
+  // List files only (fixtures/ is a directory of invalid samples).
   const files = readdirSync(topicsSrc)
     .filter((f) => f !== "README.md")
+    .filter((f) => !statSync(path.join(topicsSrc, f)).isDirectory())
     .sort();
   const rows = files
     .map((f) => `| \`${f}\` | [Download](/architecture/ewds-topics/${f}) |`)

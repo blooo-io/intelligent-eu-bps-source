@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { parse as parseYaml } from "../apps/site/node_modules/yaml/dist/index.js";
+import { parse as parseYaml } from "yaml";
 
 test("WS3 contracts expose KYC, DSAR export and live-mode errors (REQ-045, REQ-051, REQ-013, REQ-043)", async () => {
   const pub = parseYaml(await readFile("contracts/openapi/public.v1.yaml", "utf8"));

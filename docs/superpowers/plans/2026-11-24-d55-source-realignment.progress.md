@@ -22,7 +22,7 @@
 ## Task groups
 | Group | Jira | Status | PR | Notes |
 |---|---|---|---|---|
-| Day 1 contracts + ewds-client + hygiene + FX | INT-423 | in progress | pending | Tasks 1.1, 1.5, 1.10, 2.1–2.3, 3.1, 4.1–4.7, 5.1, 6.1–6.2 |
+| Day 1 contracts + ewds-client + hygiene + FX | INT-423 | CI | [#190](https://github.com/blooo-io/intelligent-eu-bps-source/pull/190) | Tasks 1.1, 1.5, 1.10, 2.1–2.3, 3.1, 4.1–4.7, 5.1, 6.1–6.2 |
 
 ## Decisions / deviations
 | When | What | Why |

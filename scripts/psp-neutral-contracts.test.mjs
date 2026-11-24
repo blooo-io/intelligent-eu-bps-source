@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { parse as parseYaml } from "../apps/site/node_modules/yaml/dist/index.js";
+import { parse as parseYaml } from "yaml";
 
 /** Walk every OpenAPI / AsyncAPI `properties` map and collect keys. */
 function collectPropertyNames(node, keys = []) {

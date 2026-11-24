@@ -31,7 +31,8 @@
 | Day 5b GDPR + EWDS | INT-429 | Done | [#197](https://github.com/blooo-io/intelligent-eu-bps-source/pull/197) squash-merged `b5ee28b` | 3.12, 3.18–3.24, 4.12, 4.19–4.20 |
 | Day 6 release closeout | INT-430 | In progress | [#198](https://github.com/blooo-io/intelligent-eu-bps-source/pull/198) squash-merged `ef6a03d` | Task 6.16 done; tag blocked on WS3/WS4 |
 | WS3 KYC catch-up | INT-431 | Done | [#199](https://github.com/blooo-io/intelligent-eu-bps-source/pull/199) squash-merged `6e8dd7b` | 3.2–3.11, 3.13–3.17 |
-| WS4 EWDS transport catch-up | INT-432 | In progress | [#200](https://github.com/blooo-io/intelligent-eu-bps-source/pull/200) | 4.13–4.18 complete; awaiting CI |
+| WS4 EWDS transport catch-up | INT-432 | Done | [#200](https://github.com/blooo-io/intelligent-eu-bps-source/pull/200) squash-merged `dd5b3dc` | 4.13–4.18 |
+| Day 6 release closeout (resume) | INT-430 | In progress | — | UAT re-run · refresh notes · tag v1.2.0 |
 
 ## Decisions / deviations
 | When | What | Why |

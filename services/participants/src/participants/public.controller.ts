@@ -55,12 +55,19 @@ export class PublicParticipantsController {
 
   @Post("me/terms-acceptance")
   @HttpCode(201)
-  @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
+  @UseGuards(new ModuleAuthGuard({ roles: ["member", "manager"] }))
   async acceptTerms(
     @Req() req: AuthenticatedRequest,
     @Body() body: { termsVersion: string; selfBillingMandate: boolean },
   ) {
-    return this.participants.acceptTerms(req.user!.sub, body);
+    // REQ-050 — members get termsAcceptedAt; managers get ManagerConsent.
+    const user = req.user!;
+    return this.participants.acceptTerms(
+      user.sub,
+      user.roles,
+      body,
+      user.communityId,
+    );
   }
 
   @Get("communities/:communityId/settings")

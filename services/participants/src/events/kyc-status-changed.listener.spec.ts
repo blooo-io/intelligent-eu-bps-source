@@ -55,7 +55,7 @@ describe("KycStatusChangedListener (REQ-051)", () => {
       address: "1 KYC Lane",
       email: "kyc@example.com",
     });
-    await service.acceptTerms(row.idpUserId!, {
+    await service.acceptTerms(row.idpUserId!, ["member"], {
       termsVersion: "v1.0.0",
       selfBillingMandate: false,
     });

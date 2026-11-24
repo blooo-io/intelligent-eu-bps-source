@@ -30,7 +30,8 @@ export const S1_INVITED_IDP_USER_ID = "c1a55e01-0005-4000-8000-000000000005";
 
 export const SEED_TERMS: TermsDocument = {
   termsVersion: "v1.0.0",
-  text: "INTELLIGENT V1 terms and self-billing mandate (REQ-050). Identifiers only in events.",
+  // Placeholder — full text lives in docs/legal/terms-v1.md (docs workstream).
+  text: "See docs/legal/terms-v1.md (REQ-050).",
 };
 
 export function seedCommunitySettings(): CommunitySettings {

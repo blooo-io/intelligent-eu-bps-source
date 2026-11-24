@@ -512,57 +512,134 @@ export class ParticipantsService {
     return this.store.getTerms();
   }
 
+  /**
+   * REQ-050 / UAT-062 — record T&C acceptance with timestamp.
+   * Members store termsAcceptedAt on the participant; managers store
+   * ManagerConsent. Producer/prosumer still require the self-billing mandate.
+   */
   async acceptTerms(
     sub: string,
+    roles: string[],
     input: { termsVersion: string; selfBillingMandate: boolean },
+    communityId?: string,
   ): Promise<{
     termsVersion: string;
     selfBillingMandate: boolean;
     acceptedAt: string;
   }> {
-    return this.tx.run(() => this.performAcceptTerms(sub, input));
+    return this.tx.run(() =>
+      this.performAcceptTerms(sub, roles, input, communityId),
+    );
   }
 
   private async performAcceptTerms(
     sub: string,
+    roles: string[],
     input: { termsVersion: string; selfBillingMandate: boolean },
+    communityId?: string,
   ): Promise<{
     termsVersion: string;
     selfBillingMandate: boolean;
     acceptedAt: string;
   }> {
-    const row = this.store.findByIdpSub(sub);
-    if (!row || row.status === "Offboarded") {
-      throw new NotFoundException("Caller is not a registered participant");
-    }
     const current = this.store.getTerms();
     if (input.termsVersion !== current.termsVersion) {
       throw new BadRequestException("termsVersion does not match current terms");
     }
-    // REQ-050: producers must accept the self-billing mandate.
-    if (
-      (row.role === "producer" || row.role === "prosumer") &&
-      !input.selfBillingMandate
-    ) {
-      throw new BadRequestException(
-        "selfBillingMandate is required for producers",
+    const acceptedAt = new Date().toISOString();
+    const isManager = roles.includes("manager");
+    const isMemberPath = roles.includes("member");
+    const row = this.store.findByIdpSub(sub);
+
+    if (isMemberPath) {
+      if (!row || row.status === "Offboarded") {
+        throw new NotFoundException("Caller is not a registered participant");
+      }
+      // REQ-050: producers must accept the self-billing mandate.
+      if (
+        (row.role === "producer" || row.role === "prosumer") &&
+        !input.selfBillingMandate
+      ) {
+        throw new BadRequestException(
+          "selfBillingMandate is required for producers",
+        );
+      }
+      const previousStatus = deriveReadiness(row);
+      const next: ParticipantRecord = {
+        ...row,
+        termsVersionAccepted: input.termsVersion,
+        selfBillingMandate: input.selfBillingMandate,
+        termsAcceptedAt: acceptedAt,
+      };
+      next.status = deriveReadiness(next);
+      this.store.putParticipant(next);
+      await this.emitReadinessIfChanged(row, previousStatus, next);
+      await this.emitTermsAcceptedAudit(
+        row.participantId,
+        row.communityId,
+        input.termsVersion,
+        acceptedAt,
       );
     }
-    const previousStatus = deriveReadiness(row);
-    const acceptedAt = new Date().toISOString();
-    const next: ParticipantRecord = {
-      ...row,
-      termsVersionAccepted: input.termsVersion,
-      selfBillingMandate: input.selfBillingMandate,
-    };
-    next.status = deriveReadiness(next);
-    this.store.putParticipant(next);
-    await this.emitReadinessIfChanged(row, previousStatus, next);
+
+    if (isManager) {
+      const mgrCommunityId = communityId || row?.communityId;
+      if (!mgrCommunityId) {
+        throw new BadRequestException("communityId is required for manager consent");
+      }
+      if (!this.store.getCommunity(mgrCommunityId)) {
+        throw new NotFoundException(`Unknown community ${mgrCommunityId}`);
+      }
+      // REQ-050 — manager consent is separate from member ParticipantRecord.
+      this.store.putManagerConsent({
+        subjectId: sub,
+        communityId: mgrCommunityId,
+        termsVersion: input.termsVersion,
+        acceptedAt,
+      });
+      if (!isMemberPath) {
+        await this.emitTermsAcceptedAudit(
+          sub,
+          mgrCommunityId,
+          input.termsVersion,
+          acceptedAt,
+        );
+      }
+    }
+
+    if (!isMemberPath && !isManager) {
+      throw new NotFoundException("Caller is not a registered participant");
+    }
+
     return {
       termsVersion: input.termsVersion,
       selfBillingMandate: input.selfBillingMandate,
       acceptedAt,
     };
+  }
+
+  private async emitTermsAcceptedAudit(
+    actorId: string,
+    communityId: string,
+    termsVersion: string,
+    timestamp: string,
+  ): Promise<void> {
+    const settings = this.store.getCommunity(communityId);
+    // REQ-050 / REQ-030 — identifiers only (NFR-015).
+    await this.outbox.append({
+      aggregateType: "TermsAcceptance",
+      aggregateId: actorId,
+      type: "AuditableActionPerformed",
+      producer: PRODUCER,
+      communityId,
+      billingMode: settings?.billingMode ?? "virtual",
+      data: {
+        actorId,
+        action: "terms.accepted",
+        target: `participant:${actorId}|version:${termsVersion}`,
+        timestamp,
+      },
+    });
   }
 
   /**

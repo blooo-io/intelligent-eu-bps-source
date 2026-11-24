@@ -146,13 +146,13 @@ describe("ParticipantsService", () => {
     );
 
     await expect(
-      service.acceptTerms(row.idpUserId!, {
+      service.acceptTerms(row.idpUserId!, ["member"], {
         termsVersion: "v1.0.0",
         selfBillingMandate: false,
       }),
     ).rejects.toThrow(/selfBillingMandate/);
 
-    await service.acceptTerms(row.idpUserId!, {
+    await service.acceptTerms(row.idpUserId!, ["member"], {
       termsVersion: "v1.0.0",
       selfBillingMandate: true,
     });
@@ -314,7 +314,7 @@ describe("ParticipantsService", () => {
       }),
     ).rejects.toThrow(/required/);
     await expect(
-      service.acceptTerms(row.idpUserId!, {
+      service.acceptTerms(row.idpUserId!, ["member"], {
         termsVersion: "wrong",
         selfBillingMandate: false,
       }),
@@ -368,7 +368,7 @@ describe("ParticipantsService", () => {
       address: "1 Gate",
       email: "nokyc@example.com",
     });
-    await service.acceptTerms(row.idpUserId!, {
+    await service.acceptTerms(row.idpUserId!, ["member"], {
       termsVersion: "v1.0.0",
       selfBillingMandate: false,
     });
@@ -381,6 +381,100 @@ describe("ParticipantsService", () => {
       status: "TermsAccepted",
       reason: "kyc_not_verified",
       kycVerified: false,
+    });
+  });
+
+  it("REQ-050 / UAT-062: acceptance records version and timestamp", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-25T09:00:00Z"));
+    try {
+      const [created] = await service.importParticipants(communityId, [
+        {
+          email: "terms@example.com",
+          marketActorId: "actor-terms-ts",
+          meterId: "meter-terms-ts",
+          role: "consumer",
+        },
+      ]);
+      const row = store.getParticipant(created.participantId)!;
+      await service.updateProfile(row.idpUserId!, {
+        name: "Terms User",
+        address: "1 Terms",
+        email: "terms@example.com",
+      });
+      const accepted = await service.acceptTerms(row.idpUserId!, ["member"], {
+        termsVersion: "v1.0.0",
+        selfBillingMandate: false,
+      });
+      expect(accepted.acceptedAt).toBe("2026-11-25T09:00:00.000Z");
+      expect(service.getMe(row.idpUserId!, ["member"]).termsAcceptedAt).toBe(
+        "2026-11-25T09:00:00.000Z",
+      );
+      const events = await outboxStore.list();
+      expect(
+        events.some(
+          (e) =>
+            e.event.type === "AuditableActionPerformed" &&
+            (e.event.data as { action?: string }).action === "terms.accepted",
+        ),
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("REQ-050: producer without self-billing mandate is refused", async () => {
+    const [created] = await service.importParticipants(communityId, [
+      {
+        email: "prod-mandate@example.com",
+        marketActorId: "actor-mandate",
+        meterId: "meter-mandate",
+        role: "producer",
+      },
+    ]);
+    const row = store.getParticipant(created.participantId)!;
+    await expect(
+      service.acceptTerms(row.idpUserId!, ["member"], {
+        termsVersion: "v1.0.0",
+        selfBillingMandate: false,
+      }),
+    ).rejects.toThrow(/selfBillingMandate/);
+  });
+
+  it("REQ-050: consumer may accept with selfBillingMandate false", async () => {
+    const [created] = await service.importParticipants(communityId, [
+      {
+        email: "cons-ok@example.com",
+        marketActorId: "actor-cons-ok",
+        meterId: "meter-cons-ok",
+        role: "consumer",
+      },
+    ]);
+    const row = store.getParticipant(created.participantId)!;
+    const result = await service.acceptTerms(row.idpUserId!, ["member"], {
+      termsVersion: "v1.0.0",
+      selfBillingMandate: false,
+    });
+    expect(result.selfBillingMandate).toBe(false);
+    expect(store.getParticipant(created.participantId)?.termsVersionAccepted).toBe(
+      "v1.0.0",
+    );
+  });
+
+  it("REQ-050: community manager acceptance is recorded as ManagerConsent", async () => {
+    const managerSub = "cccccccc-dddd-4eee-8fff-000000000001";
+    const accepted = await service.acceptTerms(
+      managerSub,
+      ["manager"],
+      { termsVersion: "v1.0.0", selfBillingMandate: false },
+      communityId,
+    );
+    expect(accepted.termsVersion).toBe("v1.0.0");
+    expect(store.getManagerConsent(communityId, managerSub)).toMatchObject({
+      subjectId: managerSub,
+      communityId,
+      termsVersion: "v1.0.0",
+      acceptedAt: accepted.acceptedAt,
     });
   });
 

@@ -1,13 +1,22 @@
 import { asString } from "@intelligent/module-template";
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import type { InvoiceIssuedEvent } from "../domain/types.js";
+import type {
+  InvoiceIssuedEvent,
+  InvoiceOverdueEvent,
+  PaymentReminderRequestedEvent,
+} from "../domain/types.js";
 import { NotificationService } from "../notification/notification.service.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
 
-const SUBJECT = "InvoiceIssued";
+const SUBJECTS = [
+  "InvoiceIssued",
+  "PaymentReminderRequested",
+  "InvoiceStatusChanged",
+] as const;
 
 /**
- * INT-428 Task 2.15 — bind AC-11 to InvoiceIssued (REQ-039 / UAT-050).
+ * INT-428 — bind AC-11 to InvoiceIssued (REQ-039 / UAT-050),
+ * PaymentReminderRequested and InvoiceStatusChanged Overdue (REQ-061 / UAT-078).
  * Reuses the AsyncAPI envelope unwrap pattern from operator-alerts.listener.
  */
 @Injectable()
@@ -21,13 +30,34 @@ export class InvoiceNoticesListener implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.bus.subscribe(SUBJECT, (payload) => this.onMessage(payload));
-    this.logger.log(`subscribed to ${SUBJECT}`);
+    await this.bus.subscribe("InvoiceIssued", (payload) =>
+      this.onInvoiceIssued(payload),
+    );
+    await this.bus.subscribe("PaymentReminderRequested", (payload) =>
+      this.onPaymentReminderRequested(payload),
+    );
+    await this.bus.subscribe("InvoiceStatusChanged", (payload) =>
+      this.onInvoiceStatusChanged(payload),
+    );
+    this.logger.log(`subscribed to ${SUBJECTS.join("/")}`);
   }
 
-  async onMessage(payload: unknown): Promise<void> {
+  async onInvoiceIssued(payload: unknown): Promise<void> {
     const event = mapInvoiceIssued(payload);
     await this.notifications.onInvoiceIssued(event);
+  }
+
+  async onPaymentReminderRequested(payload: unknown): Promise<void> {
+    const event = mapPaymentReminderRequested(payload);
+    await this.notifications.onPaymentReminderRequested(event);
+  }
+
+  async onInvoiceStatusChanged(payload: unknown): Promise<void> {
+    const mapped = mapInvoiceStatusChanged(payload);
+    if (mapped.status !== "Overdue") {
+      return;
+    }
+    await this.notifications.onInvoiceOverdue(mapped.event);
   }
 }
 
@@ -62,5 +92,49 @@ function mapInvoiceIssued(payload: unknown): InvoiceIssuedEvent {
     dueDate: asString(data.dueDate),
     total: asString(amounts.total ?? data.total),
     currency: asString(data.currency),
+  };
+}
+
+function mapPaymentReminderRequested(
+  payload: unknown,
+): PaymentReminderRequestedEvent {
+  const env = asEnvelope(payload);
+  const data = env.data;
+  const reminderRaw = data.reminderNumber;
+  const reminderNumber =
+    typeof reminderRaw === "number"
+      ? reminderRaw
+      : Number.parseInt(asString(reminderRaw), 10);
+  return {
+    eventId: env.eventId,
+    invoiceId: asString(data.invoiceId),
+    recipientId: asString(data.recipientId),
+    communityId: asString(data.communityId) || env.communityId,
+    dueDate: asString(data.dueDate),
+    outstanding: asString(data.outstanding),
+    currency: asString(data.currency),
+    reminderNumber: Number.isFinite(reminderNumber) ? reminderNumber : 1,
+  };
+}
+
+function mapInvoiceStatusChanged(payload: unknown): {
+  status: string;
+  event: InvoiceOverdueEvent;
+} {
+  const env = asEnvelope(payload);
+  const data = env.data;
+  const dueDateRaw = data.dueDate;
+  return {
+    status: asString(data.status),
+    event: {
+      eventId: env.eventId,
+      invoiceId: asString(data.invoiceId),
+      communityId: env.communityId,
+      outstanding: asString(data.outstanding),
+      dueDate:
+        typeof dueDateRaw === "string" && dueDateRaw.trim()
+          ? dueDateRaw.trim()
+          : undefined,
+    },
   };
 }

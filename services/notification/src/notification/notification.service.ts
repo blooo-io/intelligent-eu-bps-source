@@ -8,6 +8,8 @@ import {
 import { NotificationStore } from "../domain/store.js";
 import type {
   InvoiceIssuedEvent,
+  InvoiceOverdueEvent,
+  PaymentReminderRequestedEvent,
   PaymentStatusEvent,
 } from "../domain/types.js";
 import { MAIL_PORT, type MailPort } from "../mail/mail.port.js";
@@ -24,8 +26,9 @@ import {
 } from "../ports/recipient.port.js";
 
 /**
- * AC-11 notification — payment notices (INT-110, REQ-017) and invoice PDF
- * e-mail on issue (INT-428, REQ-039 / UAT-050).
+ * AC-11 notification — payment notices (INT-110, REQ-017), invoice PDF
+ * e-mail on issue (INT-428, REQ-039 / UAT-050), and payment reminders /
+ * missing-payment alerts (INT-428, REQ-061 / UAT-078).
  */
 @Injectable()
 export class NotificationService {
@@ -58,6 +61,13 @@ export class NotificationService {
     this.store.registerRecipient(participantId, email);
     if (this.recipients instanceof MapRecipient) {
       this.recipients.register(participantId, email);
+    }
+  }
+
+  /** Test helper — MapRecipient community manager contact (REQ-061). */
+  registerCommunityManager(communityId: string, email: string): void {
+    if (this.recipients instanceof MapRecipient) {
+      this.recipients.registerCommunityManager(communityId, email);
     }
   }
 
@@ -99,6 +109,168 @@ export class NotificationService {
       throw result.error;
     }
     return { status: result.status };
+  }
+
+  /**
+   * Consume PaymentReminderRequested — e-mail PDF reminder to consumer (REQ-061 / UAT-078).
+   * Missing document throws so JetStream redelivers. Idempotent on eventId.
+   */
+  async onPaymentReminderRequested(
+    event: PaymentReminderRequestedEvent,
+  ): Promise<{ status: string }> {
+    const result = await this.consumer.handle(event.eventId, event, async (e) => {
+      await this.dispatchPaymentReminder(e);
+    });
+    if (result.status === "failed") {
+      throw result.error;
+    }
+    return { status: result.status };
+  }
+
+  /**
+   * Consume InvoiceStatusChanged Overdue — missing-payment alert to manager (REQ-061 / UAT-078).
+   * Falls back to OPERATOR_ALERT_TO, then skips. Idempotent on eventId.
+   */
+  async onInvoiceOverdue(
+    event: InvoiceOverdueEvent,
+  ): Promise<{ status: string }> {
+    const result = await this.consumer.handle(event.eventId, event, async (e) => {
+      await this.dispatchInvoiceOverdue(e);
+    });
+    if (result.status === "failed") {
+      throw result.error;
+    }
+    return { status: result.status };
+  }
+
+  private async dispatchPaymentReminder(
+    event: PaymentReminderRequestedEvent,
+  ): Promise<void> {
+    const doc = await this.documents.fetch(event.invoiceId);
+    if (!doc) {
+      throw new Error(
+        `invoice document not yet readable for ${event.invoiceId}`,
+      );
+    }
+
+    const to = await this.resolveRecipientEmail(event.recipientId);
+    if (!to) {
+      this.logger.warn(
+        JSON.stringify(
+          redactPersonalData({
+            msg: "notification.skip_no_recipient",
+            participantId: event.recipientId,
+            invoiceId: event.invoiceId,
+            role: "recipient",
+          }),
+        ),
+      );
+      return;
+    }
+
+    const template = "payment-reminder" as const;
+    const subject = `Payment reminder ${event.reminderNumber} for invoice ${event.invoiceId}`;
+    const body = [
+      `outstanding=${event.outstanding} ${event.currency}`,
+      `dueDate=${event.dueDate}`,
+    ].join("\n");
+
+    await this.mail.send({
+      template,
+      to,
+      subject,
+      body,
+      attachments: [
+        {
+          filename: `${doc.legalNumber}.pdf`,
+          contentType: "application/pdf",
+          content: doc.content,
+        },
+      ],
+    });
+
+    this.store.appendLog({
+      logId: randomUUID(),
+      eventId: event.eventId,
+      paymentId: null,
+      invoiceId: event.invoiceId,
+      participantId: event.recipientId,
+      status: "reminder",
+      template,
+      recordedAt: new Date().toISOString(),
+    });
+
+    this.logger.log(
+      JSON.stringify(
+        redactPersonalData({
+          msg: "notification.sent",
+          template,
+          invoiceId: event.invoiceId,
+          participantId: event.recipientId,
+          status: "reminder",
+          reminderNumber: event.reminderNumber,
+        }),
+      ),
+    );
+  }
+
+  private async dispatchInvoiceOverdue(
+    event: InvoiceOverdueEvent,
+  ): Promise<void> {
+    const managerEmail = this.recipients
+      ? await this.recipients.resolveCommunityManagerEmail(event.communityId)
+      : null;
+    const to =
+      managerEmail?.trim() ||
+      process.env.OPERATOR_ALERT_TO?.trim() ||
+      null;
+    if (!to) {
+      this.logger.warn(
+        JSON.stringify(
+          redactPersonalData({
+            msg: "notification.skip_no_manager_contact",
+            communityId: event.communityId,
+            invoiceId: event.invoiceId,
+          }),
+        ),
+      );
+      return;
+    }
+
+    const template = "missing-payment-alert" as const;
+    const subject = `Missing payment: invoice ${event.invoiceId}`;
+    const body = [
+      `invoiceId=${event.invoiceId}`,
+      `outstanding=${event.outstanding}`,
+      event.dueDate ? `dueDate=${event.dueDate}` : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    await this.mail.send({ template, to, subject, body });
+
+    this.store.appendLog({
+      logId: randomUUID(),
+      eventId: event.eventId,
+      paymentId: null,
+      invoiceId: event.invoiceId,
+      participantId: event.communityId,
+      status: "overdue",
+      template,
+      recordedAt: new Date().toISOString(),
+    });
+
+    this.logger.log(
+      JSON.stringify(
+        redactPersonalData({
+          msg: "notification.sent",
+          template,
+          invoiceId: event.invoiceId,
+          communityId: event.communityId,
+          status: "overdue",
+        }),
+      ),
+    );
   }
 
   private async dispatchInvoiceIssued(event: InvoiceIssuedEvent): Promise<void> {

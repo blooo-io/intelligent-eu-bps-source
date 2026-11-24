@@ -32,6 +32,27 @@ export type InvoiceIssuedEvent = {
   currency: string;
 };
 
+/** PaymentReminderRequested — consumer reminder with PDF (REQ-061 / UAT-078). */
+export type PaymentReminderRequestedEvent = {
+  eventId: string;
+  invoiceId: string;
+  recipientId: string;
+  communityId: string;
+  dueDate: string;
+  outstanding: string;
+  currency: string;
+  reminderNumber: number;
+};
+
+/** InvoiceStatusChanged Overdue — missing-payment alert (REQ-061 / UAT-078). */
+export type InvoiceOverdueEvent = {
+  eventId: string;
+  invoiceId: string;
+  communityId: string;
+  outstanding: string;
+  dueDate?: string;
+};
+
 /** Captured attachment metadata only — never raw bytes (UAT-050). */
 export type CapturedMailAttachment = {
   filename: string;

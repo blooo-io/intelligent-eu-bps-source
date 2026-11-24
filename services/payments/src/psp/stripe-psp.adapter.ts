@@ -25,7 +25,6 @@ import type {
   ProducerAccount,
   PspPaymentInput,
   PspPaymentResult,
-  WebhookVerification,
 } from "./psp.legacy.js";
 import {
   PspError,
@@ -842,12 +841,6 @@ export class StripePspAdapter
     await this.stripe.charges.update(chargeId, { metadata: { invoiceId } }, opts);
   }
 
-  verifyWebhook(rawBody: string, signature: string): WebhookVerification {
-    const event = this.constructStripeEvent(rawBody, signature);
-    if (!event) return { ok: false };
-    return legacyNormalizeStripeEvent(event);
-  }
-
   private constructStripeEvent(
     rawBody: string,
     signature: string,
@@ -1051,66 +1044,6 @@ function hasTokenizableKyc(submission: OnboardingRequirementsSubmission): boolea
       submission.representative?.lastName ||
       submission.representative?.email,
   );
-}
-
-/** Legacy webhook shape for payments.service until Task 5.8. */
-function legacyNormalizeStripeEvent(event: Stripe.Event): WebhookVerification {
-  if (event.type === "account.updated") {
-    const account = event.data.object as Stripe.Account;
-    return {
-      ok: true,
-      eventId: event.id,
-      eventType: event.type,
-      payload: {
-        participantId: account.metadata?.participantId,
-        pspAccountRef: account.id,
-      },
-    };
-  }
-  if (
-    event.type === "payment_intent.succeeded" ||
-    event.type === "payment_intent.payment_failed"
-  ) {
-    const intent = event.data.object as Stripe.PaymentIntent;
-    return {
-      ok: true,
-      eventId: event.id,
-      eventType: event.type,
-      payload: {
-        pspPaymentRef: intent.id,
-        status: intent.status,
-        ...(event.account ? { pspAccountRef: event.account } : {}),
-        ...(intent.last_payment_error
-          ? {
-              failureCategory: legacyMapFailureCategory(
-                intent.last_payment_error.decline_code ??
-                  intent.last_payment_error.code ??
-                  "declined",
-              ),
-            }
-          : {}),
-      },
-    };
-  }
-  if (event.type === "invoice.paid" || event.type === "invoice.payment_failed") {
-    const invoice = event.data.object as Stripe.Invoice;
-    return {
-      ok: true,
-      eventId: event.id,
-      eventType: event.type,
-      payload: {
-        pspInvoiceRef: invoice.id,
-        status: invoice.status,
-        ...(event.account ? { pspAccountRef: event.account } : {}),
-      },
-    };
-  }
-  return {
-    ok: true,
-    eventId: event.id,
-    eventType: event.type,
-    payload: event.data.object as unknown as Record<string, unknown>,
-  };
 }
 
 function legacyMapFailureCategory(code: string): string {

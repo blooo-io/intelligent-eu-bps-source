@@ -16,7 +16,6 @@ export type PaymentRecord = {
   pspAccountRef?: string;
   pspPaymentRef?: string;
   pspCheckoutRef?: string;
-  pspInvoiceRef?: string;
   failureCategory?: PspFailureCategory | string;
   communityId: string;
   payeeId?: string;
@@ -117,14 +116,6 @@ export class PaymentsStore {
     let found: PaymentRecord | undefined;
     for (const row of this.payments.values()) {
       if (row.pspCheckoutRef === pspCheckoutRef) found = row;
-    }
-    return found ? { ...found } : undefined;
-  }
-
-  findByPspInvoiceRef(pspInvoiceRef: string): PaymentRecord | undefined {
-    let found: PaymentRecord | undefined;
-    for (const row of this.payments.values()) {
-      if (row.pspInvoiceRef === pspInvoiceRef) found = row;
     }
     return found ? { ...found } : undefined;
   }

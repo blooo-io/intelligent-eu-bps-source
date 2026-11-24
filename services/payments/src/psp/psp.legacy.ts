@@ -38,16 +38,8 @@ export type PspPaymentResult = {
   status: "pending" | "succeeded" | "failed";
   failureCategory?: string;
 };
-export type WebhookVerification = {
-  ok: boolean; eventId?: string; eventType?: string;
-  payload?: Record<string, unknown>;
-};
 export const PRODUCER_ONBOARDING_DUE = [
   "business_type","business_profile.url","business_profile.mcc",
   "representative.first_name","representative.last_name","representative.email",
   "representative.dob","external_account","tos_acceptance.date",
-] as const;
-export const PAYMENT_WEBHOOK_EVENTS = [
-  "payment_intent.succeeded","payment_intent.payment_failed",
-  "invoice.paid","invoice.payment_failed",
 ] as const;

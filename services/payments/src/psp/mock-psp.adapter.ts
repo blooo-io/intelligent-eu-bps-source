@@ -32,7 +32,6 @@ import {
   type ProducerAccount,
   type PspPaymentInput,
   type PspPaymentResult,
-  type WebhookVerification,
 } from "./psp.legacy.js";
 import { PspError, type PspEvent, type PspPaymentMethodType } from "./psp.types.js";
 
@@ -111,6 +110,7 @@ export class MockPspAdapter
   private readonly chargesByKey = new Map<string, ChargeRecord>();
   private readonly chargesByRef = new Map<string, ChargeRecord>();
   private readonly checkoutsByKey = new Map<string, CheckoutSession>();
+  private readonly checkoutsByRef = new Map<string, CheckoutInput>();
   private readonly payoutsByKey = new Map<string, PayoutResult>();
   private accountSeq = 0;
 
@@ -311,6 +311,7 @@ export class MockPspAdapter
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     };
     this.checkoutsByKey.set(input.idempotencyKey, session);
+    this.checkoutsByRef.set(pspCheckoutRef, { ...input });
     return { ...session };
   }
 
@@ -573,31 +574,6 @@ export class MockPspAdapter
     return result;
   }
 
-  verifyWebhook(rawBody: string, signature: string): WebhookVerification {
-    const expected = createHmac("sha256", TEST_SECRET)
-      .update(rawBody)
-      .digest("hex");
-    if (signature !== `t=1,v1=${expected}`) {
-      return { ok: false };
-    }
-    try {
-      const payload = JSON.parse(rawBody) as {
-        id?: string;
-        type?: string;
-        data?: Record<string, unknown>;
-      };
-      return {
-        ok: true,
-        // INT-326 — mirror Stripe Event.id for webhook dedupe tests.
-        eventId: typeof payload.id === "string" ? payload.id : undefined,
-        eventType: payload.type,
-        payload: payload.data ?? {},
-      };
-    } catch {
-      return { ok: false };
-    }
-  }
-
   // ── Test helpers (contract harness) ─────────────────────────────────────
 
   /** Mark KYC complete — charges and payouts enabled (REQ-051). */
@@ -672,6 +648,44 @@ export class MockPspAdapter
       method: "sepa_debit",
       occurredAt: at,
     });
+  }
+
+  /**
+   * The payer finishes a hosted checkout (mock-only). Card settles at once;
+   * SEPA stays pending until {@link settleSepa}. Returns the signed
+   * checkout.completed event and the payment ref it created.
+   */
+  completeCheckout(
+    pspCheckoutRef: string,
+    method: PspPaymentMethodType,
+    at: string,
+  ): { rawBody: string; signature: string; pspPaymentRef: string } {
+    const checkout = this.checkoutsByRef.get(pspCheckoutRef);
+    if (!checkout) {
+      throw new Error(`no open checkout ${pspCheckoutRef}`);
+    }
+    const pspPaymentRef = `mock_pay_${shortId()}`;
+    const card = method === "card";
+    this.chargesByRef.set(pspPaymentRef, {
+      pspPaymentRef,
+      status: card ? "succeeded" : "pending",
+      method,
+      invoiceId: checkout.invoiceId,
+      amount: checkout.amount,
+      currency: checkout.currency,
+      pspAccountRef: checkout.pspAccountRef,
+      ...(card ? { feeAmount: fromMinor(cardFeeMinor(toMinor(checkout.amount))) } : {}),
+      settled: card,
+    });
+    const signed = this.signEvent({
+      kind: "checkout.completed",
+      pspAccountRef: checkout.pspAccountRef,
+      pspCheckoutRef,
+      pspPaymentRef,
+      invoiceId: checkout.invoiceId,
+      occurredAt: at,
+    });
+    return { ...signed, pspPaymentRef };
   }
 
   /** Sign a neutral {@link PspEvent} body (HMAC-SHA256, whsec_test_intelligent). */

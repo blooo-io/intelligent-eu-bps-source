@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-project.eu/schema/v1.0.0/billing/billingCommandReply",
+  "title": "billingCommandReply",
+  "description": "EWDS billing command channel reply. Success payloads may include a PspHandoff (A7-bis): hosted Stripe URLs or embedded clientSecret + publishableKey. Never Blooo URLs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["requestId", "operation", "success"],
+  "properties": {
+    "requestId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "startPayment",
+        "requestWithdrawal",
+        "setInvoiceStatus",
+        "startKyc",
+        "sendReminder",
+        "triggerBillingRun",
+        "setupPaymentMethod"
+      ]
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "data": {
+      "type": "object"
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "forbidden",
+            "not_found",
+            "invalid",
+            "conflict",
+            "unavailable"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "PspHandoffHosted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "provider", "purpose", "url", "expiresAt"],
+      "properties": {
+        "surface": { "const": "hosted" },
+        "provider": { "const": "stripe" },
+        "purpose": {
+          "type": "string",
+          "enum": [
+            "checkout",
+            "setup",
+            "connect_onboarding",
+            "identity"
+          ]
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https://(checkout|connect|verify)\\.stripe\\.com/"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "PspHandoffEmbedded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "provider",
+        "purpose",
+        "publishableKey",
+        "clientSecret",
+        "expiresAt"
+      ],
+      "properties": {
+        "surface": { "const": "embedded" },
+        "provider": { "const": "stripe" },
+        "purpose": {
+          "type": "string",
+          "enum": ["payment", "setup", "connect_onboarding", "identity"]
+        },
+        "publishableKey": {
+          "type": "string",
+          "pattern": "^pk_(test|live)_"
+        },
+        "clientSecret": {
+          "type": "string",
+          "minLength": 8
+        },
+        "connectedAccountRef": {
+          "type": "string",
+          "pattern": "^acct_"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "not": {
+        "required": ["url"]
+      }
+    },
+    "PspHandoff": {
+      "oneOf": [
+        { "$ref": "#/$defs/PspHandoffHosted" },
+        { "$ref": "#/$defs/PspHandoffEmbedded" }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "success": { "const": false } } },
+      "then": { "required": ["error"] }
+    },
+    {
+      "if": {
+        "properties": {
+          "success": { "const": true },
+          "operation": { "const": "startPayment" }
+        },
+        "required": ["success", "operation"]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["paymentId", "status"],
+            "properties": {
+              "paymentId": { "type": "string", "format": "uuid" },
+              "status": {
+                "type": "string",
+                "enum": ["succeeded", "processing", "requires_action"]
+              },
+              "handoff": { "$ref": "#/$defs/PspHandoff" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "success": { "const": true },
+          "operation": { "const": "startKyc" }
+        },
+        "required": ["success", "operation"]
+      },
+      "then": {
+        "properties": {
+          "data": { "$ref": "#/$defs/PspHandoff" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "success": { "const": true },
+          "operation": { "const": "setupPaymentMethod" }
+        },
+        "required": ["success", "operation"]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["handoff"],
+            "properties": {
+              "handoff": { "$ref": "#/$defs/PspHandoff" }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

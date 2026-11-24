@@ -17,10 +17,28 @@ channels:
         $ref: '#/components/messages/InvoiceIssued'
   InvoiceStatusChanged:
     address: InvoiceStatusChanged
-    description: Consumed by AC-08, AC-09 and AC-10.
+    description: Consumed by AC-08, AC-09, AC-10 and AC-11.
     messages:
       InvoiceStatusChanged:
         $ref: '#/components/messages/InvoiceStatusChanged'
+  PaymentReminderRequested:
+    address: PaymentReminderRequested
+    description: Consumed by AC-11.
+    messages:
+      PaymentReminderRequested:
+        $ref: '#/components/messages/PaymentReminderRequested'
+  StatementIssued:
+    address: StatementIssued
+    description: Consumed by AC-09, AC-10 and AC-11.
+    messages:
+      StatementIssued:
+        $ref: '#/components/messages/StatementIssued'
+  StatementStatusChanged:
+    address: StatementStatusChanged
+    description: Consumed by AC-09, AC-10 and AC-11.
+    messages:
+      StatementStatusChanged:
+        $ref: '#/components/messages/StatementStatusChanged'
   ErasureCompleted:
     address: ErasureCompleted
     description: Consumed by AC-12.
@@ -40,6 +58,24 @@ operations:
       $ref: '#/channels/InvoiceStatusChanged'
     messages:
       - $ref: '#/channels/InvoiceStatusChanged/messages/InvoiceStatusChanged'
+  publishPaymentReminderRequested:
+    action: send
+    channel:
+      $ref: '#/channels/PaymentReminderRequested'
+    messages:
+      - $ref: '#/channels/PaymentReminderRequested/messages/PaymentReminderRequested'
+  publishStatementIssued:
+    action: send
+    channel:
+      $ref: '#/channels/StatementIssued'
+    messages:
+      - $ref: '#/channels/StatementIssued/messages/StatementIssued'
+  publishStatementStatusChanged:
+    action: send
+    channel:
+      $ref: '#/channels/StatementStatusChanged'
+    messages:
+      - $ref: '#/channels/StatementStatusChanged/messages/StatementStatusChanged'
   publishErasureCompleted:
     action: send
     channel:
@@ -78,6 +114,7 @@ components:
                   - amounts
                   - currency
                   - tradeIds
+                  - tariffApplied
                 properties:
                   invoiceId:
                     type: "string"
@@ -111,7 +148,7 @@ components:
                     description: "Exclusive end of the billed period (UTC)."
                   settlementType:
                     type: "string"
-                    enum: ["periodic", "early", "final"]
+                    enum: ["periodic", "final"]
                   totalEnergyKWh:
                     type: "string"
                     description: "Absolute net energy of the pair, three decimals (BR-08)."
@@ -147,6 +184,9 @@ components:
                     additionalProperties: false
                     required:
                       - "energy"
+                      - "gridFee"
+                      - "levy"
+                      - "tax"
                       - "vat"
                       - "total"
                     properties:
@@ -154,6 +194,18 @@ components:
                         type: "string"
                         pattern: "^-?\\d+\\.\\d{2}$"
                         description: "Amount rounded to the cent (BR-08)."
+                      gridFee:
+                        type: "string"
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                        description: "Grid fee component (REQ-004)."
+                      levy:
+                        type: "string"
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                        description: "Levy component (REQ-004)."
+                      tax:
+                        type: "string"
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                        description: "Non-VAT tax component (REQ-004)."
                       vat:
                         type: "string"
                         pattern: "^-?\\d+\\.\\d{2}$"
@@ -162,6 +214,9 @@ components:
                         type: "string"
                         pattern: "^-?\\d+\\.\\d{2}$"
                         description: "Amount rounded to the cent (BR-08)."
+                  tariffApplied:
+                    type: "boolean"
+                    description: "True when a community tariff was applied (REQ-004)."
                   currency:
                     type: "string"
                     pattern: "^[A-Z]{3}$"
@@ -208,6 +263,167 @@ components:
                     type: "string"
                     pattern: "^-?\\d+\\.\\d{2}$"
                     description: "Amount rounded to the cent (BR-08)."
+                  dueDate:
+                    type: "string"
+                    format: "date"
+                    description: "Payment due date after the transition (REQ-044)."
+    PaymentReminderRequested:
+      name: PaymentReminderRequested
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: PaymentReminderRequested
+              producer:
+                const: AC-06
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - invoiceId
+                  - recipientId
+                  - communityId
+                  - dueDate
+                  - outstanding
+                  - currency
+                  - reminderNumber
+                  - trigger
+                properties:
+                  invoiceId:
+                    type: "string"
+                    format: "uuid"
+                  recipientId:
+                    type: "string"
+                    format: "uuid"
+                  communityId:
+                    type: "string"
+                    format: "uuid"
+                  dueDate:
+                    type: "string"
+                    format: "date"
+                  outstanding:
+                    type: "string"
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                  currency:
+                    type: "string"
+                    pattern: "^[A-Z]{3}$"
+                  reminderNumber:
+                    type: integer
+                    minimum: 1
+                  trigger:
+                    type: "string"
+                    enum: ["manual", "scheduled"]
+    StatementIssued:
+      name: StatementIssued
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: StatementIssued
+              producer:
+                const: AC-06
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - statementId
+                  - participantId
+                  - period
+                  - periodFrom
+                  - periodUntil
+                  - totalBought
+                  - totalSold
+                  - netBalance
+                  - currency
+                  - invoiceIds
+                  - status
+                  - revision
+                properties:
+                  statementId:
+                    type: "string"
+                    format: "uuid"
+                  participantId:
+                    type: "string"
+                    format: "uuid"
+                  period:
+                    type: "string"
+                  periodFrom:
+                    type: "string"
+                    format: "date-time"
+                  periodUntil:
+                    type: "string"
+                    format: "date-time"
+                  totalBought:
+                    type: "string"
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                  totalSold:
+                    type: "string"
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                  netBalance:
+                    type: "string"
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                  currency:
+                    type: "string"
+                    pattern: "^[A-Z]{3}$"
+                  invoiceIds:
+                    type: array
+                    items:
+                      type: "string"
+                      format: "uuid"
+                  status:
+                    type: "string"
+                    enum:
+                      - "Open"
+                      - "PartiallyPaid"
+                      - "Paid"
+                      - "Overdue"
+                      - "Void"
+                  revision:
+                    type: integer
+                    minimum: 1
+    StatementStatusChanged:
+      name: StatementStatusChanged
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: StatementStatusChanged
+              producer:
+                const: AC-06
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - statementId
+                  - participantId
+                  - period
+                  - status
+                properties:
+                  statementId:
+                    type: "string"
+                    format: "uuid"
+                  participantId:
+                    type: "string"
+                    format: "uuid"
+                  period:
+                    type: "string"
+                  status:
+                    type: "string"
+                    enum:
+                      - "Open"
+                      - "PartiallyPaid"
+                      - "Paid"
+                      - "Overdue"
+                      - "Void"
     ErasureCompleted:
       name: ErasureCompleted
       contentType: application/json

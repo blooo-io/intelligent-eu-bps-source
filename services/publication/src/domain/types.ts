@@ -20,7 +20,10 @@ export type OutboundMessage = {
 /** Wide invoice projection — richer than domain AsyncAPI until events are enriched. */
 export type InvoiceProjection = {
   invoiceId: string;
+  /** Consumer statement for the period (EWDS billingId). */
   billingId: string;
+  /** Producer statement for the period (Task 4.1 / REQ-048). */
+  issuerStatementId: string;
   communityId: string;
   billingMode: "virtual" | "live";
   settlementType: string;
@@ -36,6 +39,8 @@ export type InvoiceProjection = {
   totalAmount: number;
   outstandingAmount: number;
   energyAmount: number;
+  /** applied when a non-zero grid fee is published; else not_published (A10.2). */
+  gridFeeStatus: "applied" | "not_published";
   taxAmount: number;
   vatRate: number;
   carriedForwardAmount: number;

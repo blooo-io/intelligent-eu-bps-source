@@ -25,17 +25,43 @@ components:
       description: Decimal amount rounded to the cent (BR-08).
       pattern: '^-?\d+\.\d{2}$'
       examples: ['5.00']
+    UnitPrice:
+      type: string
+      description: Energy price per kWh in EUR (REQ-004).
+      pattern: '^\d+\.\d{2,6}$'
+      examples: ['0.120000']
+    InvoiceAmounts:
+      type: object
+      additionalProperties: false
+      required: [energy, gridFee, levy, tax, vat, total]
+      properties:
+        energy:
+          $ref: '#/components/schemas/Money'
+        gridFee:
+          $ref: '#/components/schemas/Money'
+        levy:
+          $ref: '#/components/schemas/Money'
+        tax:
+          $ref: '#/components/schemas/Money'
+        vat:
+          $ref: '#/components/schemas/Money'
+        total:
+          $ref: '#/components/schemas/Money'
 
     InvoiceTradeLine:
       type: object
       additionalProperties: false
-      required: [tradeId, kWh, pricePerKWh, amount]
+      required: [tradeId, role, kWh, pricePerKWh, amount]
       description: >
         REQ-007 — one trade covered by the invoice. kWh and amount are signed
-        in the invoice direction (a purchase is positive). No grid-fee line (A20).
+        in the invoice direction (a purchase is positive). Grid-fee components
+        are on the invoice totals (REQ-004), not duplicated per line.
       properties:
         tradeId:
           type: string
+        role:
+          type: string
+          enum: [buyer, seller]
         deliveryStart:
           type: string
           format: date-time
@@ -49,7 +75,9 @@ components:
           description: Signed energy, three decimals (BR-08).
           pattern: '^-?\d+\.\d{3}$'
         pricePerKWh:
-          $ref: '#/components/schemas/Money'
+          $ref: '#/components/schemas/UnitPrice'
+        adjustedPricePerKWh:
+          $ref: '#/components/schemas/UnitPrice'
         amount:
           $ref: '#/components/schemas/Money'
     Rate:
@@ -76,7 +104,7 @@ components:
       format: date
       description: >
         Date of the ECB reference rate applied: last TARGET business day of the
-        period, or the settlement date for early and final runs (BR-06, REQ-002).
+        period, or the settlement date for final runs (BR-06, REQ-002).
     BillingMode:
       type: string
       description: Community billing mode (REQ-043). V1 communities are virtual.
@@ -97,18 +125,103 @@ components:
       type: string
       description: Invoice lifecycle (REQ-044, 02 §5).
       enum: [Draft, Open, PartiallyPaid, Paid, Overdue, Void, Disputed]
+    StatementStatus:
+      type: string
+      description: >
+        Participant billing statement lifecycle (REQ-059). Ontology billingStatus
+        without Disputed.
+      enum: [Open, PartiallyPaid, Paid, Overdue, Void]
     PaymentStatus:
       type: string
       description: Payment lifecycle (02 §5).
       enum: [pending, succeeded, failed, cancelled, refunded]
+    PayoutStatus:
+      type: string
+      description: Connect payout lifecycle (REQ-015, REQ-060).
+      enum: [requested, in_transit, paid, failed, canceled]
     BillingRunType:
       type: string
-      description: Kind of billing run (02 §6).
-      enum: [periodic, early, final]
+      description: Kind of billing run (02 §6). Early settlement removed (REQ-057 deprecated).
+      enum: [periodic, final]
     BillingRunStatus:
       type: string
       description: Billing run lifecycle (02 §5).
       enum: [Scheduled, Collecting, Computing, Completed, Failed]
+    PspHandoffHosted:
+      type: object
+      additionalProperties: false
+      description: A7-bis — redirect to Stripe-hosted UI (checkout, connect, verify).
+      required: [surface, provider, purpose, url, expiresAt]
+      properties:
+        surface:
+          const: hosted
+        provider:
+          const: stripe
+        purpose:
+          type: string
+          enum: [checkout, setup, connect_onboarding, identity]
+        url:
+          type: string
+          pattern: '^https://(checkout|connect|verify)\.stripe\.com/'
+        expiresAt:
+          type: string
+          format: date-time
+    PspHandoffEmbedded:
+      type: object
+      additionalProperties: false
+      description: A7-bis — Stripe.js / Connect embedded components (no Blooo URL).
+      required: [surface, provider, purpose, publishableKey, clientSecret, expiresAt]
+      properties:
+        surface:
+          const: embedded
+        provider:
+          const: stripe
+        purpose:
+          type: string
+          enum: [payment, setup, connect_onboarding, identity]
+        publishableKey:
+          type: string
+          pattern: '^pk_(test|live)_'
+        clientSecret:
+          type: string
+          minLength: 8
+        connectedAccountRef:
+          type: string
+          pattern: '^acct_'
+          description: Stripe Connect account for direct charges (Payment Element).
+        expiresAt:
+          type: string
+          format: date-time
+    PspHandoff:
+      description: Stripe UI handoff for payment, setup, Connect onboarding or Identity (A7-bis).
+      oneOf:
+        - $ref: '#/components/schemas/PspHandoffHosted'
+        - $ref: '#/components/schemas/PspHandoffEmbedded'
+    ActorAuthorization:
+      type: object
+      additionalProperties: false
+      required: [actorId, status, memberships]
+      properties:
+        actorId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active, offboarded, unknown]
+        memberships:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [communityId, role]
+            properties:
+              communityId:
+                $ref: '#/components/schemas/Uuid'
+              role:
+                type: string
+                enum: [member, manager, operator]
+              participantRole:
+                $ref: '#/components/schemas/ParticipantRole'
     JobName:
       type: string
       description: Scheduled job owned by a module (02 §4.5).
@@ -124,6 +237,8 @@ components:
         - PurgeCache
         - ApplyRetention
         - FetchRates
+        - RunAutoPayouts
+        - SendReminders
     Problem:
       type: object
       additionalProperties: false

@@ -39,4 +39,4 @@ Before internal approval, confirm:
 3. [`../testing/v1-validation-summary.md`](../testing/v1-validation-summary.md) and the INT-81 snapshot in [`../requirements/traceability-dashboard.md`](../requirements/traceability-dashboard.md) agree on counts.
 4. INT-93 / INT-94 / INT-95 docs are present and linked from [`README.md`](README.md).
 
-Maylis-owned INT-90 (integrate build/validation into D5.5 narrative) remains a separate gate for the partner-facing D5.5 report; it does not block creating the source tag.
+INT-90, owned by the Blooo D5.5 report owner (integrate build/validation into D5.5 narrative), remains a separate gate for the partner-facing D5.5 report; it does not block creating the source tag.

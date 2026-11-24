@@ -17,6 +17,17 @@ describe("reference-data port (INT-272)", () => {
     ).toBeInstanceOf(HttpReferenceData);
   });
 
+  it("REQ-002 keeps the AC-13 rate precision", async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json({ currency: "CHF", date: "2026-11-30", rate: "0.9412" }),
+    );
+    const client = new HttpReferenceData(
+      "http://reference-data:8080",
+      fetchImpl as never,
+    );
+    await expect(client.getRate("CHF", "2026-11-30")).resolves.toBe(0.9412);
+  });
+
   it("HttpReferenceData reads VAT and FX", async () => {
     const fetchImpl = vi.fn(async (input: RequestInfo) => {
       const url = String(input);

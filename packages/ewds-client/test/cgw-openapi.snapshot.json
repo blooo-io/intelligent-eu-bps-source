@@ -1,0 +1,34 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "DDHub Client Gateway API",
+    "version": "1.3.0-ewc",
+    "description": "Minimal OpenAPI stub aligned with Energy Web DDHub CGW REST integration (send/receive/ack, identity).",
+    "x-captured-from": "stub+chart tag intelligent-canary chart 1.3.0-ewc — live /docs-json capture externally blocked (no KUBECONFIG/cluster)"
+  },
+  "paths": {
+    "/api/v2/messages": {
+      "get": {
+        "operationId": "MessageController_getMessage",
+        "tags": ["Messaging"]
+      },
+      "post": {
+        "operationId": "MessageController_create",
+        "tags": ["Messaging"]
+      }
+    },
+    "/api/v2/messages/ack": {
+      "post": {
+        "operationId": "MessageController_ack",
+        "tags": ["Messaging"],
+        "description": "Subscriber ack (Blooo REST polling); not present in upstream schema.yaml at 3620cc2f — included per DDHub sub-channel docs"
+      }
+    },
+    "/api/v2/identity": {
+      "get": {
+        "operationId": "IdentityController_get",
+        "tags": ["Identity"]
+      }
+    }
+  }
+}

@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-project.eu/schema/v1.0.0/billing/billingCommandRequest",
+  "title": "billingCommandRequest",
+  "description": "EWDS billing command channel request envelope (A7 / REQ-052). Payload shape depends on operation; startPayment, startKyc and setupPaymentMethod take surface hosted|embedded (A7-bis).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["requestId", "operation", "actorId", "payload"],
+  "properties": {
+    "requestId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "startPayment",
+        "requestWithdrawal",
+        "setInvoiceStatus",
+        "startKyc",
+        "sendReminder",
+        "triggerBillingRun",
+        "setupPaymentMethod"
+      ]
+    },
+    "actorId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "Surface": {
+      "type": "string",
+      "enum": ["hosted", "embedded"],
+      "default": "hosted"
+    },
+    "StartPaymentPayloadHosted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invoiceId", "surface", "returnUrl"],
+      "properties": {
+        "invoiceId": { "type": "string", "format": "uuid" },
+        "surface": { "const": "hosted" },
+        "returnUrl": { "type": "string", "format": "uri" }
+      }
+    },
+    "StartPaymentPayloadEmbedded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invoiceId", "surface"],
+      "properties": {
+        "invoiceId": { "type": "string", "format": "uuid" },
+        "surface": { "const": "embedded" },
+        "returnUrl": { "type": "string", "format": "uri" }
+      }
+    },
+    "StartKycPayloadHosted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "returnUrl"],
+      "properties": {
+        "surface": { "const": "hosted" },
+        "returnUrl": { "type": "string", "format": "uri" },
+        "refreshUrl": { "type": "string", "format": "uri" }
+      }
+    },
+    "StartKycPayloadEmbedded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface"],
+      "properties": {
+        "surface": { "const": "embedded" },
+        "returnUrl": { "type": "string", "format": "uri" },
+        "refreshUrl": { "type": "string", "format": "uri" }
+      }
+    },
+    "SetupPaymentMethodPayloadHosted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "returnUrl"],
+      "properties": {
+        "surface": { "const": "hosted" },
+        "returnUrl": { "type": "string", "format": "uri" }
+      }
+    },
+    "SetupPaymentMethodPayloadEmbedded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface"],
+      "properties": {
+        "surface": { "const": "embedded" },
+        "returnUrl": { "type": "string", "format": "uri" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "operation": { "const": "startPayment" } },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "oneOf": [
+              { "$ref": "#/$defs/StartPaymentPayloadHosted" },
+              { "$ref": "#/$defs/StartPaymentPayloadEmbedded" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "requestWithdrawal" } },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["currency"],
+            "properties": {
+              "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "setInvoiceStatus" } },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["invoiceId", "status", "reason"],
+            "properties": {
+              "invoiceId": { "type": "string", "format": "uuid" },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "Open",
+                  "PartiallyPaid",
+                  "Paid",
+                  "Overdue",
+                  "Void",
+                  "Disputed"
+                ]
+              },
+              "reason": { "type": "string", "minLength": 3 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "startKyc" } },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "oneOf": [
+              { "$ref": "#/$defs/StartKycPayloadHosted" },
+              { "$ref": "#/$defs/StartKycPayloadEmbedded" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "sendReminder" } },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["invoiceId"],
+            "properties": {
+              "invoiceId": { "type": "string", "format": "uuid" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "triggerBillingRun" } },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["communityId", "period", "type"],
+            "properties": {
+              "communityId": { "type": "string", "format": "uuid" },
+              "period": {
+                "type": "string",
+                "pattern": "^\\d{4}-(0[1-9]|1[0-2]|Q[1-4])$"
+              },
+              "type": { "type": "string", "enum": ["periodic", "final"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "operation": { "const": "setupPaymentMethod" } },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "oneOf": [
+              { "$ref": "#/$defs/SetupPaymentMethodPayloadHosted" },
+              { "$ref": "#/$defs/SetupPaymentMethodPayloadEmbedded" }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -52,22 +52,19 @@ components:
                 type: object
                 additionalProperties: false
                 required:
+                  - runId
                   - pairSettlementIds
                 properties:
                   runId:
                     type: "string"
                     format: "uuid"
-                    description: "Set for a periodic or final run. Absent for an early settlement."
-                  earlySettlementId:
-                    type: "string"
-                    format: "uuid"
-                    description: "Set for an early settlement. Absent for a billing run."
+                    description: "Billing run id (periodic or final)."
                   pairSettlementIds:
                     type: "array"
                     items:
                       type: "string"
                       format: "uuid"
-                    description: "Pair settlements of the run or the early settlement."
+                    description: "Pair settlements of the run."
     BillingRunCompleted:
       name: BillingRunCompleted
       contentType: application/json

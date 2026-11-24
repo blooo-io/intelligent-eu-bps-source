@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: payments events
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     Domain events published by AC-07. Catalogue in application architecture section 4.
     Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
@@ -21,12 +21,24 @@ channels:
     messages:
       PaymentStatusChanged:
         $ref: '#/components/messages/PaymentStatusChanged'
+  PayoutStatusChanged:
+    address: PayoutStatusChanged
+    description: Consumed by AC-09, AC-10 and AC-11.
+    messages:
+      PayoutStatusChanged:
+        $ref: '#/components/messages/PayoutStatusChanged'
   ErasureCompleted:
     address: ErasureCompleted
     description: Consumed by AC-12.
     messages:
       ErasureCompleted:
         $ref: '#/components/messages/ErasureCompleted'
+  KycStatusChanged:
+    address: KycStatusChanged
+    description: Consumed by AC-03, AC-06 and AC-09.
+    messages:
+      KycStatusChanged:
+        $ref: '#/components/messages/KycStatusChanged'
 operations:
   publishPaymentAccountStatusChanged:
     action: send
@@ -40,12 +52,24 @@ operations:
       $ref: '#/channels/PaymentStatusChanged'
     messages:
       - $ref: '#/channels/PaymentStatusChanged/messages/PaymentStatusChanged'
+  publishPayoutStatusChanged:
+    action: send
+    channel:
+      $ref: '#/channels/PayoutStatusChanged'
+    messages:
+      - $ref: '#/channels/PayoutStatusChanged/messages/PayoutStatusChanged'
   publishErasureCompleted:
     action: send
     channel:
       $ref: '#/channels/ErasureCompleted'
     messages:
       - $ref: '#/channels/ErasureCompleted/messages/ErasureCompleted'
+  publishKycStatusChanged:
+    action: send
+    channel:
+      $ref: '#/channels/KycStatusChanged'
+    messages:
+      - $ref: '#/channels/KycStatusChanged/messages/KycStatusChanged'
 components:
   messages:
     PaymentAccountStatusChanged:
@@ -96,6 +120,9 @@ components:
                   - status
                   - payerId
                   - payeeId
+                  - amount
+                  - currency
+                  - initiatedAt
                 properties:
                   paymentId:
                     type: "string"
@@ -119,21 +146,129 @@ components:
                       - "failed"
                       - "cancelled"
                       - "refunded"
+                  amount:
+                    type: "string"
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                  currency:
+                    type: "string"
+                    pattern: "^[A-Z]{3}$"
+                  initiatedAt:
+                    type: "string"
+                    format: "date-time"
+                  settledAt:
+                    type: "string"
+                    format: "date-time"
                   failureCategory:
                     type: "string"
-                    description: >
-                      Cause of a failed payment (REQ-046 / KPI UE-3). AC-07
-                      keeps its internal categories. AC-10 maps them onto the
-                      billingPayment enum (card_declined, insufficient_funds,
-                      authentication_required, mandate_invalid, provider_error,
-                      other) before publication (NFR-004).
+                    enum:
+                      - card_declined
+                      - insufficient_funds
+                      - authentication_required
+                      - mandate_invalid
+                      - bank_account_invalid
+                      - provider_error
+                      - other
+                    description: Cause of a failed payment (REQ-046 / KPI UE-3).
                   method:
                     type: "string"
+                    enum: [card, sepa_debit]
                     description: Payment method used (REQ-046 / KPI TE-2).
                   processingTimeMs:
                     type: integer
                     minimum: 0
                     description: End-to-end processing time in milliseconds (REQ-046 / KPI TE-2).
+                  feeAmount:
+                    type: "string"
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                  feeCurrency:
+                    type: "string"
+                    pattern: "^[A-Z]{3}$"
+    KycStatusChanged:
+      name: KycStatusChanged
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: KycStatusChanged
+              producer:
+                const: AC-07
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - subjectId
+                  - subjectType
+                  - kycStatus
+                  - kycVerified
+                  - method
+                  - payoutAccountVerified
+                properties:
+                  subjectId:
+                    type: "string"
+                    format: "uuid"
+                  subjectType:
+                    type: "string"
+                    enum: [participant, manager]
+                  kycStatus:
+                    type: "string"
+                    enum: [none, pending, verified, rejected]
+                  kycVerified:
+                    type: "boolean"
+                  method:
+                    type: "string"
+                    enum: [connect_onboarding, identity_document]
+                  payoutAccountVerified:
+                    type: "boolean"
+    PayoutStatusChanged:
+      name: PayoutStatusChanged
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: PayoutStatusChanged
+              producer:
+                const: AC-07
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - payoutId
+                  - participantId
+                  - period
+                  - amount
+                  - currency
+                  - status
+                properties:
+                  payoutId:
+                    type: "string"
+                    format: "uuid"
+                  participantId:
+                    type: "string"
+                    format: "uuid"
+                  period:
+                    type: "string"
+                  amount:
+                    type: "string"
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                  currency:
+                    type: "string"
+                    pattern: "^[A-Z]{3}$"
+                  status:
+                    type: "string"
+                    enum:
+                      - "requested"
+                      - "in_transit"
+                      - "paid"
+                      - "failed"
+                      - "canceled"
+                  failureCategory:
+                    type: "string"
     ErasureCompleted:
       name: ErasureCompleted
       contentType: application/json

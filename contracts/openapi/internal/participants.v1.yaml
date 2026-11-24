@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Participants internal API
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Module-to-module commands of AC-03 (03 §3.2). Never exposed to clients.
   license:
@@ -65,6 +65,48 @@ paths:
                 $ref: '#/components/schemas/CommunitySettings'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /communities/{communityId}/manager-contact:
+    get:
+      operationId: getManagerContact
+      tags: [Participants]
+      summary: Read the community manager contact e-mail
+      description: GetManagerContact(communityId). Called by AC-11 (REQ-061).
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      responses:
+        '200':
+          description: Manager contact e-mail.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [communityId, email]
+                properties:
+                  communityId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  email:
+                    type: string
+                    format: email
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants/{participantId}/invoice-party:
+    get:
+      operationId: getInvoiceParty
+      tags: [Participants]
+      summary: Read invoice party details for PDF rendering
+      description: GetInvoiceParty(participantId). Called by AC-06 (REQ-039).
+      parameters:
+        - $ref: '#/components/parameters/ParticipantId'
+      responses:
+        '200':
+          description: Invoice party name, address and mandate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceParty'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /participants/{participantId}/readiness:
     get:
       operationId: checkReadiness
@@ -91,6 +133,91 @@ paths:
                     $ref: '../components/schemas.yaml#/components/schemas/ReadinessStatus'
                   reason:
                     type: string
+                  kycVerified:
+                    type: boolean
+                    description: REQ-045 — mirror of payment-account KYC.
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /communities/{communityId}/actors:sync:
+    post:
+      operationId: syncCommunityActors
+      tags: [Participants]
+      summary: Upsert participants from the EWDS Actor source
+      description: >
+        REQ-008 — pulls Actor records from ActorSourcePort and creates or updates
+        participants. CSV import remains the fallback when the port is disabled.
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                full:
+                  type: boolean
+                  default: true
+                  description: When true, reconcile the full actor list for the community.
+      responses:
+        '200':
+          description: Sync counters.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [created, updated, skipped]
+                properties:
+                  created:
+                    type: integer
+                    minimum: 0
+                  updated:
+                    type: integer
+                    minimum: 0
+                  skipped:
+                    type: integer
+                    minimum: 0
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants/{participantId}/personal-data:
+    get:
+      operationId: getParticipantPersonalData
+      tags: [Participants]
+      summary: Personal data for DSAR and erasure
+      description: REQ-013 — service-only export payload (Task 3.18).
+      parameters:
+        - $ref: '#/components/parameters/ParticipantId'
+      responses:
+        '200':
+          description: Participant personal data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParticipantPersonalData'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants/{participantId}:erase-identity:
+    post:
+      operationId: eraseParticipantIdentity
+      tags: [Participants]
+      summary: Erase the participant identity at the IdP
+      description: REQ-013 — deletes the Keycloak user; 404 counts as erased.
+      parameters:
+        - $ref: '#/components/parameters/ParticipantId'
+      responses:
+        '200':
+          description: Erasure outcome.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [erased]
+                properties:
+                  erased:
+                    type: boolean
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /participants/{participantId}/community:
@@ -222,6 +349,49 @@ paths:
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /actors/{actorId}/authorization:
+    get:
+      operationId: getActorAuthorization
+      tags: [Participants]
+      summary: Resolve EWDS caller authorization for an actor
+      description: >
+        REQ-052 — used by the publication command authorizer to validate
+        actorId and community role before dispatching internal commands.
+      parameters:
+        - name: actorId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Actor authorization view.
+          content:
+            application/json:
+              schema:
+                $ref: '../components/schemas.yaml#/components/schemas/ActorAuthorization'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /communities/{communityId}/managers/{actorId}:
+    put:
+      operationId: bindCommunityManager
+      tags: [Participants]
+      summary: Bind a manager actor to a community (operator)
+      description: Operator-only binding used when onboarding community managers.
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - name: actorId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '204':
+          description: Manager bound.
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
 components:
   securitySchemes:
     serviceAuth:
@@ -243,7 +413,7 @@ components:
     CommunitySettings:
       type: object
       additionalProperties: false
-      required: [communityId, currency, billingPeriod, threshold, vatRate, billingMode]
+      required: [communityId, currency, billingPeriod, threshold, vatRate, billingMode, autoPayout]
       properties:
         communityId:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'
@@ -257,3 +427,99 @@ components:
           $ref: '../components/schemas.yaml#/components/schemas/Rate'
         billingMode:
           $ref: '../components/schemas.yaml#/components/schemas/BillingMode'
+        autoPayout:
+          type: boolean
+          description: When true, AC-07 pays out producers automatically (REQ-015).
+        managerContactEmail:
+          type: string
+          format: email
+          description: Manager inbox for payment alerts (REQ-061).
+        tariffBilling:
+          type: boolean
+          default: false
+          description: When true, grid-fee and levy lines apply (REQ-004).
+    InvoiceParty:
+      type: object
+      additionalProperties: false
+      required: [participantId, name, address, selfBillingMandate]
+      properties:
+        participantId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        name:
+          type: string
+        address:
+          type: string
+        selfBillingMandate:
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [termsVersion, acceptedAt]
+              properties:
+                termsVersion:
+                  type: string
+                acceptedAt:
+                  oneOf:
+                    - type: string
+                      format: date-time
+                    - type: 'null'
+    ParticipantPersonalData:
+      type: object
+      additionalProperties: false
+      required:
+        - participantId
+        - communityId
+        - role
+        - source
+        - profile
+        - readiness
+        - kycVerified
+      properties:
+        participantId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        role:
+          $ref: '../components/schemas.yaml#/components/schemas/ParticipantRole'
+        source:
+          type: string
+          enum: [ewds, import]
+        marketActorId:
+          type: string
+        meterId:
+          type: string
+        profile:
+          type: object
+          additionalProperties: true
+        postalAddress:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+        phone:
+          oneOf:
+            - type: string
+            - type: 'null'
+        idpUserId:
+          oneOf:
+            - type: string
+            - type: 'null'
+        consents:
+          type: object
+          additionalProperties: false
+          properties:
+            termsVersion:
+              oneOf:
+                - type: string
+                - type: 'null'
+            termsAcceptedAt:
+              oneOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+            selfBillingMandate:
+              type: boolean
+        readiness:
+          $ref: '../components/schemas.yaml#/components/schemas/ReadinessStatus'
+        kycVerified:
+          type: boolean

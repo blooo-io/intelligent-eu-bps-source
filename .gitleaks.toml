@@ -1,0 +1,19 @@
+# INT-423 — allowlist for known false positives.
+# Historical commit introduced a Stripe-looking fixture key; HEAD was scrubbed
+# (A10.7: no history rewrite). Invalid EWDS fixtures intentionally look like
+# PSP handoff payloads and must not trip generic-api-key.
+
+title = "intelligent-eu-bps-source"
+
+[[allowlists]]
+description = "Historical Stripe-looking fixture key (scrubbed on HEAD)"
+fingerprints = [
+  "08c9e9e296543806e0bb74fa5c587bb77c2c12b1:docs/architecture/ewds-topics/fixtures/invalid/billingCommandReply__embedded-with-url.json:generic-api-key:12",
+]
+
+[[allowlists]]
+description = "EWDS invalid fixtures (negative schema cases, not live secrets)"
+paths = [
+  '''docs/architecture/ewds-topics/fixtures/invalid/.*''',
+  '''mocks/schemas/fixtures/invalid/.*''',
+]

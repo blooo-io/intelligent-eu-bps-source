@@ -16,6 +16,7 @@ const CONSUMER = "11111111-2222-4333-8444-555555555555";
 const PRODUCER = "66666666-7777-4888-9999-aaaaaaaaaaaa";
 const INVOICE_ID = "3f1c2a9e-8b7d-4c21-9a0e-5d6f7a8b9c01";
 const SETTLEMENT_ID = "a2b4c6d8-1e3f-4a5b-8c7d-9e0f1a2b3c4d";
+const ISSUER_STATEMENT_ID = "d3e5f7a9-2b4c-4d6e-8f0a-1b2c3d4e5f6a";
 const PAYMENT_ID = "9d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a";
 const FAILED_PAYMENT_ID = "8d8c7b6a-5f4e-4d3c-8b2a-1f0e9d8c7b6a";
 
@@ -48,6 +49,7 @@ describe("EWDS topic payload from contract events (INT-376, NFR-004, UAT-070)", 
         issuerId: PRODUCER,
         recipientId: CONSUMER,
         settlementId: SETTLEMENT_ID,
+        issuerStatementId: ISSUER_STATEMENT_ID,
         dueDate: "2026-12-15",
         billingPeriodFrom: "2026-11-01T00:00:00.000Z",
         billingPeriodUntil: "2026-12-01T00:00:00.000Z",
@@ -83,6 +85,7 @@ describe("EWDS topic payload from contract events (INT-376, NFR-004, UAT-070)", 
       .filter((row) => row.topic === "billingInvoice")
       .at(-1)!.message as Record<string, unknown>;
     expect(invoice.billingId).toBe(SETTLEMENT_ID);
+    expect(invoice.issuerStatementId).toBe(ISSUER_STATEMENT_ID);
     expect(invoice.invoiceIssueDate).toBe("2026-12-01T06:00:00.000Z");
     expect(invoice.billingPeriodFrom).toBe("2026-11-01T00:00:00.000Z");
     expect(invoice.carriedForwardAmount).toBe(1.2);
@@ -93,6 +96,7 @@ describe("EWDS topic payload from contract events (INT-376, NFR-004, UAT-070)", 
       rateSource: "ECB",
     });
     expect(invoice.gridFeeAmount).toBe(0);
+    expect(invoice.gridFeeStatus).toBe("not_published");
 
     const payment = dataspace
       .recorded()
@@ -120,9 +124,11 @@ describe("EWDS topic payload from contract events (INT-376, NFR-004, UAT-070)", 
         issuerId: PRODUCER,
         recipientId: CONSUMER,
         settlementId: SETTLEMENT_ID,
+        issuerStatementId: ISSUER_STATEMENT_ID,
         dueDate: "2026-12-15",
         billingPeriodFrom: "2026-11-01T00:00:00.000Z",
         billingPeriodUntil: "2026-12-01T00:00:00.000Z",
+        // REQ-057 — early removed; listener coerces legacy "early" → final.
         settlementType: "early",
         totalEnergyKWh: "1.000",
         vatRate: 0,
@@ -158,6 +164,8 @@ describe("EWDS topic payload from contract events (INT-376, NFR-004, UAT-070)", 
       unknown
     >;
     expect(invoice.exchangeRate).toBeNull();
+    expect(invoice.settlementType).toBe("final");
+    expect(invoice.issuerStatementId).toBe(ISSUER_STATEMENT_ID);
     const payment = dataspace
       .recorded()
       .find((row) => row.topic === "billingPayment")!.message as Record<

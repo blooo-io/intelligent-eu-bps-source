@@ -8,7 +8,7 @@ export function createV1FxPort(): FxPort {
   return createFxFixture(loadScenario("S8"));
 }
 
-/** Format a numeric rate as the contract Rate string (two decimal places, BR-08). */
-export function formatRate(value: number): string {
-  return value.toFixed(2);
+/** Format a numeric rate as the contract FxRate string (BR-06: 4–6 decimals). */
+export function formatFxRate(value: number): string {
+  return value.toFixed(6).replace(/(\.\d{4}\d*?)0+$/, "$1");
 }

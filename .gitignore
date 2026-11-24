@@ -67,3 +67,6 @@ artifacts/
 
 # SonarScanner working directory (local CLI runs)
 .scannerwork/
+
+# Local agent handoff pack (never commit)
+.handoff/

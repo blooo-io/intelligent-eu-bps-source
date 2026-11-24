@@ -18,11 +18,11 @@ Internal check that the tagged source, `docs/` and UAT statuses describe the sam
 | 6 | INT-93 deployment + INT-94 integration API + INT-95 notes linked from [`README.md`](README.md) | Pass |
 | 7 | Licence Apache-2.0 (`LICENSE` / `NOTICE`); no secrets in tree | Pass |
 | 8 | Stripe = test mode only; GSY / EWDS / ECB mocked (A32) — stated in release notes | Pass |
-| 9 | INT-90 (Maylis) D5.5 narrative integration of build/validation | **Open** — out of Blooo agent scope; does not block source tag |
-| 10 | INT-91 (Maylis) finalise D5.5 deliverable report | **Open** — gates partner-facing freeze wording on INT-97 |
+| 9 | INT-90 (Blooo D5.5 report owner) D5.5 narrative integration of build/validation | **Open** — out of Blooo agent scope; does not block source tag |
+| 10 | INT-91 (Blooo D5.5 report owner) finalise D5.5 deliverable report | **Open** — gates partner-facing freeze wording on INT-97 |
 
 ## Internal approval
 
 Blooo engineering: **approved for source freeze** (`v1.0.0`) with in-scope UAT acceptance at **62 Pass / 0 Blocked** (INT-204).
 
-Partner-facing D5.5 report freeze remains contingent on INT-90 / INT-91 (Maylis).
+Partner-facing D5.5 report freeze remains contingent on INT-90 / INT-91 (Blooo D5.5 report owner).

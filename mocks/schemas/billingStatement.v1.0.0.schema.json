@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-project.eu/schema/v1.0.0/billing/billingStatement",
+  "title": "billingStatement",
+  "description": "EWDS topic: monthly participant statement (ontology Billing). Informative aggregate over pair invoices; never payable. No PII. DRAFT v0.2 proposed by Blooo (INT-423).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "statementId",
+    "communityId",
+    "actorId",
+    "billingMode",
+    "billingPeriodFrom",
+    "billingPeriodUntil",
+    "statementStatus",
+    "totalBought",
+    "totalSold",
+    "netBalance",
+    "balanceDirection",
+    "totalEnergyAmount",
+    "totalGridFeeAmount",
+    "totalTaxAmount",
+    "totalAmountDue",
+    "totalAmountPaid",
+    "outstandingAmount",
+    "currency",
+    "invoiceIds",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "statementId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Primary identifier. IRI: int:billingId."
+    },
+    "communityId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actorId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Participant Actor this statement belongs to."
+    },
+    "billingMode": {
+      "type": "string",
+      "enum": ["live", "virtual"],
+      "description": "live = real money; virtual = test environment only."
+    },
+    "billingPeriodFrom": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "billingPeriodUntil": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "statementStatus": {
+      "type": "string",
+      "enum": [
+        "Open",
+        "PartiallyPaid",
+        "Paid",
+        "Overdue",
+        "Void",
+        "Disputed"
+      ]
+    },
+    "totalBought": {
+      "type": "number",
+      "minimum": 0
+    },
+    "totalSold": {
+      "type": "number",
+      "minimum": 0
+    },
+    "netBalance": {
+      "type": "number",
+      "description": "Signed net (receive positive, pay negative)."
+    },
+    "balanceDirection": {
+      "type": "string",
+      "enum": ["pay", "receive", "zero"]
+    },
+    "totalEnergyAmount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "totalGridFeeAmount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "totalTaxAmount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "totalAmountDue": {
+      "type": "number",
+      "minimum": 0
+    },
+    "totalAmountPaid": {
+      "type": "number",
+      "minimum": 0
+    },
+    "outstandingAmount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "invoiceIds": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" },
+      "uniqueItems": true
+    },
+    "payoutIds": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "format": "uuid" },
+      "default": null
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

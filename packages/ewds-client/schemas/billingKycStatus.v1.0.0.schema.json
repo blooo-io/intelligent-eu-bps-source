@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-project.eu/schema/v1.0.0/billing/billingKycStatus",
+  "title": "billingKycStatus",
+  "description": "EWDS topic: KYC / account readiness subset (ontology UserAccount). No document payloads or personal names. DRAFT v0.2 (INT-423).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "actorId",
+    "communityId",
+    "kycVerified",
+    "accountStatus",
+    "verificationKind",
+    "updatedAt"
+  ],
+  "properties": {
+    "actorId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "communityId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "kycVerified": {
+      "type": "boolean"
+    },
+    "accountStatus": {
+      "type": "string",
+      "enum": [
+        "PendingVerification",
+        "Active",
+        "Suspended",
+        "Locked",
+        "Deactivated"
+      ]
+    },
+    "verificationKind": {
+      "type": "string",
+      "enum": ["connect_account", "identity"]
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

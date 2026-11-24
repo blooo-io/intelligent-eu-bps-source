@@ -1,9 +1,10 @@
 openapi: 3.1.0
 info:
   title: Invoicing internal API
-  version: 1.0.0
+  version: 2.1.0
   description: >
     Module-to-module commands of AC-06 (03 §3.2 and 02 §4.5). Never exposed to clients.
+    Billing owns invoice numbering, PDF storage and reminders (REQ-039, REQ-042).
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -33,48 +34,72 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: false
-                required: [invoiceId, producerId, consumerId, currency, status, total]
-                properties:
-                  invoiceId:
-                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-                  producerId:
-                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-                  consumerId:
-                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-                  currency:
-                    $ref: '../components/schemas.yaml#/components/schemas/Currency'
-                  status:
-                    $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
-                  total:
-                    $ref: '../components/schemas.yaml#/components/schemas/Money'
-                  tradeIds:
-                    type: array
-                    items:
-                      type: string
-                    description: Originating trade ids (UAT-028 / REQ-028).
-                  pairSettlementId:
-                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-                  producerStripeAccountId:
-                    type: string
-                    description: >
-                      Connect account that issued the Stripe invoice. AC-07 pays
-                      the invoice on this account (direct charge, REQ-014).
-                  stripeInvoiceId:
-                    type: string
-                    description: >
-                      INT-355 — Stripe invoice id (in_…) on the producer Connect
-                      account. AC-07 pays this invoice with invoices.pay.
-                  hostedInvoiceUrl:
-                    type: string
-                    format: uri
-                    description: >
-                      Stripe invoice PDF URL (REQ-039 / REQ-042). INT-355 — the
-                      PDF is preferred over the hosted payment page so the
-                      consumer pays only through AC-07.
+                $ref: '#/components/schemas/InternalInvoice'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /invoices/{invoiceId}/document:
+    get:
+      operationId: getInvoiceDocumentInternal
+      tags: [Invoicing]
+      summary: Read stored invoice PDF
+      description: GetInvoiceDocument(invoiceId). Called by AC-11 and AC-07 (REQ-039).
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Invoice PDF generated and stored at issue time.
+          headers:
+            X-Legal-Number:
+              schema:
+                type: string
+              description: Billing-assigned legal number (REQ-042).
+          content:
+            application/pdf:
+              schema:
+                type: string
+                contentMediaType: application/pdf
+                contentEncoding: binary
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /invoices:send-reminders:
+    post:
+      operationId: sendInvoiceReminders
+      tags: [Invoicing]
+      summary: Send scheduled payment reminders
+      description: SendReminders(asOf). Called by AC-14 (REQ-061).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [asOf]
+              properties:
+                asOf:
+                  type: string
+                  format: date
+      responses:
+        '202':
+          description: Reminder batch accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [accepted, sent]
+                properties:
+                  accepted:
+                    type: boolean
+                  sent:
+                    type: integer
+                    minimum: 0
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
   /invoices:mark-overdue:
     post:
       operationId: markOverdue
@@ -119,35 +144,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: false
-                required: [invoiceId, producerId, consumerId, currency, status, total]
-                properties:
-                  invoiceId:
-                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-                  producerId:
-                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-                  consumerId:
-                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-                  currency:
-                    $ref: '../components/schemas.yaml#/components/schemas/Currency'
-                  status:
-                    $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
-                  total:
-                    $ref: '../components/schemas.yaml#/components/schemas/Money'
-                  tradeIds:
-                    type: array
-                    items:
-                      type: string
-                  pairSettlementId:
-                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-                  producerStripeAccountId:
-                    type: string
-                  stripeInvoiceId:
-                    type: string
-                  hostedInvoiceUrl:
-                    type: string
-                    format: uri
+                $ref: '#/components/schemas/InternalInvoice'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /invoices:from-settlement:
@@ -156,10 +153,9 @@ paths:
       tags: [Invoicing]
       summary: Create invoice from pair settlement
       description: >
-        INT-196 / UAT-028 — TD-2 mapping from AC-05 pair settlement to a
-        self-billing Stripe invoice (test mode). Idempotent on settlementId.
-        Operator / seed bridge; primary path is SettlementCompleted via NATS
-        (INT-223 / INT-238).
+        INT-196 / UAT-028 — map AC-05 pair settlement to a self-billing invoice
+        (REQ-039). Idempotent on settlementId. Operator / seed bridge; primary
+        path is SettlementCompleted via NATS (INT-223 / INT-238).
       requestBody:
         required: true
         content:
@@ -190,11 +186,234 @@ paths:
                     type: string
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /participants/{participantId}/invoices:
+    get:
+      operationId: listParticipantInvoices
+      tags: [Invoicing]
+      summary: Invoices where the participant is issuer or addressee
+      description: REQ-013 — DSAR export (Task 3.19).
+      parameters:
+        - name: participantId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Invoice summaries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvoiceSummary'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /statements:
+    get:
+      operationId: listStatements
+      tags: [Invoicing]
+      summary: List participant statements
+      description: >
+        ListStatements(participantId, period?). Called by AC-09 and operator
+        tools (REQ-059). Identifiers and amounts only.
+      parameters:
+        - name: participantId
+          in: query
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        - name: period
+          in: query
+          required: false
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/BillingPeriod'
+      responses:
+        '200':
+          description: Statements for the participant.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InternalStatement'
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../components/schemas.yaml#/components/responses/Unauthorized'
+  /invoices/{invoiceId}/status:
+    post:
+      operationId: setInvoiceStatusInternal
+      tags: [Invoicing]
+      summary: Change invoice status (EWDS setInvoiceStatus target)
+      description: >
+        REQ-044 — manager-initiated status change with mandatory reason.
+        Called by AC-10 command dispatcher on behalf of an authorized actor.
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status, reason, actorId, communityId]
+              properties:
+                status:
+                  $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
+                reason:
+                  type: string
+                  minLength: 3
+                actorId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                communityId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Updated invoice (identifiers and status).
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [invoiceId, invoiceStatus]
+                properties:
+                  invoiceId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  invoiceStatus:
+                    $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
 components:
   securitySchemes:
     serviceAuth:
       $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'
   schemas:
+    InternalInvoice:
+      type: object
+      additionalProperties: false
+      required:
+        - invoiceId
+        - producerId
+        - consumerId
+        - communityId
+        - currency
+        - status
+        - legalNumber
+        - dueDate
+        - amounts
+        - total
+        - tradeIds
+        - pairSettlementId
+      properties:
+        invoiceId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        producerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        consumerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        currency:
+          $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        status:
+          $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
+        legalNumber:
+          type: string
+          description: Billing-assigned legal number (REQ-042).
+        dueDate:
+          type: string
+          format: date
+        amounts:
+          $ref: '../components/schemas.yaml#/components/schemas/InvoiceAmounts'
+        total:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        tradeIds:
+          type: array
+          items:
+            type: string
+        pairSettlementId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+    StatementInvoice:
+      type: object
+      additionalProperties: false
+      required: [invoiceId, producerId, consumerId, total, status]
+      properties:
+        invoiceId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        producerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        consumerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        total:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        status:
+          $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
+    InternalStatement:
+      type: object
+      additionalProperties: false
+      required:
+        - statementId
+        - participantId
+        - communityId
+        - period
+        - periodFrom
+        - periodUntil
+        - totalBought
+        - totalSold
+        - netBalance
+        - direction
+        - currency
+        - invoiceIds
+        - status
+        - revision
+        - invoices
+      properties:
+        statementId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        participantId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        period:
+          $ref: '../components/schemas.yaml#/components/schemas/BillingPeriod'
+        periodFrom:
+          type: string
+          format: date-time
+        periodUntil:
+          type: string
+          format: date-time
+        totalBought:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        totalSold:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        netBalance:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        direction:
+          type: string
+          enum: [to_pay, to_receive, balanced]
+        currency:
+          $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        invoiceIds:
+          type: array
+          items:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        status:
+          $ref: '../components/schemas.yaml#/components/schemas/StatementStatus'
+        revision:
+          type: integer
+          minimum: 1
+        invoices:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementInvoice'
     PairSettlementInput:
       type: object
       additionalProperties: false
@@ -210,6 +429,10 @@ components:
         - vat
         - currency
         - rate
+        - gridFeeAmount
+        - levyAmount
+        - taxAmount
+        - tariffId
       properties:
         settlementId:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'
@@ -231,7 +454,6 @@ components:
           description: >
             REQ-007 — one entry per trade (delivery period, kWh, price per kWh,
             amount). Empty when the invoice settles a carried balance only.
-            Grid fees are never included (A20).
           items:
             $ref: '../components/schemas.yaml#/components/schemas/InvoiceTradeLine'
         kWh:
@@ -240,18 +462,22 @@ components:
           $ref: '../components/schemas.yaml#/components/schemas/Money'
         vat:
           $ref: '../components/schemas.yaml#/components/schemas/Money'
+        gridFeeAmount:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        levyAmount:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        taxAmount:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        tariffId:
+          oneOf:
+            - type: string
+            - type: 'null'
         currency:
           $ref: '../components/schemas.yaml#/components/schemas/Currency'
         rate:
           $ref: '../components/schemas.yaml#/components/schemas/FxRate'
         rateDate:
           $ref: '../components/schemas.yaml#/components/schemas/RateDate'
-        producerStripeAccountId:
-          type: string
-          description: >
-            INT-197 / UAT-028 — optional Connect account override for Stripe
-            invoice creation. When omitted, AC-06 falls back to a registered
-            mapping or a synthetic acct_test_* id (mock / unit tests only).
     InvoiceCreated:
       type: object
       additionalProperties: false
@@ -277,8 +503,37 @@ components:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'
         legalNumber:
           type: string
-        producerStripeAccountId:
+          description: Billing-assigned legal number when issued (REQ-042).
+    InvoiceSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - invoiceId
+        - period
+        - partyRole
+        - total
+        - currency
+        - status
+      properties:
+        invoiceId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        legalNumber:
+          oneOf:
+            - type: string
+            - type: 'null'
+        period:
           type: string
-        hostedInvoiceUrl:
+        partyRole:
           type: string
-          format: uri
+          enum: [issuer, addressee]
+        total:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        currency:
+          $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        status:
+          type: string
+        issuedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'

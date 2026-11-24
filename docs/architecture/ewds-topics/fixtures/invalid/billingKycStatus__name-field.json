@@ -1,0 +1,9 @@
+{
+  "actorId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+  "communityId": "c0ffee00-1234-4abc-8def-0123456789ab",
+  "kycVerified": true,
+  "accountStatus": "Active",
+  "verificationKind": "connect_account",
+  "updatedAt": "2026-11-20T12:00:00+01:00",
+  "fullName": "Ada Lovelace"
+}

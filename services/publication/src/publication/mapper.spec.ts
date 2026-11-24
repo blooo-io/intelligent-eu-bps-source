@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import { toBillingInvoice, toBillingPayment } from "./mapper.js";
 
 describe("publication mapper (NFR-004, REQ-048)", () => {
-  it("forces gridFeeAmount to 0 and null paymentIds when empty", () => {
+  it("forces gridFeeAmount to 0, emits issuerStatementId, null paymentIds when empty", () => {
     const payload = toBillingInvoice({
       invoiceId: "i",
       billingId: "b",
+      issuerStatementId: "s",
       communityId: "c",
       billingMode: "virtual",
       settlementType: "periodic",
@@ -21,6 +22,7 @@ describe("publication mapper (NFR-004, REQ-048)", () => {
       totalAmount: 1,
       outstandingAmount: 1,
       energyAmount: 1,
+      gridFeeStatus: "not_published",
       taxAmount: 0,
       vatRate: 0,
       carriedForwardAmount: 0,
@@ -37,6 +39,8 @@ describe("publication mapper (NFR-004, REQ-048)", () => {
       updatedAt: "2026-02-01T00:00:00Z",
     });
     expect(payload.gridFeeAmount).toBe(0);
+    expect(payload.gridFeeStatus).toBe("not_published");
+    expect(payload.issuerStatementId).toBe("s");
     expect(payload.paymentIds).toBeNull();
   });
 

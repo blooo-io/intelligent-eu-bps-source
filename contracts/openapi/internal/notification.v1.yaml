@@ -1,0 +1,61 @@
+openapi: 3.1.0
+info:
+  title: Notification internal API
+  version: 1.0.0
+  description: >
+    Module-to-module commands of AC-11 (03 §3.2). Never exposed to clients.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /internal/v1
+tags:
+  - name: Notification
+    description: Module-to-module commands of AC-11.
+security:
+  - serviceAuth: []
+paths:
+  /reminders:
+    post:
+      operationId: sendReminder
+      tags: [Notification]
+      summary: Send a payment reminder for an invoice (EWDS sendReminder target)
+      description: REQ-061 — manager or operator triggered reminder for an open invoice.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [invoiceId, actorId, communityId]
+              properties:
+                invoiceId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                actorId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                communityId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Reminder accepted for delivery.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [invoiceId, sentAt]
+                properties:
+                  invoiceId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  sentAt:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+components:
+  securitySchemes:
+    serviceAuth:
+      $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'

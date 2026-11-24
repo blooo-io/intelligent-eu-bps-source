@@ -124,6 +124,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/identity-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Stripe Identity verification for a community manager
+         * @description REQ-051 — community managers verify identity only (not Connect). Returns a hosted verification session URL.
+         */
+        post: operations["createIdentityVerification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/kyc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the caller's KYC status
+         * @description REQ-045 / REQ-051 — current KYC state for the signed-in member or manager.
+         */
+        get: operations["getMyKycStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/payment-account/payment-method": {
         parameters: {
             query?: never;
@@ -165,6 +205,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Payout history and withdrawable periods
+         * @description Producer payout history and periods available to withdraw (REQ-015, REQ-060). Only the caller's own payouts (REQ-010).
+         */
+        get: operations["listMyPayouts"];
+        put?: never;
+        /**
+         * Request a payout for a billing period
+         * @description Participant-triggered Connect payout for one period (REQ-015). Refused when prerequisites are not met (REQ-060).
+         */
+        post: operations["requestWithdrawal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/balances": {
         parameters: {
             query?: never;
@@ -174,7 +238,7 @@ export interface paths {
         };
         /**
          * Unbilled balances per counterpart
-         * @description Unbilled amounts of the caller, one row per counterpart (REQ-002, REQ-057).
+         * @description Unbilled amounts of the caller, one row per counterpart (REQ-002, REQ-056).
          */
         get: operations["listMyBalances"];
         put?: never;
@@ -197,6 +261,26 @@ export interface paths {
          * @description Invoices where the caller is the producer or the consumer (REQ-007, REQ-039).
          */
         get: operations["listMyInvoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Billing statements of the caller
+         * @description Monthly participant statements (REQ-059). Lists only the caller's own statements (REQ-010).
+         */
+        get: operations["listMyStatements"];
         put?: never;
         post?: never;
         delete?: never;
@@ -234,11 +318,31 @@ export interface paths {
         };
         /**
          * Invoice PDF
-         * @description Hosted invoice PDF (REQ-039). The provider sends the document.
+         * @description PDF generated and stored by billing (REQ-039). Caller roles: member or manager.
          */
         get: operations["getInvoiceDocument"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/{id}/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send payment reminders for an invoice
+         * @description A community manager triggers reminders for an open invoice (REQ-061). Caller role: manager.
+         */
+        post: operations["sendInvoiceReminder"];
         delete?: never;
         options?: never;
         head?: never;
@@ -279,26 +383,6 @@ export interface paths {
          * @description A community manager sets a status with a mandatory reason (REQ-044).
          */
         post: operations["setInvoiceStatus"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/early-settlements": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Settle early with one producer
-         * @description The consumer settles the unbilled balance with the named producer now (REQ-057). The threshold does not apply (BR-05).
-         */
-        post: operations["createEarlySettlement"];
         delete?: never;
         options?: never;
         head?: never;
@@ -469,6 +553,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/communities/{id}/payouts-overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Payout overview of a community
+         * @description Manager view of expected and completed payouts per participant and period (REQ-060). The token community must be this community (REQ-049).
+         */
+        get: operations["getPayoutsOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/participants/{id}/history": {
         parameters: {
             query?: never;
@@ -501,6 +605,26 @@ export interface paths {
          * @description Summary of one community and period (REQ-032). The token community must match communityId (REQ-049 / UAT-060).
          */
         get: operations["getPeriodicSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/payment-methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Per-method payment KPIs (TE-2)
+         * @description REQ-046 TE-2 — processing time = PSP success webhook time minus submission time; card and SEPA compared; fees from the producer account balance transaction; test-mode fees are provider-simulated.
+         */
+        get: operations["getPaymentMethodReport"];
         put?: never;
         post?: never;
         delete?: never;
@@ -558,7 +682,7 @@ export interface paths {
         };
         /**
          * KPI export for a period
-         * @description CSV file export of the period (REQ-047 invoice amounts/kWh plus REQ-046 payment failure causes, suggested corrective actions and processing times per method). The later channel is still open in the architecture (03 §7, port P-KPI).
+         * @description CSV file export of the period (REQ-047 invoice amounts/kWh plus REQ-046 payment failure causes, suggested corrective actions and processing times per method). Columns include communityId, period, invoiceCount, paidCount, openCount, totalEnergy, totalGridFee, paymentCount, succeededCount, failedCount, medianProcessingTimeMsCard, medianProcessingTimeMsSepa, totalFeeCard, totalFeeSepa, failureCategoryBreakdown. The later channel is still open in the architecture (03 §7, port P-KPI).
          */
         get: operations["getKpiExport"];
         put?: never;
@@ -601,6 +725,26 @@ export interface paths {
          * @description Status of one export or erasure request (REQ-013). A member reads a request they opened or that names them. A manager, operator or DPO reads a request in their own community. Another community returns 404 (REQ-049).
          */
         get: operations["getDataSubjectRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/data-subject-requests/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download the machine-readable DSAR export
+         * @description REQ-013 Art. 15/20 — JSON export assembled on read (Task 3.20). Same access rules as the parent request. Erasure requests or stale exports may return 410.
+         */
+        get: operations["getDataSubjectExport"];
         put?: never;
         post?: never;
         delete?: never;
@@ -670,6 +814,10 @@ export interface components {
             readiness: components["schemas"]["ReadinessStatus"];
             profile: components["schemas"]["BillingProfile"];
             billingMode?: components["schemas"]["BillingMode"];
+            /** @description REQ-045 — whether KYC is complete for billing. */
+            kycVerified?: boolean;
+            /** @description REQ-050 — when the caller accepted the current terms. */
+            termsAcceptedAt?: string | null;
         };
         Terms: {
             termsVersion: string;
@@ -691,8 +839,13 @@ export interface components {
             brand?: string;
             /** @description Last four digits of the attached card. */
             last4?: string;
-            /** @description Connect account id for producer/prosumer. */
-            stripeAccountId?: string;
+            /** @description PSP Connect account reference for producer/prosumer. */
+            pspAccountRef?: string;
+            /** @enum {string} */
+            kycStatus?: "none" | "pending" | "verified" | "rejected";
+            kycVerified?: boolean;
+            /** @description External bank account verified for payouts (REQ-015). */
+            payoutAccountVerified?: boolean;
             /**
              * Format: uri
              * @description Optional platform Stripe Dashboard deep-link for the Connect account (test mode). Absent when no Connect account exists.
@@ -702,11 +855,16 @@ export interface components {
         /** @description INT-362 — producer uses `mode: embedded` (Account Session client secret for the Connect embedded Account onboarding component); consumer uses `mode: elements` (SetupIntent client secret for Payment Element) or `mode: link` (hosted fallback). `mode: requirements` is deprecated (INT-191 API KYC on accounts created before INT-362). */
         OnboardingSession: {
             /** @enum {string} */
-            mode: "embedded" | "requirements" | "link" | "elements";
+            mode: "embedded" | "hosted" | "requirements" | "link" | "elements";
             /** @enum {string} */
             status: "requirements_due" | "pending_verification" | "complete";
-            /** @description Connect account id once created. */
-            stripeAccountId?: string;
+            /** @description PSP Connect account reference once created. */
+            pspAccountRef?: string;
+            /**
+             * Format: date-time
+             * @description Present when mode is hosted or link.
+             */
+            expiresAt?: string;
             /** @description Stripe requirement keys still due (REQ-051). */
             currentlyDue?: string[];
             eventuallyDue?: string[];
@@ -773,23 +931,59 @@ export interface components {
         };
         InvoiceAmounts: {
             energy: components["schemas"]["Money"];
+            gridFee: components["schemas"]["Money"];
+            levy: components["schemas"]["Money"];
+            tax: components["schemas"]["Money"];
             vat: components["schemas"]["Money"];
             total: components["schemas"]["Money"];
         };
+        Statement: {
+            statementId: components["schemas"]["Uuid"];
+            participantId: components["schemas"]["Uuid"];
+            communityId: components["schemas"]["Uuid"];
+            period: components["schemas"]["BillingPeriod"];
+            /** Format: date-time */
+            periodFrom: string;
+            /** Format: date-time */
+            periodUntil: string;
+            totalBought: components["schemas"]["Money"];
+            totalSold: components["schemas"]["Money"];
+            /** @description Signed net; positive means to receive (REQ-059). */
+            netBalance: components["schemas"]["Money"];
+            /** @enum {string} */
+            direction: "to_pay" | "to_receive" | "balanced";
+            currency: components["schemas"]["Currency"];
+            invoiceIds: components["schemas"]["Uuid"][];
+            status: components["schemas"]["StatementStatus"];
+            revision: number;
+        };
         Invoice: {
             invoiceId: components["schemas"]["Uuid"];
-            /** @description Provider invoice number, once issued (REQ-042). Absent while Draft. */
-            legalNumber?: string;
+            /** @description Billing-assigned legal number, sequential per producer (REQ-042). */
+            legalNumber: string;
             producerId: components["schemas"]["Uuid"];
             consumerId: components["schemas"]["Uuid"];
             period?: string;
+            /** Format: date */
+            issueDate?: string;
+            /** Format: date-time */
+            periodFrom?: string;
+            /** Format: date-time */
+            periodUntil?: string;
             currency: components["schemas"]["Currency"];
             status: components["schemas"]["InvoiceStatus"];
             /** Format: date */
             dueDate?: string;
+            vatRate?: components["schemas"]["Rate"];
+            exchangeRate?: null | {
+                rate: components["schemas"]["FxRate"];
+                rateDate: components["schemas"]["RateDate"];
+            };
+            tariffApplied?: boolean;
+            carriedForwardIn?: components["schemas"]["Money"];
             pairSettlementId?: components["schemas"]["Uuid"];
             tradeIds?: string[];
-            /** @description REQ-007 — one entry per trade (delivery period, kWh, price per kWh, amount). Empty when the invoice settles a carried balance only. Grid fees are never included (A20). */
+            /** @description REQ-007 — one entry per trade (delivery period, kWh, price per kWh, amount). Empty when the invoice settles a carried balance only. */
             lines?: components["schemas"]["InvoiceTradeLine"][];
             amounts: components["schemas"]["InvoiceAmounts"];
             billingMode?: components["schemas"]["BillingMode"];
@@ -804,9 +998,97 @@ export interface components {
             amount: components["schemas"]["Money"];
             currency: components["schemas"]["Currency"];
             status: components["schemas"]["PaymentStatus"];
-            method?: string;
-            /** @description Present when the payment failed (REQ-016, REQ-046). */
-            failureCategory?: string;
+            /** @enum {string} */
+            method?: "card" | "sepa_debit";
+            failureCategory?: components["schemas"]["PspFailureCategory"];
+            /**
+             * Format: uri
+             * @description Hosted checkout URL when payment requires redirect (A7-bis).
+             */
+            checkoutUrl?: string;
+            /** Format: date-time */
+            initiatedAt?: string;
+            /** Format: date-time */
+            settledAt?: string;
+            processingTimeMs?: number;
+            feeAmount?: components["schemas"]["Money"];
+            feeCurrency?: components["schemas"]["Currency"];
+        };
+        /** @enum {string} */
+        PspFailureCategory: "card_declined" | "insufficient_funds" | "authentication_required" | "mandate_invalid" | "bank_account_invalid" | "provider_error" | "other";
+        PaymentMethodStats: {
+            /** @enum {string} */
+            method: "card" | "sepa_debit";
+            feeCurrency: components["schemas"]["Currency"];
+            count: number;
+            succeededCount: number;
+            failedCount: number;
+            pendingCount: number;
+            successRate: number | null;
+            medianProcessingTimeMs: number | null;
+            totalFee: components["schemas"]["Money"];
+            averageFee: components["schemas"]["Money"] | null;
+            feeMissingCount: number;
+        };
+        PaymentMethodReport: {
+            communityId: components["schemas"]["Uuid"];
+            period: string;
+            rows: components["schemas"]["PaymentMethodStats"][];
+        };
+        KycStatus: {
+            subjectId: components["schemas"]["Uuid"];
+            /** @enum {string} */
+            subjectType: "participant" | "manager";
+            /** @enum {string} */
+            kycStatus: "none" | "pending" | "verified" | "rejected";
+            kycVerified: boolean;
+            /** @enum {string} */
+            method: "connect_onboarding" | "identity_document";
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        IdentityVerificationSession: {
+            verificationId: string;
+            /** Format: uri */
+            url: string;
+            /** @enum {string} */
+            status: "requires_input" | "processing" | "verified" | "canceled";
+        };
+        DataSubjectExport: {
+            /** @constant */
+            schemaVersion: "1.0";
+            requestId: components["schemas"]["Uuid"];
+            /** Format: date-time */
+            producedAt: string;
+            controller: {
+                communityId: components["schemas"]["Uuid"];
+            };
+            participant: components["schemas"]["DsarParticipantProfile"];
+            paymentAccount?: components["schemas"]["DsarPaymentAccount"] | null;
+            invoices: components["schemas"]["DsarInvoiceSummary"][];
+            dataSubjectRequests: {
+                requestId: components["schemas"]["Uuid"];
+                type: string;
+                status: string;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            retention: components["schemas"]["RetentionPolicy"];
+        };
+        /** @description REQ-013 — participant personal data (see Task 3.18). */
+        DsarParticipantProfile: {
+            [key: string]: unknown;
+        };
+        /** @description REQ-013 — payment-account personal data (see Task 3.18). */
+        DsarPaymentAccount: {
+            [key: string]: unknown;
+        };
+        /** @description Invoice row with retainedUntil (REQ-013). */
+        DsarInvoiceSummary: {
+            [key: string]: unknown;
+        };
+        RetentionPolicy: {
+            invoiceRetentionYears: number;
         };
         CommunitySettings: {
             communityId: components["schemas"]["Uuid"];
@@ -816,6 +1098,18 @@ export interface components {
             threshold: components["schemas"]["Money"];
             vatRate: components["schemas"]["Rate"];
             billingMode: components["schemas"]["BillingMode"];
+            /** @description When true, AC-07 pays out producers automatically (REQ-015). */
+            autoPayout: boolean;
+            /**
+             * Format: email
+             * @description Manager inbox for payment alerts (REQ-061).
+             */
+            managerContactEmail?: string;
+            /**
+             * @description When true, grid-fee and levy lines apply (REQ-004).
+             * @default false
+             */
+            tariffBilling: boolean;
         };
         CommunitySettingsWrite: {
             currency: components["schemas"]["Currency"];
@@ -823,6 +1117,15 @@ export interface components {
             threshold: components["schemas"]["Money"];
             vatRate: components["schemas"]["Rate"];
             billingMode: components["schemas"]["BillingMode"];
+            /**
+             * @description When true, AC-07 pays out producers automatically (REQ-015).
+             * @default false
+             */
+            autoPayout: boolean;
+            /** Format: email */
+            managerContactEmail?: string;
+            /** @default false */
+            tariffBilling: boolean;
         };
         ParticipantImport: {
             /** Format: email */
@@ -881,6 +1184,46 @@ export interface components {
             invoiceCount: number;
             paymentCount: number;
             total: components["schemas"]["Money"];
+            /** @description Connect payouts completed in the period (REQ-060). */
+            paidOut: components["schemas"]["Money"];
+        };
+        Payout: {
+            payoutId: components["schemas"]["Uuid"];
+            participantId: components["schemas"]["Uuid"];
+            period: components["schemas"]["BillingPeriod"];
+            amount: components["schemas"]["Money"];
+            currency: components["schemas"]["Currency"];
+            status: components["schemas"]["PayoutStatus"];
+            /** @enum {string} */
+            trigger: "participant" | "auto";
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date */
+            arrivalDate?: string;
+            failureCategory?: string;
+        };
+        PayoutList: {
+            items: components["schemas"]["Payout"][];
+            withdrawable: {
+                period: components["schemas"]["BillingPeriod"];
+                amount: components["schemas"]["Money"];
+                currency: components["schemas"]["Currency"];
+            }[];
+        };
+        PayoutOverviewRow: {
+            participantId: components["schemas"]["Uuid"];
+            period: components["schemas"]["BillingPeriod"];
+            expectedAmount: components["schemas"]["Money"];
+            currency: components["schemas"]["Currency"];
+            /** @enum {string} */
+            status: "completed" | "open";
+            payoutId?: components["schemas"]["Uuid"];
+            paidOutAmount?: components["schemas"]["Money"];
+            payoutStatus?: components["schemas"]["PayoutStatus"];
+        };
+        PayoutRefused: {
+            /** @enum {string} */
+            reason: "kyc_required" | "statement_not_found" | "producer_invoices_unpaid" | "nothing_to_pay_out" | "funds_pending";
         };
         Discrepancy: {
             /**
@@ -949,6 +1292,12 @@ export interface components {
             detail?: string;
         };
         /**
+         * @description Billing period of the community calendar, YYYY-MM (monthly) or YYYY-Qn (quarterly) (REQ-006).
+         * @example 2026-11
+         * @example 2026-Q4
+         */
+        BillingPeriod: string;
+        /**
          * @description Decimal amount rounded to the cent (BR-08).
          * @example 5.00
          */
@@ -959,13 +1308,40 @@ export interface components {
          */
         Currency: string;
         /**
+         * @description Connect payout lifecycle (REQ-015, REQ-060).
+         * @enum {string}
+         */
+        PayoutStatus: "requested" | "in_transit" | "paid" | "failed" | "canceled";
+        /**
          * @description Invoice lifecycle (REQ-044, 02 §5).
          * @enum {string}
          */
         InvoiceStatus: "Draft" | "Open" | "PartiallyPaid" | "Paid" | "Overdue" | "Void" | "Disputed";
-        /** @description REQ-007 — one trade covered by the invoice. kWh and amount are signed in the invoice direction (a purchase is positive). No grid-fee line (A20). */
+        /**
+         * @description Decimal rate rounded to the cent, such as a VAT rate (BR-07, BR-08).
+         * @example 0.00
+         */
+        Rate: string;
+        /**
+         * @description ECB reference rate EUR → community currency, kept with 4 to 6 decimals and shown on the invoice (BR-06, REQ-002). 1.0000 for EUR communities.
+         * @example 0.9412
+         */
+        FxRate: string;
+        /**
+         * Format: date
+         * @description Date of the ECB reference rate applied: last TARGET business day of the period, or the settlement date for final runs (BR-06, REQ-002).
+         */
+        RateDate: string;
+        /**
+         * @description Energy price per kWh in EUR (REQ-004).
+         * @example 0.120000
+         */
+        UnitPrice: string;
+        /** @description REQ-007 — one trade covered by the invoice. kWh and amount are signed in the invoice direction (a purchase is positive). Grid-fee components are on the invoice totals (REQ-004), not duplicated per line. */
         InvoiceTradeLine: {
             tradeId: string;
+            /** @enum {string} */
+            role: "buyer" | "seller";
             /**
              * Format: date-time
              * @description Start of the delivery period (BR-02).
@@ -978,40 +1354,35 @@ export interface components {
             deliveryEnd?: string;
             /** @description Signed energy, three decimals (BR-08). */
             kWh: string;
-            pricePerKWh: components["schemas"]["Money"];
+            pricePerKWh: components["schemas"]["UnitPrice"];
+            adjustedPricePerKWh?: components["schemas"]["UnitPrice"];
             amount: components["schemas"]["Money"];
         };
+        /**
+         * @description Participant billing statement lifecycle (REQ-059). Ontology billingStatus without Disputed.
+         * @enum {string}
+         */
+        StatementStatus: "Open" | "PartiallyPaid" | "Paid" | "Overdue" | "Void";
         /**
          * @description Payment lifecycle (02 §5).
          * @enum {string}
          */
         PaymentStatus: "pending" | "succeeded" | "failed" | "cancelled" | "refunded";
         /**
-         * @description Billing period of the community calendar, YYYY-MM (monthly) or YYYY-Qn (quarterly) (REQ-006).
-         * @example 2026-11
-         * @example 2026-Q4
-         */
-        BillingPeriod: string;
-        /**
-         * @description Kind of billing run (02 §6).
+         * @description Kind of billing run (02 §6). Early settlement removed (REQ-057 deprecated).
          * @enum {string}
          */
-        BillingRunType: "periodic" | "early" | "final";
+        BillingRunType: "periodic" | "final";
         /**
          * @description Billing run lifecycle (02 §5).
          * @enum {string}
          */
         BillingRunStatus: "Scheduled" | "Collecting" | "Computing" | "Completed" | "Failed";
         /**
-         * @description Decimal rate rounded to the cent, such as a VAT rate (BR-07, BR-08).
-         * @example 0.00
-         */
-        Rate: string;
-        /**
          * @description Scheduled job owned by a module (02 §4.5).
          * @enum {string}
          */
-        JobName: "RefreshIntake" | "CheckIntakeHealth" | "StartRun" | "MarkOverdue" | "Reconcile" | "BuildReport" | "ExportKpi" | "RetryPending" | "PurgeCache" | "ApplyRetention" | "FetchRates";
+        JobName: "RefreshIntake" | "CheckIntakeHealth" | "StartRun" | "MarkOverdue" | "Reconcile" | "BuildReport" | "ExportKpi" | "RetryPending" | "PurgeCache" | "ApplyRetention" | "FetchRates" | "RunAutoPayouts" | "SendReminders";
     };
     responses: {
         /** @description Missing or invalid bearer token. */
@@ -1193,15 +1564,81 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description A7-bis — embedded Account Session or hosted Connect onboarding link (REQ-051).
+                     * @enum {string}
+                     */
+                    surface?: "embedded" | "hosted";
+                    /**
+                     * Format: uri
+                     * @description Required when surface is hosted.
+                     */
+                    returnUrl?: string;
+                };
+            };
+        };
         responses: {
-            /** @description Onboarding session (embedded, elements, or link). */
+            /** @description Onboarding session (embedded, hosted, elements, or link). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["OnboardingSession"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createIdentityVerification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: uri */
+                    returnUrl?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Identity verification session. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityVerificationSession"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getMyKycStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description KYC status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KycStatus"];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -1267,6 +1704,65 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    listMyPayouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payout list and withdrawable amounts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    requestWithdrawal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    period: components["schemas"]["BillingPeriod"];
+                };
+            };
+        };
+        responses: {
+            /** @description Payout requested. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payout"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Payout refused. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutRefused"];
+                };
+            };
+        };
+    };
     listMyBalances: {
         parameters: {
             query?: never;
@@ -1304,6 +1800,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Invoice"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listMyStatements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's billing statements. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Statement"][];
                 };
             };
             401: components["responses"]["Unauthorized"];
@@ -1359,6 +1876,44 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    sendInvoiceReminder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource identifier. */
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reminders accepted. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        invoiceId: components["schemas"]["Uuid"];
+                        reminderCount: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Invoice cannot be reminded (Paid, Void or Draft). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     payInvoice: {
@@ -1418,35 +1973,6 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    createEarlySettlement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    producerId: components["schemas"]["Uuid"];
-                };
-            };
-        };
-        responses: {
-            /** @description Early settlement accepted. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BillingRun"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-        };
-    };
     getCommunitySettings: {
         parameters: {
             query?: never;
@@ -1500,8 +2026,25 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
+            /** @description Live billing mode requires the operator role (REQ-043). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description Live-mode guard refused the update (`live_keys_missing` when PSP live keys are absent; `live_to_virtual_refused` when downgrading). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     importParticipants: {
@@ -1703,6 +2246,35 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    getPayoutsOverview: {
+        parameters: {
+            query?: {
+                /** @description Filter to one billing period. */
+                period?: components["schemas"]["BillingPeriod"];
+            };
+            header?: never;
+            path: {
+                /** @description Resource identifier. */
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payout overview rows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutOverviewRow"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     getParticipantHistory: {
         parameters: {
             query?: never;
@@ -1750,6 +2322,34 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PeriodicSummary"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPaymentMethodReport: {
+        parameters: {
+            query: {
+                /** @description Community whose data is requested (REQ-010). */
+                communityId: components["parameters"]["CommunityIdQuery"];
+                /** @description Billing period of the report. */
+                period: components["parameters"]["PeriodQuery"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Per-method statistics for the period. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodReport"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -1887,6 +2487,41 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getDataSubjectExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource identifier. */
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DSAR export file. */
+            200: {
+                headers: {
+                    /** @description attachment; filename="dsar-{requestId}.json" */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataSubjectExport"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Export no longer available. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     listJobs: {

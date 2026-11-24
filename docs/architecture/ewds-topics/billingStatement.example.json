@@ -1,0 +1,27 @@
+{
+  "statementId": "a2b4c6d8-1e3f-4a5b-8c7d-9e0f1a2b3c4d",
+  "communityId": "c0ffee00-1234-4abc-8def-0123456789ab",
+  "actorId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+  "billingMode": "virtual",
+  "billingPeriodFrom": "2026-11-01T00:00:00+01:00",
+  "billingPeriodUntil": "2026-12-01T00:00:00+01:00",
+  "statementStatus": "Paid",
+  "totalBought": 6.25,
+  "totalSold": 20.5,
+  "netBalance": 14.25,
+  "balanceDirection": "receive",
+  "totalEnergyAmount": 10.2,
+  "totalGridFeeAmount": 0,
+  "totalTaxAmount": 0,
+  "totalAmountDue": 14.25,
+  "totalAmountPaid": 14.25,
+  "outstandingAmount": 0,
+  "currency": "CHF",
+  "invoiceIds": [
+    "3f1c2a9e-8b7d-4c21-9a0e-5d6f7a8b9c01",
+    "4a2b3c4d-5e6f-7081-92a3-b4c5d6e7f809"
+  ],
+  "payoutIds": null,
+  "createdAt": "2026-12-01T06:00:00+01:00",
+  "updatedAt": "2026-12-03T10:15:00+01:00"
+}

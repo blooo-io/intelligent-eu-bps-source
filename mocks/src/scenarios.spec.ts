@@ -167,7 +167,8 @@ describe("market / FX / data-space ports against scenarios", () => {
     expect(s.erasureRequest?.participantId).toBeTruthy();
   });
 
-  it("S13: data-space mock accepts billingInvoice example and rejects bad grid fee (REQ-048)", async () => {
+  // REQ-048 / Task 2.1: gridFeeAmount may be non-zero; reject on a real schema breach.
+  it("S13: data-space mock accepts billingInvoice example and rejects invalid payload (REQ-048)", async () => {
     const suite = createMockSuite("S13");
     const root = path.resolve(
       path.dirname(fileURLToPath(import.meta.url)),
@@ -180,7 +181,12 @@ describe("market / FX / data-space ports against scenarios", () => {
     const published = suite.dataSpace.publish("billingInvoice", good);
     expect(published.ok).toBe(true);
 
-    const bad = { ...good, gridFeeAmount: 1.5 };
+    const bad = JSON.parse(
+      await readFile(
+        path.join(root, "fixtures/invalid/billingInvoice__missing-issuerStatementId.json"),
+        "utf8",
+      ),
+    );
     const rejected = suite.dataSpace.publish("billingInvoice", bad);
     expect(rejected.ok).toBe(false);
     expect(suite.dataSpace.recorded().length).toBe(1);

@@ -25,7 +25,7 @@ See [`RELEASE-NOTES.md`](RELEASE-NOTES.md). In-scope UAT: **62 Pass / 0 Blocked 
 2. The first published snapshot is `v1.0.1` (INT-359), cut with [`VERSIONING.md`](VERSIONING.md) / `cut-release.mjs` (INT-305). Later fixes are a new tag.
 3. `dev` continues on floating `:develop` images (INT-178). `demo` pins the published tag.
 
-## Remaining partner-report gate (Maylis)
+## Remaining partner-report gate (Blooo D5.5 report owner)
 
 | Issue | Role |
 |---|---|

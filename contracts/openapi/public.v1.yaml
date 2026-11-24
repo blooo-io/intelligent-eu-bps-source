@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Billing & Payment public API
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Public API exposed by the gateway under `/v1` (03 §3.1, REQ-052).
     Every call needs a bearer token. A response contains only data of the
@@ -32,7 +32,7 @@ tags:
   - name: Participants
     description: Import, list, update and offboarding of participants.
   - name: Billing
-    description: Billing runs and early settlement.
+    description: Billing runs (periodic and final).
   - name: Reports
     description: Periodic summaries, discrepancies, intake anomalies and KPI export.
   - name: Operations
@@ -169,13 +169,80 @@ paths:
         in-platform Payment Element collection (INT-193 / REQ-040), or a
         provider setup link (`mode: link`) as fallback.
       x-served-by: AC-07
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                surface:
+                  type: string
+                  enum: [embedded, hosted]
+                  description: >
+                    A7-bis — embedded Account Session or hosted Connect onboarding
+                    link (REQ-051).
+                returnUrl:
+                  type: string
+                  format: uri
+                  description: Required when surface is hosted.
       responses:
         '200':
-          description: Onboarding session (embedded, elements, or link).
+          description: Onboarding session (embedded, hosted, elements, or link).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OnboardingSession'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /me/identity-verification:
+    post:
+      operationId: createIdentityVerification
+      tags: [Profile]
+      summary: Start Stripe Identity verification for a community manager
+      description: >
+        REQ-051 — community managers verify identity only (not Connect). Returns
+        a hosted verification session URL.
+      x-served-by: AC-07
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                returnUrl:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Identity verification session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityVerificationSession'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /me/kyc:
+    get:
+      operationId: getMyKycStatus
+      tags: [Profile]
+      summary: Read the caller's KYC status
+      description: REQ-045 / REQ-051 — current KYC state for the signed-in member or manager.
+      x-served-by: AC-07
+      responses:
+        '200':
+          description: KYC status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KycStatus'
         '401':
           $ref: './components/schemas.yaml#/components/responses/Unauthorized'
         '403':
@@ -251,12 +318,68 @@ paths:
           $ref: './components/schemas.yaml#/components/responses/Forbidden'
         '404':
           $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /me/payouts:
+    get:
+      operationId: listMyPayouts
+      tags: [Payments]
+      summary: Payout history and withdrawable periods
+      description: >
+        Producer payout history and periods available to withdraw (REQ-015,
+        REQ-060). Only the caller's own payouts (REQ-010).
+      x-served-by: AC-07
+      responses:
+        '200':
+          description: Payout list and withdrawable amounts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayoutList'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+    post:
+      operationId: requestWithdrawal
+      tags: [Payments]
+      summary: Request a payout for a billing period
+      description: >
+        Participant-triggered Connect payout for one period (REQ-015). Refused
+        when prerequisites are not met (REQ-060).
+      x-served-by: AC-07
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [period]
+              properties:
+                period:
+                  $ref: './components/schemas.yaml#/components/schemas/BillingPeriod'
+      responses:
+        '201':
+          description: Payout requested.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payout'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '409':
+          description: Payout refused.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayoutRefused'
   /me/balances:
     get:
       operationId: listMyBalances
       tags: [Balances]
       summary: Unbilled balances per counterpart
-      description: Unbilled amounts of the caller, one row per counterpart (REQ-002, REQ-057).
+      description: Unbilled amounts of the caller, one row per counterpart (REQ-002, REQ-056).
       x-served-by: AC-05
       responses:
         '200':
@@ -287,6 +410,26 @@ paths:
                   $ref: '#/components/schemas/Invoice'
         '401':
           $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+  /me/statements:
+    get:
+      operationId: listMyStatements
+      tags: [Invoices]
+      summary: Billing statements of the caller
+      description: >
+        Monthly participant statements (REQ-059). Lists only the caller's own
+        statements (REQ-010).
+      x-served-by: AC-06
+      responses:
+        '200':
+          description: The caller's billing statements.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Statement'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
   /invoices/{id}:
     get:
       operationId: getInvoice
@@ -314,7 +457,9 @@ paths:
       operationId: getInvoiceDocument
       tags: [Invoices]
       summary: Invoice PDF
-      description: Hosted invoice PDF (REQ-039). The provider sends the document.
+      description: >
+        PDF generated and stored by billing (REQ-039). Caller roles: member or
+        manager.
       x-served-by: AC-06
       parameters:
         - $ref: '#/components/parameters/ResourceId'
@@ -333,6 +478,44 @@ paths:
           $ref: './components/schemas.yaml#/components/responses/Forbidden'
         '404':
           $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /invoices/{id}/reminders:
+    post:
+      operationId: sendInvoiceReminder
+      tags: [Invoices]
+      summary: Send payment reminders for an invoice
+      description: >
+        A community manager triggers reminders for an open invoice (REQ-061).
+        Caller role: manager.
+      x-served-by: AC-06
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '202':
+          description: Reminders accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [invoiceId, reminderCount]
+                properties:
+                  invoiceId:
+                    $ref: './components/schemas.yaml#/components/schemas/Uuid'
+                  reminderCount:
+                    type: integer
+                    minimum: 0
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+        '409':
+          description: Invoice cannot be reminded (Paid, Void or Draft).
+          content:
+            application/json:
+              schema:
+                $ref: './components/schemas.yaml#/components/schemas/Problem'
   /invoices/{id}/payments:
     post:
       operationId: payInvoice
@@ -385,37 +568,6 @@ paths:
           $ref: './components/schemas.yaml#/components/responses/Forbidden'
         '404':
           $ref: './components/schemas.yaml#/components/responses/NotFound'
-  /early-settlements:
-    post:
-      operationId: createEarlySettlement
-      tags: [Balances]
-      summary: Settle early with one producer
-      description: The consumer settles the unbilled balance with the named producer now (REQ-057). The threshold does not apply (BR-05).
-      x-served-by: AC-05
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [producerId]
-              properties:
-                producerId:
-                  $ref: './components/schemas.yaml#/components/schemas/Uuid'
-      responses:
-        '201':
-          description: Early settlement accepted.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BillingRun'
-        '400':
-          $ref: './components/schemas.yaml#/components/responses/BadRequest'
-        '401':
-          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
-        '403':
-          $ref: './components/schemas.yaml#/components/responses/Forbidden'
   /communities/{id}/settings:
     get:
       operationId: getCommunitySettings
@@ -464,9 +616,22 @@ paths:
         '401':
           $ref: './components/schemas.yaml#/components/responses/Unauthorized'
         '403':
-          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+          description: >
+            Live billing mode requires the operator role (REQ-043).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/schemas.yaml#/components/schemas/Problem'
         '404':
           $ref: './components/schemas.yaml#/components/responses/NotFound'
+        '409':
+          description: >
+            Live-mode guard refused the update (`live_keys_missing` when PSP
+            live keys are absent; `live_to_virtual_refused` when downgrading).
+          content:
+            application/problem+json:
+              schema:
+                $ref: './components/schemas.yaml#/components/schemas/Problem'
   /communities/{id}/participants:import:
     post:
       operationId: importParticipants
@@ -675,6 +840,38 @@ paths:
           $ref: './components/schemas.yaml#/components/responses/Forbidden'
         '404':
           $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /communities/{id}/payouts-overview:
+    get:
+      operationId: getPayoutsOverview
+      tags: [Reports]
+      summary: Payout overview of a community
+      description: >
+        Manager view of expected and completed payouts per participant and
+        period (REQ-060). The token community must be this community (REQ-049).
+      x-served-by: AC-09
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+        - name: period
+          in: query
+          required: false
+          description: Filter to one billing period.
+          schema:
+            $ref: './components/schemas.yaml#/components/schemas/BillingPeriod'
+      responses:
+        '200':
+          description: Payout overview rows.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PayoutOverviewRow'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
   /participants/{id}/history:
     get:
       operationId: getParticipantHistory
@@ -720,6 +917,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PeriodicSummary'
+        '400':
+          $ref: './components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+  /reports/payment-methods:
+    get:
+      operationId: getPaymentMethodReport
+      tags: [Reports]
+      summary: Per-method payment KPIs (TE-2)
+      description: >
+        REQ-046 TE-2 — processing time = PSP success webhook time minus
+        submission time; card and SEPA compared; fees from the producer
+        account balance transaction; test-mode fees are provider-simulated.
+      x-served-by: AC-09
+      parameters:
+        - $ref: '#/components/parameters/CommunityIdQuery'
+        - $ref: '#/components/parameters/PeriodQuery'
+      responses:
+        '200':
+          description: Per-method statistics for the period.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethodReport'
         '400':
           $ref: './components/schemas.yaml#/components/responses/BadRequest'
         '401':
@@ -778,7 +1001,11 @@ paths:
       description: >
         CSV file export of the period (REQ-047 invoice amounts/kWh plus REQ-046
         payment failure causes, suggested corrective actions and processing times
-        per method). The later channel is still open in the architecture (03 §7, port P-KPI).
+        per method). Columns include communityId, period, invoiceCount, paidCount,
+        openCount, totalEnergy, totalGridFee, paymentCount, succeededCount,
+        failedCount, medianProcessingTimeMsCard, medianProcessingTimeMsSepa,
+        totalFeeCard, totalFeeSepa, failureCategoryBreakdown. The later channel is
+        still open in the architecture (03 §7, port P-KPI).
       x-served-by: AC-09
       parameters:
         - name: period
@@ -859,6 +1086,38 @@ paths:
           $ref: './components/schemas.yaml#/components/responses/Forbidden'
         '404':
           $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /data-subject-requests/{id}/export:
+    get:
+      operationId: getDataSubjectExport
+      tags: [Privacy]
+      summary: Download the machine-readable DSAR export
+      description: >
+        REQ-013 Art. 15/20 — JSON export assembled on read (Task 3.20). Same
+        access rules as the parent request. Erasure requests or stale exports
+        may return 410.
+      x-served-by: AC-12
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: DSAR export file.
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              description: attachment; filename="dsar-{requestId}.json"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSubjectExport'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+        '410':
+          description: Export no longer available.
   /jobs:
     get:
       operationId: listJobs
@@ -976,6 +1235,15 @@ components:
           $ref: '#/components/schemas/BillingProfile'
         billingMode:
           $ref: './components/schemas.yaml#/components/schemas/BillingMode'
+        kycVerified:
+          type: boolean
+          description: REQ-045 — whether KYC is complete for billing.
+        termsAcceptedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: REQ-050 — when the caller accepted the current terms.
     Terms:
       type: object
       additionalProperties: false
@@ -1018,9 +1286,17 @@ components:
           type: string
           description: Last four digits of the attached card.
           pattern: '^\d{4}$'
-        stripeAccountId:
+        pspAccountRef:
           type: string
-          description: Connect account id for producer/prosumer.
+          description: PSP Connect account reference for producer/prosumer.
+        kycStatus:
+          type: string
+          enum: [none, pending, verified, rejected]
+        kycVerified:
+          type: boolean
+        payoutAccountVerified:
+          type: boolean
+          description: External bank account verified for payouts (REQ-015).
         dashboardUrl:
           type: string
           format: uri
@@ -1040,13 +1316,17 @@ components:
       properties:
         mode:
           type: string
-          enum: [embedded, requirements, link, elements]
+          enum: [embedded, hosted, requirements, link, elements]
         status:
           type: string
           enum: [requirements_due, pending_verification, complete]
-        stripeAccountId:
+        pspAccountRef:
           type: string
-          description: Connect account id once created.
+          description: PSP Connect account reference once created.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Present when mode is hosted or link.
         currentlyDue:
           type: array
           items:
@@ -1193,30 +1473,93 @@ components:
     InvoiceAmounts:
       type: object
       additionalProperties: false
-      required: [energy, vat, total]
+      required: [energy, gridFee, levy, tax, vat, total]
       properties:
         energy:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        gridFee:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        levy:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        tax:
           $ref: './components/schemas.yaml#/components/schemas/Money'
         vat:
           $ref: './components/schemas.yaml#/components/schemas/Money'
         total:
           $ref: './components/schemas.yaml#/components/schemas/Money'
+    Statement:
+      type: object
+      additionalProperties: false
+      required: [statementId, participantId, communityId, period, periodFrom, periodUntil, totalBought, totalSold, netBalance, direction, currency, invoiceIds, status, revision]
+      properties:
+        statementId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        participantId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        period:
+          $ref: './components/schemas.yaml#/components/schemas/BillingPeriod'
+        periodFrom:
+          type: string
+          format: date-time
+        periodUntil:
+          type: string
+          format: date-time
+        totalBought:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        totalSold:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        netBalance:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+          description: Signed net; positive means to receive (REQ-059).
+        direction:
+          type: string
+          enum: [to_pay, to_receive, balanced]
+        currency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+        invoiceIds:
+          type: array
+          items:
+            $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        status:
+          $ref: './components/schemas.yaml#/components/schemas/StatementStatus'
+        revision:
+          type: integer
+          minimum: 1
     Invoice:
       type: object
       additionalProperties: false
-      required: [invoiceId, producerId, consumerId, currency, status, amounts]
+      required:
+        - invoiceId
+        - producerId
+        - consumerId
+        - currency
+        - status
+        - legalNumber
+        - amounts
       properties:
         invoiceId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
         legalNumber:
           type: string
-          description: Provider invoice number, once issued (REQ-042). Absent while Draft.
+          description: >
+            Billing-assigned legal number, sequential per producer (REQ-042).
         producerId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
         consumerId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
         period:
           type: string
+        issueDate:
+          type: string
+          format: date
+        periodFrom:
+          type: string
+          format: date-time
+        periodUntil:
+          type: string
+          format: date-time
         currency:
           $ref: './components/schemas.yaml#/components/schemas/Currency'
         status:
@@ -1224,6 +1567,23 @@ components:
         dueDate:
           type: string
           format: date
+        vatRate:
+          $ref: './components/schemas.yaml#/components/schemas/Rate'
+        exchangeRate:
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [rate, rateDate]
+              properties:
+                rate:
+                  $ref: './components/schemas.yaml#/components/schemas/FxRate'
+                rateDate:
+                  $ref: './components/schemas.yaml#/components/schemas/RateDate'
+        tariffApplied:
+          type: boolean
+        carriedForwardIn:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
         pairSettlementId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
         tradeIds:
@@ -1236,7 +1596,6 @@ components:
           description: >
             REQ-007 — one entry per trade (delivery period, kWh, price per kWh,
             amount). Empty when the invoice settles a carried balance only.
-            Grid fees are never included (A20).
           items:
             $ref: './components/schemas.yaml#/components/schemas/InvoiceTradeLine'
         amounts:
@@ -1270,13 +1629,220 @@ components:
           $ref: './components/schemas.yaml#/components/schemas/PaymentStatus'
         method:
           type: string
+          enum: [card, sepa_debit]
         failureCategory:
+          $ref: '#/components/schemas/PspFailureCategory'
+        checkoutUrl:
           type: string
-          description: Present when the payment failed (REQ-016, REQ-046).
+          format: uri
+          description: Hosted checkout URL when payment requires redirect (A7-bis).
+        initiatedAt:
+          type: string
+          format: date-time
+        settledAt:
+          type: string
+          format: date-time
+        processingTimeMs:
+          type: integer
+          minimum: 0
+        feeAmount:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        feeCurrency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+    PspFailureCategory:
+      type: string
+      enum:
+        - card_declined
+        - insufficient_funds
+        - authentication_required
+        - mandate_invalid
+        - bank_account_invalid
+        - provider_error
+        - other
+    PaymentMethodStats:
+      type: object
+      additionalProperties: false
+      required:
+        - method
+        - feeCurrency
+        - count
+        - succeededCount
+        - failedCount
+        - pendingCount
+        - successRate
+        - medianProcessingTimeMs
+        - totalFee
+        - averageFee
+        - feeMissingCount
+      properties:
+        method:
+          type: string
+          enum: [card, sepa_debit]
+        feeCurrency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+        count:
+          type: integer
+          minimum: 0
+        succeededCount:
+          type: integer
+          minimum: 0
+        failedCount:
+          type: integer
+          minimum: 0
+        pendingCount:
+          type: integer
+          minimum: 0
+        successRate:
+          oneOf:
+            - type: number
+            - type: 'null'
+        medianProcessingTimeMs:
+          oneOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+        totalFee:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        averageFee:
+          oneOf:
+            - $ref: './components/schemas.yaml#/components/schemas/Money'
+            - type: 'null'
+        feeMissingCount:
+          type: integer
+          minimum: 0
+    PaymentMethodReport:
+      type: object
+      additionalProperties: false
+      required: [communityId, period, rows]
+      properties:
+        communityId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        period:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentMethodStats'
+    KycStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - subjectId
+        - subjectType
+        - kycStatus
+        - kycVerified
+        - method
+        - updatedAt
+      properties:
+        subjectId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        subjectType:
+          type: string
+          enum: [participant, manager]
+        kycStatus:
+          type: string
+          enum: [none, pending, verified, rejected]
+        kycVerified:
+          type: boolean
+        method:
+          type: string
+          enum: [connect_onboarding, identity_document]
+        updatedAt:
+          type: string
+          format: date-time
+    IdentityVerificationSession:
+      type: object
+      additionalProperties: false
+      required: [verificationId, url, status]
+      properties:
+        verificationId:
+          type: string
+        url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum: [requires_input, processing, verified, canceled]
+    DataSubjectExport:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - requestId
+        - producedAt
+        - controller
+        - participant
+        - invoices
+        - dataSubjectRequests
+        - retention
+      properties:
+        schemaVersion:
+          type: string
+          const: '1.0'
+        requestId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        producedAt:
+          type: string
+          format: date-time
+        controller:
+          type: object
+          additionalProperties: false
+          required: [communityId]
+          properties:
+            communityId:
+              $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        participant:
+          $ref: '#/components/schemas/DsarParticipantProfile'
+        paymentAccount:
+          oneOf:
+            - $ref: '#/components/schemas/DsarPaymentAccount'
+            - type: 'null'
+        invoices:
+          type: array
+          items:
+            $ref: '#/components/schemas/DsarInvoiceSummary'
+        dataSubjectRequests:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [requestId, type, status, createdAt]
+            properties:
+              requestId:
+                $ref: './components/schemas.yaml#/components/schemas/Uuid'
+              type:
+                type: string
+              status:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+        retention:
+          $ref: '#/components/schemas/RetentionPolicy'
+    DsarParticipantProfile:
+      type: object
+      additionalProperties: true
+      description: REQ-013 — participant personal data (see Task 3.18).
+    DsarPaymentAccount:
+      type: object
+      additionalProperties: true
+      description: REQ-013 — payment-account personal data (see Task 3.18).
+    DsarInvoiceSummary:
+      type: object
+      additionalProperties: true
+      description: Invoice row with retainedUntil (REQ-013).
+    RetentionPolicy:
+      type: object
+      additionalProperties: false
+      required: [invoiceRetentionYears]
+      properties:
+        invoiceRetentionYears:
+          type: integer
+          minimum: 1
     CommunitySettings:
       type: object
       additionalProperties: false
-      required: [communityId, currency, billingPeriod, threshold, vatRate, billingMode]
+      required: [communityId, currency, billingPeriod, threshold, vatRate, billingMode, autoPayout]
       properties:
         communityId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
@@ -1291,6 +1857,17 @@ components:
           $ref: './components/schemas.yaml#/components/schemas/Rate'
         billingMode:
           $ref: './components/schemas.yaml#/components/schemas/BillingMode'
+        autoPayout:
+          type: boolean
+          description: When true, AC-07 pays out producers automatically (REQ-015).
+        managerContactEmail:
+          type: string
+          format: email
+          description: Manager inbox for payment alerts (REQ-061).
+        tariffBilling:
+          type: boolean
+          default: false
+          description: When true, grid-fee and levy lines apply (REQ-004).
     CommunitySettingsWrite:
       type: object
       additionalProperties: false
@@ -1306,6 +1883,16 @@ components:
           $ref: './components/schemas.yaml#/components/schemas/Rate'
         billingMode:
           $ref: './components/schemas.yaml#/components/schemas/BillingMode'
+        autoPayout:
+          type: boolean
+          default: false
+          description: When true, AC-07 pays out producers automatically (REQ-015).
+        managerContactEmail:
+          type: string
+          format: email
+        tariffBilling:
+          type: boolean
+          default: false
     ParticipantImport:
       type: object
       additionalProperties: false
@@ -1406,7 +1993,7 @@ components:
     PeriodicSummary:
       type: object
       additionalProperties: false
-      required: [communityId, period, invoiceCount, paymentCount, total]
+      required: [communityId, period, invoiceCount, paymentCount, total, paidOut]
       properties:
         communityId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
@@ -1422,6 +2009,97 @@ components:
           minimum: 0
         total:
           $ref: './components/schemas.yaml#/components/schemas/Money'
+        paidOut:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+          description: Connect payouts completed in the period (REQ-060).
+    Payout:
+      type: object
+      additionalProperties: false
+      required:
+        - payoutId
+        - participantId
+        - period
+        - amount
+        - currency
+        - status
+        - trigger
+        - requestedAt
+      properties:
+        payoutId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        participantId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        period:
+          $ref: './components/schemas.yaml#/components/schemas/BillingPeriod'
+        amount:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        currency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+        status:
+          $ref: './components/schemas.yaml#/components/schemas/PayoutStatus'
+        trigger:
+          type: string
+          enum: [participant, auto]
+        requestedAt:
+          type: string
+          format: date-time
+        arrivalDate:
+          type: string
+          format: date
+        failureCategory:
+          type: string
+    PayoutList:
+      type: object
+      additionalProperties: false
+      required: [items, withdrawable]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payout'
+        withdrawable:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [period, amount, currency]
+            properties:
+              period:
+                $ref: './components/schemas.yaml#/components/schemas/BillingPeriod'
+              amount:
+                $ref: './components/schemas.yaml#/components/schemas/Money'
+              currency:
+                $ref: './components/schemas.yaml#/components/schemas/Currency'
+    PayoutOverviewRow:
+      type: object
+      additionalProperties: false
+      required: [participantId, period, expectedAmount, currency, status]
+      properties:
+        participantId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        period:
+          $ref: './components/schemas.yaml#/components/schemas/BillingPeriod'
+        expectedAmount:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        currency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+        status:
+          type: string
+          enum: [completed, open]
+        payoutId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        paidOutAmount:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        payoutStatus:
+          $ref: './components/schemas.yaml#/components/schemas/PayoutStatus'
+    PayoutRefused:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          enum: [kyc_required, statement_not_found, producer_invoices_unpaid, nothing_to_pay_out, funds_pending]
     Discrepancy:
       type: object
       additionalProperties: false

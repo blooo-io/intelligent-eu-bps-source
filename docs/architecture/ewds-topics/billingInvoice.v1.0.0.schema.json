@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://intelligent-project.eu/schema/v1.0.0/billing/billingInvoice",
   "title": "billingInvoice",
-  "description": "EWDS topic published by the Billing & Payment Service (Blooo, T5.6) for every issued or updated invoice. One invoice covers the settled trades between one consumer and one producer for a billing period (or an early settlement); it is issued by the platform in the name of the producer (self-billing). Derived from int:Invoice (schemas/v1.0.0/billing/Invoice.json) with billing extensions. Contains no personal data: parties are Actor UUIDs only; the legal invoice number, PSP data and grid fees are not published. DRAFT proposed by Blooo to EWAG.",
+  "description": "EWDS topic published by the Billing & Payment Service (Blooo, T5.6) for every issued or updated invoice. One invoice covers the settled trades between one consumer and one producer for a billing period; it is issued by the platform in the name of the producer (self-billing). Derived from int:Invoice (schemas/v1.0.0/billing/Invoice.json) with billing extensions. Contains no personal data: parties are Actor UUIDs only; the legal invoice number, PSP data and grid fees are not published. DRAFT proposed by Blooo to EWAG.",
   "type": "object",
   "properties": {
     "invoiceId": {
@@ -20,8 +20,13 @@
       "type": "string",
       "format": "uuid"
     },
+    "issuerStatementId": {
+      "description": "[Extension] statementId of the producer (issuer) for this period. Pair invoices appear on consumer billingId and producer issuerStatementId.",
+      "type": "string",
+      "format": "uuid"
+    },
     "billingMode": {
-      "description": "[Extension] live = real money; virtual = computed and paid in the payment provider's test environment only (all communities in D5.5 V1).",
+      "description": "[Extension] live = real money; virtual = computed and paid in the payment provider's test environment only (per-community billingMode).",
       "type": "string",
       "enum": [
         "live",
@@ -29,11 +34,10 @@
       ]
     },
     "settlementType": {
-      "description": "[Extension] periodic = end-of-period invoice; early = early settlement requested by the consumer; final = forced invoice (year end or participant exit).",
+      "description": "[Extension] periodic = end-of-period invoice; final = forced invoice (year end or participant exit). Early settlement removed (REQ-057 deprecated).",
       "type": "string",
       "enum": [
         "periodic",
-        "early",
         "final"
       ]
     },
@@ -90,7 +94,7 @@
       "minimum": 0
     },
     "totalAmount": {
-      "description": "energyAmount + taxAmount (gridFeeAmount is 0 in D5.5). IRI: int:totalAmount.",
+      "description": "energyAmount + gridFeeAmount + taxAmount (REQ-004). IRI: int:totalAmount.",
       "type": "number",
       "minimum": 0
     },
@@ -105,10 +109,14 @@
       "minimum": 0
     },
     "gridFeeAmount": {
-      "description": "IRI: int:gridFeeAmount. Always 0 in D5.5: grid fees, taxes and levies stay on the supplier/DSO bill (assumption A20).",
+      "description": "IRI: int:gridFeeAmount. May be 0 when tariffBilling is off (A10.2); never on P2P legal invoices when not published.",
       "type": "number",
-      "minimum": 0,
-      "maximum": 0
+      "minimum": 0
+    },
+    "gridFeeStatus": {
+      "description": "[Extension] Whether a non-zero grid fee was applied on this EWDS record (REQ-004).",
+      "type": "string",
+      "enum": ["applied", "not_published"]
     },
     "taxAmount": {
       "description": "VAT on the energy amount (rate per community, 0 by default). IRI: int:taxAmount.",
@@ -211,7 +219,9 @@
   "required": [
     "invoiceId",
     "billingId",
+    "issuerStatementId",
     "communityId",
+    "gridFeeStatus",
     "billingMode",
     "settlementType",
     "billingPeriodFrom",

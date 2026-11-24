@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Reference data internal API
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Module-to-module commands of AC-13 (03 §3.2 and 02 §4.5). Never exposed to clients.
   license:
@@ -70,6 +70,45 @@ paths:
                     $ref: '../components/schemas.yaml#/components/schemas/Rate'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /communities/{communityId}/tariff:
+    get:
+      operationId: getTariff
+      tags: [ReferenceData]
+      summary: Read the community tariff for a date
+      description: GetTariff(communityId, date). Called by AC-05 (REQ-004).
+      parameters:
+        - name: communityId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Tariff effective on the date, or null when none applies.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [communityId, date, tariff]
+                properties:
+                  communityId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  date:
+                    type: string
+                    format: date
+                  tariff:
+                    oneOf:
+                      - $ref: '#/components/schemas/Tariff'
+                      - type: 'null'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /rates:fetch:
     post:
       operationId: fetchRates
@@ -109,7 +148,46 @@ components:
           type: string
           format: date
         rate:
-          $ref: '../components/schemas.yaml#/components/schemas/Rate'
+          $ref: '../components/schemas.yaml#/components/schemas/FxRate'
         source:
           type: string
           description: Fixture in V1, ECB later (03 §7, port P-FX).
+    Tariff:
+      type: object
+      additionalProperties: false
+      required:
+        - tariffId
+        - communityId
+        - currency
+        - validFrom
+        - validUntil
+        - gridFeePerKWh
+        - levyPerKWh
+        - taxPerKWh
+        - source
+      properties:
+        tariffId:
+          type: string
+        communityId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        currency:
+          $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        validFrom:
+          type: string
+          format: date
+          description: Inclusive start (YYYY-MM-DD).
+        validUntil:
+          oneOf:
+            - type: string
+              format: date
+              description: Exclusive end (YYYY-MM-DD).
+            - type: 'null'
+        gridFeePerKWh:
+          $ref: '../components/schemas.yaml#/components/schemas/UnitPrice'
+        levyPerKWh:
+          $ref: '../components/schemas.yaml#/components/schemas/UnitPrice'
+        taxPerKWh:
+          $ref: '../components/schemas.yaml#/components/schemas/UnitPrice'
+        source:
+          type: string
+          enum: [mock, ewds]

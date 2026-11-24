@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-project.eu/schema/v1.0.0/billing/billingPayout",
+  "title": "billingPayout",
+  "description": "EWDS topic: producer payout from Connect account to bank. No IBAN or bank name. DRAFT v0.2 (INT-423).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "payoutId",
+    "actorId",
+    "communityId",
+    "billingMode",
+    "amount",
+    "currency",
+    "payoutStatus",
+    "trigger",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "payoutId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "actorId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "communityId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "billingMode": {
+      "type": "string",
+      "enum": ["live", "virtual"]
+    },
+    "amount": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "payoutStatus": {
+      "type": "string",
+      "enum": [
+        "requested",
+        "pending",
+        "in_transit",
+        "paid",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "trigger": {
+      "type": "string",
+      "enum": ["manual", "auto"]
+    },
+    "statementIds": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" }
+    },
+    "arrivalDate": {
+      "type": ["string", "null"],
+      "format": "date"
+    },
+    "failureCategory": {
+      "type": ["string", "null"],
+      "enum": [
+        "account_closed",
+        "invalid_account",
+        "insufficient_balance",
+        "provider_error",
+        "other",
+        null
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

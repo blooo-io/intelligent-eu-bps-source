@@ -72,6 +72,8 @@ spec:
         paths:
           - /v1/me/payment-account
           - /v1/me/payment-account/*
+          - /v1/me/payouts
+          - /v1/me/payouts/*
           - /v1/invoices/*/payments
           - /v1/invoices/*/payments/*
       backends:
@@ -87,8 +89,6 @@ spec:
         paths:
           - /v1/me/balances
           - /v1/me/balances/*
-          - /v1/early-settlements
-          - /v1/early-settlements/*
           - /v1/billing-runs
           - /v1/billing-runs/*
           # INT-211 — more specific than participants /v1/communities/* (priority 50).
@@ -107,6 +107,8 @@ spec:
         paths:
           - /v1/me/invoices
           - /v1/me/invoices/*
+          - /v1/me/statements
+          - /v1/me/statements/*
           - /v1/invoices
           - /v1/invoices/*
       backends:
@@ -127,6 +129,7 @@ spec:
           - /v1/kpi-exports
           - /v1/kpi-exports/*
           - /v1/communities/*/payments-overview
+          - /v1/communities/*/payouts-overview
           - /v1/participants/*/history
       backends:
         - serviceName: reporting

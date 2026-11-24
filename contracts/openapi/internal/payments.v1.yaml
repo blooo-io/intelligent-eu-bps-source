@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Payments internal API
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Module-to-module commands of AC-07 (03 §3.2). Never exposed to clients.
     Stripe Connect is master of producer accounts (TP-7); callers must not invent
@@ -66,19 +66,14 @@ paths:
                 $ref: '#/components/schemas/PaymentAccount'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
-  /connected-customers:ensure:
+  /payouts:run-auto:
     post:
-      operationId: ensureConnectedCustomer
+      operationId: runAutoPayouts
       tags: [Payments]
-      summary: Get or create the consumer's Customer on a producer Connect account
+      summary: Run automatic community payouts
       description: >
-        INT-355 / REQ-014 — returns the Stripe Customer that represents the
-        consumer on the producer's connected account, creating it on first use.
-        One Customer per (consumer, connected account), reused for every invoice
-        of that pair. Called by AC-06 before creating the self-billing Stripe
-        invoice so that AC-07 can later pay that invoice on the connected account
-        (direct charge). AC-07 owns the mapping; the Customer carries only the
-        participantId in metadata (no personal data). Idempotent.
+        Enqueues payout requests for producers in a community with autoPayout
+        enabled (REQ-015). Called by AC-14 RunAutoPayouts.
       requestBody:
         required: true
         content:
@@ -86,21 +81,28 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [participantId, stripeAccountId]
+              required: [communityId]
               properties:
-                participantId:
+                communityId:
                   $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-                stripeAccountId:
-                  type: string
-                  pattern: '^acct_'
-                  description: Producer Connect account id (acct_…).
       responses:
-        '200':
-          description: Connected-account Customer for this consumer.
+        '202':
+          description: Auto-payout run accepted.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConnectedCustomer'
+                type: object
+                additionalProperties: false
+                required: [requested, blocked]
+                properties:
+                  requested:
+                    type: integer
+                    minimum: 0
+                    description: Payouts enqueued.
+                  blocked:
+                    type: integer
+                    minimum: 0
+                    description: Producers skipped (prerequisites not met).
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
   /payment-accounts:provision:
@@ -149,21 +151,240 @@ paths:
                 $ref: '#/components/schemas/PaymentAccount'
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /payments:start:
+    post:
+      operationId: startPayment
+      tags: [Payments]
+      summary: Start paying an open invoice (EWDS startPayment target)
+      description: >
+        REQ-052 / REQ-014 / A7-bis — create or resume a payment for an invoice.
+        Returns payment status and an optional PspHandoff when authentication or
+        payment-method entry is required (hosted URL or embedded clientSecret).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [invoiceId, actorId, surface]
+              properties:
+                invoiceId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                actorId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                surface:
+                  type: string
+                  enum: [hosted, embedded]
+                  default: hosted
+                returnUrl:
+                  type: string
+                  format: uri
+                  description: Required when surface is hosted (Checkout return).
+      responses:
+        '200':
+          description: Payment started or completed off-session.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [paymentId, status]
+                properties:
+                  paymentId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  status:
+                    type: string
+                    enum: [succeeded, processing, requires_action]
+                  handoff:
+                    $ref: '../components/schemas.yaml#/components/schemas/PspHandoff'
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /payouts:request:
+    post:
+      operationId: requestWithdrawal
+      tags: [Payments]
+      summary: Request a producer payout for the open period (EWDS requestWithdrawal)
+      description: REQ-015 — manual or policy-driven withdrawal after producer invoices are paid.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [actorId, currency]
+              properties:
+                actorId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                currency:
+                  $ref: '../components/schemas.yaml#/components/schemas/Currency'
+      responses:
+        '200':
+          description: Payout recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [payoutId, payoutStatus, amount, currency]
+                properties:
+                  payoutId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  payoutStatus:
+                    type: string
+                  amount:
+                    $ref: '../components/schemas.yaml#/components/schemas/Money'
+                  currency:
+                    $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '409':
+          description: Prerequisites not met (e.g. unpaid producer invoices).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../components/schemas.yaml#/components/schemas/Problem'
+  /kyc:start:
+    post:
+      operationId: startKyc
+      tags: [Payments]
+      summary: Start Connect or Identity verification (EWDS startKyc target)
+      description: >
+        REQ-051 / A7-bis — returns a PspHandoff for Connect onboarding
+        (connect_account) or Stripe Identity (identity).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [actorId, kind, surface]
+              properties:
+                actorId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                kind:
+                  type: string
+                  enum: [connect_account, identity]
+                surface:
+                  type: string
+                  enum: [hosted, embedded]
+                  default: hosted
+                returnUrl:
+                  type: string
+                  format: uri
+                refreshUrl:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Verification session created.
+          content:
+            application/json:
+              schema:
+                $ref: '../components/schemas.yaml#/components/schemas/PspHandoff'
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /kyc-status/{subjectId}:
+    get:
+      operationId: getKycStatus
+      tags: [Payments]
+      summary: Read KYC status for a subject
+      description: REQ-045 / REQ-051 — used by AC-03 and compliance export.
+      parameters:
+        - name: subjectId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: KYC status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KycStatus'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /psp/capabilities:
+    get:
+      operationId: getPspCapabilities
+      tags: [Payments]
+      summary: Whether test and live PSP keys are configured
+      description: REQ-043 — checked before switching billingMode to live.
+      responses:
+        '200':
+          description: PSP capability flags.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [provider, testConfigured, liveConfigured]
+                properties:
+                  provider:
+                    type: string
+                    enum: [stripe, mock]
+                  testConfigured:
+                    type: boolean
+                  liveConfigured:
+                    type: boolean
+  /payment-accounts/{participantId}/personal-data:
+    get:
+      operationId: getPaymentAccountPersonalData
+      tags: [Payments]
+      summary: Payment-account personal data for DSAR
+      description: REQ-013 — service-only (Task 3.18).
+      parameters:
+        - name: participantId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Payment-account personal data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentAccountPersonalData'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /payment-accounts/{participantId}:erase-at-psp:
+    post:
+      operationId: erasePaymentAccountAtPsp
+      tags: [Payments]
+      summary: Erase payment data at the PSP
+      description: REQ-013 — deletes customers; Connect account in test mode only.
+      parameters:
+        - name: participantId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Erasure outcome.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [outcome]
+                properties:
+                  outcome:
+                    type: string
+                    enum: [erased, retained_by_psp, nothing_to_erase]
+                  reason:
+                    type: string
+                    enum: [aml_legal_obligation]
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
 components:
   schemas:
-    ConnectedCustomer:
-      type: object
-      additionalProperties: false
-      required: [participantId, stripeAccountId, stripeCustomerId]
-      properties:
-        participantId:
-          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-        stripeAccountId:
-          type: string
-          description: Producer Connect account id (acct_…).
-        stripeCustomerId:
-          type: string
-          description: Customer id (cus_…) on that connected account.
     PaymentStatus:
       type: object
       additionalProperties: false
@@ -183,9 +404,9 @@ components:
       properties:
         participantId:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'
-        stripeAccountId:
+        pspAccountRef:
           type: [string, "null"]
-          description: Connect account id (acct_…) when role is producer/prosumer.
+          description: PSP Connect account reference when role is producer/prosumer.
         paymentMethodId:
           type: [string, "null"]
           description: Consumer payment method id when present.
@@ -198,7 +419,74 @@ components:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'
         chargesEnabled:
           type: boolean
-          description: Stripe charges_enabled when known (producer).
+          description: PSP charges enabled when known (producer).
+    KycStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - subjectId
+        - subjectType
+        - kycStatus
+        - kycVerified
+        - method
+        - updatedAt
+        - payoutAccountVerified
+      properties:
+        subjectId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        subjectType:
+          type: string
+          enum: [participant, manager]
+        kycStatus:
+          type: string
+          enum: [none, pending, verified, rejected]
+        kycVerified:
+          type: boolean
+        method:
+          type: string
+          enum: [connect_onboarding, identity_document]
+        updatedAt:
+          type: string
+          format: date-time
+        payoutAccountVerified:
+          type: boolean
+    PaymentAccountPersonalData:
+      type: object
+      additionalProperties: false
+      required:
+        - participantId
+        - pspAccountRef
+        - paymentMethodPresent
+        - kycStatus
+        - kycVerified
+        - payoutAccountVerified
+        - kycLog
+      properties:
+        participantId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        pspAccountRef:
+          oneOf:
+            - type: string
+            - type: 'null'
+        paymentMethodPresent:
+          type: boolean
+        kycStatus:
+          type: string
+          enum: [none, pending, verified, rejected]
+        kycVerified:
+          type: boolean
+        kycVerifiedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        payoutAccountVerified:
+          type: boolean
+        kycLog:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
   securitySchemes:
     serviceAuth:
       $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'

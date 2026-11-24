@@ -25,7 +25,8 @@ paths:
       summary: Receive a payment-provider event
       description: >
         Accepts a signed provider event. The body is the provider payload and is not interpreted
-        beyond signature verification (TD-6, NFR-015).
+        beyond signature verification (TD-6, NFR-015). Connect payout webhooks handled by AC-07
+        include payout.created, payout.updated, payout.paid, payout.failed and payout.canceled.
       requestBody:
         required: true
         content:

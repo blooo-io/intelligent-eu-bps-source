@@ -138,6 +138,26 @@ export const PUBLIC_OPERATIONS: readonly PublicOperation[] = [
     }
   },
   {
+    "operationId": "listMyPayouts",
+    "method": "GET",
+    "path": "/me/payouts",
+    "tag": "Payments",
+    "summary": "Payout history and withdrawable periods",
+    "params": [],
+    "body": null
+  },
+  {
+    "operationId": "requestWithdrawal",
+    "method": "POST",
+    "path": "/me/payouts",
+    "tag": "Payments",
+    "summary": "Request a payout for a billing period",
+    "params": [],
+    "body": {
+      "period": ""
+    }
+  },
+  {
     "operationId": "listMyBalances",
     "method": "GET",
     "path": "/me/balances",
@@ -260,7 +280,8 @@ export const PUBLIC_OPERATIONS: readonly PublicOperation[] = [
       "billingPeriod": "",
       "threshold": "",
       "vatRate": "",
-      "billingMode": "live"
+      "billingMode": "live",
+      "autoPayout": false
     }
   },
   {
@@ -381,6 +402,26 @@ export const PUBLIC_OPERATIONS: readonly PublicOperation[] = [
         "in": "path",
         "name": "id",
         "required": true
+      }
+    ],
+    "body": null
+  },
+  {
+    "operationId": "getPayoutsOverview",
+    "method": "GET",
+    "path": "/communities/{id}/payouts-overview",
+    "tag": "Reports",
+    "summary": "Payout overview of a community",
+    "params": [
+      {
+        "in": "path",
+        "name": "id",
+        "required": true
+      },
+      {
+        "in": "query",
+        "name": "period",
+        "required": false
       }
     ],
     "body": null

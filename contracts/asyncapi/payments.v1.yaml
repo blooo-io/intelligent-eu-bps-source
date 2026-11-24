@@ -21,6 +21,12 @@ channels:
     messages:
       PaymentStatusChanged:
         $ref: '#/components/messages/PaymentStatusChanged'
+  PayoutStatusChanged:
+    address: PayoutStatusChanged
+    description: Consumed by AC-09, AC-10 and AC-11.
+    messages:
+      PayoutStatusChanged:
+        $ref: '#/components/messages/PayoutStatusChanged'
   ErasureCompleted:
     address: ErasureCompleted
     description: Consumed by AC-12.
@@ -40,6 +46,12 @@ operations:
       $ref: '#/channels/PaymentStatusChanged'
     messages:
       - $ref: '#/channels/PaymentStatusChanged/messages/PaymentStatusChanged'
+  publishPayoutStatusChanged:
+    action: send
+    channel:
+      $ref: '#/channels/PayoutStatusChanged'
+    messages:
+      - $ref: '#/channels/PayoutStatusChanged/messages/PayoutStatusChanged'
   publishErasureCompleted:
     action: send
     channel:
@@ -134,6 +146,53 @@ components:
                     type: integer
                     minimum: 0
                     description: End-to-end processing time in milliseconds (REQ-046 / KPI TE-2).
+    PayoutStatusChanged:
+      name: PayoutStatusChanged
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: PayoutStatusChanged
+              producer:
+                const: AC-07
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - payoutId
+                  - participantId
+                  - period
+                  - amount
+                  - currency
+                  - status
+                properties:
+                  payoutId:
+                    type: "string"
+                    format: "uuid"
+                  participantId:
+                    type: "string"
+                    format: "uuid"
+                  period:
+                    type: "string"
+                  amount:
+                    type: "string"
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                  currency:
+                    type: "string"
+                    pattern: "^[A-Z]{3}$"
+                  status:
+                    type: "string"
+                    enum:
+                      - "requested"
+                      - "in_transit"
+                      - "paid"
+                      - "failed"
+                      - "canceled"
+                  failureCategory:
+                    type: "string"
     ErasureCompleted:
       name: ErasureCompleted
       contentType: application/json

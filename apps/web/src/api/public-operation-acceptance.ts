@@ -15,6 +15,8 @@ export const ACCEPTED_STATUSES: Readonly<Record<string, readonly number[]>> = {
   attachMyPaymentMethod: [200],
   // Deprecated KYC submit. A consumer is rejected with the documented 400.
   submitPaymentOnboardingRequirements: [200, 400],
+  listMyPayouts: [200],
+  requestWithdrawal: [201, 409],
   listMyBalances: [200],
   listMyInvoices: [200],
   listMyStatements: [200],
@@ -32,6 +34,7 @@ export const ACCEPTED_STATUSES: Readonly<Record<string, readonly number[]>> = {
   startBillingRun: [202],
   getBillingRun: [200],
   getPaymentsOverview: [200],
+  getPayoutsOverview: [200, 403],
   getParticipantHistory: [200],
   getPeriodicSummary: [200],
   listDiscrepancies: [200],

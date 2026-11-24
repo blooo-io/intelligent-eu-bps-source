@@ -72,6 +72,8 @@ spec:
         paths:
           - /v1/me/payment-account
           - /v1/me/payment-account/*
+          - /v1/me/payouts
+          - /v1/me/payouts/*
           - /v1/invoices/*/payments
           - /v1/invoices/*/payments/*
       backends:
@@ -127,6 +129,7 @@ spec:
           - /v1/kpi-exports
           - /v1/kpi-exports/*
           - /v1/communities/*/payments-overview
+          - /v1/communities/*/payouts-overview
           - /v1/participants/*/history
       backends:
         - serviceName: reporting

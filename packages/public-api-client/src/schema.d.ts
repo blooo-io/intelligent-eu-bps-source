@@ -165,6 +165,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Payout history and withdrawable periods
+         * @description Producer payout history and periods available to withdraw (REQ-015, REQ-060). Only the caller's own payouts (REQ-010).
+         */
+        get: operations["listMyPayouts"];
+        put?: never;
+        /**
+         * Request a payout for a billing period
+         * @description Participant-triggered Connect payout for one period (REQ-015). Refused when prerequisites are not met (REQ-060).
+         */
+        post: operations["requestWithdrawal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/balances": {
         parameters: {
             query?: never;
@@ -461,6 +485,26 @@ export interface paths {
          * @description Manager view of payments in the community (REQ-018). The token community must be this community (REQ-049 / UAT-060). Lists use the provider read cache (TD-6).
          */
         get: operations["getPaymentsOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/communities/{id}/payouts-overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Payout overview of a community
+         * @description Manager view of expected and completed payouts per participant and period (REQ-060). The token community must be this community (REQ-049).
+         */
+        get: operations["getPayoutsOverview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -836,6 +880,8 @@ export interface components {
             threshold: components["schemas"]["Money"];
             vatRate: components["schemas"]["Rate"];
             billingMode: components["schemas"]["BillingMode"];
+            /** @description When true, AC-07 pays out producers automatically (REQ-015). */
+            autoPayout: boolean;
         };
         CommunitySettingsWrite: {
             currency: components["schemas"]["Currency"];
@@ -843,6 +889,11 @@ export interface components {
             threshold: components["schemas"]["Money"];
             vatRate: components["schemas"]["Rate"];
             billingMode: components["schemas"]["BillingMode"];
+            /**
+             * @description When true, AC-07 pays out producers automatically (REQ-015).
+             * @default false
+             */
+            autoPayout: boolean;
         };
         ParticipantImport: {
             /** Format: email */
@@ -901,6 +952,46 @@ export interface components {
             invoiceCount: number;
             paymentCount: number;
             total: components["schemas"]["Money"];
+            /** @description Connect payouts completed in the period (REQ-060). */
+            paidOut: components["schemas"]["Money"];
+        };
+        Payout: {
+            payoutId: components["schemas"]["Uuid"];
+            participantId: components["schemas"]["Uuid"];
+            period: components["schemas"]["BillingPeriod"];
+            amount: components["schemas"]["Money"];
+            currency: components["schemas"]["Currency"];
+            status: components["schemas"]["PayoutStatus"];
+            /** @enum {string} */
+            trigger: "participant" | "auto";
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date */
+            arrivalDate?: string;
+            failureCategory?: string;
+        };
+        PayoutList: {
+            items: components["schemas"]["Payout"][];
+            withdrawable: {
+                period: components["schemas"]["BillingPeriod"];
+                amount: components["schemas"]["Money"];
+                currency: components["schemas"]["Currency"];
+            }[];
+        };
+        PayoutOverviewRow: {
+            participantId: components["schemas"]["Uuid"];
+            period: components["schemas"]["BillingPeriod"];
+            expectedAmount: components["schemas"]["Money"];
+            currency: components["schemas"]["Currency"];
+            /** @enum {string} */
+            status: "completed" | "open";
+            payoutId?: components["schemas"]["Uuid"];
+            paidOutAmount?: components["schemas"]["Money"];
+            payoutStatus?: components["schemas"]["PayoutStatus"];
+        };
+        PayoutRefused: {
+            /** @enum {string} */
+            reason: "kyc_required" | "statement_not_found" | "producer_invoices_unpaid" | "nothing_to_pay_out" | "funds_pending";
         };
         Discrepancy: {
             /**
@@ -969,6 +1060,12 @@ export interface components {
             detail?: string;
         };
         /**
+         * @description Billing period of the community calendar, YYYY-MM (monthly) or YYYY-Qn (quarterly) (REQ-006).
+         * @example 2026-11
+         * @example 2026-Q4
+         */
+        BillingPeriod: string;
+        /**
          * @description Decimal amount rounded to the cent (BR-08).
          * @example 5.00
          */
@@ -978,6 +1075,11 @@ export interface components {
          * @example EUR
          */
         Currency: string;
+        /**
+         * @description Connect payout lifecycle (REQ-015, REQ-060).
+         * @enum {string}
+         */
+        PayoutStatus: "requested" | "in_transit" | "paid" | "failed" | "canceled";
         /**
          * @description Invoice lifecycle (REQ-044, 02 §5).
          * @enum {string}
@@ -1001,12 +1103,6 @@ export interface components {
             pricePerKWh: components["schemas"]["Money"];
             amount: components["schemas"]["Money"];
         };
-        /**
-         * @description Billing period of the community calendar, YYYY-MM (monthly) or YYYY-Qn (quarterly) (REQ-006).
-         * @example 2026-11
-         * @example 2026-Q4
-         */
-        BillingPeriod: string;
         /**
          * @description Participant billing statement lifecycle (REQ-059). Ontology billingStatus without Disputed.
          * @enum {string}
@@ -1036,7 +1132,7 @@ export interface components {
          * @description Scheduled job owned by a module (02 §4.5).
          * @enum {string}
          */
-        JobName: "RefreshIntake" | "CheckIntakeHealth" | "StartRun" | "MarkOverdue" | "Reconcile" | "BuildReport" | "ExportKpi" | "RetryPending" | "PurgeCache" | "ApplyRetention" | "FetchRates";
+        JobName: "RefreshIntake" | "CheckIntakeHealth" | "StartRun" | "MarkOverdue" | "Reconcile" | "BuildReport" | "ExportKpi" | "RetryPending" | "PurgeCache" | "ApplyRetention" | "FetchRates" | "RunAutoPayouts";
     };
     responses: {
         /** @description Missing or invalid bearer token. */
@@ -1290,6 +1386,65 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listMyPayouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payout list and withdrawable amounts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    requestWithdrawal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    period: components["schemas"]["BillingPeriod"];
+                };
+            };
+        };
+        responses: {
+            /** @description Payout requested. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payout"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Payout refused. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutRefused"];
+                };
+            };
         };
     };
     listMyBalances: {
@@ -1713,6 +1868,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Payment"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPayoutsOverview: {
+        parameters: {
+            query?: {
+                /** @description Filter to one billing period. */
+                period?: components["schemas"]["BillingPeriod"];
+            };
+            header?: never;
+            path: {
+                /** @description Resource identifier. */
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payout overview rows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutOverviewRow"][];
                 };
             };
             401: components["responses"]["Unauthorized"];

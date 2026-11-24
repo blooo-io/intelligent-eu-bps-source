@@ -793,7 +793,7 @@ describe("PaymentsService", () => {
       const [p1, p2, p3] = psp.paymentInputs;
       expect(p1).toMatchObject({
         pspInvoiceRef: "in_inv-dc-1",
-        producerPspAccountRef: "acct_p1",
+        pspAccountRef: "acct_p1",
         pspPaymentMethodRef: "pm_card_visa",
         pspCustomerRef: psp.connectedCustomers[0]!.pspCustomerRef,
       });
@@ -805,7 +805,7 @@ describe("PaymentsService", () => {
       putInvoice("inv-dc-none", "acct_p1", { pspInvoiceRef: undefined });
       await expect(
         service.payInvoice({ invoiceId: "inv-dc-none", participantId: CONSUMER, communityId: COMMUNITY }),
-      ).rejects.toThrow(/Stripe invoice required/);
+      ).rejects.toThrow(/PSP invoice required/);
     });
 
     it("replays Pay on a settled invoice without a second charge", async () => {
@@ -869,7 +869,7 @@ describe("PaymentsService", () => {
         invoiceId: "inv-x",
         amount: "1.00",
         currency: "EUR",
-        producerPspAccountRef: "acct_p1",
+        pspAccountRef: "acct_p1",
         pspInvoiceRef: "in_x",
         pspCustomerRef: "cus_x",
         pspPaymentMethodRef: "pm_card_visa",
@@ -952,7 +952,7 @@ describe("PaymentsService", () => {
 
   it("rejects webhook without signature and malformed JSON body", async () => {
     await expect(service.receiveWebhook("{}", undefined as unknown as string)).rejects.toThrow(
-      /Missing Stripe-Signature/,
+      /Missing webhook signature/,
     );
     const badJson = "{";
     expect(psp.verifyWebhook(badJson, MockPspAdapter.sign(badJson)).ok).toBe(

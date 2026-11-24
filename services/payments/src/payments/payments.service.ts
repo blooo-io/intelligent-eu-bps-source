@@ -778,7 +778,7 @@ export class PaymentsService {
 
     // INT-233 / BR-12 — hydrate durable consumer PM (survives pod restart).
     const account = await this.hydrateAccount(participantId);
-    if (!account?.paymentMethodId) {
+    if (!account?.pspPaymentMethodRef) {
       throw new BadRequestException("Consumer payment method required");
     }
 

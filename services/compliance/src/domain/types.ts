@@ -92,8 +92,11 @@ export type RetentionPolicy = {
   /**
    * Years of legal invoice retention (REQ-013).
    * `retainedUntil` is 31 Dec of (issue year + this value).
+   * Valid range 6..10 (CH/FR/ES/PT).
    */
   invoiceRetentionYears: number;
+  /** Years of KYC audit-log retention (REQ-011); at least 5. */
+  kycLogRetentionYears: number;
 };
 
 /**

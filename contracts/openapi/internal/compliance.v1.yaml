@@ -26,7 +26,44 @@ paths:
           description: Retention run accepted.
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /retention-policy:
+    get:
+      operationId: getRetentionPolicy
+      tags: [Compliance]
+      summary: Current retention policy
+      description: >
+        REQ-011 / Task 3.23 — explicit personal, invoice and KYC-log retention
+        periods configured for this deployment.
+      responses:
+        '200':
+          description: Retention policy in force.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetentionPolicy'
 components:
+  schemas:
+    RetentionPolicy:
+      type: object
+      additionalProperties: false
+      required:
+        - personalRetentionDays
+        - invoiceRetentionYears
+        - kycLogRetentionYears
+      properties:
+        personalRetentionDays:
+          type: integer
+          minimum: 1
+          description: Days after relationship end before personal cache is anonymized.
+        invoiceRetentionYears:
+          type: integer
+          minimum: 6
+          maximum: 10
+          description: Legal invoice retention (CH/FR/ES/PT range).
+        kycLogRetentionYears:
+          type: integer
+          minimum: 5
+          description: KYC audit-log retention (at least 5 years).
   securitySchemes:
     serviceAuth:
       $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'

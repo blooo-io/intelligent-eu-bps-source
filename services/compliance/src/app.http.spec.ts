@@ -115,6 +115,18 @@ describe("compliance HTTP (INT-111)", () => {
     });
     expect(retention.status).toBe(202);
     expect(await retention.json()).toMatchObject({ accepted: true });
+
+    const policyDenied = await fetch(`${base}/internal/v1/retention-policy`);
+    expect(policyDenied.status).toBe(401);
+    const policy = await fetch(`${base}/internal/v1/retention-policy`, {
+      headers: { "x-intelligent-roles": "service" },
+    });
+    expect(policy.status).toBe(200);
+    expect(await policy.json()).toMatchObject({
+      personalRetentionDays: 1,
+      invoiceRetentionYears: 10,
+      kycLogRetentionYears: 5,
+    });
   });
 
   const OTHER = "22222222-2222-4333-8444-555555555555";

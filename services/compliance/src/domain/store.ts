@@ -4,11 +4,11 @@ import type {
   PersonalDataRecord,
   RetentionPolicy,
 } from "./types.js";
+import { DEFAULT_RETENTION_POLICY } from "./retention-config.js";
 
-/** Default V1 retention (REQ-011 / REQ-013). */
+/** Default V1 retention (REQ-011 / REQ-013 / Task 3.23). */
 export const DEFAULT_RETENTION: RetentionPolicy = {
-  personalRetentionDays: 365,
-  invoiceRetentionYears: 10,
+  ...DEFAULT_RETENTION_POLICY,
 };
 
 export class ComplianceStore {
@@ -16,6 +16,10 @@ export class ComplianceStore {
   private audits: AuditEvent[] = [];
   private readonly personal = new Map<string, PersonalDataRecord>();
   private retention: RetentionPolicy = { ...DEFAULT_RETENTION };
+
+  constructor(initial?: RetentionPolicy) {
+    if (initial) this.retention = { ...initial };
+  }
 
   reset(): void {
     this.requests.clear();

@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ModuleTemplateModule } from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
 import { ComplianceStore } from "./domain/store.js";
+import { readRetentionPolicy } from "./domain/retention-config.js";
 import { IDP_PORT } from "./idp/idp.port.js";
 import { PSP_ERASE_PORT } from "./psp/psp-erase.port.js";
 import {
@@ -30,7 +31,10 @@ import { PublicComplianceController } from "./compliance/public.controller.js";
   imports: [ModuleTemplateModule.forRoot({ moduleName: "compliance" })],
   controllers: [PublicComplianceController, InternalComplianceController],
   providers: [
-    ComplianceStore,
+    {
+      provide: ComplianceStore,
+      useFactory: () => new ComplianceStore(readRetentionPolicy()),
+    },
     ComplianceService,
     ErasureRequestListener,
     {

@@ -89,6 +89,11 @@ export class ComplianceService {
     this.store.setRetentionPolicy({ invoiceRetentionYears: years });
   }
 
+  /** Current retention policy (REQ-011 / Task 3.23). */
+  getRetentionPolicy() {
+    return this.store.getRetentionPolicy();
+  }
+
   listRequests() {
     return this.store.listRequests();
   }

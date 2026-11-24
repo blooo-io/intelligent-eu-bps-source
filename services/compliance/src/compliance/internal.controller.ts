@@ -1,4 +1,4 @@
-import { Controller, HttpCode, Inject, Post, UseGuards } from "@nestjs/common";
+import { Controller, Get, HttpCode, Inject, Post, UseGuards } from "@nestjs/common";
 import { ModuleAuthGuard } from "@intelligent/module-template";
 import { ComplianceService } from "./compliance.service.js";
 
@@ -14,5 +14,11 @@ export class InternalComplianceController {
   @HttpCode(202)
   async applyRetention() {
     return this.compliance.applyRetention();
+  }
+
+  /** REQ-011 / Task 3.23 — explicit retention periods for peers and operators. */
+  @Get("retention-policy")
+  getRetentionPolicy() {
+    return this.compliance.getRetentionPolicy();
   }
 }

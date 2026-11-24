@@ -155,6 +155,23 @@ describe("StripePspAdapter mapping (INT-424)", () => {
     });
   });
 
+  it("A2 / REQ-015 every connected account creation path sets a manual payout schedule", async () => {
+    const create = vi.spyOn(fake.accounts, "create");
+    await adapter.createConnectedAccount({ participantId: "part-a", country: "FR" });
+    await adapter.createEmbeddedProducerAccount({ participantId: "part-b", country: "FR" });
+    await adapter.createProducerAccount({
+      participantId: "part-c",
+      accountToken: "ct_test_1",
+      country: "FR",
+    });
+    expect(create).toHaveBeenCalledTimes(3);
+    for (const [params] of create.mock.calls) {
+      expect(params).toMatchObject({
+        settings: { payouts: { schedule: { interval: "manual" } } },
+      });
+    }
+  });
+
   it("REQ-015 setManualSchedule sets interval manual on the connected account", async () => {
     const { pspAccountRef } = await adapter.createConnectedAccount({
       participantId: "part-1",

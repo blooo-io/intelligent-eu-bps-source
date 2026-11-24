@@ -35,6 +35,14 @@ import {
 import { readStripeEnv, toMinorUnits, type StripeEnv } from "./stripe-env.js";
 
 /**
+ * A2 / REQ-015 — funds stay on the connected account until the participant
+ * withdraws (or the community auto-payout runs); Stripe never sweeps them.
+ */
+const MANUAL_PAYOUTS = {
+  payouts: { schedule: { interval: "manual" as const } },
+};
+
+/**
  * Real Stripe test-mode P-PSP adapter (INT-189 / INT-190 / INT-191 / AD-6 / BR-12).
  * Implements neutral ports (WS5 Tasks 5.4–5.5 / INT-424) and keeps legacy
  * legacy PspPort methods until Task 5.6 deletes the old port.
@@ -87,6 +95,7 @@ export class StripePspAdapter
         sepa_debit_payments: { requested: true },
         transfers: { requested: true },
       },
+      settings: MANUAL_PAYOUTS,
       metadata: { participantId: input.participantId },
     });
     return { pspAccountRef: account.id };
@@ -546,6 +555,7 @@ export class StripePspAdapter
         card_payments: { requested: true },
         transfers: { requested: true },
       },
+      settings: MANUAL_PAYOUTS,
       metadata: { participantId: input.participantId },
     });
     return { pspAccountRef: account.id };
@@ -569,6 +579,7 @@ export class StripePspAdapter
         card_payments: { requested: true },
         transfers: { requested: true },
       },
+      settings: MANUAL_PAYOUTS,
       metadata: { participantId: input.participantId },
     });
     return { pspAccountRef: account.id };

@@ -33,6 +33,7 @@ export type PspContractHarness = {
     currency: string,
   ): Promise<void>;
   paymentMethod(kind: "card_ok" | "card_decline" | "sepa_ok"): Promise<string>;
+  payoutSchedule(pspAccountRef: string): Promise<string>;
   signedEvent(
     e: Omit<PspEvent, "eventId" | "occurredAt"> & { occurredAt?: string },
   ): { rawBody: string; signature: string };
@@ -184,6 +185,12 @@ export function runPspContractSuite(
     });
 
     describe("Payout+Events", () => {
+      it("A2 / REQ-015 a new connected account starts on a manual payout schedule", async () => {
+        const h = await makeHarness();
+        const { pspAccountRef } = await readyAccount(h);
+        expect(await h.payoutSchedule(pspAccountRef)).toBe("manual");
+      });
+
       it("UAT-015 REQ-015 manual schedule then idempotent payout", async () => {
         const h = await makeHarness();
         const { a, pspAccountRef } = await readyAccount(h);

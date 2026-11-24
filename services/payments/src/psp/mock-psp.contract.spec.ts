@@ -19,6 +19,8 @@ async function mockHarness(): Promise<PspContractHarness> {
     fundBalance: (pspAccountRef, amount, currency) =>
       adapter.fundBalance(pspAccountRef, amount, currency),
     paymentMethod: (kind) => adapter.paymentMethod(kind),
+    payoutSchedule: async (pspAccountRef) =>
+      adapter.payoutSchedule(pspAccountRef) ?? "unknown",
     signedEvent: (e) => adapter.signEvent(e),
   };
 }

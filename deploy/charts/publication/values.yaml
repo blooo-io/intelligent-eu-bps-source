@@ -8,7 +8,13 @@ image:
   tag: "0.0.0"
 port: 8080
 # INT-287 — peer allow-list only (no namespace-wide ingress).
-egressModules: []
+# INT-432 — command dispatcher targets (AC-03/05/06/07/11).
+egressModules:
+  - participants
+  - payments
+  - invoicing
+  - notification
+  - settlement
 ingressFrom:
   - scheduler-worker
 keycloakEgress: true
@@ -36,4 +42,12 @@ env:
   ACTOR_SOURCE_ADAPTER: mock
   ERASURE_SOURCE_ADAPTER: mock
   TARIFF_ADAPTER: mock
+  # REQ-052 / A7 — command channel off by default in chart; envs overlay to true.
   COMMAND_CHANNEL_ENABLED: "false"
+  EWDS_COMMAND_ALLOWED_DIDS: ""
+  EWDS_COMMAND_RETURN_URL_PREFIXES: ""
+  PARTICIPANTS_INTERNAL_URL: http://participants:8080
+  PAYMENTS_INTERNAL_URL: http://payments:8080
+  INVOICING_INTERNAL_URL: http://invoicing:8080
+  NOTIFICATION_INTERNAL_URL: http://notification:8080
+  SETTLEMENT_INTERNAL_URL: http://settlement:8080

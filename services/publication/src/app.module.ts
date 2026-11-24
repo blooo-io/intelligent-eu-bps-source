@@ -1,6 +1,10 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
-import { ModuleTemplateModule } from "@intelligent/module-template";
+import {
+  ModuleTemplateModule,
+  OutboxService,
+} from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
+import { createCommandPoller, CommandPoller } from "./commands/command-poller.js";
 import { DATASPACE_PORT } from "./dataspace/dataspace.port.js";
 import { MockDataspaceAdapter } from "./dataspace/mock-dataspace.adapter.js";
 import { PublicationStore } from "./domain/store.js";
@@ -22,6 +26,13 @@ import { PublicationService } from "./publication/publication.service.js";
     // INT-271 — NATS when NATS_URL set; in-memory otherwise (CI).
     { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
     BillingEventsListener,
+    // REQ-052 / A7 — command channel poller (no-op unless COMMAND_CHANNEL_ENABLED=true).
+    {
+      provide: CommandPoller,
+      useFactory: (outbox: OutboxService) =>
+        createCommandPoller(process.env, { outbox }),
+      inject: [OutboxService],
+    },
   ],
 })
 export class AppModule implements NestModule {

@@ -16,6 +16,14 @@ export type BillingProfile = {
   email: string;
 };
 
+/** Structured postal address for DSAR export (REQ-013 / Task 3.11+3.18). */
+export type PostalAddress = {
+  street: string;
+  postalCode: string;
+  city: string;
+  country: string;
+};
+
 export type CommunitySettings = {
   communityId: string;
   currency: string;
@@ -47,6 +55,18 @@ export type ParticipantRecord = {
   /** Set from PaymentAccountStatusChanged (AC-07) — KYC / payment method. */
   paymentAccountReady: boolean;
   paymentBlockReason: string | null;
+  /**
+   * REQ-013 / Task 3.18 — provenance for DSAR. Defaults to `"import"` when
+   * unset (CSV / UAT seed). EWDS Actor intake (Task 3.11) sets `"ewds"`.
+   */
+  source?: "ewds" | "import";
+  /** Structured address when known (EWDS); otherwise null. */
+  postalAddress?: PostalAddress | null;
+  phone?: string | null;
+  /** ISO timestamp of the member's T&C acceptance when recorded. */
+  termsAcceptedAt?: string | null;
+  /** Mirror of AC-07 KYC verified flag when notified. */
+  kycVerified?: boolean;
 };
 
 export type TermsDocument = {

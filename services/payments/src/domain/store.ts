@@ -28,6 +28,14 @@ export type PaymentRecord = {
   feeCurrency?: string;
 };
 
+/** REQ-013 / Task 3.18 — KYC audit row for DSAR (identifiers / status only). */
+export type KycLogEntry = {
+  at: string;
+  source: string;
+  kycStatus: string;
+  pspEventId?: string | null;
+};
+
 export type AccountRecord = {
   participantId: string;
   pspAccountRef: string | null;
@@ -35,6 +43,16 @@ export type AccountRecord = {
   kycStatus: string;
   role: "consumer" | "producer" | "prosumer";
   communityId: string;
+  /** REQ-013 — optional KYC mirror fields for DSAR (filled by later KYC tasks). */
+  kycVerified?: boolean;
+  kycVerifiedAt?: string | null;
+  payoutAccountVerified?: boolean;
+  kycLog?: KycLogEntry[];
+  /**
+   * Platform Stripe Customer ids for GDPR erase.
+   * May be empty after INT-428 (direct charge no longer needs a Customer).
+   */
+  platformCustomerIds?: string[];
 };
 
 export type PaymentWrite = { row: PaymentRecord };

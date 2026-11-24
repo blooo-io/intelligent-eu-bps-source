@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+// S9 (early settlement) removed with REQ-057 / INT-424.
 const SCENARIOS = [
   "S1",
   "S2",
@@ -11,7 +12,6 @@ const SCENARIOS = [
   "S6",
   "S7",
   "S8",
-  "S9",
   "S10",
   "S11",
   "S12",
@@ -26,7 +26,6 @@ const UATS = [
   "UAT-052",
   "UAT-001",
   "UAT-002",
-  "UAT-074",
   "UAT-016",
   "UAT-057",
   "UAT-056",
@@ -34,7 +33,7 @@ const UATS = [
   "UAT-070",
 ];
 
-test("integration prep lists every S1–S13 scenario with UAT links (INT-74)", async () => {
+test("integration prep lists every S1–S8 and S10–S13 scenario with UAT links (INT-74)", async () => {
   const prep = await readFile(
     "docs/testing/v1-integration-scenarios.md",
     "utf8",

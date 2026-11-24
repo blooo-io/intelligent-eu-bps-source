@@ -63,10 +63,13 @@ export type ParticipantRecord = {
   /** Structured address when known (EWDS); otherwise null. */
   postalAddress?: PostalAddress | null;
   phone?: string | null;
-  /** ISO timestamp of the member's T&C acceptance when recorded. */
-  termsAcceptedAt?: string | null;
-  /** Mirror of AC-07 KYC verified flag when notified. */
-  kycVerified?: boolean;
+  /** REQ-050 — ISO timestamp of the member's T&C acceptance when recorded. */
+  termsAcceptedAt: string | null;
+  /**
+   * REQ-045 / REQ-051 — mirror of AC-07 KYC verified flag (KycStatusChanged).
+   * Ready also requires this (BR-09 readiness gate used by invoicing).
+   */
+  kycVerified: boolean;
 };
 
 export type TermsDocument = {

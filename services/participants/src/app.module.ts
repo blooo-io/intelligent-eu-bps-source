@@ -27,6 +27,7 @@ class ParticipantPersistence implements OnModuleInit {
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
 import { createEventBus } from "./events/nats-event-bus.js";
 import { ErasureRequestedListener } from "./events/erasure-requested.listener.js";
+import { KycStatusChangedListener } from "./events/kyc-status-changed.listener.js";
 
 @Module({
   imports: [
@@ -41,6 +42,8 @@ import { ErasureRequestedListener } from "./events/erasure-requested.listener.js
     { provide: IDP_ADMIN_PORT, useFactory: () => createIdpAdminPort() },
     { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
     ErasureRequestedListener,
+    // REQ-051 — mirror participant KYC into readiness (INT-431).
+    KycStatusChangedListener,
   ],
 })
 export class AppModule implements NestModule {

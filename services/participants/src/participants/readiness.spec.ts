@@ -16,6 +16,8 @@ function base(over: Partial<ParticipantRecord> = {}): ParticipantRecord {
     selfBillingMandate: false,
     paymentAccountReady: false,
     paymentBlockReason: null,
+    termsAcceptedAt: null,
+    kycVerified: false,
     ...over,
   };
 }
@@ -44,9 +46,23 @@ describe("deriveReadiness (02 §5)", () => {
           profile: { name: "A", address: "B", email: "a@example.com" },
           termsVersionAccepted: "v1.0.0",
           paymentAccountReady: true,
+          kycVerified: true,
         }),
       ),
     ).toBe("Ready");
+  });
+
+  it("REQ-045: paymentAccountReady without kycVerified stays TermsAccepted", () => {
+    expect(
+      deriveReadiness(
+        base({
+          profile: { name: "A", address: "B", email: "a@example.com" },
+          termsVersionAccepted: "v1.0.0",
+          paymentAccountReady: true,
+          kycVerified: false,
+        }),
+      ),
+    ).toBe("TermsAccepted");
   });
 
   it("marks Restricted when payment is blocked (BR-09)", () => {

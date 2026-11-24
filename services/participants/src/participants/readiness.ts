@@ -1,7 +1,9 @@
 import type { ParticipantRecord, ReadinessStatus } from "../domain/types.js";
 
 /**
- * Derive readiness from profile, terms and payment-account gates (02 §5, BR-09).
+ * Derive readiness from profile, terms, payment-account and KYC gates
+ * (02 §5, BR-09, REQ-045). Order is unchanged: Invited → ProfileCompleted →
+ * TermsAccepted → Ready. Ready also requires kycVerified.
  * Offboarded / Restricted are sticky until explicitly cleared.
  */
 export function deriveReadiness(row: ParticipantRecord): ReadinessStatus {
@@ -23,7 +25,8 @@ export function deriveReadiness(row: ParticipantRecord): ReadinessStatus {
   if (!row.termsVersionAccepted) {
     return "ProfileCompleted";
   }
-  if (!row.paymentAccountReady) {
+  // REQ-045 — payment ready without KYC stays TermsAccepted (not Ready).
+  if (!row.paymentAccountReady || !row.kycVerified) {
     return "TermsAccepted";
   }
   return "Ready";

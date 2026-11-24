@@ -51,17 +51,25 @@ export type ParticipantPersonalData = {
 };
 
 function invoiceNotReadyReason(
+  row: ParticipantRecord,
   status: ParticipantRecord["status"],
-  paymentBlockReason?: string | null,
 ): string {
-  if (paymentBlockReason) {
-    return paymentBlockReason;
+  if (row.paymentBlockReason) {
+    return row.paymentBlockReason;
   }
   if (status === "Offboarded") {
     return "offboarded";
   }
   if (status === "Restricted") {
     return "restricted";
+  }
+  // REQ-045 — terms + payment ready but KYC outstanding.
+  if (
+    status === "TermsAccepted" &&
+    row.paymentAccountReady &&
+    !row.kycVerified
+  ) {
+    return "kyc_not_verified";
   }
   return `readiness is ${status}`;
 }
@@ -75,6 +83,8 @@ export type ReadinessResult = {
   participantId: string;
   ready: boolean;
   status: ParticipantRecord["status"];
+  /** REQ-045 — mirror of AC-07 KYC; Ready also requires this. */
+  kycVerified: boolean;
   reason?: string;
 };
 
@@ -87,6 +97,10 @@ export type MeResult = {
   readiness: ParticipantRecord["status"];
   profile: BillingProfile;
   billingMode: CommunitySettings["billingMode"];
+  /** REQ-045 — whether KYC is complete for billing. */
+  kycVerified: boolean;
+  /** REQ-050 — when the caller accepted the current terms. */
+  termsAcceptedAt: string | null;
 };
 
 /**
@@ -189,9 +203,10 @@ export class ParticipantsService {
       participantId,
       ready,
       status,
+      kycVerified: row.kycVerified,
     };
     if (!ready) {
-      result.reason = invoiceNotReadyReason(status, row.paymentBlockReason);
+      result.reason = invoiceNotReadyReason(row, status);
     }
     return result;
   }
@@ -461,6 +476,8 @@ export class ParticipantsService {
       readiness,
       profile: row.profile ?? { name: "", address: "", email: "" },
       billingMode: settings.billingMode,
+      kycVerified: row.kycVerified,
+      termsAcceptedAt: row.termsAcceptedAt,
     };
   }
 
@@ -575,6 +592,43 @@ export class ParticipantsService {
       paymentBlockReason: input.ready
         ? null
         : (input.reason ?? "payment_account"),
+    };
+    next.status = deriveReadiness(next);
+    this.store.putParticipant(next);
+    await this.emitReadinessIfChanged(row, previousStatus, next);
+    return this.checkReadiness(input.participantId);
+  }
+
+  /**
+   * REQ-051 / REQ-045 — apply KycStatusChanged (subjectType=participant) so
+   * readiness mirrors AC-07 KYC (BR-09 gate for invoices and statements).
+   */
+  async applyKycStatus(input: {
+    eventId: string;
+    participantId: string;
+    kycVerified: boolean;
+  }): Promise<ReadinessResult> {
+    return this.tx.run(() => this.performApplyKycStatus(input));
+  }
+
+  private async performApplyKycStatus(input: {
+    eventId: string;
+    participantId: string;
+    kycVerified: boolean;
+  }): Promise<ReadinessResult> {
+    const row = this.requireParticipant(input.participantId);
+    if (row.status === "Offboarded") {
+      throw new BadRequestException("Offboarded participant");
+    }
+    const previousStatus = deriveReadiness(row);
+    const next: ParticipantRecord = {
+      ...row,
+      kycVerified: input.kycVerified,
+      // Clear payment-block when KYC is restored without a separate payment event.
+      paymentBlockReason:
+        input.kycVerified && row.paymentBlockReason === "kyc_revoked"
+          ? null
+          : row.paymentBlockReason,
     };
     next.status = deriveReadiness(next);
     this.store.putParticipant(next);
@@ -737,8 +791,9 @@ export class ParticipantsService {
         participantId: next.participantId,
         ready: isInvoiceReady(nextStatus),
         reason:
-          next.paymentBlockReason ??
-          (nextStatus !== "Ready" ? `readiness is ${nextStatus}` : undefined),
+          nextStatus !== "Ready"
+            ? invoiceNotReadyReason(next, nextStatus)
+            : undefined,
       },
     });
   }

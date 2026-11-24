@@ -164,9 +164,23 @@ describe("ParticipantsService", () => {
       participantId: created.participantId,
       ready: true,
     });
+    // REQ-045 — payment without KYC stays TermsAccepted.
+    expect(service.checkReadiness(created.participantId)).toMatchObject({
+      ready: false,
+      status: "TermsAccepted",
+      reason: "kyc_not_verified",
+      kycVerified: false,
+    });
+
+    await service.applyKycStatus({
+      eventId: "evt-ready-1",
+      participantId: created.participantId,
+      kycVerified: true,
+    });
     expect(service.checkReadiness(created.participantId)).toMatchObject({
       ready: true,
       status: "Ready",
+      kycVerified: true,
     });
 
     await service.applyPaymentAccountStatus({
@@ -326,6 +340,8 @@ describe("ParticipantsService", () => {
   it("INT-230 — S1 producers reach Ready after payment-account notify", async () => {
     const producerId = "66666666-7777-4888-9999-aaaaaaaaaaaa";
     expect(service.checkReadiness(producerId).ready).toBe(false);
+    // REQ-045 — S1 seeds have kycVerified:true so payment alone → Ready.
+    expect(service.checkReadiness(producerId).kycVerified).toBe(true);
     await service.applyPaymentAccountStatus({
       participantId: producerId,
       ready: true,
@@ -333,6 +349,38 @@ describe("ParticipantsService", () => {
     expect(service.checkReadiness(producerId)).toMatchObject({
       ready: true,
       status: "Ready",
+      kycVerified: true,
+    });
+  });
+
+  it("REQ-045: checkReadiness reason kyc_not_verified", async () => {
+    const [created] = await service.importParticipants(communityId, [
+      {
+        email: "nokyc@example.com",
+        marketActorId: "actor-nokyc",
+        meterId: "meter-nokyc",
+        role: "consumer",
+      },
+    ]);
+    const row = store.getParticipant(created.participantId)!;
+    await service.updateProfile(row.idpUserId!, {
+      name: "No Kyc",
+      address: "1 Gate",
+      email: "nokyc@example.com",
+    });
+    await service.acceptTerms(row.idpUserId!, {
+      termsVersion: "v1.0.0",
+      selfBillingMandate: false,
+    });
+    await service.applyPaymentAccountStatus({
+      participantId: created.participantId,
+      ready: true,
+    });
+    expect(service.checkReadiness(created.participantId)).toMatchObject({
+      ready: false,
+      status: "TermsAccepted",
+      reason: "kyc_not_verified",
+      kycVerified: false,
     });
   });
 

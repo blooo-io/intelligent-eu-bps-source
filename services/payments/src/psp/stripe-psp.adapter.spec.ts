@@ -78,7 +78,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
             payment_method_types: ["sepa_debit"],
           },
         },
-      } as import("stripe").Stripe.Event),
+      } as unknown as import("stripe").Stripe.Event),
     ).toEqual({
       eventId: "evt_1",
       kind: "payment.succeeded",
@@ -104,7 +104,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
             metadata: { invoiceId: INV1 },
           },
         },
-      } as import("stripe").Stripe.Event),
+      } as unknown as import("stripe").Stripe.Event),
     ).toEqual({
       eventId: "evt_cs",
       kind: "checkout.completed",
@@ -129,7 +129,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
             failure_code: "account_closed",
           },
         },
-      } as import("stripe").Stripe.Event),
+      } as unknown as import("stripe").Stripe.Event),
     ).toEqual({
       eventId: "evt_po",
       kind: "payout.failed",
@@ -147,7 +147,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
         type: "ping",
         created: 1764064800,
         data: { object: { hello: "world" } },
-      } as import("stripe").Stripe.Event),
+      } as unknown as import("stripe").Stripe.Event),
     ).toMatchObject({
       eventId: "evt_ping",
       kind: "ignored",
@@ -363,7 +363,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
         created: 1764064800,
         account: "acct_X",
         data: { object },
-      } as import("stripe").Stripe.Event),
+      } as unknown as import("stripe").Stripe.Event),
     ).toMatchObject({ kind, eventId: "evt_x" });
   });
 
@@ -380,7 +380,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
             payment_method_types: ["card"],
           },
         },
-      } as import("stripe").Stripe.Event),
+      } as unknown as import("stripe").Stripe.Event),
     ).toMatchObject({
       kind: "payment.failed",
       failureCategory: "insufficient_funds",
@@ -403,7 +403,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
             metadata: {},
           },
         },
-      } as import("stripe").Stripe.Event),
+      } as unknown as import("stripe").Stripe.Event),
     ).toMatchObject({
       kind: "checkout.completed",
       pspPaymentRef: "pi_nested",
@@ -516,6 +516,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
         successUrl: "https://app.invalid/ok",
         cancelUrl: "https://app.invalid/cancel",
         idempotencyKey: "cs:nourl",
+        saveForFutureUse: false,
       }),
     ).rejects.toThrow(/missing url/);
   });

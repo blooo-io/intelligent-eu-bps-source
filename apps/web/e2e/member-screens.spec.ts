@@ -134,11 +134,12 @@ test.describe("AC-01 member screens and buttons", () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 
-  test("Balances page loads (empty or Settle now)", async ({ page }) => {
+  test("Balances page loads carried balances without settle", async ({ page }) => {
     await page.goto("/balances");
     await expectPageReady(page, /^balances$/i);
+    await expect(page.getByRole("button", { name: /settle early|settle now/i })).toHaveCount(0);
     await expect(
-      page.getByText(/no unbilled balances/i).or(page.getByRole("button", { name: /settle early|settle now/i }).first()),
+      page.getByText(/no unbilled balances|counterpart|carries forward/i).first(),
     ).toBeVisible({ timeout: 20_000 });
   });
 

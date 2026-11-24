@@ -77,7 +77,7 @@ describe("billing-runs API (REQ-006)", () => {
         "https://api.example",
         "tok",
         communityId,
-        { type: "early" },
+        { type: "final" },
         fetchImpl as unknown as typeof fetch,
       ),
     ).rejects.toBeInstanceOf(ApiError);

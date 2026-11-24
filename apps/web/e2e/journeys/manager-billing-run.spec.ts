@@ -17,12 +17,12 @@ test.describe("REQ manager billing and settings", () => {
     await expect(page.getByText(/settings saved/i)).toBeVisible({ timeout: 20_000 });
   });
 
-  test("early billing run reaches completed status", async ({ page }) => {
+  test("final billing run reaches completed status", async ({ page }) => {
     test.setTimeout(120_000);
     await loginAs(page, "manager");
     await page.goto("/billing-runs");
     await expectPageReady(page, /billing runs/i);
-    await clickRadioButton(page, /^Early$/);
+    await clickRadioButton(page, /^Final$/);
     await page.getByRole("button", { name: /start run/i }).click();
     // REQ-006 / UAT-006 — hard require Run status + terminal success (no alert soft-pass).
     await expect(page.getByText(/run status/i)).toBeVisible({ timeout: 45_000 });

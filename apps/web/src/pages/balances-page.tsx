@@ -1,22 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Button, Card, Table, Typography } from "antd";
+import { Alert, Card, Table, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { WebConfig } from "../api/config";
 import type { OidcFacade } from "../auth/oidc";
 import { PageFrame } from "../layout/page-frame";
-import {
-  createEarlySettlement,
-  fetchMyBalances,
-  type Balance,
-  type BillingRun,
-} from "../api/balances";
+import { fetchMyBalances, type Balance } from "../api/balances";
 import { userFacingMessage } from "../api/user-facing-error";
 
 const { Paragraph, Text } = Typography;
 
 /**
- * Unbilled balances + settle-now (INT-141 / REQ-057 / UAT-074 / BR-05).
- * Compact table chrome (INT-188). Early settlement ignores the community threshold.
+ * Unbilled balances (INT-141 / REQ-056).
+ * Compact table chrome (INT-188). Amounts under the community threshold
+ * carry forward until a periodic or final billing run invoices them.
  */
 export function BalancesPage({
   config,
@@ -27,9 +23,7 @@ export function BalancesPage({
 }>) {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [settlingId, setSettlingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [lastRun, setLastRun] = useState<BillingRun | null>(null);
 
   const reload = useCallback(async () => {
     const token = await oidc.getAccessToken();
@@ -56,23 +50,6 @@ export function BalancesPage({
     };
   }, [reload]);
 
-  async function settleNow(producerId: string) {
-    setSettlingId(producerId);
-    setError(null);
-    try {
-      const token = await oidc.getAccessToken();
-      if (!token) throw new Error("No access token");
-      // BR-05: early settlement — threshold does not apply.
-      const run = await createEarlySettlement(config.apiBaseUrl, token, producerId);
-      setLastRun(run);
-      setBalances(await reload());
-    } catch (err) {
-      setError(userFacingMessage(err));
-    } finally {
-      setSettlingId(null);
-    }
-  }
-
   const columns: ColumnsType<Balance> = [
     {
       title: "Counterpart",
@@ -89,21 +66,6 @@ export function BalancesPage({
       key: "amount",
       render: (_, row) => `${row.amount} ${row.currency}`,
     },
-    {
-      title: "",
-      key: "actions",
-      width: 120,
-      render: (_, row) => (
-        <Button
-          type="primary"
-          size="small"
-          loading={settlingId === row.counterpartId}
-          onClick={() => settleNow(row.counterpartId)}
-        >
-          Settle early
-        </Button>
-      ),
-    },
   ];
 
   if (loading) {
@@ -113,17 +75,9 @@ export function BalancesPage({
   return (
     <PageFrame
       title="Balances"
-      description="Net with each counterparty. Under threshold carries forward."
+      description="Net with each counterparty. Under threshold carries forward until the next billing run."
     >
       {error && <Alert type="error" message={error} showIcon />}
-      {lastRun && (
-        <Alert
-          type="success"
-          showIcon
-          message={`Early settlement run ${lastRun.runId}`}
-          description={`Status: ${lastRun.status} · type: ${lastRun.type}`}
-        />
-      )}
 
       <Card size="small">
         {balances.length === 0 ? (

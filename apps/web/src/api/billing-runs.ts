@@ -5,7 +5,7 @@
 
 import { ApiError } from "./me";
 
-export type BillingRunType = "periodic" | "early" | "final";
+export type BillingRunType = "periodic" | "final";
 
 export type BillingRun = {
   runId: string;

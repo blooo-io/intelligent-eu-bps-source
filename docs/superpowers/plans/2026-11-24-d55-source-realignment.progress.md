@@ -28,7 +28,8 @@
 | Day 4 payouts | INT-426 | Done | [#194](https://github.com/blooo-io/intelligent-eu-bps-source/pull/194) squash-merged `7335a97` | 1.11–1.12/1.15–1.18; **1.13/1.14 deferred** |
 | Day 5 reporting + KPIs | INT-427 | Done | [#195](https://github.com/blooo-io/intelligent-eu-bps-source/pull/195) squash-merged `1ff21f9` | 1.19–1.20 + 5.9–5.13 |
 | WS2 catch-up invoicing | INT-428 | Done | [#196](https://github.com/blooo-io/intelligent-eu-bps-source/pull/196) squash-merged `8bc38bd` | 2.13–2.19 + 1.14; UAT-078 Pass |
-| Day 5b GDPR + EWDS | INT-429 | In progress | [#197](https://github.com/blooo-io/intelligent-eu-bps-source/pull/197) | 3.12, 3.18–3.24, 4.12, 4.19–4.20 done (`6b44255`); awaiting CI then squash-merge |
+| Day 5b GDPR + EWDS | INT-429 | Done | [#197](https://github.com/blooo-io/intelligent-eu-bps-source/pull/197) squash-merged `b5ee28b` | 3.12, 3.18–3.24, 4.12, 4.19–4.20 |
+| Day 6 release closeout | INT-430 | In progress | [#198](https://github.com/blooo-io/intelligent-eu-bps-source/pull/198) | UAT re-run · report · tag v1.2.0 |
 
 ## Decisions / deviations
 | When | What | Why |

@@ -39,3 +39,6 @@ env:
   ERASURE_SOURCE_ADAPTER: mock
   TARIFF_ADAPTER: mock
   COMMAND_CHANNEL_ENABLED: "false"
+  # INT-432 — EWDS erasure intake (pilot controller DIDs; empty until EWAG/R2M).
+  EWDS_ERASURE_ALLOWED_DIDS: ""
+  EWDS_ERASURE_TOPIC: gdprDataSubjectRequest

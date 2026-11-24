@@ -1,11 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { CapturedMail } from "../domain/types.js";
+import { toCapturedAttachments } from "./attachment-meta.js";
 import type { MailPort, SendMailInput } from "./mail.port.js";
 
 /**
  * V1 P-MAIL adapter — in-memory Mailpit catcher (TD-12).
  * Cluster deploy uses real Mailpit SMTP; tests assert against `captured()`.
+ * Attachment bytes are not retained — only metadata (UAT-050).
  */
 @Injectable()
 export class MailpitCatcherAdapter implements MailPort {
@@ -20,6 +22,7 @@ export class MailpitCatcherAdapter implements MailPort {
       subject: input.subject,
       body: input.body,
       capturedAt: new Date().toISOString(),
+      attachments: toCapturedAttachments(input.attachments),
     });
     return { messageId };
   }

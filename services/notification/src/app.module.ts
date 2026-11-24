@@ -7,7 +7,7 @@ import { createEventBus } from "./events/nats-event-bus.js";
 import { OperatorAlertsListener } from "./events/operator-alerts.listener.js";
 import { PaymentStatusListener } from "./events/payment-status.listener.js";
 import { MAIL_PORT } from "./mail/mail.port.js";
-import { MailpitCatcherAdapter } from "./mail/mailpit-catcher.adapter.js";
+import { createMailPort } from "./mail/smtp-mail.adapter.js";
 import { NotificationService } from "./notification/notification.service.js";
 import {
   createRecipient,
@@ -21,8 +21,8 @@ import {
   providers: [
     NotificationStore,
     NotificationService,
-    MailpitCatcherAdapter,
-    { provide: MAIL_PORT, useExisting: MailpitCatcherAdapter },
+    // INT-428 — SMTP when SMTP_URL set; Mailpit catcher otherwise (CI).
+    { provide: MAIL_PORT, useFactory: () => createMailPort() },
     // INT-217 — NATS when NATS_URL set; in-memory otherwise (CI).
     { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
     // INT-274 — AC-03 profile e-mail when PARTICIPANTS_INTERNAL_URL is set.

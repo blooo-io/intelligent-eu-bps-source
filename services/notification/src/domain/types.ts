@@ -1,6 +1,12 @@
 /** AC-11 — NotificationLog (02 §6 LB-09). Identifiers only in logs. */
 
-export type NoticeTemplate = "payment-success" | "payment-failure" | "operator-alert";
+export type NoticeTemplate =
+  | "payment-success"
+  | "payment-failure"
+  | "operator-alert"
+  | "invoice-issued"
+  | "payment-reminder"
+  | "missing-payment-alert";
 
 export type NotificationLogEntry = {
   logId: string;
@@ -13,6 +19,14 @@ export type NotificationLogEntry = {
   recordedAt: string;
 };
 
+/** Captured attachment metadata only — never raw bytes (UAT-050). */
+export type CapturedMailAttachment = {
+  filename: string;
+  contentType: string;
+  byteLength: number;
+  sha256: string;
+};
+
 export type CapturedMail = {
   messageId: string;
   template: NoticeTemplate;
@@ -22,6 +36,7 @@ export type CapturedMail = {
   /** Body may reference identifiers only. */
   body: string;
   capturedAt: string;
+  attachments?: CapturedMailAttachment[];
 };
 
 export type PaymentStatusEvent = {

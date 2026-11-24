@@ -384,4 +384,68 @@ describe("ComplianceService", () => {
       }),
     ).rejects.toThrow(/Unknown request/);
   });
+
+  it("REQ-013 / UAT-013: flags reflect real adapter results, not unconditional true", async () => {
+    psp.stubNext({ ok: false });
+    const created = await service.createDataSubjectRequest({
+      type: "erasure",
+      participantId: PARTICIPANT,
+      actorId: ACTOR,
+      communityId: COMMUNITY,
+    });
+    const detail = service.getRequestDetail(created.requestId);
+    expect(detail.paymentProviderErasureSent).toBe(false);
+    expect(detail.identityErasureSent).toBe(true);
+    expect(detail.status).toBe("failed");
+    expect(service.listAudits().some((a) => a.action === "erasure.external.failed")).toBe(
+      true,
+    );
+    expect(await outboxStore.list()).toHaveLength(0);
+  });
+
+  it("REQ-013: live PSP outcome retained_by_psp is recorded on the request", async () => {
+    psp.stubNext({
+      ok: true,
+      outcome: "retained_by_psp",
+      reason: "aml_legal_obligation",
+    });
+    const created = await service.createDataSubjectRequest({
+      type: "erasure",
+      participantId: PARTICIPANT,
+      actorId: ACTOR,
+      communityId: COMMUNITY,
+    });
+    const detail = service.getRequestDetail(created.requestId);
+    expect(detail.status).toBe("propagating");
+    expect(detail.paymentProviderErasureSent).toBe(true);
+    expect(detail.pspOutcome).toBe("retained_by_psp");
+  });
+
+  it("REQ-013: eraseIdentity is called before ErasureRequested is appended", async () => {
+    const order: string[] = [];
+    const idpErase = idp.erase.bind(idp);
+    idp.erase = async (input) => {
+      order.push("idp");
+      return idpErase(input);
+    };
+    const pspErase = psp.erase.bind(psp);
+    psp.erase = async (input) => {
+      order.push("psp");
+      return pspErase(input);
+    };
+    const outbox = (service as unknown as { outbox: OutboxService }).outbox;
+    const origAppend = outbox.append.bind(outbox);
+    outbox.append = async (event) => {
+      order.push("outbox");
+      return origAppend(event);
+    };
+
+    await service.createDataSubjectRequest({
+      type: "erasure",
+      participantId: PARTICIPANT,
+      actorId: ACTOR,
+      communityId: COMMUNITY,
+    });
+    expect(order).toEqual(["idp", "psp", "outbox"]);
+  });
 });

@@ -9,9 +9,16 @@ import type {
 @Injectable()
 export class MockPspEraseAdapter implements PspErasePort {
   private readonly calls: PspEraseInput[] = [];
+  private nextResult: Partial<PspEraseResult> | null = null;
 
   reset(): void {
     this.calls.length = 0;
+    this.nextResult = null;
+  }
+
+  /** Test helper — next erase() returns this partial result. */
+  stubNext(result: Partial<PspEraseResult>): void {
+    this.nextResult = result;
   }
 
   recorded(): readonly PspEraseInput[] {
@@ -20,10 +27,14 @@ export class MockPspEraseAdapter implements PspErasePort {
 
   async erase(input: PspEraseInput): Promise<PspEraseResult> {
     this.calls.push({ ...input });
+    const stub = this.nextResult;
+    this.nextResult = null;
     return {
-      ok: true,
+      ok: stub?.ok ?? true,
       requestId: input.requestId,
       participantId: input.participantId,
+      outcome: stub?.outcome ?? "erased",
+      reason: stub?.reason,
     };
   }
 }

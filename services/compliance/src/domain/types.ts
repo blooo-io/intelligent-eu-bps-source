@@ -41,6 +41,12 @@ export type DataSubjectRequest = {
   /** IdP / Stripe-facing erasure dispatched (identifiers only). */
   identityErasureSent: boolean;
   paymentProviderErasureSent: boolean;
+  /** PSP erase outcome when reported (REQ-013 / Task 3.21). */
+  pspOutcome?: "erased" | "retained_by_psp" | "nothing_to_erase";
+  /** Origin of the request — portal/API vs EWDS (Task 3.22). */
+  origin?: "portal" | "ewds";
+  /** External EWDS request id when origin is ewds (Task 3.22). */
+  externalRequestId?: string;
   /** Export package or erasure confirmation (identifiers only). */
   confirmation?: DataSubjectConfirmation;
 };

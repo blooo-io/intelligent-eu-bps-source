@@ -441,15 +441,38 @@ export class ComplianceService {
   private async startErasure(
     row: DataSubjectRequest,
   ): Promise<DataSubjectRequest> {
-    // Propagate to IdP and payment provider using stored external ids (REQ-013).
-    await this.idp.erase({
+    // IdP then PSP — eraseIdentity before ErasureRequested (REQ-013 review focus).
+    const idpResult = await this.idp.erase({
       requestId: row.requestId,
       participantId: row.participantId,
     });
-    await this.psp.erase({
+    const pspResult = await this.psp.erase({
       requestId: row.requestId,
       participantId: row.participantId,
     });
+
+    const identityErasureSent = idpResult.ok;
+    const paymentProviderErasureSent = pspResult.ok;
+    const externalOk = identityErasureSent && paymentProviderErasureSent;
+
+    if (!externalOk) {
+      const failed: DataSubjectRequest = {
+        ...row,
+        status: "failed",
+        identityErasureSent,
+        paymentProviderErasureSent,
+        pspOutcome: pspResult.outcome,
+        updatedAt: new Date().toISOString(),
+      };
+      this.store.putRequest(failed);
+      await this.recordAudit({
+        actorId: row.actorId,
+        action: "erasure.external.failed",
+        target: `request:${row.requestId}|participant:${row.participantId}`,
+        timestamp: failed.updatedAt,
+      });
+      return failed;
+    }
 
     await this.outbox.append({
       aggregateType: "DataSubjectRequest",
@@ -473,8 +496,9 @@ export class ComplianceService {
     const next: DataSubjectRequest = {
       ...row,
       status: "propagating",
-      identityErasureSent: true,
-      paymentProviderErasureSent: true,
+      identityErasureSent,
+      paymentProviderErasureSent,
+      pspOutcome: pspResult.outcome,
       updatedAt: new Date().toISOString(),
     };
     this.store.putRequest(next);

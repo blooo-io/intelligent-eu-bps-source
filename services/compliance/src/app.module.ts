@@ -3,9 +3,12 @@ import { ModuleTemplateModule } from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
 import { ComplianceStore } from "./domain/store.js";
 import { IDP_PORT } from "./idp/idp.port.js";
-import { MockIdpAdapter } from "./idp/mock-idp.adapter.js";
 import { PSP_ERASE_PORT } from "./psp/psp-erase.port.js";
-import { MockPspEraseAdapter } from "./psp/mock-psp-erase.adapter.js";
+import {
+  createEraseAdapters,
+  ERASE_ADAPTERS,
+  type EraseAdapters,
+} from "./erasure/erase-adapters.factory.js";
 import { ComplianceService } from "./compliance/compliance.service.js";
 import {
   createParticipantCommunity,
@@ -24,10 +27,20 @@ import { PublicComplianceController } from "./compliance/public.controller.js";
   providers: [
     ComplianceStore,
     ComplianceService,
-    MockIdpAdapter,
-    MockPspEraseAdapter,
-    { provide: IDP_PORT, useExisting: MockIdpAdapter },
-    { provide: PSP_ERASE_PORT, useExisting: MockPspEraseAdapter },
+    {
+      provide: ERASE_ADAPTERS,
+      useFactory: () => createEraseAdapters(),
+    },
+    {
+      provide: IDP_PORT,
+      useFactory: (adapters: EraseAdapters) => adapters.idp,
+      inject: [ERASE_ADAPTERS],
+    },
+    {
+      provide: PSP_ERASE_PORT,
+      useFactory: (adapters: EraseAdapters) => adapters.psp,
+      inject: [ERASE_ADAPTERS],
+    },
     {
       provide: PARTICIPANT_COMMUNITY,
       useFactory: () => createParticipantCommunity(),

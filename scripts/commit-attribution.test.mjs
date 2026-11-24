@@ -17,7 +17,7 @@ test("strips an assistant co-author and keeps the message", () => {
 });
 
 test("keeps a human co-author", () => {
-  const message = "docs: note\n\nCo-authored-by: Steven Lin <steven@blooo.io>\n";
+  const message = "docs: note\n\nCo-authored-by: Jane Doe <jane.doe@example.invalid>\n";
   assert.equal(stripAssistantAttribution(message), message);
   assert.equal(commitHasAssistantAttribution(message), false);
 });

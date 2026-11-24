@@ -8,7 +8,7 @@ alwaysApply: true
 1. Start from a Jira issue in project `INT`. If none covers the change, create one before coding: a Sub-task under the matching Task, or a Task under the matching Workstream. A new task gets its own issue and its own branch. Do not carry it on another issue's branch.
 2. Branch from `develop` as `<type>/INT-xxx-short-description`. Choose the type from CONTRIBUTING (`feature`, `fix`, `docs`, `test`, `refactor`, `ci`, `chore`) so it matches the commit type. Commits and the pull request title include `INT-xxx`.
 3. GitHub for Jira attaches the branch, commits and pull request through that key.
-4. Assign every new and updated `INT` issue to Steven Lin (`62f0d6c15111209f4fdff1dc`). Do not assign Maylis Ametowoglo.
+4. Assign new and updated INT issues according to the team's Jira assignment convention (kept in the maintainers' internal guide, not in this repository).
 5. Commit messages credit the people who made the change. `.githooks/commit-msg` strips a coding-assistant co-author trailer, and CI rejects that trailer on commits added by the change.
 
 # UX delivery gate (INT-254)

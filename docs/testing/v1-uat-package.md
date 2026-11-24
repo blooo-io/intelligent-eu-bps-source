@@ -21,7 +21,7 @@ Assemble acceptance for partners from the existing UAT notes. **Case text stays 
 | Blooo engineering (agent / developer) | Module suites, GitOps smoke, record Pass/Fail/Blocked in UAT notes | Yes — INT-75 / INT-78 |
 | Blooo operator / agent | Authenticated portal checks on `dev` with Keycloak UAT users (INT-194) | Yes — see table below |
 | Pilot / partner UAT lead | Optional: UX step counts (NFR-016 / UAT-067); performance window (NFR-008 / UAT-040) | Criteria TBD or waive |
-| Steven Lin (assignee) | Owns recording acceptance in Jira INT-80 | Yes |
+| Blooo Jira project lead | Owns recording acceptance in Jira INT-80 | Yes |
 
 ## Already accepted (do not re-run unless regressing)
 

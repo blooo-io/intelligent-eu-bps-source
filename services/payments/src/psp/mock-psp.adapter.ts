@@ -678,6 +678,8 @@ export class MockPspAdapter
       eventId: `mock_evt_${shortId()}`,
       occurredAt: e.occurredAt ?? new Date().toISOString(),
       kind: e.kind,
+      // REQ-043 — default test; pass livemode:true to simulate live webhooks.
+      livemode: e.livemode === true,
       pspAccountRef: e.pspAccountRef,
       participantId: e.participantId,
       invoiceId: e.invoiceId,

@@ -44,8 +44,9 @@ const MANUAL_PAYOUTS = {
 };
 
 /**
- * Real Stripe test-mode P-PSP adapter (INT-189 / INT-190 / INT-191 / AD-6 / BR-12).
- * Implements neutral ports (WS5 Tasks 5.4–5.5 / INT-424).
+ * Real Stripe P-PSP adapter (INT-189 / INT-190 / INT-191 / AD-6 / BR-12 / REQ-043).
+ * Default mode is test (`sk_test_`); live mode (`sk_live_`) is constructed only
+ * via {@link PspRegistry} when live keys are configured.
  *
  * Direct charges (D2 / REQ-014 / TD-6): clone the platform card onto the
  * producer Connect account and confirm a PaymentIntent off_session — no
@@ -61,12 +62,19 @@ export class StripePspAdapter
     creds: StripeEnv = readStripeEnv()!,
     /** Test seam — inject {@link createFakeStripe} (WS5 Task 5.4). */
     stripeClient?: Stripe,
+    /** REQ-043 — `"live"` accepts `sk_live_`; default `"test"` keeps BR-12. */
+    options?: { mode?: "test" | "live" },
   ) {
     if (!creds?.secretKey) {
       throw new Error("StripePspAdapter requires stripe_secret_key");
     }
-    // BR-12 — test-mode secret only (sk_test_ / rk_test_).
-    if (!/_test_/.test(creds.secretKey)) {
+    const mode = options?.mode ?? "test";
+    if (mode === "live") {
+      if (!creds.secretKey.startsWith("sk_live_")) {
+        throw new Error("StripePspAdapter live mode requires sk_live_ key");
+      }
+    } else if (!/_test_/.test(creds.secretKey)) {
+      // BR-12 — test-mode secret only (sk_test_ / rk_test_) unless live slot.
       throw new Error("StripePspAdapter refuses non-test API keys (BR-12)");
     }
     this.stripe = stripeClient ?? new Stripe(creds.secretKey);
@@ -791,6 +799,8 @@ export function normalizeStripeEvent(event: Stripe.Event): PspEvent {
   const base = {
     eventId: event.id,
     occurredAt,
+    // REQ-043 — carry Stripe livemode for community billing-mode checks.
+    livemode: event.livemode === true,
     pspAccountRef: event.account,
   };
 

@@ -46,6 +46,11 @@ export type PspEvent = {
   /** ISO timestamp — PSP event time. */
   occurredAt: string;
   kind: PspEventKind;
+  /**
+   * REQ-043 — whether the PSP event was produced in live mode.
+   * Used to ignore livemode mismatches against the community billing mode.
+   */
+  livemode?: boolean;
   pspAccountRef?: string;
   participantId?: string;
   invoiceId?: string;

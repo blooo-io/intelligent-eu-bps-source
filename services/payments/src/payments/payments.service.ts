@@ -11,9 +11,12 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
+  BILLING_MODE_RESOLVER,
   IdempotentConsumer,
   OutboxService,
   PassthroughTransaction,
+  StaticBillingModeResolver,
+  type BillingModeResolver,
   type RecordingTransaction,
 } from "@intelligent/module-template";
 import { CLOCK, type Clock } from "../domain/clock.js";
@@ -66,8 +69,13 @@ import {
 import type { PspEvent } from "../psp/psp.types.js";
 import type { MockPspAdapter } from "../psp/mock-psp.adapter.js";
 import type { StripePspAdapter } from "../psp/stripe-psp.adapter.js";
+import {
+  createTestPspRegistry,
+  PSP_REGISTRY,
+  type PspAdapter,
+  type PspRegistry,
+} from "../psp/psp-registry.js";
 
-type PspAdapter = MockPspAdapter | StripePspAdapter;
 type OnboardingSession = LegacyOnboardingSession;
 
 const PRODUCER = "AC-07";
@@ -182,7 +190,39 @@ export class PaymentsService {
     @Optional()
     @Inject(ManagerKycService)
     private readonly managerKyc: ManagerKycService | null = null,
+    @Optional()
+    @Inject(PSP_REGISTRY)
+    private readonly pspRegistry: PspRegistry | null = null,
+    @Optional()
+    @Inject(BILLING_MODE_RESOLVER)
+    private readonly billingMode: BillingModeResolver | null = null,
   ) {}
+
+  /**
+   * REQ-043 / UAT-054 — adapter for the community's billing mode.
+   * Wraps the port-split concrete adapter (not a single PspPort).
+   */
+  async pspFor(communityId: string): Promise<PspAdapter> {
+    const registry =
+      this.pspRegistry ??
+      createTestPspRegistry({ test: this.psp });
+    const resolver =
+      this.billingMode ?? new StaticBillingModeResolver("virtual");
+    const mode = await resolver.modeOf(communityId);
+    return registry.for(mode);
+  }
+
+  /** REQ-043 — AC-03 live-mode guard reads this via GET /psp/capabilities. */
+  pspCapabilities(): {
+    provider: "stripe" | "mock";
+    testConfigured: boolean;
+    liveConfigured: boolean;
+  } {
+    const registry =
+      this.pspRegistry ??
+      createTestPspRegistry({ test: this.psp });
+    return registry.capabilities();
+  }
 
   /** INT-326 — exposed for tests / future Prometheus scrape. */
   getWebhookDuplicateCount(): number {
@@ -957,6 +997,10 @@ export class PaymentsService {
       pspAccountRef,
     };
 
+    // REQ-043 — collect through the community's mode adapter (port-split wrap).
+    const modePsp = await this.pspFor(communityId);
+    const collect: CollectPort = modePsp;
+
     if (pspPaymentMethodRef && savedMethod === "card") {
       // D2 / A1 — per-charge PM clone on the producer account; no connected Customer.
       const failed = attempts.filter(
@@ -965,7 +1009,7 @@ export class PaymentsService {
       const idempotencyKey =
         failed === 0 ? `pay:${input.invoiceId}` : `pay:${input.invoiceId}:${failed + 1}`;
       const initiatedAt = this.clock.now().toISOString();
-      const charge = await this.collect.createDirectCharge({
+      const charge = await collect.createDirectCharge({
         invoiceId: input.invoiceId,
         amount: invoice.total,
         currency: invoice.currency,
@@ -993,7 +1037,7 @@ export class PaymentsService {
       );
     }
     const initiatedAt = this.clock.now().toISOString();
-    const session = await this.collect.createCheckoutSession({
+    const session = await collect.createCheckoutSession({
       invoiceId: input.invoiceId,
       amount: invoice.total,
       currency: invoice.currency,
@@ -1274,19 +1318,49 @@ export class PaymentsService {
     if (!signature) {
       throw new UnauthorizedException("Missing webhook signature");
     }
-    const verified = this.pspEvents.verifyEvent(rawBody, signature);
+    const registry =
+      this.pspRegistry ??
+      createTestPspRegistry({ test: this.psp });
+    const verified = registry.verifyWebhook(rawBody, signature);
     if (!verified.ok) {
-      throw new BadRequestException("Invalid webhook signature");
+      // Fall back to the injected events port (legacy single-adapter path).
+      const legacy = this.pspEvents.verifyEvent(rawBody, signature);
+      if (!legacy.ok) {
+        throw new BadRequestException("Invalid webhook signature");
+      }
+      return this.dispatchVerifiedWebhook(legacy.event, legacy.event.livemode === true);
     }
+    return this.dispatchVerifiedWebhook(verified.event, verified.livemode);
+  }
+
+  private async dispatchVerifiedWebhook(
+    event: PspEvent,
+    livemode: boolean,
+  ): Promise<void> {
     // INT-326 / 04 §7 — dedupe on the PSP event id (prefix avoids NATS eventId clash).
-    const eventId = verified.event.eventId.trim();
+    const eventId = event.eventId.trim();
     if (!eventId) {
       throw new BadRequestException("Webhook missing event id");
     }
+    // REQ-043 — ignore livemode mismatch (ack, no PaymentStatusChanged).
+    const communityId = this.communityIdOfPspEvent(event);
+    if (communityId) {
+      const resolver =
+        this.billingMode ?? new StaticBillingModeResolver("virtual");
+      const mode = await resolver.modeOf(communityId);
+      const eventIsLive = livemode === true;
+      const communityIsLive = mode === "live";
+      if (eventIsLive !== communityIsLive) {
+        this.logger.warn(
+          `PSP webhook livemode mismatch ignored eventId=${eventId} communityId=${communityId}`,
+        );
+        return;
+      }
+    }
     const result = await this.consumer.handle(
       `psp:${eventId}`,
-      verified.event,
-      (event) => this.dispatchPspEvent(event),
+      event,
+      (e) => this.dispatchPspEvent(e),
     );
     if (result.status === "duplicate") {
       this.webhookDuplicateCount += 1;
@@ -1296,6 +1370,31 @@ export class PaymentsService {
     if (result.status === "failed") {
       throw result.error;
     }
+  }
+
+  /** Resolve communityId from a PSP event using local cache only (ids). */
+  private communityIdOfPspEvent(event: PspEvent): string | undefined {
+    if (event.participantId) {
+      const account = this.store.getAccount(event.participantId);
+      if (account?.communityId) return account.communityId;
+    }
+    if (event.pspPaymentRef) {
+      const payment = this.store.findByPspPaymentRef(event.pspPaymentRef);
+      if (payment?.communityId) return payment.communityId;
+    }
+    if (event.pspCheckoutRef) {
+      const payment = this.store.findByPspCheckoutRef(event.pspCheckoutRef);
+      if (payment?.communityId) return payment.communityId;
+    }
+    if (event.invoiceId) {
+      const payment = this.store.listByInvoiceId(event.invoiceId)[0];
+      if (payment?.communityId) return payment.communityId;
+    }
+    if (event.pspAccountRef) {
+      const account = this.store.findByPspAccountRef(event.pspAccountRef);
+      if (account?.communityId) return account.communityId;
+    }
+    return undefined;
   }
 
   /**

@@ -82,6 +82,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
     ).toEqual({
       eventId: "evt_1",
       kind: "payment.succeeded",
+      livemode: false,
       occurredAt: "2025-11-25T10:00:00.000Z",
       pspAccountRef: "acct_X",
       pspPaymentRef: "pi_1",
@@ -108,6 +109,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
     ).toEqual({
       eventId: "evt_cs",
       kind: "checkout.completed",
+      livemode: false,
       occurredAt: "2025-11-25T10:00:00.000Z",
       pspAccountRef: "acct_X",
       pspCheckoutRef: "cs_1",
@@ -133,6 +135,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
     ).toEqual({
       eventId: "evt_po",
       kind: "payout.failed",
+      livemode: false,
       occurredAt: "2025-11-25T10:00:00.000Z",
       pspAccountRef: "acct_X",
       pspPayoutRef: "po_1",
@@ -152,6 +155,7 @@ describe("StripePspAdapter mapping (INT-424)", () => {
     ).toEqual({
       eventId: "evt_po_paid",
       kind: "payout.paid",
+      livemode: false,
       occurredAt: "2025-11-25T10:00:00.000Z",
       pspAccountRef: "acct_X",
       pspPayoutRef: "po_1",

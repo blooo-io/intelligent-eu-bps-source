@@ -135,6 +135,14 @@ export class PaymentsStore {
     return row ? { ...row } : undefined;
   }
 
+  /** REQ-043 — resolve community from a Connect account ref on a webhook. */
+  findByPspAccountRef(pspAccountRef: string): AccountRecord | undefined {
+    for (const row of this.accounts.values()) {
+      if (row.pspAccountRef === pspAccountRef) return { ...row };
+    }
+    return undefined;
+  }
+
   listAccountsByCommunity(communityId: string): AccountRecord[] {
     return [...this.accounts.values()]
       .filter((row) => row.communityId === communityId)

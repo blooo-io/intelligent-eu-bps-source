@@ -36,6 +36,15 @@ export class InternalPaymentsController {
     return this.kycQuery.getStatus(subjectId);
   }
 
+  /**
+   * REQ-043 / UAT-054 — whether live Stripe keys are configured (AC-03 live guard).
+   */
+  @Get("psp/capabilities")
+  @UseGuards(new ModuleAuthGuard({ roles: ["service", "operator"] }))
+  getPspCapabilities() {
+    return this.payments.pspCapabilities();
+  }
+
   @Get("payments/:paymentId")
   getPayment(@Param("paymentId") paymentId: string) {
     return this.payments.getPaymentStatus(paymentId);

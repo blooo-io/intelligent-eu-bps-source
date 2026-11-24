@@ -13,11 +13,13 @@ import {
   InMemoryOutboxStore,
   InMemoryProcessedEventsStore,
   OutboxService,
+  StaticBillingModeResolver,
 } from "@intelligent/module-template";
 import type { Clock } from "../domain/clock.js";
 import { PaymentsStore, type AccountRecord } from "../domain/store.js";
 import { MockPspAdapter } from "../psp/mock-psp.adapter.js";
 import { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
+import { createTestPspRegistry } from "../psp/psp-registry.js";
 import type { PspEvent } from "../psp/psp.types.js";
 import { InMemoryInvoiceLookup } from "../ports/invoice-lookup.port.js";
 import { InMemoryKycLogStore } from "../ports/kyc-log.store.js";
@@ -106,6 +108,7 @@ describe("PaymentsService", () => {
     invoices = new InMemoryInvoiceLookup();
     accountsStore = new InMemoryPaymentAccountsStore();
     const outbox = new OutboxService(outboxStore);
+    const livePsp = new MockPspAdapter();
     service = new PaymentsService(
       store,
       outbox,
@@ -121,7 +124,42 @@ describe("PaymentsService", () => {
       psp,
       payoutEvents,
       kycOf(outbox),
+      null,
+      createTestPspRegistry({ test: psp, live: livePsp }),
+      new StaticBillingModeResolver("virtual"),
     );
+  });
+
+  it("REQ-043 / UAT-054: virtual community never uses live adapter", async () => {
+    const adapter = await service.pspFor(COMMUNITY);
+    expect(adapter).toBe(psp);
+  });
+
+  it("REQ-043: live webhook for a virtual community is ignored", async () => {
+    store.putPayment({
+      paymentId: "pay-livemode",
+      invoiceId: "inv-livemode",
+      participantId: CONSUMER,
+      amount: "10.00",
+      currency: "EUR",
+      status: "pending",
+      pspPaymentRef: "mock_pay_livemode",
+      communityId: COMMUNITY,
+      initiatedAt: "2026-11-24T09:00:00.000Z",
+    });
+    const before = await outboxStore.list();
+    const { rawBody, signature } = psp.signEvent({
+      kind: "payment.succeeded",
+      pspPaymentRef: "mock_pay_livemode",
+      livemode: true,
+    });
+    await service.receiveWebhook(rawBody, signature);
+    expect(store.getPayment("pay-livemode")?.status).toBe("pending");
+    const after = await outboxStore.list();
+    const newEvents = after.slice(before.length);
+    expect(
+      newEvents.filter((e) => e.event.type === "PaymentStatusChanged"),
+    ).toHaveLength(0);
   });
 
   it("INT-338 — getPaymentStatus returns the stored row and 404s otherwise", () => {

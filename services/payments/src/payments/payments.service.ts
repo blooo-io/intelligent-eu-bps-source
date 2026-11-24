@@ -40,6 +40,7 @@ import {
   PAYMENT_ACCOUNTS_STORE,
   type PaymentAccountsStore,
 } from "../ports/payment-accounts.store.js";
+import { KycService, kycReady } from "../kyc/kyc.service.js";
 import {
   COLLECT_PORT,
   type ChargeSettlement,
@@ -145,6 +146,7 @@ export class PaymentsService {
     @Inject(PSP_EVENTS_PORT) private readonly pspEvents: PspEventsPort,
     @Inject(PAYOUT_EVENTS_HANDLER)
     private readonly payoutEvents: PayoutEventsHandler,
+    @Inject(KycService) private readonly kyc: KycService,
   ) {}
 
   /** INT-326 — exposed for tests / future Prometheus scrape. */
@@ -417,6 +419,13 @@ export class PaymentsService {
       communityId: input.communityId,
     });
     if (verified) {
+      // REQ-051 — fixture / seed path mirrors Connect complete into kycVerified.
+      await this.kyc.applyAccountSession(
+        input.participantId,
+        { ...session, status: "complete", payoutsEnabled: true },
+        "operator",
+        null,
+      );
       if (input.role === "prosumer") {
         await this.attachProsumerSeedPaymentMethod(input.participantId, existing);
       }
@@ -571,10 +580,12 @@ export class PaymentsService {
         input.clientIp,
       );
       if (session.status === "complete") {
-        await this.saveAccount({
-          ...this.store.getAccount(input.participantId)!,
-          kycStatus: "verified",
-        });
+        await this.kyc.applyAccountSession(
+          input.participantId,
+          { ...session, payoutsEnabled: session.payoutsEnabled ?? true },
+          "poll",
+          null,
+        );
         await this.emitAccountStatus(input.participantId);
       }
       return session;
@@ -586,10 +597,12 @@ export class PaymentsService {
       input.clientIp,
     );
     if (session.status === "complete") {
-      await this.saveAccount({
-        ...this.store.getAccount(input.participantId)!,
-        kycStatus: "verified",
-      });
+      await this.kyc.applyAccountSession(
+        input.participantId,
+        { ...session, payoutsEnabled: session.payoutsEnabled ?? true },
+        "poll",
+        null,
+      );
       await this.emitAccountStatus(input.participantId);
     }
     return session;
@@ -755,7 +768,18 @@ export class PaymentsService {
     if (!account?.pspAccountRef) {
       throw new NotFoundException("Unknown producer account");
     }
-    await this.saveAccount({ ...account, kycStatus: "verified" });
+    // REQ-051 — route through KycService so kycVerified + KycStatusChanged stay in sync.
+    const session = await this.psp.getAccountSession(account.pspAccountRef);
+    await this.kyc.applyAccountSession(
+      participantId,
+      {
+        ...session,
+        status: "complete",
+        payoutsEnabled: session.payoutsEnabled ?? true,
+      },
+      "operator",
+      null,
+    );
     await this.emitAccountStatus(participantId);
   }
 
@@ -1021,15 +1045,18 @@ export class PaymentsService {
   private async handleAccountUpdated(event: PspEvent): Promise<void> {
     const participantId = event.participantId;
     if (!participantId) return;
-    // INT-362 — the PSP sends account.updated during embedded onboarding too;
-    // complete only once it reports nothing due (TP-7, the PSP is master).
+    // INT-362 / REQ-051 — PSP is master (TP-7); KycService maps the session.
     const pspAccountRef =
       event.pspAccountRef ?? this.store.getAccount(participantId)?.pspAccountRef;
-    if (pspAccountRef) {
-      const session = await this.psp.getAccountSession(pspAccountRef);
-      if (session.status !== "complete") return;
-    }
-    await this.completeProducerKyc(participantId);
+    if (!pspAccountRef) return;
+    const session = await this.psp.getAccountSession(pspAccountRef);
+    await this.kyc.applyAccountSession(
+      participantId,
+      session,
+      "webhook",
+      event.eventId,
+    );
+    await this.emitAccountStatus(participantId);
   }
 
   /**
@@ -1191,19 +1218,10 @@ export class PaymentsService {
   }
 
   /**
-   * INT-269 / REQ-051 — Ready gates by market role:
-   * consumer → PM; producer → KYC; prosumer → KYC and PM (P1 when buying).
+   * REQ-045 / REQ-051 — every role needs KYC; buyers also need a payment method.
    */
   private isPaymentAccountReady(account: AccountRecord): boolean {
-    if (account.role === "consumer") {
-      return Boolean(account.pspPaymentMethodRef);
-    }
-    if (account.role === "prosumer") {
-      return (
-        account.kycStatus === "verified" && Boolean(account.pspPaymentMethodRef)
-      );
-    }
-    return account.kycStatus === "verified";
+    return kycReady(account);
   }
 
   private async emitAccountStatus(
@@ -1225,6 +1243,7 @@ export class PaymentsService {
       data: {
         participantId,
         kycStatus: account.kycStatus,
+        kycVerified: account.kycVerified,
         paymentMethodPresent: Boolean(account.pspPaymentMethodRef),
       },
     });

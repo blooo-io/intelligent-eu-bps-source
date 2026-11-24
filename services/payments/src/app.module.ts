@@ -7,6 +7,7 @@ import { PaymentsStore } from "./domain/store.js";
 import { InternalPaymentsController } from "./payments/internal.controller.js";
 import { PaymentsController } from "./payments/payments.controller.js";
 import { PaymentsService } from "./payments/payments.service.js";
+import { KycService } from "./kyc/kyc.service.js";
 import { PayoutsController } from "./payouts/payouts.controller.js";
 import { PayoutsService } from "./payouts/payouts.service.js";
 import { createPaymentTransaction } from "./persistence/payment-journal.js";
@@ -91,6 +92,7 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
   providers: [
     PaymentsStore,
     PaymentsService,
+    KycService,
     PayoutsStore,
     PayoutsService,
     PaymentPersistence,

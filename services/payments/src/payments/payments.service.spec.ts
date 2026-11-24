@@ -16,9 +16,11 @@ import { MockPspAdapter } from "../psp/mock-psp.adapter.js";
 import { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
 import type { PspEvent } from "../psp/psp.types.js";
 import { InMemoryInvoiceLookup } from "../ports/invoice-lookup.port.js";
+import { InMemoryKycLogStore } from "../ports/kyc-log.store.js";
 import { InMemoryPaymentAccountsStore } from "../ports/payment-accounts.store.js";
 import { NoopParticipantsNotifier } from "../ports/participants-notifier.port.js";
 import { NoopParticipantsResolver } from "../ports/participants-resolver.port.js";
+import { KycService } from "../kyc/kyc.service.js";
 import { PaymentsService } from "./payments.service.js";
 
 const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
@@ -45,19 +47,25 @@ describe("PaymentsService", () => {
   let clock: TestClock;
   let payoutEvents: { onPayoutEvent: Mock<(event: PspEvent) => Promise<void>> };
   let service: PaymentsService;
+  let kycLog: InMemoryKycLogStore;
+
+  const kycOf = (outbox = new OutboxService(outboxStore)) =>
+    new KycService(store, accountsStore, kycLog, outbox);
 
   beforeEach(() => {
     clock = new TestClock();
     payoutEvents = { onPayoutEvent: vi.fn(async (_event: PspEvent) => undefined) };
     store = new PaymentsStore();
     outboxStore = new InMemoryOutboxStore();
+    kycLog = new InMemoryKycLogStore();
     psp = new MockPspAdapter();
     pspErase = new MockPspEraseAdapter();
     invoices = new InMemoryInvoiceLookup();
     accountsStore = new InMemoryPaymentAccountsStore();
+    const outbox = new OutboxService(outboxStore);
     service = new PaymentsService(
       store,
-      new OutboxService(outboxStore),
+      outbox,
       psp,
       invoices,
       new NoopParticipantsNotifier(),
@@ -69,6 +77,7 @@ describe("PaymentsService", () => {
       clock,
       psp,
       payoutEvents,
+      kycOf(outbox),
     );
   });
 
@@ -365,9 +374,55 @@ describe("PaymentsService", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     expect(store.getAccount(CONSUMER)?.pspPaymentMethodRef).toBe("pm_card_visa");
     const events = await outboxStore.list();
-    expect(events.map((e) => e.event.type)).toContain(
-      "PaymentAccountStatusChanged",
+    const status = events.find((e) => e.event.type === "PaymentAccountStatusChanged");
+    expect(status?.event.data).toMatchObject({
+      participantId: CONSUMER,
+      kycVerified: false,
+      paymentMethodPresent: true,
+    });
+  });
+
+  it("REQ-045: consumer with PM only is not Ready until KYC verified", async () => {
+    const readyCalls: boolean[] = [];
+    const notifier = {
+      applyPaymentAccountStatus: async (input: { ready: boolean }) => {
+        readyCalls.push(input.ready);
+      },
+    };
+    const outbox = new OutboxService(outboxStore);
+    const svc = new PaymentsService(
+      store,
+      outbox,
+      psp,
+      invoices,
+      notifier,
+      accountsStore,
+      new NoopParticipantsResolver(),
+      pspErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
+      kycOf(outbox),
     );
+    await svc.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await svc.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    expect(readyCalls.at(-1)).toBe(false);
+
+    const kyc = kycOf(outbox);
+    await kyc.applyAccountSession(
+      CONSUMER,
+      { mode: "embedded", status: "complete", payoutsEnabled: true },
+      "operator",
+      null,
+    );
+    await svc.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    expect(readyCalls.at(-1)).toBe(true);
   });
 
   it("startOnboarding with existing PM re-notifies Ready (INT-255)", async () => {
@@ -417,6 +472,7 @@ describe("PaymentsService", () => {
       clock,
       psp,
       payoutEvents,
+      kycOf(),
     );
     await expect(
       svc.startOnboarding({
@@ -1464,7 +1520,7 @@ describe("PaymentsService", () => {
     expect(payment.amount).toBe("3.00");
   });
 
-  it("INT-394 — card save and Start notify the registry participant, not the IdP sub", async () => {
+  it("REQ-045: card save without KYC notifies ready=false (IdP sub → participant)", async () => {
     const idpSub = "d4e5f6a7-1111-4222-8333-444455556666";
     const notifier = {
       applyPaymentAccountStatus: vi.fn(async () => undefined),
@@ -1490,6 +1546,7 @@ describe("PaymentsService", () => {
       clock,
       psp,
       payoutEvents,
+      kycOf(),
     );
     const session = await service.attachCallerPaymentMethod({
       participantId: idpSub,
@@ -1498,10 +1555,11 @@ describe("PaymentsService", () => {
       paymentMethodId: "pm_card_visa",
     });
     expect(session).toEqual({ mode: "elements", status: "complete" });
+    // REQ-045 — every role needs KYC; PM alone is not Ready.
     expect(notifier.applyPaymentAccountStatus).toHaveBeenCalledWith(
       expect.objectContaining({
         participantId: CONSUMER,
-        ready: true,
+        ready: false,
         notFound: "fail",
       }),
     );
@@ -1544,6 +1602,7 @@ describe("PaymentsService", () => {
       clock,
       psp,
       payoutEvents,
+      kycOf(),
     );
     await expect(
       svc.attachPaymentMethod(CONSUMER, "pm_card_visa"),
@@ -1573,6 +1632,7 @@ describe("PaymentsService", () => {
       clock,
       psp,
       payoutEvents,
+      kycOf(),
     );
     await service.ensureParticipant({
       participantId: CONSUMER,
@@ -1621,6 +1681,7 @@ describe("PaymentsService", () => {
       clock,
       psp,
       payoutEvents,
+      kycOf(),
     );
     await service.ensureParticipant({
       participantId: CONSUMER,
@@ -1676,6 +1737,7 @@ describe("PaymentsService", () => {
       clock,
       psp,
       payoutEvents,
+      kycOf(),
     );
     // Poison: account whose primary key is the IdP sub (prior failed resolve).
     await accountsStore.put({
@@ -1801,6 +1863,7 @@ describe("PaymentsService", () => {
       clock,
       psp,
       payoutEvents,
+      kycOf(),
     );
     await svc.submitOnboardingRequirements({
       participantId: PRODUCER,
@@ -2008,6 +2071,7 @@ describe("PaymentsService", () => {
       clock,
       psp,
       payoutEvents,
+      kycOf(),
     );
     await svc.provisionPaymentAccount({
       participantId: PRODUCER,

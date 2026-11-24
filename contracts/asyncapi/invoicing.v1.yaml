@@ -111,7 +111,7 @@ components:
                     description: "Exclusive end of the billed period (UTC)."
                   settlementType:
                     type: "string"
-                    enum: ["periodic", "early", "final"]
+                    enum: ["periodic", "final"]
                   totalEnergyKWh:
                     type: "string"
                     description: "Absolute net energy of the pair, three decimals (BR-08)."

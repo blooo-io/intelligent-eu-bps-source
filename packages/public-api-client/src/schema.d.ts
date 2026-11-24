@@ -174,7 +174,7 @@ export interface paths {
         };
         /**
          * Unbilled balances per counterpart
-         * @description Unbilled amounts of the caller, one row per counterpart (REQ-002, REQ-057).
+         * @description Unbilled amounts of the caller, one row per counterpart (REQ-002, REQ-056).
          */
         get: operations["listMyBalances"];
         put?: never;
@@ -279,26 +279,6 @@ export interface paths {
          * @description A community manager sets a status with a mandatory reason (REQ-044).
          */
         post: operations["setInvoiceStatus"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/early-settlements": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Settle early with one producer
-         * @description The consumer settles the unbilled balance with the named producer now (REQ-057). The threshold does not apply (BR-05).
-         */
-        post: operations["createEarlySettlement"];
         delete?: never;
         options?: never;
         head?: never;
@@ -987,26 +967,26 @@ export interface components {
          */
         PaymentStatus: "pending" | "succeeded" | "failed" | "cancelled" | "refunded";
         /**
+         * @description Decimal rate rounded to the cent, such as a VAT rate (BR-07, BR-08).
+         * @example 0.00
+         */
+        Rate: string;
+        /**
+         * @description Kind of billing run (02 §6). Early settlement removed (REQ-057 deprecated).
+         * @enum {string}
+         */
+        BillingRunType: "periodic" | "final";
+        /**
          * @description Billing period of the community calendar, YYYY-MM (monthly) or YYYY-Qn (quarterly) (REQ-006).
          * @example 2026-11
          * @example 2026-Q4
          */
         BillingPeriod: string;
         /**
-         * @description Kind of billing run (02 §6).
-         * @enum {string}
-         */
-        BillingRunType: "periodic" | "early" | "final";
-        /**
          * @description Billing run lifecycle (02 §5).
          * @enum {string}
          */
         BillingRunStatus: "Scheduled" | "Collecting" | "Computing" | "Completed" | "Failed";
-        /**
-         * @description Decimal rate rounded to the cent, such as a VAT rate (BR-07, BR-08).
-         * @example 0.00
-         */
-        Rate: string;
         /**
          * @description Scheduled job owned by a module (02 §4.5).
          * @enum {string}
@@ -1416,35 +1396,6 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-        };
-    };
-    createEarlySettlement: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    producerId: components["schemas"]["Uuid"];
-                };
-            };
-        };
-        responses: {
-            /** @description Early settlement accepted. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BillingRun"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
         };
     };
     getCommunitySettings: {

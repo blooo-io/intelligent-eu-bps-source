@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://intelligent-project.eu/schema/v1.0.0/billing/billingInvoice",
   "title": "billingInvoice",
-  "description": "EWDS topic published by the Billing & Payment Service (Blooo, T5.6) for every issued or updated invoice. One invoice covers the settled trades between one consumer and one producer for a billing period (or an early settlement); it is issued by the platform in the name of the producer (self-billing). Derived from int:Invoice (schemas/v1.0.0/billing/Invoice.json) with billing extensions. Contains no personal data: parties are Actor UUIDs only; the legal invoice number, PSP data and grid fees are not published. DRAFT proposed by Blooo to EWAG.",
+  "description": "EWDS topic published by the Billing & Payment Service (Blooo, T5.6) for every issued or updated invoice. One invoice covers the settled trades between one consumer and one producer for a billing period; it is issued by the platform in the name of the producer (self-billing). Derived from int:Invoice (schemas/v1.0.0/billing/Invoice.json) with billing extensions. Contains no personal data: parties are Actor UUIDs only; the legal invoice number, PSP data and grid fees are not published. DRAFT proposed by Blooo to EWAG.",
   "type": "object",
   "properties": {
     "invoiceId": {
@@ -29,11 +29,10 @@
       ]
     },
     "settlementType": {
-      "description": "[Extension] periodic = end-of-period invoice; early = early settlement requested by the consumer; final = forced invoice (year end or participant exit).",
+      "description": "[Extension] periodic = end-of-period invoice; final = forced invoice (year end or participant exit). Early settlement removed (REQ-057 deprecated).",
       "type": "string",
       "enum": [
         "periodic",
-        "early",
         "final"
       ]
     },

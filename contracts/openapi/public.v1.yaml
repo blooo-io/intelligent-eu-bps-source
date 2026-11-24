@@ -32,7 +32,7 @@ tags:
   - name: Participants
     description: Import, list, update and offboarding of participants.
   - name: Billing
-    description: Billing runs and early settlement.
+    description: Billing runs (periodic and final).
   - name: Reports
     description: Periodic summaries, discrepancies, intake anomalies and KPI export.
   - name: Operations
@@ -256,7 +256,7 @@ paths:
       operationId: listMyBalances
       tags: [Balances]
       summary: Unbilled balances per counterpart
-      description: Unbilled amounts of the caller, one row per counterpart (REQ-002, REQ-057).
+      description: Unbilled amounts of the caller, one row per counterpart (REQ-002, REQ-056).
       x-served-by: AC-05
       responses:
         '200':
@@ -385,37 +385,6 @@ paths:
           $ref: './components/schemas.yaml#/components/responses/Forbidden'
         '404':
           $ref: './components/schemas.yaml#/components/responses/NotFound'
-  /early-settlements:
-    post:
-      operationId: createEarlySettlement
-      tags: [Balances]
-      summary: Settle early with one producer
-      description: The consumer settles the unbilled balance with the named producer now (REQ-057). The threshold does not apply (BR-05).
-      x-served-by: AC-05
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [producerId]
-              properties:
-                producerId:
-                  $ref: './components/schemas.yaml#/components/schemas/Uuid'
-      responses:
-        '201':
-          description: Early settlement accepted.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BillingRun'
-        '400':
-          $ref: './components/schemas.yaml#/components/responses/BadRequest'
-        '401':
-          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
-        '403':
-          $ref: './components/schemas.yaml#/components/responses/Forbidden'
   /communities/{id}/settings:
     get:
       operationId: getCommunitySettings

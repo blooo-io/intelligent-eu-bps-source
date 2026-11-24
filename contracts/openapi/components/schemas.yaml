@@ -76,7 +76,7 @@ components:
       format: date
       description: >
         Date of the ECB reference rate applied: last TARGET business day of the
-        period, or the settlement date for early and final runs (BR-06, REQ-002).
+        period, or the settlement date for final runs (BR-06, REQ-002).
     BillingMode:
       type: string
       description: Community billing mode (REQ-043). V1 communities are virtual.
@@ -103,8 +103,8 @@ components:
       enum: [pending, succeeded, failed, cancelled, refunded]
     BillingRunType:
       type: string
-      description: Kind of billing run (02 §6).
-      enum: [periodic, early, final]
+      description: Kind of billing run (02 §6). Early settlement removed (REQ-057 deprecated).
+      enum: [periodic, final]
     BillingRunStatus:
       type: string
       description: Billing run lifecycle (02 §5).

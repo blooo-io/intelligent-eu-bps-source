@@ -219,17 +219,6 @@ export const PUBLIC_OPERATIONS: readonly PublicOperation[] = [
     }
   },
   {
-    "operationId": "createEarlySettlement",
-    "method": "POST",
-    "path": "/early-settlements",
-    "tag": "Balances",
-    "summary": "Settle early with one producer",
-    "params": [],
-    "body": {
-      "producerId": ""
-    }
-  },
-  {
     "operationId": "getCommunitySettings",
     "method": "GET",
     "path": "/communities/{id}/settings",

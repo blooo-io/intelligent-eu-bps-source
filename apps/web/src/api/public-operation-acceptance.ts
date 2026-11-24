@@ -22,8 +22,6 @@ export const ACCEPTED_STATUSES: Readonly<Record<string, readonly number[]>> = {
   // 400: live "not payable" when the member has no Open invoice (not in the contract).
   payInvoice: [201, 400],
   setInvoiceStatus: [200],
-  // No unbilled balance is a documented 400.
-  createEarlySettlement: [201, 400],
   getCommunitySettings: [200],
   putCommunitySettings: [200],
   importParticipants: [201],

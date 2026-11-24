@@ -17,10 +17,16 @@ channels:
         $ref: '#/components/messages/InvoiceIssued'
   InvoiceStatusChanged:
     address: InvoiceStatusChanged
-    description: Consumed by AC-08, AC-09 and AC-10.
+    description: Consumed by AC-08, AC-09, AC-10 and AC-11.
     messages:
       InvoiceStatusChanged:
         $ref: '#/components/messages/InvoiceStatusChanged'
+  PaymentReminderRequested:
+    address: PaymentReminderRequested
+    description: Consumed by AC-11.
+    messages:
+      PaymentReminderRequested:
+        $ref: '#/components/messages/PaymentReminderRequested'
   StatementIssued:
     address: StatementIssued
     description: Consumed by AC-09, AC-10 and AC-11.
@@ -52,6 +58,12 @@ operations:
       $ref: '#/channels/InvoiceStatusChanged'
     messages:
       - $ref: '#/channels/InvoiceStatusChanged/messages/InvoiceStatusChanged'
+  publishPaymentReminderRequested:
+    action: send
+    channel:
+      $ref: '#/channels/PaymentReminderRequested'
+    messages:
+      - $ref: '#/channels/PaymentReminderRequested/messages/PaymentReminderRequested'
   publishStatementIssued:
     action: send
     channel:
@@ -102,6 +114,7 @@ components:
                   - amounts
                   - currency
                   - tradeIds
+                  - tariffApplied
                 properties:
                   invoiceId:
                     type: "string"
@@ -171,6 +184,9 @@ components:
                     additionalProperties: false
                     required:
                       - "energy"
+                      - "gridFee"
+                      - "levy"
+                      - "tax"
                       - "vat"
                       - "total"
                     properties:
@@ -178,6 +194,18 @@ components:
                         type: "string"
                         pattern: "^-?\\d+\\.\\d{2}$"
                         description: "Amount rounded to the cent (BR-08)."
+                      gridFee:
+                        type: "string"
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                        description: "Grid fee component (REQ-004)."
+                      levy:
+                        type: "string"
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                        description: "Levy component (REQ-004)."
+                      tax:
+                        type: "string"
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                        description: "Non-VAT tax component (REQ-004)."
                       vat:
                         type: "string"
                         pattern: "^-?\\d+\\.\\d{2}$"
@@ -186,6 +214,9 @@ components:
                         type: "string"
                         pattern: "^-?\\d+\\.\\d{2}$"
                         description: "Amount rounded to the cent (BR-08)."
+                  tariffApplied:
+                    type: "boolean"
+                    description: "True when a community tariff was applied (REQ-004)."
                   currency:
                     type: "string"
                     pattern: "^[A-Z]{3}$"
@@ -232,6 +263,59 @@ components:
                     type: "string"
                     pattern: "^-?\\d+\\.\\d{2}$"
                     description: "Amount rounded to the cent (BR-08)."
+                  dueDate:
+                    type: "string"
+                    format: "date"
+                    description: "Payment due date after the transition (REQ-044)."
+    PaymentReminderRequested:
+      name: PaymentReminderRequested
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: PaymentReminderRequested
+              producer:
+                const: AC-06
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - invoiceId
+                  - recipientId
+                  - communityId
+                  - dueDate
+                  - outstanding
+                  - currency
+                  - reminderNumber
+                  - trigger
+                properties:
+                  invoiceId:
+                    type: "string"
+                    format: "uuid"
+                  recipientId:
+                    type: "string"
+                    format: "uuid"
+                  communityId:
+                    type: "string"
+                    format: "uuid"
+                  dueDate:
+                    type: "string"
+                    format: "date"
+                  outstanding:
+                    type: "string"
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                  currency:
+                    type: "string"
+                    pattern: "^[A-Z]{3}$"
+                  reminderNumber:
+                    type: integer
+                    minimum: 1
+                  trigger:
+                    type: "string"
+                    enum: ["manual", "scheduled"]
     StatementIssued:
       name: StatementIssued
       contentType: application/json

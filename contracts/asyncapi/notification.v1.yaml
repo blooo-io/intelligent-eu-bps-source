@@ -5,11 +5,29 @@ info:
   description: >-
     Domain events consumed by AC-11 (INT-209). Catalogue in application architecture section 4.
     Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
-    Invoice PDF e-mail remains Stripe-owned (TD-2).
+    Billing-owned invoice PDFs and reminders (REQ-039, REQ-061).
   license:
     name: Apache-2.0
 defaultContentType: application/json
 channels:
+  InvoiceIssued:
+    address: InvoiceIssued
+    description: Published by AC-06; consumed by AC-11 (and AC-07, AC-08, AC-09, AC-10).
+    messages:
+      InvoiceIssued:
+        $ref: '#/components/messages/InvoiceIssued'
+  InvoiceStatusChanged:
+    address: InvoiceStatusChanged
+    description: Published by AC-06; consumed by AC-11 (and AC-08, AC-09, AC-10).
+    messages:
+      InvoiceStatusChanged:
+        $ref: '#/components/messages/InvoiceStatusChanged'
+  PaymentReminderRequested:
+    address: PaymentReminderRequested
+    description: Published by AC-06; consumed by AC-11.
+    messages:
+      PaymentReminderRequested:
+        $ref: '#/components/messages/PaymentReminderRequested'
   PaymentStatusChanged:
     address: PaymentStatusChanged
     description: Published by AC-07; consumed by AC-11 (and AC-06/08/09/10).
@@ -17,6 +35,24 @@ channels:
       PaymentStatusChanged:
         $ref: '#/components/messages/PaymentStatusChanged'
 operations:
+  onInvoiceIssued:
+    action: receive
+    channel:
+      $ref: '#/channels/InvoiceIssued'
+    messages:
+      - $ref: '#/channels/InvoiceIssued/messages/InvoiceIssued'
+  onInvoiceStatusChanged:
+    action: receive
+    channel:
+      $ref: '#/channels/InvoiceStatusChanged'
+    messages:
+      - $ref: '#/channels/InvoiceStatusChanged/messages/InvoiceStatusChanged'
+  onPaymentReminderRequested:
+    action: receive
+    channel:
+      $ref: '#/channels/PaymentReminderRequested'
+    messages:
+      - $ref: '#/channels/PaymentReminderRequested/messages/PaymentReminderRequested'
   onPaymentStatusChanged:
     action: receive
     channel:
@@ -25,6 +61,161 @@ operations:
       - $ref: '#/channels/PaymentStatusChanged/messages/PaymentStatusChanged'
 components:
   messages:
+    InvoiceIssued:
+      name: InvoiceIssued
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: InvoiceIssued
+              producer:
+                const: AC-06
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - invoiceId
+                  - issuerId
+                  - recipientId
+                  - settlementId
+                  - dueDate
+                  - amounts
+                  - currency
+                  - tariffApplied
+                properties:
+                  invoiceId:
+                    type: string
+                    format: uuid
+                  issuerId:
+                    type: string
+                    format: uuid
+                  recipientId:
+                    type: string
+                    format: uuid
+                  settlementId:
+                    type: string
+                    format: uuid
+                  dueDate:
+                    type: string
+                    format: date
+                  amounts:
+                    type: object
+                    additionalProperties: false
+                    required: [energy, gridFee, levy, tax, vat, total]
+                    properties:
+                      energy:
+                        type: string
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                      gridFee:
+                        type: string
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                      levy:
+                        type: string
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                      tax:
+                        type: string
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                      vat:
+                        type: string
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                      total:
+                        type: string
+                        pattern: "^-?\\d+\\.\\d{2}$"
+                  currency:
+                    type: string
+                    pattern: "^[A-Z]{3}$"
+                  tariffApplied:
+                    type: boolean
+    InvoiceStatusChanged:
+      name: InvoiceStatusChanged
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: InvoiceStatusChanged
+              producer:
+                const: AC-06
+              data:
+                type: object
+                additionalProperties: false
+                required: [invoiceId, status, outstanding]
+                properties:
+                  invoiceId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum:
+                      - Draft
+                      - Open
+                      - PartiallyPaid
+                      - Paid
+                      - Overdue
+                      - Void
+                      - Disputed
+                  reason:
+                    type: string
+                  outstanding:
+                    type: string
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                  dueDate:
+                    type: string
+                    format: date
+    PaymentReminderRequested:
+      name: PaymentReminderRequested
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: PaymentReminderRequested
+              producer:
+                const: AC-06
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - invoiceId
+                  - recipientId
+                  - communityId
+                  - dueDate
+                  - outstanding
+                  - currency
+                  - reminderNumber
+                  - trigger
+                properties:
+                  invoiceId:
+                    type: string
+                    format: uuid
+                  recipientId:
+                    type: string
+                    format: uuid
+                  communityId:
+                    type: string
+                    format: uuid
+                  dueDate:
+                    type: string
+                    format: date
+                  outstanding:
+                    type: string
+                    pattern: "^-?\\d+\\.\\d{2}$"
+                  currency:
+                    type: string
+                    pattern: "^[A-Z]{3}$"
+                  reminderNumber:
+                    type: integer
+                    minimum: 1
+                  trigger:
+                    type: string
+                    enum: [manual, scheduled]
     PaymentStatusChanged:
       name: PaymentStatusChanged
       contentType: application/json

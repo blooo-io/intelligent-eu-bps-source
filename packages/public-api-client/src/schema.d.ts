@@ -278,11 +278,31 @@ export interface paths {
         };
         /**
          * Invoice PDF
-         * @description Hosted invoice PDF (REQ-039). The provider sends the document.
+         * @description PDF generated and stored by billing (REQ-039). Caller roles: member or manager.
          */
         get: operations["getInvoiceDocument"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invoices/{id}/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send payment reminders for an invoice
+         * @description A community manager triggers reminders for an open invoice (REQ-061). Caller role: manager.
+         */
+        post: operations["sendInvoiceReminder"];
         delete?: never;
         options?: never;
         head?: never;
@@ -817,6 +837,9 @@ export interface components {
         };
         InvoiceAmounts: {
             energy: components["schemas"]["Money"];
+            gridFee: components["schemas"]["Money"];
+            levy: components["schemas"]["Money"];
+            tax: components["schemas"]["Money"];
             vat: components["schemas"]["Money"];
             total: components["schemas"]["Money"];
         };
@@ -842,18 +865,31 @@ export interface components {
         };
         Invoice: {
             invoiceId: components["schemas"]["Uuid"];
-            /** @description Provider invoice number, once issued (REQ-042). Absent while Draft. */
-            legalNumber?: string;
+            /** @description Billing-assigned legal number, sequential per producer (REQ-042). */
+            legalNumber: string;
             producerId: components["schemas"]["Uuid"];
             consumerId: components["schemas"]["Uuid"];
             period?: string;
+            /** Format: date */
+            issueDate?: string;
+            /** Format: date-time */
+            periodFrom?: string;
+            /** Format: date-time */
+            periodUntil?: string;
             currency: components["schemas"]["Currency"];
             status: components["schemas"]["InvoiceStatus"];
             /** Format: date */
             dueDate?: string;
+            vatRate?: components["schemas"]["Rate"];
+            exchangeRate?: null | {
+                rate: components["schemas"]["FxRate"];
+                rateDate: components["schemas"]["RateDate"];
+            };
+            tariffApplied?: boolean;
+            carriedForwardIn?: components["schemas"]["Money"];
             pairSettlementId?: components["schemas"]["Uuid"];
             tradeIds?: string[];
-            /** @description REQ-007 — one entry per trade (delivery period, kWh, price per kWh, amount). Empty when the invoice settles a carried balance only. Grid fees are never included (A20). */
+            /** @description REQ-007 — one entry per trade (delivery period, kWh, price per kWh, amount). Empty when the invoice settles a carried balance only. */
             lines?: components["schemas"]["InvoiceTradeLine"][];
             amounts: components["schemas"]["InvoiceAmounts"];
             billingMode?: components["schemas"]["BillingMode"];
@@ -882,6 +918,16 @@ export interface components {
             billingMode: components["schemas"]["BillingMode"];
             /** @description When true, AC-07 pays out producers automatically (REQ-015). */
             autoPayout: boolean;
+            /**
+             * Format: email
+             * @description Manager inbox for payment alerts (REQ-061).
+             */
+            managerContactEmail?: string;
+            /**
+             * @description When true, grid-fee and levy lines apply (REQ-004).
+             * @default false
+             */
+            tariffBilling: boolean;
         };
         CommunitySettingsWrite: {
             currency: components["schemas"]["Currency"];
@@ -894,6 +940,10 @@ export interface components {
              * @default false
              */
             autoPayout: boolean;
+            /** Format: email */
+            managerContactEmail?: string;
+            /** @default false */
+            tariffBilling: boolean;
         };
         ParticipantImport: {
             /** Format: email */
@@ -1085,9 +1135,31 @@ export interface components {
          * @enum {string}
          */
         InvoiceStatus: "Draft" | "Open" | "PartiallyPaid" | "Paid" | "Overdue" | "Void" | "Disputed";
-        /** @description REQ-007 — one trade covered by the invoice. kWh and amount are signed in the invoice direction (a purchase is positive). No grid-fee line (A20). */
+        /**
+         * @description Decimal rate rounded to the cent, such as a VAT rate (BR-07, BR-08).
+         * @example 0.00
+         */
+        Rate: string;
+        /**
+         * @description ECB reference rate EUR → community currency, kept with 4 to 6 decimals and shown on the invoice (BR-06, REQ-002). 1.0000 for EUR communities.
+         * @example 0.9412
+         */
+        FxRate: string;
+        /**
+         * Format: date
+         * @description Date of the ECB reference rate applied: last TARGET business day of the period, or the settlement date for final runs (BR-06, REQ-002).
+         */
+        RateDate: string;
+        /**
+         * @description Energy price per kWh in EUR (REQ-004).
+         * @example 0.120000
+         */
+        UnitPrice: string;
+        /** @description REQ-007 — one trade covered by the invoice. kWh and amount are signed in the invoice direction (a purchase is positive). Grid-fee components are on the invoice totals (REQ-004), not duplicated per line. */
         InvoiceTradeLine: {
             tradeId: string;
+            /** @enum {string} */
+            role: "buyer" | "seller";
             /**
              * Format: date-time
              * @description Start of the delivery period (BR-02).
@@ -1100,7 +1172,8 @@ export interface components {
             deliveryEnd?: string;
             /** @description Signed energy, three decimals (BR-08). */
             kWh: string;
-            pricePerKWh: components["schemas"]["Money"];
+            pricePerKWh: components["schemas"]["UnitPrice"];
+            adjustedPricePerKWh?: components["schemas"]["UnitPrice"];
             amount: components["schemas"]["Money"];
         };
         /**
@@ -1113,11 +1186,6 @@ export interface components {
          * @enum {string}
          */
         PaymentStatus: "pending" | "succeeded" | "failed" | "cancelled" | "refunded";
-        /**
-         * @description Decimal rate rounded to the cent, such as a VAT rate (BR-07, BR-08).
-         * @example 0.00
-         */
-        Rate: string;
         /**
          * @description Kind of billing run (02 §6). Early settlement removed (REQ-057 deprecated).
          * @enum {string}
@@ -1132,7 +1200,7 @@ export interface components {
          * @description Scheduled job owned by a module (02 §4.5).
          * @enum {string}
          */
-        JobName: "RefreshIntake" | "CheckIntakeHealth" | "StartRun" | "MarkOverdue" | "Reconcile" | "BuildReport" | "ExportKpi" | "RetryPending" | "PurgeCache" | "ApplyRetention" | "FetchRates" | "RunAutoPayouts";
+        JobName: "RefreshIntake" | "CheckIntakeHealth" | "StartRun" | "MarkOverdue" | "Reconcile" | "BuildReport" | "ExportKpi" | "RetryPending" | "PurgeCache" | "ApplyRetention" | "FetchRates" | "RunAutoPayouts" | "SendReminders";
     };
     responses: {
         /** @description Missing or invalid bearer token. */
@@ -1560,6 +1628,44 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    sendInvoiceReminder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource identifier. */
+                id: components["parameters"]["ResourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reminders accepted. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        invoiceId: components["schemas"]["Uuid"];
+                        reminderCount: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Invoice cannot be reminded (Paid, Void or Draft). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     payInvoice: {

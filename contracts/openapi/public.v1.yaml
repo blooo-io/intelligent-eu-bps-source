@@ -390,7 +390,9 @@ paths:
       operationId: getInvoiceDocument
       tags: [Invoices]
       summary: Invoice PDF
-      description: Hosted invoice PDF (REQ-039). The provider sends the document.
+      description: >
+        PDF generated and stored by billing (REQ-039). Caller roles: member or
+        manager.
       x-served-by: AC-06
       parameters:
         - $ref: '#/components/parameters/ResourceId'
@@ -409,6 +411,44 @@ paths:
           $ref: './components/schemas.yaml#/components/responses/Forbidden'
         '404':
           $ref: './components/schemas.yaml#/components/responses/NotFound'
+  /invoices/{id}/reminders:
+    post:
+      operationId: sendInvoiceReminder
+      tags: [Invoices]
+      summary: Send payment reminders for an invoice
+      description: >
+        A community manager triggers reminders for an open invoice (REQ-061).
+        Caller role: manager.
+      x-served-by: AC-06
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '202':
+          description: Reminders accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [invoiceId, reminderCount]
+                properties:
+                  invoiceId:
+                    $ref: './components/schemas.yaml#/components/schemas/Uuid'
+                  reminderCount:
+                    type: integer
+                    minimum: 0
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './components/schemas.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './components/schemas.yaml#/components/responses/NotFound'
+        '409':
+          description: Invoice cannot be reminded (Paid, Void or Draft).
+          content:
+            application/json:
+              schema:
+                $ref: './components/schemas.yaml#/components/schemas/Problem'
   /invoices/{id}/payments:
     post:
       operationId: payInvoice
@@ -1270,9 +1310,15 @@ components:
     InvoiceAmounts:
       type: object
       additionalProperties: false
-      required: [energy, vat, total]
+      required: [energy, gridFee, levy, tax, vat, total]
       properties:
         energy:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        gridFee:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        levy:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        tax:
           $ref: './components/schemas.yaml#/components/schemas/Money'
         vat:
           $ref: './components/schemas.yaml#/components/schemas/Money'
@@ -1321,19 +1367,36 @@ components:
     Invoice:
       type: object
       additionalProperties: false
-      required: [invoiceId, producerId, consumerId, currency, status, amounts]
+      required:
+        - invoiceId
+        - producerId
+        - consumerId
+        - currency
+        - status
+        - legalNumber
+        - amounts
       properties:
         invoiceId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
         legalNumber:
           type: string
-          description: Provider invoice number, once issued (REQ-042). Absent while Draft.
+          description: >
+            Billing-assigned legal number, sequential per producer (REQ-042).
         producerId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
         consumerId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
         period:
           type: string
+        issueDate:
+          type: string
+          format: date
+        periodFrom:
+          type: string
+          format: date-time
+        periodUntil:
+          type: string
+          format: date-time
         currency:
           $ref: './components/schemas.yaml#/components/schemas/Currency'
         status:
@@ -1341,6 +1404,23 @@ components:
         dueDate:
           type: string
           format: date
+        vatRate:
+          $ref: './components/schemas.yaml#/components/schemas/Rate'
+        exchangeRate:
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [rate, rateDate]
+              properties:
+                rate:
+                  $ref: './components/schemas.yaml#/components/schemas/FxRate'
+                rateDate:
+                  $ref: './components/schemas.yaml#/components/schemas/RateDate'
+        tariffApplied:
+          type: boolean
+        carriedForwardIn:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
         pairSettlementId:
           $ref: './components/schemas.yaml#/components/schemas/Uuid'
         tradeIds:
@@ -1353,7 +1433,6 @@ components:
           description: >
             REQ-007 — one entry per trade (delivery period, kWh, price per kWh,
             amount). Empty when the invoice settles a carried balance only.
-            Grid fees are never included (A20).
           items:
             $ref: './components/schemas.yaml#/components/schemas/InvoiceTradeLine'
         amounts:
@@ -1411,6 +1490,14 @@ components:
         autoPayout:
           type: boolean
           description: When true, AC-07 pays out producers automatically (REQ-015).
+        managerContactEmail:
+          type: string
+          format: email
+          description: Manager inbox for payment alerts (REQ-061).
+        tariffBilling:
+          type: boolean
+          default: false
+          description: When true, grid-fee and levy lines apply (REQ-004).
     CommunitySettingsWrite:
       type: object
       additionalProperties: false
@@ -1430,6 +1517,12 @@ components:
           type: boolean
           default: false
           description: When true, AC-07 pays out producers automatically (REQ-015).
+        managerContactEmail:
+          type: string
+          format: email
+        tariffBilling:
+          type: boolean
+          default: false
     ParticipantImport:
       type: object
       additionalProperties: false

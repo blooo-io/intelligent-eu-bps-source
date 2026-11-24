@@ -65,6 +65,48 @@ paths:
                 $ref: '#/components/schemas/CommunitySettings'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /communities/{communityId}/manager-contact:
+    get:
+      operationId: getManagerContact
+      tags: [Participants]
+      summary: Read the community manager contact e-mail
+      description: GetManagerContact(communityId). Called by AC-11 (REQ-061).
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+      responses:
+        '200':
+          description: Manager contact e-mail.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [communityId, email]
+                properties:
+                  communityId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  email:
+                    type: string
+                    format: email
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants/{participantId}/invoice-party:
+    get:
+      operationId: getInvoiceParty
+      tags: [Participants]
+      summary: Read invoice party details for PDF rendering
+      description: GetInvoiceParty(participantId). Called by AC-06 (REQ-039).
+      parameters:
+        - $ref: '#/components/parameters/ParticipantId'
+      responses:
+        '200':
+          description: Invoice party name, address and mandate.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceParty'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /participants/{participantId}/readiness:
     get:
       operationId: checkReadiness
@@ -303,3 +345,36 @@ components:
         autoPayout:
           type: boolean
           description: When true, AC-07 pays out producers automatically (REQ-015).
+        managerContactEmail:
+          type: string
+          format: email
+          description: Manager inbox for payment alerts (REQ-061).
+        tariffBilling:
+          type: boolean
+          default: false
+          description: When true, grid-fee and levy lines apply (REQ-004).
+    InvoiceParty:
+      type: object
+      additionalProperties: false
+      required: [participantId, name, address, selfBillingMandate]
+      properties:
+        participantId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        name:
+          type: string
+        address:
+          type: string
+        selfBillingMandate:
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [termsVersion, acceptedAt]
+              properties:
+                termsVersion:
+                  type: string
+                acceptedAt:
+                  oneOf:
+                    - type: string
+                      format: date-time
+                    - type: 'null'

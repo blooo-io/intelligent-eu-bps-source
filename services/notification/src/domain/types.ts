@@ -11,12 +11,25 @@ export type NoticeTemplate =
 export type NotificationLogEntry = {
   logId: string;
   eventId: string;
-  paymentId: string;
+  /** Null for invoice notices that are not payment-driven (REQ-039). */
+  paymentId: string | null;
   invoiceId: string;
   participantId: string;
-  status: "succeeded" | "failed";
+  status: "succeeded" | "failed" | "issued" | "reminder" | "overdue";
   template: NoticeTemplate;
   recordedAt: string;
+};
+
+/** InvoiceIssued payload fields used by AC-11 (REQ-039 / UAT-050). */
+export type InvoiceIssuedEvent = {
+  eventId: string;
+  invoiceId: string;
+  issuerId: string;
+  recipientId: string;
+  communityId: string;
+  dueDate: string;
+  total: string;
+  currency: string;
 };
 
 /** Captured attachment metadata only — never raw bytes (UAT-050). */

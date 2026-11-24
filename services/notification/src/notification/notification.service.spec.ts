@@ -1,5 +1,6 @@
 /**
  * INT-110 — AC-11 payment notices (REQ-017, UAT-017).
+ * INT-428 Task 2.15 — invoice PDF e-mail on issue (REQ-039, UAT-050).
  */
 import "reflect-metadata";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -9,10 +10,18 @@ import {
 } from "@intelligent/module-template";
 import { NotificationStore } from "../domain/store.js";
 import { MailpitCatcherAdapter } from "../mail/mailpit-catcher.adapter.js";
+import {
+  MapInvoiceDocument,
+  NullInvoiceDocument,
+} from "../ports/invoice-document.port.js";
 import { NotificationService } from "./notification.service.js";
 
 const PARTICIPANT = "11111111-2222-4333-8444-555555555555";
+const CONSUMER = "11111111-2222-4333-8444-555555555501";
+const PRODUCER = "11111111-2222-4333-8444-555555555502";
 const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
+const INVOICE = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+const LEGAL = "SB-66666666-000001";
 
 describe("NotificationService", () => {
   let store: NotificationStore;
@@ -152,5 +161,100 @@ describe("NotificationService", () => {
     expect(sent[0].body).toContain(
       "correctiveAction=Top up the account or choose another payment method, then pay again",
     );
+  });
+});
+
+describe("NotificationService.onInvoiceIssued (INT-428 / UAT-050)", () => {
+  let store: NotificationStore;
+  let mail: MailpitCatcherAdapter;
+  let docs: MapInvoiceDocument;
+  let service: NotificationService;
+
+  const baseEvent = {
+    eventId: "88888888-8888-4888-8888-888888888888",
+    invoiceId: INVOICE,
+    issuerId: PRODUCER,
+    recipientId: CONSUMER,
+    communityId: COMMUNITY,
+    dueDate: "2026-12-15",
+    total: "10.00",
+    currency: "EUR",
+  };
+
+  beforeEach(() => {
+    store = new NotificationStore();
+    mail = new MailpitCatcherAdapter();
+    docs = new MapInvoiceDocument();
+    docs.put(INVOICE, {
+      legalNumber: LEGAL,
+      content: Buffer.from("%PDF-1.4"),
+    });
+    service = new NotificationService(
+      store,
+      mail,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      null,
+      docs,
+    );
+    service.registerRecipient(CONSUMER, "consumer@example.invalid");
+    service.registerRecipient(PRODUCER, "producer@example.invalid");
+  });
+
+  it("UAT-050 e-mails the PDF to the consumer and a copy to the producer", async () => {
+    await service.onInvoiceIssued(baseEvent);
+    const captured = service.capturedMail();
+    expect(captured).toHaveLength(2);
+    expect(captured.every((m) => m.template === "invoice-issued")).toBe(true);
+    expect(captured.map((m) => m.to).sort()).toEqual([
+      "consumer@example.invalid",
+      "producer@example.invalid",
+    ]);
+    expect(captured[0]?.attachments?.[0]?.filename).toBe(`${LEGAL}.pdf`);
+    expect(service.listLogs().every((l) => l.paymentId === null)).toBe(true);
+    expect(service.listLogs().every((l) => l.status === "issued")).toBe(true);
+  });
+
+  it("is idempotent on eventId", async () => {
+    expect(await service.onInvoiceIssued(baseEvent)).toEqual({
+      status: "processed",
+    });
+    expect(await service.onInvoiceIssued(baseEvent)).toEqual({
+      status: "duplicate",
+    });
+    expect(service.capturedMail()).toHaveLength(2);
+  });
+
+  it("redelivers when the document is not yet readable", async () => {
+    service = new NotificationService(
+      store,
+      mail,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      null,
+      new NullInvoiceDocument(),
+    );
+    await expect(service.onInvoiceIssued(baseEvent)).rejects.toThrow(
+      /not yet readable/,
+    );
+    expect(service.capturedMail()).toHaveLength(0);
+  });
+
+  it("skips a party with missing e-mail and still mails the other", async () => {
+    store = new NotificationStore();
+    mail = new MailpitCatcherAdapter();
+    service = new NotificationService(
+      store,
+      mail,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      null,
+      docs,
+    );
+    service.registerRecipient(CONSUMER, "consumer@example.invalid");
+    // producer e-mail deliberately missing
+    await service.onInvoiceIssued({
+      ...baseEvent,
+      eventId: "99999999-9999-4999-8999-999999999999",
+    });
+    expect(service.capturedMail()).toHaveLength(1);
+    expect(service.capturedMail()[0]?.to).toBe("consumer@example.invalid");
   });
 });

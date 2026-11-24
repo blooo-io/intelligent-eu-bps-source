@@ -2,7 +2,11 @@
  * INT-107 — P-PSP Stripe test mode (BR-12, REQ-014, REQ-040, REQ-051, NFR-015).
  */
 import "reflect-metadata";
-import { BadGatewayException, Logger } from "@nestjs/common";
+import {
+  BadGatewayException,
+  ForbiddenException,
+  Logger,
+} from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import {
   IdempotentConsumer,
@@ -11,7 +15,7 @@ import {
   OutboxService,
 } from "@intelligent/module-template";
 import type { Clock } from "../domain/clock.js";
-import { PaymentsStore } from "../domain/store.js";
+import { PaymentsStore, type AccountRecord } from "../domain/store.js";
 import { MockPspAdapter } from "../psp/mock-psp.adapter.js";
 import { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
 import type { PspEvent } from "../psp/psp.types.js";
@@ -26,6 +30,45 @@ import { PaymentsService } from "./payments.service.js";
 const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
 const PRODUCER = "66666666-7777-4888-9999-aaaaaaaaaaaa";
 const CONSUMER = "11111111-2222-4333-8444-555555555555";
+
+/** REQ-045 — mark an existing account as KYC-verified for pay-path fixtures. */
+async function markKycVerified(
+  store: PaymentsStore,
+  participantId: string,
+  durable?: InMemoryPaymentAccountsStore,
+): Promise<void> {
+  const row = store.getAccount(participantId);
+  if (!row) return;
+  const updated: AccountRecord = {
+    ...row,
+    kycStatus: "verified",
+    kycVerified: true,
+    kycVerifiedAt: row.kycVerifiedAt ?? "2026-11-24T00:00:00.000Z",
+    kycMethod: row.kycMethod ?? "connect_onboarding",
+  };
+  store.putAccount(updated);
+  await durable?.put(updated);
+}
+
+/** REQ-045 — both parties must be KYC-verified before payInvoice. */
+async function readyPayParties(
+  service: PaymentsService,
+  store: PaymentsStore,
+  durable: InMemoryPaymentAccountsStore,
+): Promise<void> {
+  await service.ensureParticipant({
+    participantId: CONSUMER,
+    communityId: COMMUNITY,
+    role: "consumer",
+  });
+  await service.ensureParticipant({
+    participantId: PRODUCER,
+    communityId: COMMUNITY,
+    role: "producer",
+  });
+  await markKycVerified(store, CONSUMER, durable);
+  await markKycVerified(store, PRODUCER, durable);
+}
 
 class TestClock implements Clock {
   private current = new Date("2026-11-24T09:00:00.000Z");
@@ -519,6 +562,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     await expect(service.getMyPaymentAccount(CONSUMER)).resolves.toEqual({
       status: "complete",
       method: "card",
@@ -534,6 +584,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_sepa_debit");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     await expect(service.getMyPaymentAccount(CONSUMER)).resolves.toMatchObject({
       status: "complete",
       method: "sepa_debit",
@@ -593,6 +650,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     await expect(service.attachPaymentMethod(other, "pm_card_visa")).rejects.toThrow(
       /another participant/,
     );
@@ -605,6 +669,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     invoices.put({
       invoiceId: "inv-void",
       pspInvoiceRef: "in_void",
@@ -624,6 +695,88 @@ describe("PaymentsService", () => {
     ).rejects.toThrow(/not payable/);
   });
 
+  it("REQ-045 / UAT-056: payment refused when payer KYC not verified", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    // payer left unverified
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
+    invoices.put({
+      invoiceId: "inv-payer-kyc",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "5.00",
+      producerPspAccountRef: "acct_payee_ok",
+    });
+    const charge = vi.spyOn(psp, "createDirectCharge");
+    try {
+      await service.payInvoice({
+        invoiceId: "inv-payer-kyc",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      });
+      expect.fail("expected ForbiddenException");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ForbiddenException);
+      expect((err as ForbiddenException).getResponse()).toEqual({
+        code: "kyc_not_verified",
+        subject: "payer",
+      });
+    }
+    expect(charge).not.toHaveBeenCalled();
+  });
+
+  it("REQ-045: payment refused when payee (producer) KYC not verified", async () => {
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    // payee left unverified
+    invoices.put({
+      invoiceId: "inv-payee-kyc",
+      producerId: PRODUCER,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "5.00",
+      producerPspAccountRef: "acct_payee_no",
+    });
+    const charge = vi.spyOn(psp, "createDirectCharge");
+    try {
+      await service.payInvoice({
+        invoiceId: "inv-payee-kyc",
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+      });
+      expect.fail("expected ForbiddenException");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ForbiddenException);
+      expect((err as ForbiddenException).getResponse()).toEqual({
+        code: "kyc_not_verified",
+        subject: "payee",
+      });
+    }
+    expect(charge).not.toHaveBeenCalled();
+  });
+
   it("pays an invoice to the producer account (REQ-014, BR-12)", async () => {
     await service.ensureParticipant({
       participantId: CONSUMER,
@@ -631,6 +784,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     invoices.put({
       invoiceId: "inv-1",
       pspInvoiceRef: "in_inv-1",
@@ -659,6 +819,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_fail_insufficient");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     invoices.put({
       invoiceId: "inv-2",
       pspInvoiceRef: "in_inv-2",
@@ -678,6 +845,13 @@ describe("PaymentsService", () => {
     expect(payment.failureCategory).toBe("card_declined");
 
     await service.attachPaymentMethod(CONSUMER, "pm_fail_generic");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     invoices.put({
       invoiceId: "inv-3",
       pspInvoiceRef: "in_inv-3",
@@ -877,6 +1051,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     invoices.put({
       invoiceId: "inv-pending",
       pspInvoiceRef: "in_inv-pending",
@@ -910,6 +1091,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     invoices.put({
       invoiceId: "inv-fail-hook",
       pspInvoiceRef: "in_inv-fail-hook",
@@ -953,12 +1141,9 @@ describe("PaymentsService", () => {
       });
 
     beforeEach(async () => {
-      await service.ensureParticipant({
-        participantId: CONSUMER,
-        communityId: COMMUNITY,
-        role: "consumer",
-      });
+      await readyPayParties(service, store, accountsStore);
       await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+      await markKycVerified(store, CONSUMER, accountsStore);
     });
 
     it("D2 / REQ-014 pay clones per charge with no connected Customer (A1)", async () => {
@@ -1151,12 +1336,9 @@ describe("PaymentsService", () => {
       (await outboxStore.list()).filter((e) => e.event.type === "PaymentStatusChanged");
 
     beforeEach(async () => {
-      await service.ensureParticipant({
-        participantId: CONSUMER,
-        communityId: COMMUNITY,
-        role: "consumer",
-      });
+      await readyPayParties(service, store, accountsStore);
       await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+      await markKycVerified(store, CONSUMER, accountsStore);
       putInvoice(INV1);
       putInvoice(INV2);
     });
@@ -1597,6 +1779,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     // Simulate pod restart: memory gone, Postgres/durable store still has the row.
     store.reset();
     invoices.put({
@@ -1747,6 +1936,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     invoices.put({
       invoiceId: "inv-idp",
       pspInvoiceRef: "in_inv-idp",
@@ -1796,6 +1992,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     invoices.put({
       invoiceId: "inv-idp-consumer",
       pspInvoiceRef: "in_inv-idp-consumer",
@@ -1865,6 +2068,13 @@ describe("PaymentsService", () => {
       role: "consumer",
     });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
     invoices.put({
       invoiceId: "inv-poison",
       pspInvoiceRef: "in_inv-poison",

@@ -904,6 +904,20 @@ export class PaymentsService {
     ) {
       throw new ForbiddenException("Invoice is not payable by this participant");
     }
+    // REQ-045 / UAT-056 — refuse pay when payer or payee KYC is not verified.
+    if (!account?.kycVerified) {
+      throw new ForbiddenException({
+        code: "kyc_not_verified",
+        subject: "payer",
+      });
+    }
+    const payee = await this.hydrateAccount(invoice.producerId);
+    if (!payee?.kycVerified) {
+      throw new ForbiddenException({
+        code: "kyc_not_verified",
+        subject: "payee",
+      });
+    }
     // INT-355 — replaying Pay on a settled invoice returns the original payment.
     const prior = this.store.findSucceededByInvoiceId(input.invoiceId);
     if (prior) {

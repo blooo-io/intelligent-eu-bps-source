@@ -205,6 +205,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Billing statements of the caller
+         * @description Monthly participant statements (REQ-059). Lists only the caller's own statements (REQ-010).
+         */
+        get: operations["listMyStatements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invoices/{id}": {
         parameters: {
             query?: never;
@@ -756,6 +776,26 @@ export interface components {
             vat: components["schemas"]["Money"];
             total: components["schemas"]["Money"];
         };
+        Statement: {
+            statementId: components["schemas"]["Uuid"];
+            participantId: components["schemas"]["Uuid"];
+            communityId: components["schemas"]["Uuid"];
+            period: components["schemas"]["BillingPeriod"];
+            /** Format: date-time */
+            periodFrom: string;
+            /** Format: date-time */
+            periodUntil: string;
+            totalBought: components["schemas"]["Money"];
+            totalSold: components["schemas"]["Money"];
+            /** @description Signed net; positive means to receive (REQ-059). */
+            netBalance: components["schemas"]["Money"];
+            /** @enum {string} */
+            direction: "to_pay" | "to_receive" | "balanced";
+            currency: components["schemas"]["Currency"];
+            invoiceIds: components["schemas"]["Uuid"][];
+            status: components["schemas"]["StatementStatus"];
+            revision: number;
+        };
         Invoice: {
             invoiceId: components["schemas"]["Uuid"];
             /** @description Provider invoice number, once issued (REQ-042). Absent while Draft. */
@@ -962,6 +1002,17 @@ export interface components {
             amount: components["schemas"]["Money"];
         };
         /**
+         * @description Billing period of the community calendar, YYYY-MM (monthly) or YYYY-Qn (quarterly) (REQ-006).
+         * @example 2026-11
+         * @example 2026-Q4
+         */
+        BillingPeriod: string;
+        /**
+         * @description Participant billing statement lifecycle (REQ-059). Ontology billingStatus without Disputed.
+         * @enum {string}
+         */
+        StatementStatus: "Open" | "PartiallyPaid" | "Paid" | "Overdue" | "Void";
+        /**
          * @description Payment lifecycle (02 §5).
          * @enum {string}
          */
@@ -976,12 +1027,6 @@ export interface components {
          * @enum {string}
          */
         BillingRunType: "periodic" | "final";
-        /**
-         * @description Billing period of the community calendar, YYYY-MM (monthly) or YYYY-Qn (quarterly) (REQ-006).
-         * @example 2026-11
-         * @example 2026-Q4
-         */
-        BillingPeriod: string;
         /**
          * @description Billing run lifecycle (02 §5).
          * @enum {string}
@@ -1284,6 +1329,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Invoice"][];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listMyStatements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's billing statements. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Statement"][];
                 };
             };
             401: components["responses"]["Unauthorized"];

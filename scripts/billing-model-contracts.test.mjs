@@ -25,3 +25,13 @@ test("WS1 REQ-057: early settlement is gone from every contract", async () => {
     /early-settlements/,
   );
 });
+
+test("WS1 REQ-059: statement contract", async () => {
+  const pub = await readFile("contracts/openapi/public.v1.yaml", "utf8");
+  assert.match(pub, /\/me\/statements:[\s\S]*?operationId: listMyStatements[\s\S]*?x-served-by: AC-06/);
+  assert.match(pub, /Statement:[\s\S]*?required: \[statementId, participantId, communityId, period, periodFrom, periodUntil, totalBought, totalSold, netBalance, direction, currency, invoiceIds, status, revision\]/);
+  const ia = await readFile("contracts/asyncapi/invoicing.v1.yaml", "utf8");
+  assert.match(ia, /StatementIssued:/);
+  assert.match(ia, /StatementStatusChanged:/);
+  assert.match(await readFile("contracts/openapi/internal/invoicing.v1.yaml", "utf8"), /\/statements:[\s\S]*?operationId: listStatements/);
+});

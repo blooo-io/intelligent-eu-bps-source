@@ -105,6 +105,8 @@ spec:
         paths:
           - /v1/me/invoices
           - /v1/me/invoices/*
+          - /v1/me/statements
+          - /v1/me/statements/*
           - /v1/invoices
           - /v1/invoices/*
       backends:

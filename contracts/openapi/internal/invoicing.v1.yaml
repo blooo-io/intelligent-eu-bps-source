@@ -190,11 +190,116 @@ paths:
                     type: string
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /statements:
+    get:
+      operationId: listStatements
+      tags: [Invoicing]
+      summary: List participant statements
+      description: >
+        ListStatements(participantId, period?). Called by AC-09 and operator
+        tools (REQ-059). Identifiers and amounts only.
+      parameters:
+        - name: participantId
+          in: query
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        - name: period
+          in: query
+          required: false
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/BillingPeriod'
+      responses:
+        '200':
+          description: Statements for the participant.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InternalStatement'
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '../components/schemas.yaml#/components/responses/Unauthorized'
 components:
   securitySchemes:
     serviceAuth:
       $ref: '../components/schemas.yaml#/components/securitySchemes/serviceAuth'
   schemas:
+    StatementInvoice:
+      type: object
+      additionalProperties: false
+      required: [invoiceId, producerId, consumerId, total, status]
+      properties:
+        invoiceId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        producerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        consumerId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        total:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        status:
+          $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
+    InternalStatement:
+      type: object
+      additionalProperties: false
+      required:
+        - statementId
+        - participantId
+        - communityId
+        - period
+        - periodFrom
+        - periodUntil
+        - totalBought
+        - totalSold
+        - netBalance
+        - direction
+        - currency
+        - invoiceIds
+        - status
+        - revision
+        - invoices
+      properties:
+        statementId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        participantId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
+          $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        period:
+          $ref: '../components/schemas.yaml#/components/schemas/BillingPeriod'
+        periodFrom:
+          type: string
+          format: date-time
+        periodUntil:
+          type: string
+          format: date-time
+        totalBought:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        totalSold:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        netBalance:
+          $ref: '../components/schemas.yaml#/components/schemas/Money'
+        direction:
+          type: string
+          enum: [to_pay, to_receive, balanced]
+        currency:
+          $ref: '../components/schemas.yaml#/components/schemas/Currency'
+        invoiceIds:
+          type: array
+          items:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+        status:
+          $ref: '../components/schemas.yaml#/components/schemas/StatementStatus'
+        revision:
+          type: integer
+          minimum: 1
+        invoices:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementInvoice'
     PairSettlementInput:
       type: object
       additionalProperties: false

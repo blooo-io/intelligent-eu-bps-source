@@ -287,6 +287,26 @@ paths:
                   $ref: '#/components/schemas/Invoice'
         '401':
           $ref: './components/schemas.yaml#/components/responses/Unauthorized'
+  /me/statements:
+    get:
+      operationId: listMyStatements
+      tags: [Invoices]
+      summary: Billing statements of the caller
+      description: >
+        Monthly participant statements (REQ-059). Lists only the caller's own
+        statements (REQ-010).
+      x-served-by: AC-06
+      responses:
+        '200':
+          description: The caller's billing statements.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Statement'
+        '401':
+          $ref: './components/schemas.yaml#/components/responses/Unauthorized'
   /invoices/{id}:
     get:
       operationId: getInvoice
@@ -1170,6 +1190,46 @@ components:
           $ref: './components/schemas.yaml#/components/schemas/Money'
         total:
           $ref: './components/schemas.yaml#/components/schemas/Money'
+    Statement:
+      type: object
+      additionalProperties: false
+      required: [statementId, participantId, communityId, period, periodFrom, periodUntil, totalBought, totalSold, netBalance, direction, currency, invoiceIds, status, revision]
+      properties:
+        statementId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        participantId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        communityId:
+          $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        period:
+          $ref: './components/schemas.yaml#/components/schemas/BillingPeriod'
+        periodFrom:
+          type: string
+          format: date-time
+        periodUntil:
+          type: string
+          format: date-time
+        totalBought:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        totalSold:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+        netBalance:
+          $ref: './components/schemas.yaml#/components/schemas/Money'
+          description: Signed net; positive means to receive (REQ-059).
+        direction:
+          type: string
+          enum: [to_pay, to_receive, balanced]
+        currency:
+          $ref: './components/schemas.yaml#/components/schemas/Currency'
+        invoiceIds:
+          type: array
+          items:
+            $ref: './components/schemas.yaml#/components/schemas/Uuid'
+        status:
+          $ref: './components/schemas.yaml#/components/schemas/StatementStatus'
+        revision:
+          type: integer
+          minimum: 1
     Invoice:
       type: object
       additionalProperties: false

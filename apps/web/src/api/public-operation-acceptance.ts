@@ -17,6 +17,7 @@ export const ACCEPTED_STATUSES: Readonly<Record<string, readonly number[]>> = {
   submitPaymentOnboardingRequirements: [200, 400],
   listMyBalances: [200],
   listMyInvoices: [200],
+  listMyStatements: [200],
   getInvoice: [200],
   getInvoiceDocument: [200],
   // 400: live "not payable" when the member has no Open invoice (not in the contract).

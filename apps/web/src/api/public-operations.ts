@@ -156,6 +156,15 @@ export const PUBLIC_OPERATIONS: readonly PublicOperation[] = [
     "body": null
   },
   {
+    "operationId": "listMyStatements",
+    "method": "GET",
+    "path": "/me/statements",
+    "tag": "Invoices",
+    "summary": "Billing statements of the caller",
+    "params": [],
+    "body": null
+  },
+  {
     "operationId": "getInvoice",
     "method": "GET",
     "path": "/invoices/{id}",

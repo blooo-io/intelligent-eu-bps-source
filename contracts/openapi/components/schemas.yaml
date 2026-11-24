@@ -97,6 +97,12 @@ components:
       type: string
       description: Invoice lifecycle (REQ-044, 02 §5).
       enum: [Draft, Open, PartiallyPaid, Paid, Overdue, Void, Disputed]
+    StatementStatus:
+      type: string
+      description: >
+        Participant billing statement lifecycle (REQ-059). Ontology billingStatus
+        without Disputed.
+      enum: [Open, PartiallyPaid, Paid, Overdue, Void]
     PaymentStatus:
       type: string
       description: Payment lifecycle (02 §5).

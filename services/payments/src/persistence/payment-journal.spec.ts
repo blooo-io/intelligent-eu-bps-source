@@ -18,7 +18,7 @@ function samplePayment(id: string, status: PaymentRecord["status"] = "pending"):
     amount: "10.00",
     currency: "EUR",
     status,
-    stripePaymentId: `pi_${id}`,
+    pspPaymentRef: `pi_${id}`,
     communityId: "comm-1",
   };
 }

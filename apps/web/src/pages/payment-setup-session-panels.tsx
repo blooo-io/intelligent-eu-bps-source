@@ -67,8 +67,8 @@ export function PaymentSetupCompleteAlert({
         showIcon
         message="Payment account ready"
         description={
-          session.stripeAccountId
-            ? `Connect account ${session.stripeAccountId} is complete.`
+          session.pspAccountRef
+            ? `Connect account ${session.pspAccountRef} is complete.`
             : "Onboarding complete."
         }
       />

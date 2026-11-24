@@ -22,7 +22,7 @@ export function PaymentSetupReadySection({
   const showPayout =
     !setupIncomplete &&
     (asProducer || asProsumer) &&
-    Boolean(account?.stripeAccountId);
+    Boolean(account?.pspAccountRef);
 
   return (
     <>

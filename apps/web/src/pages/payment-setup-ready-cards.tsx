@@ -27,7 +27,7 @@ export function PayoutAccountReadyCard({
   return (
     <div data-testid="payout-account-ready" style={{ marginBottom: 16 }}>
       <Paragraph type="secondary" style={{ marginBottom: 12 }}>
-        Connect account <Text code>{account.stripeAccountId}</Text>
+        Connect account <Text code>{account.pspAccountRef}</Text>
       </Paragraph>
       {account.dashboardUrl ? (
         <Button

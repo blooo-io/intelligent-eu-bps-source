@@ -9,10 +9,10 @@
  * Usage:
  *   SETTLEMENT_URL=http://127.0.0.1:18085 \
  *   INVOICING_URL=http://127.0.0.1:18086 \
- *   PRODUCER_STRIPE_ACCOUNT_ID=acct_... \
+ *   PRODUCER_PSP_ACCOUNT_REF=acct_... \
  *   node scripts/uat028-seed-billing-trace.mjs
  *
- * PRODUCER_STRIPE_ACCOUNT_ID is required against live Stripe (INT-197): without
+ * PRODUCER_PSP_ACCOUNT_REF is required against live Stripe (INT-197): without
  * it AC-06 synthesises acct_test_* and Stripe rejects the invoice create.
  *
  * Then open app.dev as uat-operator and trace invoice → tradeIds → pairSettlementId.
@@ -35,8 +35,8 @@ const COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
  * INT-197 — real Connect account with charges_enabled (UAT-015).
  * Applied to every pair settlement when set (S1 has two producers).
  */
-const PRODUCER_STRIPE_ACCOUNT_ID = (
-  process.env.PRODUCER_STRIPE_ACCOUNT_ID ?? ""
+const PRODUCER_PSP_ACCOUNT_REF = (
+  process.env.PRODUCER_PSP_ACCOUNT_REF ?? ""
 ).trim();
 
 const headers = {
@@ -45,9 +45,9 @@ const headers = {
 };
 
 async function main() {
-  if (!PRODUCER_STRIPE_ACCOUNT_ID) {
+  if (!PRODUCER_PSP_ACCOUNT_REF) {
     console.error(
-      "PRODUCER_STRIPE_ACCOUNT_ID is required (Connect account with charges_enabled).",
+      "PRODUCER_PSP_ACCOUNT_REF is required (Connect account with charges_enabled).",
     );
     process.exit(1);
   }
@@ -106,7 +106,7 @@ async function main() {
           vat: settlement.vat,
           currency: settlement.currency,
           rate: settlement.rate,
-          producerStripeAccountId: PRODUCER_STRIPE_ACCOUNT_ID,
+          producerPspAccountRef: PRODUCER_PSP_ACCOUNT_REF,
         }),
       },
     );

@@ -11,16 +11,17 @@ describe("payment-setup-ready-cards (INT-255)", () => {
     expect(screen.getByTestId("payment-method-ready")).toHaveTextContent("Card ···· 4242");
   });
 
-  it("shows a Stripe dashboard link when available", () => {
+  it("renders from pspAccountRef and shows a Stripe dashboard link when available", () => {
     render(
       <PayoutAccountReadyCard
         account={{
           status: "complete",
-          stripeAccountId: "acct_123",
+          pspAccountRef: "acct_123",
           dashboardUrl: "https://dashboard.stripe.test/acct",
         }}
       />,
     );
+    expect(screen.getByTestId("payout-account-ready")).toHaveTextContent("acct_123");
     expect(screen.getByRole("link", { name: /open stripe dashboard/i })).toHaveAttribute(
       "href",
       "https://dashboard.stripe.test/acct",
@@ -32,10 +33,11 @@ describe("payment-setup-ready-cards (INT-255)", () => {
       <PayoutAccountReadyCard
         account={{
           status: "complete",
-          stripeAccountId: "acct_456",
+          pspAccountRef: "acct_456",
         }}
       />,
     );
+    expect(screen.getByTestId("payout-account-ready")).toHaveTextContent("acct_456");
     expect(screen.queryByRole("link", { name: /open stripe dashboard/i })).toBeNull();
   });
 });

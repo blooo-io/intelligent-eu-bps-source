@@ -14,4 +14,8 @@ test("UAT-053 seed script maps two producers to distinct Connect accounts", asyn
   assert.match(src, /invoices:from-settlement/);
   assert.match(src, /assertEwdsCarriesInvoiceIdOnly/);
   assert.match(src, /legal number/i);
+  assert.match(src, /PRODUCER_PSP_ACCOUNT_MAP/);
+  assert.match(src, /producerPspAccountRef/);
+  assert.doesNotMatch(src, /producerStripeAccountId/);
+  assert.doesNotMatch(src, /PRODUCER_STRIPE_MAP/);
 });

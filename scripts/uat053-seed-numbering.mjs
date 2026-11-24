@@ -38,8 +38,8 @@ const EVIDENCE_PATH =
 
 /** Mock S1 community (AC-15). */
 const COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
-/** S1 producer UUIDs → distinct Connect accounts with charges_enabled. */
-const PRODUCER_STRIPE_MAP = {
+/** S1 producer UUIDs → distinct PSP Connect accounts with charges_enabled. */
+const PRODUCER_PSP_ACCOUNT_MAP = {
   "66666666-7777-4888-9999-aaaaaaaaaaaa": "acct_1URyv9FGX8DfzG09",
   "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff": "acct_1URvtiF4LYz7qY6g",
 };
@@ -105,9 +105,9 @@ async function seedPeriod(period) {
     const settlement = await sRes.json();
     assert.equal(sRes.status, 200, JSON.stringify(settlement));
 
-    const stripeAccountId = PRODUCER_STRIPE_MAP[settlement.producerId];
+    const pspAccountRef = PRODUCER_PSP_ACCOUNT_MAP[settlement.producerId];
     assert.ok(
-      stripeAccountId,
+      pspAccountRef,
       `no Connect map for producer ${settlement.producerId}`,
     );
 
@@ -128,7 +128,7 @@ async function seedPeriod(period) {
           vat: settlement.vat,
           currency: settlement.currency,
           rate: settlement.rate,
-          producerStripeAccountId: stripeAccountId,
+          producerPspAccountRef: pspAccountRef,
         }),
       },
     );
@@ -143,7 +143,7 @@ async function seedPeriod(period) {
       runId,
       producerId: settlement.producerId,
       settlementId: settlement.settlementId,
-      stripeAccountId,
+      pspAccountRef,
       invoiceId: invBody.invoiceId,
       total: invBody.total,
       tradeIds: invBody.tradeIds,
@@ -186,9 +186,9 @@ async function cmdValidate() {
 
   const byAccount = new Map();
   for (const row of seeded) {
-    const list = byAccount.get(row.stripeAccountId) ?? [];
+    const list = byAccount.get(row.pspAccountRef) ?? [];
     list.push(row);
-    byAccount.set(row.stripeAccountId, list);
+    byAccount.set(row.pspAccountRef, list);
   }
   assert.equal(byAccount.size, 2, "two Connect accounts");
 
@@ -233,7 +233,7 @@ async function cmdValidate() {
       );
     }
     evidence.push({
-      stripeAccountId: acct,
+      pspAccountRef: acct,
       invoices: matched,
       sequence: suffixes.map((s) => s.number),
     });

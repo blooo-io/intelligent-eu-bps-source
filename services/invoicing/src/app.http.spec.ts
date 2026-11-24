@@ -3,7 +3,70 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import { AppModule } from "./app.module.js";
+import { StatementStore } from "./domain/statement-store.js";
+import { InvoiceStore } from "./domain/store.js";
+import type { InvoiceRecord } from "./domain/types.js";
 import { InvoicingService } from "./invoicing/invoicing.service.js";
+import { StatementsService } from "./invoicing/statements.service.js";
+
+const COM = "c0ffee00-1234-4abc-8def-0123456789ab";
+const P = "70000000-0000-4000-8000-000000000001";
+const A = "70000000-0000-4000-8000-000000000002";
+const B = "70000000-0000-4000-8000-000000000003";
+const C = "70000000-0000-4000-8000-000000000004";
+
+const STATEMENT_FIELDS = [
+  "communityId",
+  "currency",
+  "direction",
+  "invoiceIds",
+  "netBalance",
+  "participantId",
+  "period",
+  "periodFrom",
+  "periodUntil",
+  "revision",
+  "statementId",
+  "status",
+  "totalBought",
+  "totalSold",
+];
+
+const statementInvoice = (
+  invoiceId: string,
+  consumerId: string,
+  producerId: string,
+  total: string,
+): InvoiceRecord => ({
+  invoiceId,
+  settlementId: `5e000000-0000-4000-8000-${invoiceId.slice(-12)}`,
+  runId: "R1",
+  period: "2026-10",
+  periodFrom: "2026-10-01T00:00:00.000Z",
+  periodUntil: "2026-11-01T00:00:00.000Z",
+  producerId,
+  consumerId,
+  currency: "EUR",
+  status: "Open",
+  total,
+  tradeIds: [],
+  lines: [],
+  stripeInvoiceId: `in_${invoiceId}`,
+  legalNumber: null,
+  hostedInvoiceUrl: null,
+  energyAmount: total,
+  vatAmount: "0.00",
+  producerStripeAccountId: null,
+  dueDate: "2026-11-15",
+  communityId: COM,
+  statusAudit: [],
+});
+
+const memberHeaders = (sub: string) => ({
+  "x-intelligent-roles": "member",
+  "x-intelligent-sub": sub,
+});
+const serviceHeaders = { "x-intelligent-roles": "service" };
 
 describe("invoicing HTTP (INT-106)", () => {
   let app: INestApplication;
@@ -412,6 +475,74 @@ describe("invoicing HTTP (INT-106)", () => {
     } finally {
       globalThis.fetch = realFetch;
     }
+  });
+
+  describe("statements (REQ-059)", () => {
+    beforeEach(async () => {
+      app.get(StatementStore).reset();
+      // Run R1, period 2026-10: A→P 12.00, B→P 8.50, P→C 6.25 (consumer → producer).
+      const invoices = app.get(InvoiceStore);
+      invoices.put(statementInvoice("1a000000-0000-4000-8000-000000000001", A, P, "12.00"));
+      invoices.put(statementInvoice("1a000000-0000-4000-8000-000000000002", B, P, "8.50"));
+      invoices.put(statementInvoice("1a000000-0000-4000-8000-000000000003", P, C, "6.25"));
+      await app.get(StatementsService).issueStatementsForRun("R1");
+    });
+
+    it("REQ-059 / REQ-010: GET /v1/me/statements returns only the caller's statements", async () => {
+      const res = await fetch(`${base}/v1/me/statements`, { headers: memberHeaders(P) });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Array<Record<string, unknown>>;
+      expect(body.map((s) => s.participantId)).toEqual([P]);
+      expect(body[0]).toMatchObject({ direction: "to_receive", netBalance: "14.25" });
+      // Public Statement schema has additionalProperties: false.
+      expect(Object.keys(body[0]!).sort()).toEqual(STATEMENT_FIELDS);
+    });
+
+    it("REQ-059: GET /v1/me/statements requires a member principal", async () => {
+      expect((await fetch(`${base}/v1/me/statements`)).status).toBe(401);
+    });
+
+    it("internal listStatements includes invoice summaries and requires a service principal", async () => {
+      expect((await fetch(`${base}/internal/v1/statements?participantId=${P}`)).status).toBe(401);
+      expect(
+        (
+          await fetch(`${base}/internal/v1/statements?participantId=${P}`, {
+            headers: memberHeaders(P),
+          })
+        ).status,
+      ).toBe(403);
+
+      const res = await fetch(
+        `${base}/internal/v1/statements?participantId=${P}&period=2026-10`,
+        { headers: serviceHeaders },
+      );
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Array<Record<string, unknown> & { invoices: unknown[] }>;
+      expect(body[0]!.invoices).toHaveLength(3);
+      expect(body[0]!.invoices[0]).toEqual({
+        invoiceId: "1a000000-0000-4000-8000-000000000001",
+        producerId: P,
+        consumerId: A,
+        total: "12.00",
+        status: "Open",
+      });
+      // InternalStatement schema has additionalProperties: false.
+      expect(Object.keys(body[0]!).sort()).toEqual([...STATEMENT_FIELDS, "invoices"].sort());
+    });
+
+    it("REQ-049: internal listStatements is open to the operator and filters by period", async () => {
+      const res = await fetch(
+        `${base}/internal/v1/statements?participantId=${P}&period=2026-09`,
+        { headers: { "x-intelligent-roles": "operator" } },
+      );
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual([]);
+    });
+
+    it("internal listStatements rejects a request without participantId", async () => {
+      const res = await fetch(`${base}/internal/v1/statements`, { headers: serviceHeaders });
+      expect(res.status).toBe(400);
+    });
   });
 
   it("GET seeded invoice document is an inline PDF (INT-218)", async () => {

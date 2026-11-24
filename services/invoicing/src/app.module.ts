@@ -11,6 +11,10 @@ import { SettlementCompletedListener } from "./events/settlement-completed.liste
 import { InvoicingController } from "./invoicing/invoicing.controller.js";
 import { PublicInvoicingController } from "./invoicing/public.controller.js";
 import { InvoicingService } from "./invoicing/invoicing.service.js";
+import {
+  InternalStatementsController,
+  PublicStatementsController,
+} from "./invoicing/statements.controller.js";
 import { StatementsService } from "./invoicing/statements.service.js";
 import { createInvoiceTransaction } from "./persistence/invoice-journal.js";
 
@@ -71,7 +75,12 @@ function resolveInvoiceProvider(): "stripe" | "mock" {
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "invoicing" }),
   ],
-  controllers: [InvoicingController, PublicInvoicingController],
+  controllers: [
+    InvoicingController,
+    PublicInvoicingController,
+    PublicStatementsController,
+    InternalStatementsController,
+  ],
   providers: [
     InvoiceStore,
     StatementStore,

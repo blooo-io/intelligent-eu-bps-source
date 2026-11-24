@@ -26,12 +26,15 @@ export type PayoutDecision =
       unpaidInvoiceIds?: string[];
     };
 
-function toCents(amount: string): bigint {
-  const [whole, frac = ""] = amount.split(".");
-  return BigInt(whole) * 100n + BigInt(`${frac}00`.slice(0, 2));
+/** A PSP balance can be negative (a refund after a payout). */
+export function toCents(amount: string): bigint {
+  const negative = amount.startsWith("-");
+  const [whole, frac = ""] = (negative ? amount.slice(1) : amount).split(".");
+  const cents = BigInt(whole) * 100n + BigInt(`${frac}00`.slice(0, 2));
+  return negative ? -cents : cents;
 }
 
-function fromCents(cents: bigint): string {
+export function fromCents(cents: bigint): string {
   return `${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`;
 }
 

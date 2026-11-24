@@ -18,6 +18,11 @@ import {
   NoopParticipantsResolver,
   PARTICIPANTS_RESOLVER,
 } from "./ports/participants-resolver.port.js";
+import {
+  HttpStatementLookup,
+  InMemoryStatementLookup,
+  STATEMENT_LOOKUP,
+} from "./ports/statement-lookup.port.js";
 import { COLLECT_PORT } from "./psp/collect.port.js";
 import { KYC_ONBOARDING_PORT } from "./psp/kyc-onboarding.port.js";
 import { MockPspAdapter } from "./psp/mock-psp.adapter.js";
@@ -70,6 +75,7 @@ describe("AppModule factories (INT-193)", () => {
     delete process.env.PSP_PROVIDER;
     const nest = await boot();
     expect(nest.get(INVOICE_LOOKUP)).toBeInstanceOf(InMemoryInvoiceLookup);
+    expect(nest.get(STATEMENT_LOOKUP)).toBeInstanceOf(InMemoryStatementLookup);
     expect(nest.get(PARTICIPANTS_NOTIFIER)).toBeInstanceOf(NoopParticipantsNotifier);
     expect(nest.get(PARTICIPANTS_RESOLVER)).toBeInstanceOf(NoopParticipantsResolver);
     expect(nest.get(PSP_ADAPTER)).toBeInstanceOf(MockPspAdapter);
@@ -82,6 +88,7 @@ describe("AppModule factories (INT-193)", () => {
     delete process.env.PSP_PROVIDER;
     const nest = await boot();
     expect(nest.get(INVOICE_LOOKUP)).toBeInstanceOf(HttpInvoiceLookup);
+    expect(nest.get(STATEMENT_LOOKUP)).toBeInstanceOf(HttpStatementLookup);
     expect(nest.get(PARTICIPANTS_NOTIFIER)).toBeInstanceOf(HttpParticipantsNotifier);
     expect(nest.get(PARTICIPANTS_RESOLVER)).toBeInstanceOf(HttpParticipantsResolver);
   });

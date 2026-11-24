@@ -57,7 +57,7 @@ async function main() {
     headers,
     body: JSON.stringify({
       communityId: COMMUNITY_ID,
-      type: "early",
+      type: "final",
       period: "2026-11",
     }),
   });

@@ -84,7 +84,7 @@ test("e2e suite documents INT-218 REQ-mapped journeys", async () => {
   assert.match(text, /INT-218/);
   assert.match(text, /onboarding-happy-path\.spec\.ts/);
   assert.match(text, /invoices-pdf-pay\.spec\.ts/);
-  assert.match(text, /balances-settle\.spec\.ts/);
+  // INT-424 / REQ-057 — early settlement journey deleted; manager final run remains.
   assert.match(text, /manager-billing-run\.spec\.ts/);
   assert.match(text, /participant-import\.spec\.ts/);
   assert.match(text, /payment-setup\.spec\.ts/);
@@ -92,7 +92,6 @@ test("e2e suite documents INT-218 REQ-mapped journeys", async () => {
   assert.match(text, /REQ-009/);
   assert.match(text, /REQ-008/);
   assert.match(text, /REQ-028/);
-  assert.match(text, /REQ-057/);
   assert.match(text, /no soft-accept/);
 });
 

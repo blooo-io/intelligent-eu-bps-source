@@ -18,7 +18,7 @@ Environment: module test runners with AC-15 fixtures (`createMockSuite`); Stripe
 | S5 | UAT-052 | Pass | `services/reconciliation` + mock clearing mismatch |
 | S6+S7 | UAT-001 | Pass | Mock S6/S7 flags; intake stores duplicate `tradeId` once (S7) |
 | S8 | UAT-002 | Pass | `services/settlement` CHF + ECB fixture rate `0.94` |
-| S9 | UAT-074 | Pass (prior) | Early settlement ignores threshold |
+| ~~S9~~ | ~~UAT-074~~ | Removed (INT-424) | Early settlement deleted (REQ-057 deprecated) |
 | S10 | UAT-016 | Pass | `services/payments` failure categories on pay / webhook path |
 | S10 KPIs | UAT-057 | Pass | Fixed on INT-82 — KPI CSV includes cause, corrective action, processingTimeMs |
 | S11 | UAT-056 | Pass | `services/invoicing` holds until producer readiness (BR-09 / KYC gate) |

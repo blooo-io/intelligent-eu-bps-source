@@ -67,7 +67,6 @@ export class HttpSettlementClient implements SettlementClientPort {
         ? { periodUntil: body.periodUntil }
         : {}),
       ...(body.settlementType === "periodic" ||
-      body.settlementType === "early" ||
       body.settlementType === "final"
         ? { settlementType: body.settlementType }
         : {}),

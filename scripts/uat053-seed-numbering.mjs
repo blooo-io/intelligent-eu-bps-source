@@ -77,7 +77,7 @@ async function seedPeriod(period) {
     headers,
     body: JSON.stringify({
       communityId: COMMUNITY_ID,
-      type: "early",
+      type: "final",
       period,
     }),
   });

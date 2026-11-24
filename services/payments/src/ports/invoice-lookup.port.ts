@@ -10,9 +10,9 @@ export type InvoiceLookupResult = {
   currency: string;
   status: string;
   total: string;
-  producerStripeAccountId?: string;
-  /** INT-355 — Stripe invoice on the producer Connect account, paid by AC-07. */
-  stripeInvoiceId?: string;
+  producerPspAccountRef?: string;
+  /** INT-355 — PSP invoice on the producer Connect account, paid by AC-07. */
+  pspInvoiceRef?: string;
 };
 
 export type InvoiceLookupPort = {

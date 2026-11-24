@@ -47,6 +47,27 @@ test("REQ-046 contracts are PSP-neutral and expose TE-2/ER1.4 fields [INT-423]",
   assert.match(evt, /method:[\s\S]*?enum:\s*\[card,\s*sepa_debit\]/);
 });
 
-test.todo("WS5 Task 5.6: payments domain sources have no stripe-prefixed identifiers", () => {
-  // Domain TypeScript neutrality is enforced in Task 5.6 (psp.port split).
+test("WS5 Task 5.6: payments domain sources have no stripe-prefixed identifiers [INT-424]", async () => {
+  const { readdir } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+  async function walk(dir) {
+    const out = [];
+    for (const ent of await readdir(dir, { withFileTypes: true })) {
+      const p = join(dir, ent.name);
+      if (ent.isDirectory()) out.push(...(await walk(p)));
+      else if (ent.name.endsWith(".ts") && !ent.name.endsWith(".spec.ts")) out.push(p);
+    }
+    return out;
+  }
+  const roots = [
+    "services/payments/src/domain",
+    "services/payments/src/payments",
+    "services/payments/src/ports",
+  ];
+  const files = (await Promise.all(roots.map(walk))).flat();
+  assert.ok(files.length > 0, "expected domain/payments/ports sources");
+  for (const f of files) {
+    const src = await readFile(f, "utf8");
+    assert.doesNotMatch(src, /stripe[A-Z]\w*/, f);
+  }
 });

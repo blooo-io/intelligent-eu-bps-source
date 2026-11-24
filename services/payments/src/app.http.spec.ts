@@ -54,21 +54,21 @@ describe("payments HTTP (INT-107)", () => {
         },
         body: JSON.stringify(body),
       });
-    const first = await ensure({ participantId: CONSUMER, stripeAccountId: "acct_test_p1" });
+    const first = await ensure({ participantId: CONSUMER, pspAccountRef: "acct_test_p1" });
     expect(first.status).toBe(200);
-    const created = (await first.json()) as { stripeCustomerId: string };
+    const created = (await first.json()) as { pspCustomerRef: string };
     expect(created).toMatchObject({
       participantId: CONSUMER,
-      stripeAccountId: "acct_test_p1",
-      stripeCustomerId: expect.stringMatching(/^cus_test_/),
+      pspAccountRef: "acct_test_p1",
+      pspCustomerRef: expect.stringMatching(/^cus_test_/),
     });
-    const again = await ensure({ participantId: CONSUMER, stripeAccountId: "acct_test_p1" });
-    expect(((await again.json()) as { stripeCustomerId: string }).stripeCustomerId).toBe(
-      created.stripeCustomerId,
+    const again = await ensure({ participantId: CONSUMER, pspAccountRef: "acct_test_p1" });
+    expect(((await again.json()) as { pspCustomerRef: string }).pspCustomerRef).toBe(
+      created.pspCustomerRef,
     );
-    expect((await ensure({ participantId: CONSUMER, stripeAccountId: "bad" })).status).toBe(400);
+    expect((await ensure({ participantId: CONSUMER, pspAccountRef: "bad" })).status).toBe(400);
     expect(
-      (await ensure({ participantId: CONSUMER, stripeAccountId: "acct_test_p1" }, "member")).status,
+      (await ensure({ participantId: CONSUMER, pspAccountRef: "acct_test_p1" }, "member")).status,
     ).toBe(403);
   });
 
@@ -97,7 +97,7 @@ describe("payments HTTP (INT-107)", () => {
     );
     expect(provision.status).toBe(201);
     const created = await provision.json();
-    expect(created.stripeAccountId).toMatch(/^acct_test_/);
+    expect(created.pspAccountRef).toMatch(/^acct_test_/);
 
     const got = await fetch(
       `${base}/internal/v1/payment-accounts/${PRODUCER}`,
@@ -106,7 +106,7 @@ describe("payments HTTP (INT-107)", () => {
     expect(got.status).toBe(200);
     expect(await got.json()).toMatchObject({
       participantId: PRODUCER,
-      stripeAccountId: created.stripeAccountId,
+      pspAccountRef: created.pspAccountRef,
     });
   });
 
@@ -139,13 +139,13 @@ describe("payments HTTP (INT-107)", () => {
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     invoices.put({
       invoiceId: INVOICE,
-      stripeInvoiceId: "in_test_http",
+      pspInvoiceRef: "in_test_http",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Open",
       total: "2.00",
-      producerStripeAccountId: "acct_test_producer",
+      producerPspAccountRef: "acct_test_producer",
     });
 
     const pay = await fetch(`${base}/v1/invoices/${INVOICE}/payments`, {
@@ -316,7 +316,7 @@ describe("payments HTTP (INT-107)", () => {
     expect(started).toMatchObject({
       mode: "embedded",
       status: "requirements_due",
-      stripeAccountId: expect.stringMatching(/^acct_test_/),
+      pspAccountRef: expect.stringMatching(/^acct_test_/),
       clientSecret: expect.any(String),
     });
 
@@ -369,7 +369,7 @@ describe("payments HTTP (INT-107)", () => {
     expect(submit.status).toBe(200);
     expect(await submit.json()).toMatchObject({
       status: "complete",
-      stripeAccountId: expect.stringMatching(/^acct_test_/),
+      pspAccountRef: expect.stringMatching(/^acct_test_/),
     });
   });
 });

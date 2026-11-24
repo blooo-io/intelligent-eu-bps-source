@@ -26,7 +26,7 @@ const run: BillingRunRecord = {
   runId: "r1",
   communityId: "community",
   period: "2026-11",
-  type: "early",
+  type: "final",
   version: 1,
   settlementIds: ["s1"],
 };
@@ -36,7 +36,7 @@ describe("toPairSettlementBody (INT-376, NFR-004)", () => {
     expect(toPairSettlementBody(row, run)).toMatchObject({
       rateDate: "2026-11-30",
       period: "2026-11",
-      settlementType: "early",
+      settlementType: "final",
       periodFrom: "2026-11-01T00:00:00.000Z",
       periodUntil: "2026-12-01T00:00:00.000Z",
       vatRate: 0.081,

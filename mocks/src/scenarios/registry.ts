@@ -1,5 +1,6 @@
 /**
- * INT-101 — V1 scenario datasets S1–S13 (architecture 03 §8).
+ * INT-101 — V1 scenario datasets S1–S8 and S10–S13 (architecture 03 §8).
+ * S9 (early settlement) removed per REQ-057 / INT-424.
  * Identifiers only; no personal data (NFR-015).
  */
 import type { ScenarioDataset, ScenarioId } from "../types.js";
@@ -248,29 +249,6 @@ const scenarios: Record<ScenarioId, ScenarioDataset> = {
     ],
     clearingResults: [
       { marketId: MARKET, tradedQuantityKWh: 10, numTrades: 1 },
-    ],
-    fxRates: fxDefault,
-  },
-  S9: {
-    id: "S9",
-    description: "Early settlement mid-period",
-    validates: ["REQ-057"],
-    communityId: COMMUNITY,
-    currency: "EUR",
-    period,
-    settlementType: "early",
-    markets: [baseMarket],
-    trades: [
-      trade({
-        tradeId: "0x91111111111111111111111111111111",
-        buyerActorId: CONSUMER,
-        sellerActorId: PRODUCER_A,
-        energyKWh: 15,
-        pricePerKWhEur: 0.2,
-      }),
-    ],
-    clearingResults: [
-      { marketId: MARKET, tradedQuantityKWh: 15, numTrades: 1 },
     ],
     fxRates: fxDefault,
   },

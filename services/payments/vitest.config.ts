@@ -9,7 +9,12 @@ export default defineConfig({
     coverage: {
       ...coverage,
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.spec.ts", "src/main.ts"],
+      exclude: [
+        "src/**/*.spec.ts",
+        "src/main.ts",
+        // Contract-suite FakeStripe — test double, not production (Task 5.4).
+        "src/psp/testing/**",
+      ],
     },
   },
 });

@@ -1,27 +1,38 @@
+import type { PspFailureCategory, PspPaymentMethodType } from "../psp/psp.types.js";
+
 export type PaymentRecord = {
   paymentId: string;
   invoiceId: string;
   participantId: string;
   amount: string;
   currency: string;
-  status: "pending" | "succeeded" | "failed" | "cancelled" | "refunded";
-  stripePaymentId: string;
-  /** INT-355 — Stripe invoice paid on the producer Connect account. */
-  stripeInvoiceId?: string;
-  failureCategory?: string;
+  status:
+    | "pending"
+    | "requires_action"
+    | "succeeded"
+    | "failed"
+    | "cancelled"
+    | "refunded";
+  pspAccountRef?: string;
+  pspPaymentRef?: string;
+  pspCheckoutRef?: string;
+  pspInvoiceRef?: string;
+  failureCategory?: PspFailureCategory | string;
   communityId: string;
-  /** INT-376 — producer participant paid by this attempt. */
   payeeId?: string;
-  /** Payment method label for KPI TE-2 (REQ-046). */
-  method?: string;
-  /** End-to-end processing time in ms (REQ-046 / KPI TE-2). */
+  method?: PspPaymentMethodType | string;
   processingTimeMs?: number;
+  initiatedAt?: string;
+  settledAt?: string;
+  failedAt?: string;
+  feeAmount?: string;
+  feeCurrency?: string;
 };
 
 export type AccountRecord = {
   participantId: string;
-  stripeAccountId: string | null;
-  paymentMethodId: string | null;
+  pspAccountRef: string | null;
+  pspPaymentMethodRef: string | null;
   kycStatus: string;
   role: "consumer" | "producer" | "prosumer";
   communityId: string;
@@ -29,10 +40,6 @@ export type AccountRecord = {
 
 export type PaymentWrite = { row: PaymentRecord };
 
-/**
- * INT-356 — payment attempts are recorded and committed with the outbox.
- * Account rows stay on the INT-228 payment_accounts table.
- */
 export class PaymentsStore {
   private readonly payments = new Map<string, PaymentRecord>();
   private readonly accounts = new Map<string, AccountRecord>();
@@ -99,22 +106,25 @@ export class PaymentsStore {
     return row ? { ...row } : undefined;
   }
 
-  findByStripePaymentId(stripePaymentId: string): PaymentRecord | undefined {
+  findByPspPaymentRef(pspPaymentRef: string): PaymentRecord | undefined {
     for (const row of this.payments.values()) {
-      if (row.stripePaymentId === stripePaymentId) {
-        return { ...row };
-      }
+      if (row.pspPaymentRef === pspPaymentRef) return { ...row };
     }
     return undefined;
   }
 
-  /** Latest payment attempt for a Stripe invoice (Connect invoice.* webhooks). */
-  findByStripeInvoiceId(stripeInvoiceId: string): PaymentRecord | undefined {
+  findByPspCheckoutRef(pspCheckoutRef: string): PaymentRecord | undefined {
     let found: PaymentRecord | undefined;
     for (const row of this.payments.values()) {
-      if (row.stripeInvoiceId === stripeInvoiceId) {
-        found = row;
-      }
+      if (row.pspCheckoutRef === pspCheckoutRef) found = row;
+    }
+    return found ? { ...found } : undefined;
+  }
+
+  findByPspInvoiceRef(pspInvoiceRef: string): PaymentRecord | undefined {
+    let found: PaymentRecord | undefined;
+    for (const row of this.payments.values()) {
+      if (row.pspInvoiceRef === pspInvoiceRef) found = row;
     }
     return found ? { ...found } : undefined;
   }

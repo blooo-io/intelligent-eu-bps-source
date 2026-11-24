@@ -114,11 +114,11 @@ describe("HttpSettlementClient (INT-223)", () => {
     );
   });
 
-  it("maps early and final settlement types with optional period fields", async () => {
+  it("maps final settlement type with optional period fields", async () => {
     const fetchImpl = vi.fn(async () => ({
       ok: true,
       json: async () => ({
-        settlementType: "early",
+        settlementType: "final",
         periodFrom: "2026-11-01T00:00:00.000Z",
         periodUntil: "2026-12-01T00:00:00.000Z",
         vatRate: 0.081,
@@ -127,10 +127,24 @@ describe("HttpSettlementClient (INT-223)", () => {
     })) as unknown as typeof fetch;
     const client = new HttpSettlementClient("http://settlement:8080", fetchImpl);
     const pair = await client.getPairSettlement("s-final");
-    expect(pair.settlementType).toBe("early");
+    expect(pair.settlementType).toBe("final");
     expect(pair.periodFrom).toBe("2026-11-01T00:00:00.000Z");
     expect(pair.vatRate).toBe(0.081);
     expect(pair.producerStripeAccountId).toBe("acct_y");
+  });
+
+  it("REQ-057 removed: an 'early' settlementType from AC-05 is not mapped", async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        settlementType: "early",
+        periodFrom: "2026-11-01T00:00:00.000Z",
+        periodUntil: "2026-12-01T00:00:00.000Z",
+      }),
+    })) as unknown as typeof fetch;
+    const client = new HttpSettlementClient("http://settlement:8080", fetchImpl);
+    const pair = await client.getPairSettlement("s-early");
+    expect(pair.settlementType).toBeUndefined();
   });
 });
 

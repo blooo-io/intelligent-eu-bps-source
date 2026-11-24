@@ -254,7 +254,7 @@ describe("BillingRunsPage (INT-146 / UAT-006)", () => {
         json: async () => ({
           runId,
           communityId,
-          type: "early",
+          type: "final",
           status: "Collecting",
           version: 1,
         }),
@@ -273,7 +273,7 @@ describe("BillingRunsPage (INT-146 / UAT-006)", () => {
     });
 
     // Ant Design 6 hides the radio input (pointer-events: none); the label receives the click.
-    await userEvent.click(screen.getByText(/^early$/i));
+    await userEvent.click(screen.getByText(/^final$/i));
 
     fireEvent.click(screen.getByRole("button", { name: /start run/i }));
     await waitFor(() => {
@@ -289,5 +289,43 @@ describe("BillingRunsPage (INT-146 / UAT-006)", () => {
     await waitFor(() => {
       expect(screen.getByText(/not found/i)).toBeInTheDocument();
     });
+  });
+
+  it("offers Periodic and Final only (REQ-057 deprecated)", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          participantId: "11111111-1111-1111-1111-111111111111",
+          communityId,
+          roles: ["manager"],
+          readiness: "Ready",
+          profile: { name: "Mgr", address: "1", email: "m@e.com" },
+        }),
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <BillingRunsPage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("billing-runs-community-help")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/^periodic$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^final$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^early$/i)).toBeNull();
   });
 });

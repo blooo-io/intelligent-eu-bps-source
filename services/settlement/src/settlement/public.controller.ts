@@ -17,8 +17,9 @@ import { SettlementService } from "./settlement.service.js";
 import type { BillingRunType } from "../domain/types.js";
 
 /**
- * Public API — balances, early settle, billing runs (INT-211 / REQ-057 / REQ-006).
+ * Public API — balances and billing runs (INT-424 / REQ-055 / REQ-056).
  * contracts/openapi/public.v1.yaml · x-served-by AC-05.
+ * Early settle (REQ-057) removed — pair netting and threshold remain.
  */
 @Controller("v1")
 export class PublicSettlementController {
@@ -33,21 +34,6 @@ export class PublicSettlementController {
       req.user!.sub,
       req.user!.communityId,
     );
-  }
-
-  @Post("early-settlements")
-  @HttpCode(201)
-  @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
-  async createEarlySettlement(
-    @Req() req: AuthenticatedRequest,
-    @Body() body: { producerId: string },
-  ) {
-    // BR-05 — threshold does not apply for early settle.
-    return this.settlement.createEarlySettlement({
-      consumerId: req.user!.sub,
-      producerId: body.producerId,
-      communityId: req.user!.communityId,
-    });
   }
 
   @Post("communities/:communityId/billing-runs")

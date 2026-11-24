@@ -1,120 +1,38 @@
+/**
+ * Stripe-specific mapping cases (WS5 Task 5.5 / INT-424).
+ * Shared Collect/KYC/Payout behaviour lives in stripe-psp.contract.spec.ts.
+ */
+
+import { createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  normalizeStripeEvent,
+  StripePspAdapter,
+  toPspFailureCategory,
+} from "./stripe-psp.adapter.js";
+import { PspError } from "./psp.types.js";
+import {
+  createFakeStripe,
+  type FakeStripe,
+} from "./testing/fake-stripe-sdk.js";
 
-const {
-  accountsCreate,
-  accountsRetrieve,
-  accountsUpdate,
-  tokensCreate,
-  accountSessionsCreate,
-  paymentMethodsRetrieve,
-  paymentMethodsCreate,
-  paymentMethodsAttach,
-  paymentMethodsList,
-  paymentIntentsCreate,
-  paymentIntentsUpdate,
-  chargesUpdate,
-  refundsCreate,
-  customersCreate,
-  customersSearch,
-  setupIntentsCreate,
-  invoicesRetrieve,
-  invoicesPay,
-  constructEvent,
-  StripeCardError,
-} = vi.hoisted(() => {
-  class StripeCardError extends Error {
-    decline_code?: string;
-    code?: string;
-    constructor(message: string, decline_code?: string) {
-      super(message);
-      this.decline_code = decline_code;
-      this.code = "card_declined";
-    }
-  }
-  return {
-    accountsCreate: vi.fn(),
-    accountsRetrieve: vi.fn(),
-    accountsUpdate: vi.fn(),
-    tokensCreate: vi.fn(),
-    accountSessionsCreate: vi.fn(),
-    paymentMethodsRetrieve: vi.fn(),
-    paymentMethodsCreate: vi.fn(),
-    paymentMethodsAttach: vi.fn(),
-    paymentMethodsList: vi.fn(),
-    paymentIntentsCreate: vi.fn(),
-    paymentIntentsUpdate: vi.fn(),
-    chargesUpdate: vi.fn(),
-    refundsCreate: vi.fn(),
-    customersCreate: vi.fn(),
-    customersSearch: vi.fn(),
-    setupIntentsCreate: vi.fn(),
-    invoicesRetrieve: vi.fn(),
-    invoicesPay: vi.fn(),
-    constructEvent: vi.fn(),
-    StripeCardError,
-  };
-});
+const INV1 = "22222222-2222-4222-8222-222222222222";
 
-vi.mock("stripe", () => {
-  function Stripe() {
-    return {
-      accounts: {
-        create: accountsCreate,
-        retrieve: accountsRetrieve,
-        update: accountsUpdate,
-      },
-      tokens: { create: tokensCreate },
-      accountSessions: { create: accountSessionsCreate },
-      paymentMethods: {
-        retrieve: paymentMethodsRetrieve,
-        create: paymentMethodsCreate,
-        attach: paymentMethodsAttach,
-        list: paymentMethodsList,
-      },
-      paymentIntents: { create: paymentIntentsCreate, update: paymentIntentsUpdate },
-      charges: { update: chargesUpdate },
-      refunds: { create: refundsCreate },
-      customers: { create: customersCreate, search: customersSearch },
-      setupIntents: { create: setupIntentsCreate },
-      invoices: { retrieve: invoicesRetrieve, pay: invoicesPay },
-      webhooks: { constructEvent },
-    };
-  }
-  Stripe.errors = { StripeCardError };
-  return { default: Stripe, Stripe };
-});
+const CREDS = {
+  secretKey: "sk_test_adapter_spec",
+  webhookSecret: "whsec_platform",
+  connectWebhookSecret: "whsec_connect",
+};
 
-import { StripePspAdapter } from "./stripe-psp.adapter.js";
-
-describe("StripePspAdapter (INT-189 / INT-191)", () => {
-  const creds = {
-    secretKey: "sk_test_123",
-    webhookSecret: "whsec_platform",
-    connectWebhookSecret: "whsec_connect",
-  };
+describe("StripePspAdapter mapping (INT-424)", () => {
+  let fake: FakeStripe;
+  let adapter: StripePspAdapter;
 
   beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("creates SetupIntent for consumer payment method (INT-193)", async () => {
-    customersCreate.mockResolvedValue({ id: "cus_1" });
-    setupIntentsCreate.mockResolvedValue({
-      id: "seti_1",
-      client_secret: "seti_1_secret_x",
-    });
-    const adapter = new StripePspAdapter(creds);
-    await expect(adapter.createSetupIntent("p-consumer")).resolves.toEqual({
-      clientSecret: "seti_1_secret_x",
-    });
-    expect(setupIntentsCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        customer: "cus_1",
-        usage: "off_session",
-        // INT-361 / REQ-014 — cards only in V1 (Stripe SDK v23).
-        allowed_payment_method_types: ["card"],
-        metadata: { participantId: "p-consumer" },
-      }),
+    fake = createFakeStripe(CREDS.webhookSecret);
+    adapter = new StripePspAdapter(
+      CREDS,
+      fake as unknown as import("stripe").default,
     );
   });
 
@@ -129,831 +47,477 @@ describe("StripePspAdapter (INT-189 / INT-191)", () => {
     ).toThrow(/non-test/);
   });
 
-  it("creates Custom Connect account with account_token (INT-191)", async () => {
-    accountsCreate.mockResolvedValue({ id: "acct_1" });
-    const adapter = new StripePspAdapter(creds);
-    const created = await adapter.createProducerAccount({
+  it.each([
+    ["generic_decline", "card_declined"],
+    ["do_not_honor", "card_declined"],
+    ["insufficient_funds", "insufficient_funds"],
+    ["authentication_required", "authentication_required"],
+    ["debit_not_authorized", "mandate_invalid"],
+    ["account_closed", "bank_account_invalid"],
+    ["no_account", "bank_account_invalid"],
+    ["processing_error", "provider_error"],
+    ["weird_code", "other"],
+  ] as const)(
+    "UAT-016 REQ-016 maps Stripe code %s to %s",
+    (code, cat) => {
+      expect(toPspFailureCategory(code)).toBe(cat);
+    },
+  );
+
+  it("UAT-057 payment_intent.succeeded on a Connect account becomes payment.succeeded with PSP time", () => {
+    expect(
+      normalizeStripeEvent({
+        id: "evt_1",
+        type: "payment_intent.succeeded",
+        created: 1764064800,
+        account: "acct_X",
+        data: {
+          object: {
+            id: "pi_1",
+            metadata: { invoiceId: INV1 },
+            payment_method_types: ["sepa_debit"],
+          },
+        },
+      } as unknown as import("stripe").Stripe.Event),
+    ).toEqual({
+      eventId: "evt_1",
+      kind: "payment.succeeded",
+      occurredAt: "2025-11-25T10:00:00.000Z",
+      pspAccountRef: "acct_X",
+      pspPaymentRef: "pi_1",
+      invoiceId: INV1,
+      method: "sepa_debit",
+    });
+  });
+
+  it("REQ-014 checkout.session.completed carries the payment ref", () => {
+    expect(
+      normalizeStripeEvent({
+        id: "evt_cs",
+        type: "checkout.session.completed",
+        created: 1764064800,
+        account: "acct_X",
+        data: {
+          object: {
+            id: "cs_1",
+            payment_intent: "pi_2",
+            metadata: { invoiceId: INV1 },
+          },
+        },
+      } as unknown as import("stripe").Stripe.Event),
+    ).toEqual({
+      eventId: "evt_cs",
+      kind: "checkout.completed",
+      occurredAt: "2025-11-25T10:00:00.000Z",
+      pspAccountRef: "acct_X",
+      pspCheckoutRef: "cs_1",
+      pspPaymentRef: "pi_2",
+      invoiceId: INV1,
+    });
+  });
+
+  it("UAT-016 payout.failed maps failure_code", () => {
+    expect(
+      normalizeStripeEvent({
+        id: "evt_po",
+        type: "payout.failed",
+        created: 1764064800,
+        account: "acct_X",
+        data: {
+          object: {
+            id: "po_1",
+            failure_code: "account_closed",
+          },
+        },
+      } as unknown as import("stripe").Stripe.Event),
+    ).toEqual({
+      eventId: "evt_po",
+      kind: "payout.failed",
+      occurredAt: "2025-11-25T10:00:00.000Z",
+      pspAccountRef: "acct_X",
+      pspPayoutRef: "po_1",
+      failureCategory: "bank_account_invalid",
+    });
+  });
+
+  it("maps ignored for unknown Stripe event types", () => {
+    expect(
+      normalizeStripeEvent({
+        id: "evt_ping",
+        type: "ping",
+        created: 1764064800,
+        data: { object: { hello: "world" } },
+      } as unknown as import("stripe").Stripe.Event),
+    ).toMatchObject({
+      eventId: "evt_ping",
+      kind: "ignored",
+      occurredAt: "2025-11-25T10:00:00.000Z",
+    });
+  });
+
+  it("REQ-015 setManualSchedule sets interval manual on the connected account", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
       participantId: "part-1",
-      accountToken: "ct_test_abc",
       country: "FR",
     });
-    expect(created.stripeAccountId).toBe("acct_1");
-    expect(accountsCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        country: "FR",
-        account_token: "ct_test_abc",
-        controller: expect.objectContaining({
-          stripe_dashboard: { type: "none" },
-          fees: { payer: "application" },
-          losses: { payments: "application" },
-          requirement_collection: "application",
-        }),
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        metadata: { participantId: "part-1" },
-      }),
-    );
-  });
-
-  it("creates the portal producer account with fees and disputes on the producer (INT-362)", async () => {
-    accountsCreate.mockResolvedValue({ id: "acct_embedded" });
-    const adapter = new StripePspAdapter(creds);
-    const created = await adapter.createEmbeddedProducerAccount({
-      participantId: "part-3",
-    });
-    expect(created.stripeAccountId).toBe("acct_embedded");
-    expect(accountsCreate).toHaveBeenCalledWith({
-      country: "FR",
-      controller: {
-        stripe_dashboard: { type: "none" },
-        fees: { payer: "account" },
-        losses: { payments: "stripe" },
-        requirement_collection: "stripe",
-      },
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
-      metadata: { participantId: "part-3" },
+    const update = vi.spyOn(fake.accounts, "update");
+    await adapter.setManualSchedule(pspAccountRef);
+    expect(update).toHaveBeenCalledWith(pspAccountRef, {
+      settings: { payouts: { schedule: { interval: "manual" } } },
     });
   });
 
-  it("creates an Account Session for embedded onboarding (INT-362)", async () => {
-    accountSessionsCreate.mockResolvedValue({ client_secret: "accs_secret_1" });
-    const adapter = new StripePspAdapter(creds);
-    await expect(
-      adapter.createAccountOnboardingSession("acct_embedded"),
-    ).resolves.toEqual({ clientSecret: "accs_secret_1" });
-    expect(accountSessionsCreate).toHaveBeenCalledWith({
-      account: "acct_embedded",
-      components: { account_onboarding: { enabled: true } },
-    });
-  });
-
-  it("defaults Custom account country to FR (INT-191)", async () => {
-    accountsCreate.mockResolvedValue({ id: "acct_fr" });
-    const adapter = new StripePspAdapter(creds);
-    await adapter.createProducerAccount({
+  it("REQ-015 balance_insufficient becomes PspError insufficient_balance", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
       participantId: "part-2",
-      accountToken: "ct_x",
+      country: "FR",
     });
-    expect(accountsCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ country: "FR" }),
-    );
-  });
-
-  it("creates account token from KYC fields (INT-191)", async () => {
-    tokensCreate.mockResolvedValue({ id: "ct_from_server" });
-    const adapter = new StripePspAdapter(creds);
-    const id = await adapter.createAccountToken({
-      businessType: "individual",
-      tosAccepted: true,
-      representative: {
-        firstName: "Ada",
-        lastName: "Lovelace",
-        email: "ada@example.com",
-        address: { line1: "1 Rue", city: "Paris", postalCode: "75001", country: "FR" },
-      },
-    });
-    expect(id).toBe("ct_from_server");
-    expect(tokensCreate).toHaveBeenCalledWith({
-      account: expect.objectContaining({
-        business_type: "individual",
-        tos_shown_and_accepted: true,
-        individual: expect.objectContaining({ first_name: "Ada" }),
-      }),
-    });
-  });
-
-  it("includes DOB and identity document file tokens in account token (INT-195)", async () => {
-    tokensCreate.mockResolvedValue({ id: "ct_kyc_docs" });
-    const adapter = new StripePspAdapter(creds);
-    await adapter.createAccountToken({
-      businessType: "individual",
-      tosAccepted: true,
-      identityDocumentFront: "file_identity_document_success",
-      representative: {
-        firstName: "Ada",
-        lastName: "Verified",
-        email: "ada@example.com",
-        dob: { day: 1, month: 1, year: 1902 },
-        address: {
-          line1: "address_full_match",
-          city: "Paris",
-          postalCode: "75002",
-          country: "FR",
-        },
-      },
-    });
-    expect(tokensCreate).toHaveBeenCalledWith({
-      account: expect.objectContaining({
-        individual: expect.objectContaining({
-          dob: { day: 1, month: 1, year: 1902 },
-          address: expect.objectContaining({ line1: "address_full_match" }),
-          verification: {
-            document: { front: "file_identity_document_success" },
-            additional_document: { front: "file_identity_document_success" },
-          },
-        }),
-      }),
-    });
-  });
-
-  it("creates ToS-only account token and rejects empty token id (INT-191)", async () => {
-    tokensCreate.mockResolvedValueOnce({ id: "ct_tos" });
-    const adapter = new StripePspAdapter(creds);
+    fake.completeKyc(pspAccountRef);
+    await adapter.setManualSchedule(pspAccountRef);
     await expect(
-      adapter.createAccountToken({ tosAccepted: true }),
-    ).resolves.toBe("ct_tos");
-    tokensCreate.mockResolvedValueOnce({});
-    await expect(adapter.createAccountToken({ tosAccepted: true })).rejects.toThrow(
-      /no id/,
-    );
+      adapter.createPayout(pspAccountRef, "999.00", "EUR", "po:big"),
+    ).rejects.toBeInstanceOf(PspError);
+    await expect(
+      adapter.createPayout(pspAccountRef, "999.00", "EUR", "po:big2"),
+    ).rejects.toMatchObject({ code: "insufficient_balance" });
   });
 
-  it("reads Connect requirements session (INT-190)", async () => {
-    accountsRetrieve.mockResolvedValue({
-      id: "acct_1",
-      details_submitted: false,
-      charges_enabled: false,
-      requirements: {
-        currently_due: ["business_type", "tos_acceptance.date"],
-        eventually_due: [],
-        pending_verification: [],
-      },
+  it("createDirectCharge refuses platform sepa_debit with mandate_invalid", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
+      participantId: "part-3",
+      country: "FR",
     });
-    const adapter = new StripePspAdapter(creds);
-    const session = await adapter.getAccountSession("acct_1");
-    expect(session).toEqual({
-      mode: "requirements",
-      status: "requirements_due",
-      stripeAccountId: "acct_1",
-      currentlyDue: ["business_type", "tos_acceptance.date"],
-      eventuallyDue: [],
+    fake.completeKyc(pspAccountRef);
+    const { pspCustomerRef } = await adapter.ensureCustomer({
+      participantId: "part-3",
+      pspAccountRef,
     });
-  });
-
-  it("submits KYC via account_token + business_profile (INT-191)", async () => {
-    tokensCreate.mockResolvedValue({ id: "ct_built" });
-    accountsUpdate.mockResolvedValue({
-      id: "acct_1",
-      details_submitted: true,
-      charges_enabled: true,
-      requirements: { currently_due: [], eventually_due: [], pending_verification: [] },
-    });
-    const adapter = new StripePspAdapter(creds);
-    const session = await adapter.submitAccountRequirements(
-      "acct_1",
-      {
-        businessType: "individual",
-        businessProfileUrl: "https://example.com",
-        businessProfileMcc: "5734",
-        representative: {
-          firstName: "Ada",
-          lastName: "Lovelace",
-          email: "ada@example.com",
-          phone: "+331234",
-          dob: { day: 1, month: 12, year: 1990 },
-          address: {
-            line1: "1 Rue",
-            city: "Paris",
-            postalCode: "75001",
-            country: "FR",
-          },
-        },
-        externalAccount: {
-          country: "FR",
-          currency: "EUR",
-          accountNumber: "FR1420041010050500013M02606",
-        },
-        tosAccepted: true,
-      },
-      "203.0.113.10",
-    );
-    expect(session.status).toBe("complete");
-    expect(tokensCreate).toHaveBeenCalled();
-    expect(accountsUpdate).toHaveBeenCalledWith(
-      "acct_1",
-      expect.objectContaining({
-        account_token: "ct_built",
-        business_profile: { url: "https://example.com", mcc: "5734" },
-        external_account: expect.objectContaining({
-          country: "FR",
-          account_number: "FR1420041010050500013M02606",
-        }),
+    await expect(
+      adapter.createDirectCharge({
+        invoiceId: INV1,
+        amount: "10.00",
+        currency: "EUR",
+        pspAccountRef,
+        pspCustomerRef,
+        pspPaymentMethodRef: "pm_sepa_debit",
+        idempotencyKey: "sepa:1",
       }),
-    );
+    ).resolves.toMatchObject({
+      status: "failed",
+      failureCategory: "mandate_invalid",
+      method: "sepa_debit",
+    });
   });
 
-  it("uses supplied accountToken without calling tokens.create (INT-191)", async () => {
-    accountsUpdate.mockResolvedValue({
-      id: "acct_2",
-      details_submitted: false,
-      charges_enabled: false,
-      requirements: {
-        currently_due: ["business_profile.mcc"],
-        eventually_due: [],
-        pending_verification: [],
-      },
-    });
-    const adapter = new StripePspAdapter(creds);
-    await adapter.submitAccountRequirements(
-      "acct_2",
-      { accountToken: "ct_client", businessProfileMcc: "5734" },
-      "",
-    );
-    expect(tokensCreate).not.toHaveBeenCalled();
-    expect(accountsUpdate).toHaveBeenCalledWith(
-      "acct_2",
-      expect.objectContaining({
-        account_token: "ct_client",
-        business_profile: { mcc: "5734" },
-      }),
-    );
-  });
-
-  it("updates business_profile url only and bank with routing number (INT-191)", async () => {
-    accountsUpdate.mockResolvedValue({
-      id: "acct_3",
-      details_submitted: false,
-      charges_enabled: false,
-      requirements: {
-        currently_due: ["business_profile.url"],
-        eventually_due: [],
-        pending_verification: [],
-      },
-    });
-    const adapter = new StripePspAdapter(creds);
-    await adapter.submitAccountRequirements(
-      "acct_3",
-      {
-        businessProfileUrl: "https://only-url.example",
-        externalAccount: {
-          country: "FR",
-          accountNumber: "FR1420041010050500013M02606",
-          routingNumber: "110000000",
+  it("verifyEvent rejects bad signatures and normalises signed events", () => {
+    expect(adapter.verifyEvent("{}", "bad")).toEqual({ ok: false });
+    const rawBody = JSON.stringify({
+      id: "evt_ok",
+      type: "payment_intent.succeeded",
+      created: 1764064800,
+      account: "acct_X",
+      data: {
+        object: {
+          id: "pi_ok",
+          metadata: { invoiceId: INV1 },
+          payment_method_types: ["card"],
         },
       },
-      "1.2.3.4",
-    );
-    expect(tokensCreate).not.toHaveBeenCalled();
-    expect(accountsUpdate).toHaveBeenCalledWith(
-      "acct_3",
-      expect.objectContaining({
-        business_profile: { url: "https://only-url.example" },
-        external_account: expect.objectContaining({
-          routing_number: "110000000",
-          currency: "eur",
-        }),
-      }),
-    );
+    });
+    const signature = `t=1,v1=${createHmac("sha256", CREDS.webhookSecret).update(rawBody).digest("hex")}`;
+    expect(adapter.verifyEvent(rawBody, signature)).toMatchObject({
+      ok: true,
+      event: {
+        kind: "payment.succeeded",
+        pspPaymentRef: "pi_ok",
+        invoiceId: INV1,
+      },
+    });
   });
 
-  it("maps pending_verification session status (INT-190)", async () => {
-    accountsRetrieve.mockResolvedValue({
-      id: "acct_2",
-      details_submitted: false,
-      charges_enabled: false,
+  it("REQ-051 embedded onboarding returns a client secret", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
+      participantId: "part-emb",
+      country: "FR",
+    });
+    const session = await adapter.createOnboardingSession({
+      pspAccountRef,
+      mode: "embedded",
+    });
+    expect(session).toMatchObject({
+      mode: "embedded",
+      pspAccountRef,
+    });
+    expect(session.clientSecret).toMatch(/\S+/);
+  });
+
+  it("pending_verification when KYC docs are under review", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
+      participantId: "part-pend",
+      country: "FR",
+    });
+    // Fake Stripe: clear currently_due, leave pending_verification.
+    const acct = await fake.accounts.retrieve(pspAccountRef);
+    await fake.accounts.update(pspAccountRef, {
       requirements: {
         currently_due: [],
-        eventually_due: ["individual.verification.document"],
         pending_verification: ["individual.verification.document"],
+        eventually_due: acct.requirements?.eventually_due ?? [],
       },
-    });
-    const adapter = new StripePspAdapter(creds);
-    await expect(adapter.getAccountSession("acct_2")).resolves.toMatchObject({
+    } as never);
+    expect(await adapter.getAccountStatus(pspAccountRef)).toMatchObject({
       status: "pending_verification",
     });
   });
 
-  it("retrieves payment method on attach", async () => {
-    paymentMethodsRetrieve.mockResolvedValue({ id: "pm_1" });
-    const adapter = new StripePspAdapter(creds);
-    await expect(adapter.attachPaymentMethod("p1", "pm_1")).resolves.toEqual({
-      paymentMethodId: "pm_1",
-    });
+  it("createPaymentMethodSetup delegates to SetupIntent", async () => {
+    const { clientSecret } = await adapter.createPaymentMethodSetup("part-setup");
+    expect(clientSecret).toMatch(/\S+/);
   });
 
-  it("returns SEPA last4 for sepa_debit PaymentMethod (INT-276)", async () => {
-    paymentMethodsRetrieve.mockResolvedValue({
-      id: "pm_sepa",
-      type: "sepa_debit",
-      sepa_debit: { last4: "3000" },
+  it("attachPaymentMethod accepts unbound test tokens and rejects foreign owners", async () => {
+    await expect(
+      adapter.attachPaymentMethod("part-a", "pm_card_visa"),
+    ).resolves.toMatchObject({ pspPaymentMethodRef: "pm_card_visa" });
+
+    const owned = await fake.paymentMethods.attach("pm_card_visa", {
+      customer: (await fake.customers.create({
+        metadata: { participantId: "part-b" },
+      })).id,
     });
-    const adapter = new StripePspAdapter(creds);
-    await expect(adapter.getPaymentMethodDetails("pm_sepa")).resolves.toEqual({
-      paymentMethodId: "pm_sepa",
-      type: "sepa_debit",
-      brand: "sepa_debit",
-      last4: "3000",
-    });
+    await expect(
+      adapter.attachPaymentMethod("part-a", owned.id),
+    ).rejects.toThrow(/payment_method_owned_by_other/);
   });
 
-  it("returns brand and last4 for Ready Payment method UI (INT-255)", async () => {
-    paymentMethodsRetrieve.mockResolvedValue({
-      id: "pm_1",
-      type: "card",
-      card: { brand: "visa", last4: "4242" },
-    });
-    const adapter = new StripePspAdapter(creds);
-    await expect(adapter.getPaymentMethodDetails("pm_1")).resolves.toEqual({
-      paymentMethodId: "pm_1",
+  it("getPaymentMethodDetails maps card and sepa_debit", async () => {
+    await expect(adapter.getPaymentMethodDetails("pm_card_visa")).resolves.toMatchObject({
       type: "card",
       brand: "visa",
-      last4: "4242",
+    });
+    await expect(adapter.getPaymentMethodDetails("pm_sepa_debit")).resolves.toMatchObject({
+      type: "sepa_debit",
+      brand: "sepa_debit",
     });
   });
 
-  it("maps payment_intent.succeeded webhook payload", () => {
-    constructEvent.mockReturnValue({
-      id: "evt_pi_1",
-      type: "payment_intent.succeeded",
-      data: { object: { id: "pi_abc", status: "succeeded" } },
-    });
-    const adapter = new StripePspAdapter(creds);
-    const verified = adapter.verifyWebhook("{}", "sig");
-    expect(verified).toEqual({
-      ok: true,
-      eventId: "evt_pi_1",
-      eventType: "payment_intent.succeeded",
-      payload: { stripePaymentId: "pi_abc", status: "succeeded" },
-    });
+  it("refund accepts legacy string and neutral object forms", async () => {
+    await expect(adapter.refund("pi_legacy")).resolves.toEqual({ status: "refunded" });
+    await expect(
+      adapter.refund({ pspPaymentRef: "pi_conn", pspAccountRef: "acct_x" }),
+    ).resolves.toEqual({ status: "refunded" });
   });
 
-  it("UAT-014 maps Connect invoice.paid / invoice.payment_failed with the connected account (INT-355)", () => {
-    const adapter = new StripePspAdapter(creds);
-    constructEvent.mockReturnValueOnce({
-      id: "evt_inv_paid",
-      type: "invoice.paid",
-      account: "acct_p",
-      data: { object: { id: "in_1", status: "paid" } },
+  it("createDirectCharge fails when the platform PM is not shareable", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
+      participantId: "part-ns",
+      country: "FR",
     });
-    expect(adapter.verifyWebhook("{}", "sig")).toEqual({
-      ok: true,
-      eventId: "evt_inv_paid",
-      eventType: "invoice.paid",
-      payload: { stripeInvoiceId: "in_1", status: "paid", stripeAccountId: "acct_p" },
+    fake.completeKyc(pspAccountRef);
+    const { pspCustomerRef } = await adapter.ensureCustomer({
+      participantId: "part-ns",
+      pspAccountRef,
     });
-    constructEvent.mockReturnValueOnce({
-      id: "evt_inv_failed",
-      type: "invoice.payment_failed",
-      data: { object: { id: "in_2", status: "open" } },
-    });
-    expect(adapter.verifyWebhook("{}", "sig").payload).toEqual({
-      stripeInvoiceId: "in_2",
-      status: "open",
-    });
+    // Non pm_card_* token with no customer → shareablePlatformCard returns null.
+    fake.paymentMethods.retrieve = async () =>
+      ({
+        id: "pm_custom_noshare",
+        object: "payment_method",
+        type: "card",
+        customer: null,
+        card: { brand: "visa", last4: "4242" },
+      }) as never;
+    await expect(
+      adapter.createDirectCharge({
+        invoiceId: INV1,
+        amount: "10.00",
+        currency: "EUR",
+        pspAccountRef,
+        pspCustomerRef,
+        pspPaymentMethodRef: "pm_custom_noshare",
+        idempotencyKey: "ns:1",
+      }),
+    ).resolves.toMatchObject({ status: "failed", failureCategory: "other" });
   });
 
-  it("maps Connect payment_intent.payment_failed with its decline category (INT-355)", () => {
-    const adapter = new StripePspAdapter(creds);
-    constructEvent.mockReturnValueOnce({
-      id: "evt_pi_failed",
-      type: "payment_intent.payment_failed",
-      account: "acct_p",
-      data: {
-        object: {
-          id: "pi_c",
-          status: "requires_payment_method",
-          last_payment_error: { code: "card_declined", decline_code: "insufficient_funds" },
+  it.each([
+    ["payment_intent.processing", "payment.processing"],
+    ["payout.paid", "payout.paid"],
+    ["payout.canceled", "payout.canceled"],
+    ["account.updated", "account.updated"],
+  ] as const)("normalizeStripeEvent maps %s → %s", (type, kind) => {
+    const object =
+      type === "account.updated"
+        ? { id: "acct_1", metadata: { participantId: "p1" } }
+        : type.startsWith("payout.")
+          ? { id: "po_1" }
+          : {
+              id: "pi_1",
+              metadata: { invoiceId: INV1 },
+              payment_method_types: ["card"],
+            };
+    expect(
+      normalizeStripeEvent({
+        id: "evt_x",
+        type,
+        created: 1764064800,
+        account: "acct_X",
+        data: { object },
+      } as unknown as import("stripe").Stripe.Event),
+    ).toMatchObject({ kind, eventId: "evt_x" });
+  });
+
+  it("normalizeStripeEvent maps payment_intent.payment_failed with decline code", () => {
+    expect(
+      normalizeStripeEvent({
+        id: "evt_fail",
+        type: "payment_intent.payment_failed",
+        created: 1764064800,
+        data: {
+          object: {
+            id: "pi_f",
+            last_payment_error: { decline_code: "insufficient_funds" },
+            payment_method_types: ["card"],
+          },
         },
-      },
-    });
-    expect(adapter.verifyWebhook("{}", "sig").payload).toEqual({
-      stripePaymentId: "pi_c",
-      status: "requires_payment_method",
-      stripeAccountId: "acct_p",
+      } as unknown as import("stripe").Stripe.Event),
+    ).toMatchObject({
+      kind: "payment.failed",
       failureCategory: "insufficient_funds",
     });
-    constructEvent.mockReturnValueOnce({
-      id: "evt_pi_failed_2",
-      type: "payment_intent.payment_failed",
-      data: { object: { id: "pi_d", status: "canceled", last_payment_error: {} } },
-    });
-    expect(adapter.verifyWebhook("{}", "sig").payload).toMatchObject({
-      failureCategory: "declined",
-    });
   });
 
-  it("maps account.updated webhook to participantId", () => {
-    constructEvent.mockReturnValue({
-      id: "evt_acct_1",
-      type: "account.updated",
-      data: {
-        object: { id: "acct_1", metadata: { participantId: "part-9" } },
-      },
-    });
-    const adapter = new StripePspAdapter(creds);
-    expect(adapter.verifyWebhook("{}", "sig")).toMatchObject({
-      ok: true,
-      eventId: "evt_acct_1",
-      eventType: "account.updated",
-      payload: { participantId: "part-9", stripeAccountId: "acct_1" },
-    });
-  });
-
-  it("returns ok:false when all webhook secrets fail", () => {
-    constructEvent.mockImplementation(() => {
-      throw new Error("bad sig");
-    });
-    const adapter = new StripePspAdapter(creds);
-    expect(adapter.verifyWebhook("{}", "sig")).toEqual({ ok: false });
-  });
-
-  describe("UAT-014 / UAT-015 REQ-014 direct charge on the producer Connect account (INT-355)", () => {
-    const connect = { stripeAccount: "acct_p" };
-    const payInput = {
-      invoiceId: "inv-2",
-      amount: "12.50",
-      currency: "EUR",
-      producerStripeAccountId: "acct_p",
-      stripeInvoiceId: "in_1",
-      connectedCustomerId: "cus_conn",
-      consumerPaymentMethodId: "pm_platform",
-    };
-    const openInvoice = {
-      id: "in_1",
-      status: "open",
-      amount_due: 1250,
-      currency: "eur",
-      customer: "cus_conn",
-    };
-
-    beforeEach(() => {
-      invoicesRetrieve.mockResolvedValue(openInvoice);
-      paymentMethodsRetrieve.mockResolvedValue({
-        id: "pm_platform",
-        type: "card",
-        customer: "cus_platform",
-      });
-      paymentMethodsCreate.mockResolvedValue({ id: "pm_clone" });
-      paymentMethodsAttach.mockResolvedValue({ id: "pm_clone" });
-    });
-
-    it("creates the connected-account Customer with participantId metadata only", async () => {
-      customersCreate.mockResolvedValue({ id: "cus_conn" });
-      const adapter = new StripePspAdapter(creds);
-      await expect(
-        adapter.createConnectedCustomer({ participantId: "part-1", stripeAccountId: "acct_p" }),
-      ).resolves.toEqual({ stripeCustomerId: "cus_conn" });
-      expect(customersCreate).toHaveBeenCalledWith(
-        { metadata: { participantId: "part-1" } },
-        connect,
-      );
-    });
-
-    it("clones the platform PaymentMethod and pays the invoice on the connected account", async () => {
-      invoicesRetrieve.mockResolvedValue({
-        ...openInvoice,
-        payments: { data: [{ is_default: true, payment: { payment_intent: "pi_conn" } }] },
-      });
-      invoicesPay.mockResolvedValue({
-        id: "in_1",
-        status: "paid",
-        payments: {
-          data: [{ is_default: true, payment: { type: "payment_intent", payment_intent: "pi_conn" } }],
+  it("normalizeStripeEvent maps checkout.session.completed payment_intent object metadata", () => {
+    expect(
+      normalizeStripeEvent({
+        id: "evt_cs2",
+        type: "checkout.session.completed",
+        created: 1764064800,
+        data: {
+          object: {
+            id: "cs_2",
+            payment_intent: {
+              id: "pi_nested",
+              metadata: { invoiceId: INV1 },
+            },
+            metadata: {},
+          },
         },
-      });
-      paymentIntentsUpdate.mockResolvedValue({ id: "pi_conn", latest_charge: "ch_conn" });
-      const adapter = new StripePspAdapter(creds);
-      await expect(adapter.createPayment(payInput)).resolves.toEqual({
-        stripePaymentId: "pi_conn",
-        status: "succeeded",
-      });
-      expect(invoicesRetrieve).toHaveBeenCalledWith("in_1", { expand: ["payments"] }, connect);
-      expect(paymentMethodsRetrieve).toHaveBeenCalledWith("pm_platform");
-      expect(paymentMethodsCreate).toHaveBeenCalledWith(
-        { customer: "cus_platform", payment_method: "pm_platform" },
-        connect,
-      );
-      expect(paymentMethodsAttach).toHaveBeenCalledWith(
-        "pm_clone",
-        { customer: "cus_conn" },
-        connect,
-      );
-      expect(paymentIntentsUpdate).toHaveBeenCalledWith(
-        "pi_conn",
-        { metadata: { invoiceId: "inv-2" } },
-        connect,
-      );
-      expect(invoicesPay).toHaveBeenCalledWith(
-        "in_1",
-        { payment_method: "pm_clone", off_session: true, expand: ["payments"] },
-        { ...connect, idempotencyKey: "pay:inv-2" },
-      );
-      expect(chargesUpdate).toHaveBeenCalledWith(
-        "ch_conn",
-        { metadata: { invoiceId: "inv-2" } },
-        connect,
-      );
-      // REQ-014 — no platform charge and no transfer_data destination.
-      expect(paymentIntentsCreate).not.toHaveBeenCalled();
-      expect(JSON.stringify(invoicesPay.mock.calls)).not.toContain("transfer_data");
+      } as unknown as import("stripe").Stripe.Event),
+    ).toMatchObject({
+      kind: "checkout.completed",
+      pspPaymentRef: "pi_nested",
+      invoiceId: INV1,
     });
+  });
 
-    it("attaches to the invoice's own Customer when it differs from the mapping", async () => {
-      invoicesRetrieve.mockResolvedValue({ ...openInvoice, customer: { id: "cus_legacy" } });
-      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
-      const adapter = new StripePspAdapter(creds);
-      await expect(adapter.createPayment(payInput)).resolves.toEqual({
-        stripePaymentId: "in_1",
-        status: "succeeded",
-      });
-      expect(paymentMethodsAttach).toHaveBeenCalledWith(
-        "pm_clone",
-        { customer: "cus_legacy" },
-        connect,
-      );
-    });
+  it("toPspFailureCategory uses substring heuristics", () => {
+    expect(toPspFailureCategory("balance_insufficient")).toBe("insufficient_funds");
+    expect(toPspFailureCategory("requires_authentication")).toBe(
+      "authentication_required",
+    );
+  });
 
-    it("falls back to the mapped Customer when the invoice has none", async () => {
-      invoicesRetrieve.mockResolvedValue({ ...openInvoice, customer: null });
-      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
-      const adapter = new StripePspAdapter(creds);
-      await adapter.createPayment(payInput);
-      expect(paymentMethodsAttach).toHaveBeenCalledWith(
-        "pm_clone",
-        { customer: "cus_conn" },
-        connect,
-      );
-      // No PaymentIntent exposed on the invoice: nothing to tag.
-      expect(paymentIntentsUpdate).not.toHaveBeenCalled();
-    });
-
-    it("INT-367 tags the charge created when pay first exposes the PaymentIntent", async () => {
-      invoicesPay.mockResolvedValue({
-        id: "in_1",
-        status: "paid",
-        payments: {
-          data: [{ is_default: true, payment: { payment_intent: "pi_new" } }],
-        },
-      });
-      paymentIntentsUpdate.mockResolvedValue({ id: "pi_new", latest_charge: "ch_new" });
-      const adapter = new StripePspAdapter(creds);
-      await expect(adapter.createPayment(payInput)).resolves.toEqual({
-        stripePaymentId: "pi_new",
-        status: "succeeded",
-      });
-      expect(paymentIntentsUpdate).toHaveBeenCalledTimes(1);
-      expect(paymentIntentsUpdate).toHaveBeenCalledWith(
-        "pi_new",
-        { metadata: { invoiceId: "inv-2" } },
-        connect,
-      );
-      expect(chargesUpdate).toHaveBeenCalledWith(
-        "ch_new",
-        { metadata: { invoiceId: "inv-2" } },
-        connect,
-      );
-    });
-
-    it("returns succeeded without charging when the invoice is already paid", async () => {
-      invoicesRetrieve.mockResolvedValue({
-        ...openInvoice,
-        status: "paid",
-        payments: { data: [{ is_default: false, payment: { payment_intent: { id: "pi_old" } } }] },
-      });
-      const adapter = new StripePspAdapter(creds);
-      await expect(adapter.createPayment(payInput)).resolves.toEqual({
-        stripePaymentId: "pi_old",
-        status: "succeeded",
-      });
-      expect(paymentMethodsCreate).not.toHaveBeenCalled();
-      expect(invoicesPay).not.toHaveBeenCalled();
-    });
-
-    it("refuses void / draft invoices", async () => {
-      invoicesRetrieve.mockResolvedValue({ ...openInvoice, status: "void" });
-      const adapter = new StripePspAdapter(creds);
-      await expect(adapter.createPayment(payInput)).resolves.toEqual({
-        stripePaymentId: "in_1",
-        status: "failed",
-        failureCategory: "invoice_not_payable",
-      });
-      expect(invoicesPay).not.toHaveBeenCalled();
-    });
-
-    it("refuses an amount or currency that differs from the Stripe invoice", async () => {
-      invoicesRetrieve.mockResolvedValue({ ...openInvoice, amount_due: 999 });
-      const adapter = new StripePspAdapter(creds);
-      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
-        status: "failed",
-        failureCategory: "amount_mismatch",
-      });
-      invoicesRetrieve.mockResolvedValue({ ...openInvoice, currency: "chf" });
-      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
-        failureCategory: "amount_mismatch",
-      });
-      expect(invoicesPay).not.toHaveBeenCalled();
-    });
-
-    it("fails when the platform PaymentMethod has no platform Customer", async () => {
-      paymentMethodsRetrieve.mockResolvedValue({ id: "pm_platform", type: "card", customer: null });
-      const adapter = new StripePspAdapter(creds);
-      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
-        status: "failed",
-        failureCategory: "payment_method_not_attached",
-      });
-    });
-
-    it("INT-363 attaches the reusable pm_card_visa token before cloning it", async () => {
-      paymentMethodsRetrieve.mockResolvedValue({
-        id: "pm_retrieved_token",
-        type: "card",
-        customer: null,
-      });
-      customersSearch.mockResolvedValue({ data: [] });
-      customersCreate.mockResolvedValue({ id: "cus_tok" });
-      paymentMethodsAttach.mockResolvedValueOnce({ id: "pm_real", customer: "cus_tok" });
-      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
-      const adapter = new StripePspAdapter(creds);
-      await expect(
-        adapter.createPayment({ ...payInput, consumerPaymentMethodId: "pm_card_visa" }),
-      ).resolves.toEqual({ stripePaymentId: "in_1", status: "succeeded" });
-      expect(customersCreate).toHaveBeenCalledWith({
-        metadata: { paymentMethodToken: "pm_card_visa" },
-      });
-      expect(paymentMethodsAttach).toHaveBeenCalledWith("pm_card_visa", {
-        customer: "cus_tok",
-      });
-      expect(paymentMethodsCreate).toHaveBeenCalledWith(
-        { customer: "cus_tok", payment_method: "pm_real" },
-        connect,
-      );
-    });
-
-    it("INT-363 attaches onto the existing token Customer when it has no card yet", async () => {
-      paymentMethodsRetrieve.mockResolvedValue({
-        id: "pm_retrieved_token",
-        type: "card",
-        customer: null,
-      });
-      customersSearch.mockResolvedValue({ data: [{ id: "cus_tok" }] });
-      paymentMethodsList.mockResolvedValue({ data: [] });
-      paymentMethodsAttach.mockResolvedValueOnce({ id: "pm_real", customer: "cus_tok" });
-      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
-      const adapter = new StripePspAdapter(creds);
-      await expect(
-        adapter.createPayment({ ...payInput, consumerPaymentMethodId: "pm_card_visa" }),
-      ).resolves.toMatchObject({ status: "succeeded" });
-      expect(customersCreate).not.toHaveBeenCalled();
-      expect(paymentMethodsAttach).toHaveBeenCalledWith("pm_card_visa", {
-        customer: "cus_tok",
-      });
-    });
-
-    it("INT-363 still attaches the token when customer search is unavailable", async () => {
-      paymentMethodsRetrieve.mockResolvedValue({
-        id: "pm_retrieved_token",
-        type: "card",
-        customer: null,
-      });
-      customersSearch.mockRejectedValue(new Error("search unavailable"));
-      customersCreate.mockResolvedValue({ id: "cus_tok" });
-      paymentMethodsAttach.mockResolvedValueOnce({ id: "pm_real", customer: "cus_tok" });
-      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
-      const adapter = new StripePspAdapter(creds);
-      await expect(
-        adapter.createPayment({ ...payInput, consumerPaymentMethodId: "pm_card_visa" }),
-      ).resolves.toMatchObject({ status: "succeeded" });
-      expect(customersCreate).toHaveBeenCalled();
-    });
-
-    it("INT-363 reuses the platform Customer already holding the test card", async () => {
-      paymentMethodsRetrieve.mockResolvedValue({
-        id: "pm_retrieved_token",
-        type: "card",
-        customer: null,
-      });
-      customersSearch.mockResolvedValue({ data: [{ id: "cus_tok" }] });
-      paymentMethodsList.mockResolvedValue({
-        data: [{ id: "pm_real", customer: "cus_tok" }],
-      });
-      invoicesPay.mockResolvedValue({ id: "in_1", status: "paid" });
-      const adapter = new StripePspAdapter(creds);
-      await expect(
-        adapter.createPayment({ ...payInput, consumerPaymentMethodId: "pm_card_visa" }),
-      ).resolves.toMatchObject({ status: "succeeded" });
-      expect(customersCreate).not.toHaveBeenCalled();
-      expect(paymentMethodsCreate).toHaveBeenCalledWith(
-        { customer: "cus_tok", payment_method: "pm_real" },
-        connect,
-      );
-    });
-
-    it("maps an open invoice after pay (async SEPA / requires_action) to pending", async () => {
-      invoicesPay.mockResolvedValue({ id: "in_1", status: "open" });
-      const adapter = new StripePspAdapter(creds);
-      await expect(adapter.createPayment(payInput)).resolves.toEqual({
-        stripePaymentId: "in_1",
-        status: "pending",
-      });
-    });
-
-    it("maps any other invoice status after pay to failed", async () => {
-      invoicesPay.mockResolvedValue({ id: "in_1", status: "uncollectible" });
-      const adapter = new StripePspAdapter(creds);
-      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
-        status: "failed",
-        failureCategory: "declined",
-      });
-    });
-
-    it("returns the failure category and PaymentIntent of a declined card", async () => {
-      invoicesPay.mockRejectedValue(
-        Object.assign(new StripeCardError("fail", "insufficient_funds"), {
-          payment_intent: { id: "pi_declined" },
+  it("constructor refuses a missing secret key", () => {
+    expect(
+      () =>
+        new StripePspAdapter({
+          secretKey: "",
+          webhookSecret: "whsec_x",
+          connectWebhookSecret: "",
         }),
-      );
-      const adapter = new StripePspAdapter(creds);
-      await expect(adapter.createPayment(payInput)).resolves.toEqual({
-        stripePaymentId: "pi_declined",
-        status: "failed",
-        failureCategory: "insufficient_funds",
-      });
-    });
-
-    it("maps authentication and generic errors", async () => {
-      const adapter = new StripePspAdapter(creds);
-      invoicesPay.mockRejectedValue(
-        Object.assign(new Error("x"), { code: "authentication_required" }),
-      );
-      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
-        stripePaymentId: "in_1",
-        failureCategory: "authentication_required",
-      });
-      invoicesRetrieve.mockRejectedValue(new Error("network down"));
-      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
-        failureCategory: "declined",
-      });
-      invoicesRetrieve.mockRejectedValue({});
-      await expect(adapter.createPayment(payInput)).resolves.toMatchObject({
-        failureCategory: "declined",
-      });
-    });
-
-    it("fails fast on SEPA: Stripe cannot share sepa_debit with a connected account", async () => {
-      paymentMethodsRetrieve.mockResolvedValue({
-        id: "pm_platform",
-        type: "sepa_debit",
-        customer: { id: "cus_platform" },
-      });
-      const adapter = new StripePspAdapter(creds);
-      await expect(adapter.createPayment(payInput)).resolves.toEqual({
-        stripePaymentId: "in_1",
-        status: "failed",
-        failureCategory: "sepa_debit_not_shareable",
-      });
-      expect(paymentMethodsCreate).not.toHaveBeenCalled();
-      expect(invoicesPay).not.toHaveBeenCalled();
-    });
+    ).toThrow(/requires stripe_secret_key/);
   });
 
-  it("refunds a PaymentIntent", async () => {
-    refundsCreate.mockResolvedValue({ id: "re_1" });
-    const adapter = new StripePspAdapter(creds);
-    await expect(adapter.refund("pi_1")).resolves.toEqual({ status: "refunded" });
-    expect(refundsCreate).toHaveBeenCalledWith({ payment_intent: "pi_1" });
+  it("getAvailableBalance returns 0.00 when the currency has no funds", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
+      participantId: "part-bal",
+      country: "FR",
+    });
+    await expect(
+      adapter.getAvailableBalance(pspAccountRef, "EUR"),
+    ).resolves.toEqual({ amount: "0.00", currency: "EUR" });
   });
 
-  it("returns ok:false when no webhook secrets configured", () => {
-    const adapter = new StripePspAdapter({
-      secretKey: "sk_test_123",
-      webhookSecret: "",
-      connectWebhookSecret: "",
+  it("createPayout maps paid/in_transit/canceled/failed and rethrows other errors", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
+      participantId: "part-po",
+      country: "FR",
     });
-    expect(adapter.verifyWebhook("{}", "sig")).toEqual({ ok: false });
-  });
+    fake.completeKyc(pspAccountRef);
+    await adapter.setManualSchedule(pspAccountRef);
+    fake.fundBalance(pspAccountRef, "50.00", "EUR");
 
-  it("falls through unknown event types with raw object payload", () => {
-    constructEvent.mockReturnValue({
-      id: "evt_ping",
-      type: "ping",
-      data: { object: { hello: "world" } },
-    });
-    const adapter = new StripePspAdapter(creds);
-    expect(adapter.verifyWebhook("{}", "sig")).toEqual({
-      ok: true,
-      eventId: "evt_ping",
-      eventType: "ping",
-      payload: { hello: "world" },
-    });
-  });
-
-  it("tries connect webhook secret when platform secret fails", () => {
-    constructEvent
-      .mockImplementationOnce(() => {
-        throw new Error("platform");
-      })
-      .mockReturnValueOnce({
-        id: "evt_acct_x",
-        type: "account.updated",
-        data: { object: { id: "acct_x", metadata: {} } },
+    const statuses = ["paid", "in_transit", "canceled", "failed", "pending"] as const;
+    for (const [i, status] of statuses.entries()) {
+      const spy = vi.spyOn(fake.payouts, "create").mockResolvedValueOnce({
+        id: `po_${status}`,
+        amount: 100,
+        currency: "eur",
+        status,
+        arrival_date: status === "paid" ? 1764064800 : undefined,
+        metadata: {},
+      } as never);
+      await expect(
+        adapter.createPayout(pspAccountRef, "1.00", "EUR", `po:${status}:${i}`),
+      ).resolves.toMatchObject({
+        pspPayoutRef: `po_${status}`,
+        status: status === "pending" ? "pending" : status,
       });
-    const adapter = new StripePspAdapter(creds);
-    expect(adapter.verifyWebhook("{}", "sig").ok).toBe(true);
-    expect(constructEvent).toHaveBeenCalledTimes(2);
+      spy.mockRestore();
+    }
+
+    vi.spyOn(fake.payouts, "create").mockRejectedValueOnce(
+      Object.assign(new Error("boom"), { code: "api_error" }),
+    );
+    await expect(
+      adapter.createPayout(pspAccountRef, "1.00", "EUR", "po:err"),
+    ).rejects.toThrow(/boom/);
+  });
+
+  it("createCheckoutSession honours saveForFutureUse and rejects a missing url", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
+      participantId: "part-cs",
+      country: "FR",
+    });
+    fake.completeKyc(pspAccountRef);
+    const { pspCustomerRef } = await adapter.ensureCustomer({
+      participantId: "part-cs",
+      pspAccountRef,
+    });
+    await expect(
+      adapter.createCheckoutSession({
+        invoiceId: INV1,
+        amount: "10.00",
+        currency: "EUR",
+        pspAccountRef,
+        pspCustomerRef,
+        methods: ["card", "sepa_debit"],
+        successUrl: "https://app.invalid/ok",
+        cancelUrl: "https://app.invalid/cancel",
+        idempotencyKey: "cs:save",
+        saveForFutureUse: true,
+      }),
+    ).resolves.toMatchObject({ checkoutUrl: expect.stringMatching(/^https:\/\//) });
+
+    vi.spyOn(fake.checkout.sessions, "create").mockResolvedValueOnce({
+      id: "cs_nourl",
+      url: null,
+      expires_at: null,
+    } as never);
+    await expect(
+      adapter.createCheckoutSession({
+        invoiceId: INV1,
+        amount: "10.00",
+        currency: "EUR",
+        pspAccountRef,
+        pspCustomerRef,
+        methods: ["card"],
+        successUrl: "https://app.invalid/ok",
+        cancelUrl: "https://app.invalid/cancel",
+        idempotencyKey: "cs:nourl",
+        saveForFutureUse: false,
+      }),
+    ).rejects.toThrow(/missing url/);
   });
 });

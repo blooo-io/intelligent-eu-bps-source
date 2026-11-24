@@ -262,7 +262,7 @@ export function HomePage({
                 },
                 {
                   to: "/billing-runs",
-                  label: "Billing runs — periodic, early or final",
+                  label: "Billing runs — periodic or final",
                 },
                 {
                   to: "/payments-overview",

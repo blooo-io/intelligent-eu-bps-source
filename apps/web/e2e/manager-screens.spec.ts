@@ -39,10 +39,10 @@ test.describe("AC-01 manager screens and buttons", () => {
     }
   });
 
-  test("Billing runs Start run (early) and Refresh", async ({ page }) => {
+  test("Billing runs Start run (final) and Refresh", async ({ page }) => {
     await page.goto("/billing-runs");
     await expectPageReady(page, /billing runs/i);
-    await clickRadioButton(page, /^Early$/);
+    await clickRadioButton(page, /^Final$/);
     await page.getByRole("button", { name: /start run/i }).click();
     // INT-218 — hard require Run status (REQ-006); journeys cover terminal completed.
     await expect(page.getByText(/run status/i)).toBeVisible({ timeout: 45_000 });

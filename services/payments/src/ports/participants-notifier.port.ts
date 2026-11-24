@@ -19,7 +19,9 @@ export const PARTICIPANTS_NOTIFIER = Symbol("PARTICIPANTS_NOTIFIER");
 
 /** No-op for unit tests and when PARTICIPANTS_INTERNAL_URL is unset. */
 export class NoopParticipantsNotifier implements ParticipantsNotifierPort {
-  async applyPaymentAccountStatus(): Promise<void> {
+  async applyPaymentAccountStatus(
+    _input: PaymentAccountStatusNotice,
+  ): Promise<void> {
     // intentionally empty
   }
 }

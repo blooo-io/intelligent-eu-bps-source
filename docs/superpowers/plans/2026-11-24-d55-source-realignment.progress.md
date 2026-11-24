@@ -22,7 +22,8 @@
 ## Task groups
 | Group | Jira | Status | PR | Notes |
 |---|---|---|---|---|
-| Day 1 contracts + ewds-client + hygiene + FX | INT-423 | CI | [#190](https://github.com/blooo-io/intelligent-eu-bps-source/pull/190) | Tasks 1.1, 1.5, 1.10, 2.1–2.3, 3.1, 4.1–4.7, 5.1, 6.1–6.2; web ops 41; S13 + publication mapper emit `issuerStatementId`/`gridFeeStatus` |
+| Day 1 contracts + ewds-client + hygiene + FX | INT-423 | Done | [#190](https://github.com/blooo-io/intelligent-eu-bps-source/pull/190) squash-merged `bd266af` | Tasks 1.1, 1.5, 1.10, 2.1–2.3, 3.1, 4.1–4.7, 5.1, 6.1–6.2 |
+| Day 2 PSP ports + early-settlement removal | INT-424 | In progress | [#191](https://github.com/blooo-io/intelligent-eu-bps-source/pull/191) | 1.2–1.4 + 5.2–5.6 done on tip (neutral DI + psp* stores); waiting CI before 5.7 |
 
 ## Decisions / deviations
 | When | What | Why |

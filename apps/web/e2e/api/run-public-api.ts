@@ -98,7 +98,7 @@ export async function runPublicApiCoverage(input: {
   await call("attachMyPaymentMethod", member, {}, { paymentMethodId });
   await call("submitPaymentOnboardingRequirements", member, {}, { country: "FR" });
 
-  const balances = asArray(json<unknown>(await call("listMyBalances", member, {})));
+  await call("listMyBalances", member, {});
   const invoices = asArray(json<unknown>(await call("listMyInvoices", member, {})));
   const invoice = pickInvoice(invoices);
   if (!invoice?.invoiceId) {
@@ -159,24 +159,6 @@ export async function runPublicApiCoverage(input: {
     await call("offboardParticipant", manager, { id: importedId });
   }
 
-  const producerId =
-    stringField(
-      balances.find((row) => typeof row.producerId === "string"),
-      "producerId",
-    ) ||
-    stringField(
-      participants.find(
-        (row) => row.role === "producer" && row.status !== "Offboarded",
-      ),
-      "participantId",
-    );
-  await call(
-    "createEarlySettlement",
-    member,
-    {},
-    { producerId: producerId || participantId },
-  );
-
   if (invoice?.invoiceId && invoice.status) {
     await call("setInvoiceStatus", manager, { id: invoice.invoiceId }, {
       status: invoice.status,
@@ -187,7 +169,7 @@ export async function runPublicApiCoverage(input: {
   }
 
   const run = json<Json>(
-    await call("startBillingRun", manager, { id: communityId }, { type: "early" }),
+    await call("startBillingRun", manager, { id: communityId }, { type: "final" }),
   );
   const runId = String(run.runId ?? "");
   if (!runId) {

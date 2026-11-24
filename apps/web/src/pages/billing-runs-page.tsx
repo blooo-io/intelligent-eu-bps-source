@@ -109,12 +109,12 @@ export function BillingRunsPage({
   return (
     <PageFrame
       title="Billing runs"
-      description="Periodic, early or final settlement."
+      description="Periodic or final settlement."
     >
         <Paragraph type="secondary" data-testid="billing-runs-community-help">
           Start a billing run for your energy community. Periodic runs cover a
-          month (for example 2026-09); early and final runs settle open balances
-          outside the normal calendar.
+          month (for example 2026-09); final runs settle open balances when a
+          participant leaves the community.
         </Paragraph>
 
         {error && <Alert type="error" message={error} showIcon />}
@@ -128,7 +128,6 @@ export function BillingRunsPage({
             >
               <Radio.Group>
                 <Radio.Button value="periodic">Periodic</Radio.Button>
-                <Radio.Button value="early">Early</Radio.Button>
                 <Radio.Button value="final">Final</Radio.Button>
               </Radio.Group>
             </Form.Item>

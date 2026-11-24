@@ -1,7 +1,7 @@
 import type { Cadence } from "./period.js";
 import type { InvoiceTradeLine } from "./trade-lines.js";
 
-export type BillingRunType = "periodic" | "early" | "final";
+export type BillingRunType = "periodic" | "final";
 
 export type UnbilledTrade = {
   tradeId: string;

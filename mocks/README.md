@@ -8,11 +8,11 @@ Mock implementations of the external systems that are **not** integrated in V1 (
 | Data-space mock (`createMockDataSpace`) | EWDS Client Gateway; validates and records `billingInvoice` / `billingPayment` against `docs/architecture/ewds-topics/*.schema.json` | `publication` |
 | FX fixture (`createFxFixture`) | ECB reference rates | `reference-data` |
 
-**Scenario datasets S1–S13** (see 03 §8) are loaded with `loadScenario` / `createMockSuite`:
+**Scenario datasets S1–S8 and S10–S13** (see 03 §8; S9 early settlement removed, INT-424) are loaded with `loadScenario` / `createMockSuite`:
 
 - pairs, netting and threshold (S1–S3);
 - unknown party, incomplete market, late and duplicate trades (S4–S7);
-- CHF communities and early settlement (S8–S9);
+- CHF communities (S8);
 - payment failures, producer without KYC, erasure (S10–S12);
 - schema validation (S13).
 

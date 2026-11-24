@@ -146,7 +146,7 @@ describe("settlement HTTP (INT-105)", () => {
         "x-intelligent-sub": "manager-1",
         "x-intelligent-community": communityId,
       },
-      body: JSON.stringify({ type: "early" }),
+      body: JSON.stringify({ type: "final" }),
     });
     expect(res.status).toBe(202);
     const body = (await res.json()) as {
@@ -158,7 +158,7 @@ describe("settlement HTTP (INT-105)", () => {
     };
     expect(body).toMatchObject({
       communityId,
-      type: "early",
+      type: "final",
       status: "completed",
       version: 1,
     });
@@ -193,7 +193,7 @@ describe("settlement HTTP (INT-105)", () => {
           "x-intelligent-sub": "manager-b",
           "x-intelligent-community": other,
         },
-        body: JSON.stringify({ type: "early" }),
+        body: JSON.stringify({ type: "final" }),
       },
     );
     expect(deniedStart.status).toBe(403);
@@ -209,7 +209,7 @@ describe("settlement HTTP (INT-105)", () => {
           "x-intelligent-sub": "manager-1",
           "x-intelligent-community": communityId,
         },
-        body: JSON.stringify({ type: "early" }),
+        body: JSON.stringify({ type: "final" }),
       },
     );
     expect(started.status).toBe(202);
@@ -226,24 +226,22 @@ describe("settlement HTTP (INT-105)", () => {
     expect(deniedGet.status).toBe(404);
   });
 
-  it("POST /v1/early-settlements settles one producer pair (BR-05)", async () => {
+  it("REQ-057 removed: POST /v1/early-settlements is 404", async () => {
     const suite = createMockSuite("S1");
     const consumerId = suite.scenario.trades[0]!.buyerActorId;
     const producerId = suite.scenario.trades[0]!.sellerActorId;
-    service.useFixtureScenario("S1", { threshold: 5 });
+    const memberHeaders = {
+      "content-type": "application/json",
+      "x-intelligent-roles": "member",
+      "x-intelligent-token-use": "user",
+      "x-intelligent-sub": consumerId,
+      "x-intelligent-community": communityId,
+    };
     const res = await fetch(`${base}/v1/early-settlements`, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-intelligent-roles": "member",
-        "x-intelligent-token-use": "user",
-        "x-intelligent-sub": consumerId,
-        "x-intelligent-community": communityId,
-      },
+      headers: memberHeaders,
       body: JSON.stringify({ producerId }),
     });
-    expect(res.status).toBe(201);
-    const body = (await res.json()) as { runId: string; type: string; status: string };
-    expect(body).toMatchObject({ type: "early", status: "completed" });
+    expect(res.status).toBe(404);
   });
 });

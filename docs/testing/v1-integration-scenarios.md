@@ -42,7 +42,7 @@ Both targets run in **virtual mode with Stripe test** (assumption A32 / PD-2). G
 | S6 | REQ-001 | UAT-001 | trade-intake → scheduler | `lateArrival` after run | Billed on the next run only |
 | S7 | REQ-001 | UAT-001 | trade-intake | Duplicate `tradeId` | Settled/billed once (idempotent) |
 | S8 | REQ-002 | UAT-002 | reference-data → settlement → invoicing | CHF community + ECB fixture | Invoice amount uses fixture FX rate |
-| S9 | REQ-057 | UAT-074 | settlement → invoicing | `settlementType: early` | Mid-period settlement produces invoice |
+| ~~S9~~ | ~~REQ-057~~ | ~~UAT-074~~ | — | Removed (INT-424) — early settlement deprecated | — |
 | S10 | REQ-016, REQ-046 | UAT-016, UAT-057 | payments | Stripe test cards (below) | Failures categorized; retry/status path exercised |
 | S11 | REQ-045 | UAT-056 | invoicing | `producersWithoutKyc` | Invoice held until KYC |
 | S12 | REQ-013 | UAT-013 | compliance (+ IdP / PSP erase ports) | `erasureRequest` | Propagation recorded; invoices retained |

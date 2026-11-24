@@ -49,6 +49,7 @@ export class RequestReplyClient {
   private orphans = new Map<string, Orphan>();
   private pollTimer: ReturnType<typeof setInterval> | undefined;
   private polling = false;
+  private disposed = false;
 
   constructor(
     private readonly cgw: CgwClient,
@@ -121,12 +122,10 @@ export class RequestReplyClient {
     this.clearPollTimer();
   }
 
-  /** Stop polling and reject any still-pending requests (tests / shutdown). */
+  /** Stop polling (tests / shutdown). Pending promises stay owned by the caller. */
   close(): void {
+    this.disposed = true;
     this.clearPollTimer();
-    for (const [, p] of this.pending) {
-      p.reject(new EwdsTimeoutError());
-    }
     this.pending.clear();
     this.orphans.clear();
   }
@@ -139,7 +138,7 @@ export class RequestReplyClient {
   }
 
   private async pollOnce(): Promise<void> {
-    if (this.polling) return;
+    if (this.disposed || this.polling) return;
     if (this.pending.size === 0) {
       this.stopPollLoopIfIdle();
       return;
@@ -157,11 +156,13 @@ export class RequestReplyClient {
           p.reject(new EwdsTimeoutError());
         }
       }
+      if (this.disposed || this.pending.size === 0) return;
 
       const messages = await this.cgw.receive({
         fqcn: this.ch.responseFqcn,
         amount: 50,
       });
+      if (this.disposed) return;
 
       for (const message of messages) {
         await this.handleMessage(message);

@@ -22,16 +22,23 @@
 ## Task groups
 | Group | Jira | Status | PR | Notes |
 |---|---|---|---|---|
-| Day 1 contracts (1.1, 1.5, 1.10, 2.1, 2.2, 3.1, 4.1–4.3, 5.1) | INT-423 | in progress | — | |
+| Day 1 contracts + ewds-client + hygiene + FX | INT-423 | in progress | pending | Tasks 1.1, 1.5, 1.10, 2.1–2.3, 3.1, 4.1–4.7, 5.1, 6.1–6.2 |
 
 ## Decisions / deviations
 | When | What | Why |
 |---|---|---|
 | 2026-11-24 | Branch `cursor/feature-int-423-day1-contracts-5f1c` (cloud naming) instead of `feature/INT-423-…` | Cloud agent branch template; INT-423 kept in title/commits for Jira |
 | 2026-11-24 | Confirmed A7: R2M never calls `/v1` directly | Overrides prior AGENTS/REQ-052 interpretation |
+| 2026-11-24 | Pin `@intelligent/public-api-client` TypeScript to 5.9.3 | openapi-typescript peer; TS 7 breaks generate |
+| 2026-11-24 | A7-bis command reply uses `handoff` PspHandoff (not `data.redirect`) | Master A7-bis overrides Task 4.2 hosted-only text |
+| 2026-11-24 | CGW OpenAPI snapshot is a stub | No KUBECONFIG/cluster for live `/docs-json` capture |
+| 2026-11-24 | Keep `docs/superpowers/plans/` (defer full 6.3 folder removal) | Kickoff stores plan+progress there; 6.3 only drops superseded specs |
+| 2026-11-24 | Scrubbed `Q-031` from REQ-003 for hygiene HEAD-clean | Unblocks 6.2 before vault sync 6.6 |
 
 ## Externally blocked
-_(none yet)_
+| Item | Impact | Next |
+|---|---|---|
+| Live CGW Swagger capture (Task 4.4) | Stub snapshot in `packages/ewds-client/test/` | Port-forward `ddhub-client-gateway` when kubeconfig available |
 
 ## UAT re-runs
 _(none yet)_

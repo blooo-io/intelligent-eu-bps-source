@@ -51,6 +51,7 @@ describe("RequestReplyClient (REQ-001)", () => {
     // Clear poll intervals before restoring real timers (avoids unhandled rejections).
     for (const c of clients) c.close();
     clients.length = 0;
+    vi.clearAllTimers();
     vi.useRealTimers();
   });
 
@@ -208,16 +209,19 @@ describe("RequestReplyClient (REQ-001)", () => {
     const rr = track(
       new RequestReplyClient(cgw, { ...channel, pollMs: 5, ttlMs: 10 }, () => "noise"),
     );
+    // Attach rejection handlers before advancing timers (avoids unhandled rejections).
     const p1 = rr.request("tradesQuery", {}, { timeoutMs: 30 });
+    const a1 = expect(p1).rejects.toBeInstanceOf(EwdsTimeoutError);
     await vi.advanceTimersByTimeAsync(35);
-    await expect(p1).rejects.toBeInstanceOf(EwdsTimeoutError);
+    await a1;
 
     const rr2 = track(
       new RequestReplyClient(cgw, { ...channel, pollMs: 5, ttlMs: 10 }, () => "stale"),
     );
     const p2 = rr2.request("tradesQuery", {}, { timeoutMs: 30 });
+    const a2 = expect(p2).rejects.toBeInstanceOf(EwdsTimeoutError);
     await vi.advanceTimersByTimeAsync(35);
-    await expect(p2).rejects.toBeInstanceOf(EwdsTimeoutError);
+    await a2;
   });
 
   it("reuses a buffered orphan when the same requestId is requested again", async () => {

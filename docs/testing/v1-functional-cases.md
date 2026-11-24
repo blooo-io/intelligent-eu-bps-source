@@ -7,7 +7,7 @@ See also: [`v1-test-plan.md`](v1-test-plan.md), [`v1-integration-scenarios.md`](
 
 ## Confirmed set
 
-Count: **62** in-scope UAT notes.
+Count: **63** in-scope UAT notes.
 
 | UAT | Requirement | Status (latest) |
 |---|---|---|
@@ -73,6 +73,7 @@ Count: **62** in-scope UAT notes.
 | UAT-073 | REQ-056 | Pass |
 | UAT-074 | REQ-057 | Pass |
 | UAT-075 | REQ-058 | Pass |
+| UAT-078 | REQ-061 | Not Run |
 
 ## Execution
 

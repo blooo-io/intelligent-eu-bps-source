@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import Ajv2020 from "ajv/dist/2020.js";
-import addFormats from "ajv-formats";
+// Named import: NodeNext default-import of ajv CJS types is not constructable.
+import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
+import type { Plugin } from "ajv";
 
 export type EwdsTopicName =
   | "billingStatement"
@@ -17,6 +19,10 @@ const pkgRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
+
+// createRequire: ajv-formats CJS default is not callable under NodeNext typecheck.
+const require = createRequire(import.meta.url);
+const addFormats = require("ajv-formats") as Plugin<unknown>;
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
@@ -51,7 +57,8 @@ export function createTopicValidator(
     return {
       ok: false,
       errors: (validate.errors ?? []).map(
-        (e) => `${e.instancePath || "/"} ${e.message ?? "invalid"}`,
+        (e: ErrorObject) =>
+          `${e.instancePath || "/"} ${e.message ?? "invalid"}`,
       ),
     };
   };

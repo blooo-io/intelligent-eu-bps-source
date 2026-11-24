@@ -12,8 +12,12 @@ import {
 import { StatementStore } from "../domain/statement-store.js";
 import { InvoiceStore } from "../domain/store.js";
 import type { InvoiceRecord } from "../domain/types.js";
+import { NoopPaymentsClient } from "../ports/payments-client.port.js";
 import type { ParticipantsResolverPort } from "../ports/participants-resolver.port.js";
 import { NoopParticipantsResolver } from "../ports/participants-resolver.port.js";
+import { MapReadiness } from "../ports/readiness.port.js";
+import { MockStripeInvoiceAdapter } from "../stripe/mock-stripe-invoice.js";
+import { InvoicingService } from "./invoicing.service.js";
 import { StatementsService } from "./statements.service.js";
 
 const COM = "c0ffee00-1234-4abc-8def-0123456789ab";
@@ -228,6 +232,117 @@ describe("StatementsService (REQ-059)", () => {
     expect((await svc.listForParticipant("sub-K")).map((s) => s.participantId)).toEqual([
       "sub-K",
     ]);
+  });
+
+  describe("status follows invoice status (REQ-059 / REQ-044)", () => {
+    let invoicing: InvoicingService;
+
+    const statusChanged = async (): Promise<OutboxRow[]> =>
+      (await outboxStore.list()).filter((r) => r.event.type === "StatementStatusChanged");
+
+    beforeEach(() => {
+      invoicing = new InvoicingService(
+        invoices,
+        new OutboxService(outboxStore),
+        new MockStripeInvoiceAdapter(),
+        new MapReadiness(new Map()),
+        new NoopPaymentsClient(),
+        new NoopParticipantsResolver(),
+        svc,
+      );
+    });
+
+    it("REQ-059: paying one of P's three invoices makes both statements PartiallyPaid / Paid", async () => {
+      await svc.issueStatementsForRun("R1");
+      // i1 is A → P 12.00.
+      await invoicing.applyPaymentStatusChanged({
+        invoiceId: "i1",
+        paymentId: "pay_1",
+        status: "succeeded",
+      });
+
+      expect(store.find("P", COM, "2026-10")!.status).toBe("PartiallyPaid");
+      expect(store.find("A", COM, "2026-10")!.status).toBe("Paid");
+      expect(store.find("B", COM, "2026-10")!.status).toBe("Open");
+      const changed = await statusChanged();
+      expect(
+        changed.map((e) => (e.event.data as { participantId: string }).participantId).sort(),
+      ).toEqual(["A", "P"]);
+      const a = store.find("A", COM, "2026-10")!;
+      expect(changed.find((e) => e.aggregateId === a.statementId)!.event).toMatchObject({
+        type: "StatementStatusChanged",
+        producer: "AC-06",
+        communityId: COM,
+        data: { statementId: a.statementId, participantId: "A", period: "2026-10", status: "Paid" },
+      });
+      // NFR-015 — identifiers and status only.
+      expect(Object.keys(changed[0]!.event.data).sort()).toEqual([
+        "participantId",
+        "period",
+        "statementId",
+        "status",
+      ]);
+      // A status change is not a new revision.
+      expect(a.revision).toBe(1);
+    });
+
+    it("no StatementStatusChanged when the derived status is unchanged", async () => {
+      await svc.issueStatementsForRun("R1");
+      await invoicing.markOverdue("2026-12-01");
+      expect(store.find("P", COM, "2026-10")!.status).toBe("Overdue");
+      const after = (await statusChanged()).length;
+      expect(after).toBe(4);
+
+      // REQ-044 — the manual change is still audited on the invoice.
+      await invoicing.setInvoiceStatus("i3", {
+        status: "Overdue",
+        reason: "still late",
+        actorId: "m1",
+      });
+      expect((await statusChanged()).length).toBe(after);
+      expect(invoicing.listStatusAudit("i3").at(-1)).toMatchObject({
+        status: "Overdue",
+        source: "manual",
+      });
+    });
+
+    it("an invoice not on any statement changes nothing", async () => {
+      await invoicing.applyPaymentStatusChanged({
+        invoiceId: "i1",
+        paymentId: "pay_1",
+        status: "succeeded",
+      });
+      expect(await statusChanged()).toHaveLength(0);
+      expect(store.list()).toHaveLength(0);
+    });
+
+    it("REQ-059: voiding an invoice revises the totals and the status", async () => {
+      await svc.issueStatementsForRun("R1");
+      await invoicing.setInvoiceStatus("i1", { status: "Void", reason: "error", actorId: "m1" });
+
+      const a = store.find("A", COM, "2026-10")!;
+      expect(a).toMatchObject({ status: "Void", totalBought: "0.00", revision: 2 });
+      const p = store.find("P", COM, "2026-10")!;
+      expect(p).toMatchObject({ status: "Open", totalSold: "8.50", revision: 2 });
+      expect(p.invoiceIds).toEqual(["i1", "i2", "i3"]);
+      expect(await issued()).toHaveLength(6);
+      expect(
+        (await statusChanged()).map((e) => (e.event.data as { participantId: string }).participantId),
+      ).toEqual(["A"]);
+    });
+
+    it("recomputes inside the configured transaction", async () => {
+      await svc.issueStatementsForRun("R1");
+      let runs = 0;
+      svc.useTransaction({
+        run: async <T>(fn: () => Promise<T> | T): Promise<T> => {
+          runs += 1;
+          return fn();
+        },
+      } as never);
+      await svc.recomputeForInvoice("i1");
+      expect(runs).toBe(1);
+    });
   });
 
   it("listInternal returns statements with invoice summaries, filtered by period", async () => {

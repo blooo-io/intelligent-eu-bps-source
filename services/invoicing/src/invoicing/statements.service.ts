@@ -73,12 +73,7 @@ export class StatementsService {
   }
 
   private async issue(scope: StatementScope, all: InvoiceRecord[]): Promise<StatementRecord> {
-    const own = all.filter(
-      (i) =>
-        i.communityId === scope.communityId &&
-        i.period === scope.period &&
-        (i.producerId === scope.participantId || i.consumerId === scope.participantId),
-    );
+    const own = invoicesOf(scope, all);
     const totals = computeStatement(scope.participantId, own);
     const existing = this.statements.find(scope.participantId, scope.communityId, scope.period);
     if (existing && sameContent(existing, totals)) return existing;
@@ -98,7 +93,58 @@ export class StatementsService {
       updatedAt: now,
     };
     this.statements.upsert(row);
+    await this.appendIssued(row);
+    return row;
+  }
 
+  /**
+   * REQ-059 — after an invoice status change, re-derive the status of every
+   * statement that lists the invoice. StatementStatusChanged is emitted only
+   * when the derived status changes; a Void invoice also leaves the totals, so
+   * the statement is then revised (StatementIssued with revision + 1).
+   */
+  async recomputeForInvoice(invoiceId: string): Promise<void> {
+    return this.tx.run(() => this.performRecomputeForInvoice(invoiceId));
+  }
+
+  private async performRecomputeForInvoice(invoiceId: string): Promise<void> {
+    const statements = this.statements.listByInvoice(invoiceId);
+    if (statements.length === 0) return;
+    const all = this.invoices.list();
+    for (const existing of statements) {
+      const totals = computeStatement(existing.participantId, invoicesOf(existing, all));
+      const revised = !sameContent(existing, totals);
+      if (!revised && totals.status === existing.status) continue;
+
+      const row: StatementRecord = {
+        ...existing,
+        ...totals,
+        revision: existing.revision + (revised ? 1 : 0),
+        updatedAt: new Date().toISOString(),
+      };
+      this.statements.upsert(row);
+      if (revised) await this.appendIssued(row);
+      if (row.status !== existing.status) {
+        // NFR-015 — identifiers and status only.
+        await this.outbox.append({
+          aggregateType: "Statement",
+          aggregateId: row.statementId,
+          type: "StatementStatusChanged",
+          producer: PRODUCER,
+          communityId: row.communityId,
+          billingMode: "virtual",
+          data: {
+            statementId: row.statementId,
+            participantId: row.participantId,
+            period: row.period,
+            status: row.status,
+          },
+        });
+      }
+    }
+  }
+
+  private async appendIssued(row: StatementRecord): Promise<void> {
     // NFR-015 — identifiers and amounts only.
     await this.outbox.append({
       aggregateType: "Statement",
@@ -122,7 +168,6 @@ export class StatementsService {
         revision: row.revision,
       },
     });
-    return row;
   }
 
   /** REQ-010 — statements of the caller (IdP sub and the AC-03 participant it maps to). */
@@ -150,6 +195,15 @@ export class StatementsService {
         }),
       }));
   }
+}
+
+function invoicesOf(scope: StatementScope, all: InvoiceRecord[]): InvoiceRecord[] {
+  return all.filter(
+    (i) =>
+      i.communityId === scope.communityId &&
+      i.period === scope.period &&
+      (i.producerId === scope.participantId || i.consumerId === scope.participantId),
+  );
 }
 
 function sameContent(existing: StatementRecord, totals: StatementTotals): boolean {

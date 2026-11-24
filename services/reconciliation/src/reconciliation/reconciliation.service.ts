@@ -1,6 +1,16 @@
-import { BadRequestException, Inject, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Optional,
+} from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { OutboxService } from "@intelligent/module-template";
+import {
+  BILLING_MODE_RESOLVER,
+  OutboxService,
+  StaticBillingModeResolver,
+  type BillingModeResolver,
+} from "@intelligent/module-template";
 import { ReconciliationStore } from "../domain/store.js";
 import type {
   Discrepancy,
@@ -22,6 +32,9 @@ export class ReconciliationService {
   constructor(
     @Inject(ReconciliationStore) private readonly store: ReconciliationStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
+    @Optional()
+    @Inject(BILLING_MODE_RESOLVER)
+    private readonly billingMode: BillingModeResolver | null = null,
   ) {}
 
   resetStore(): void {
@@ -160,13 +173,17 @@ export class ReconciliationService {
       ...input,
     };
     this.store.putDiscrepancy(row);
+    const resolver =
+      this.billingMode ?? new StaticBillingModeResolver("virtual");
+    // REQ-043 — community live|virtual from AC-03 settings.
+    const billingMode = await resolver.modeOf(row.communityId);
     await this.outbox.append({
       aggregateType: "Discrepancy",
       aggregateId: row.id,
       type: "DiscrepancyDetected",
       producer: PRODUCER,
       communityId: row.communityId,
-      billingMode: "virtual",
+      billingMode,
       data: {
         scope: row.scope,
         expected: row.expected,

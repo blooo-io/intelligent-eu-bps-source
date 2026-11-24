@@ -7,6 +7,7 @@ import { createMockSuite } from "@intelligent/mocks";
 import {
   InMemoryOutboxStore,
   OutboxService,
+  StaticBillingModeResolver,
 } from "@intelligent/module-template";
 import { TradeStore } from "../domain/store.js";
 import { FixturePartyResolver } from "../party/fixture-party-resolver.js";
@@ -35,6 +36,25 @@ describe("IntakeService", () => {
       new FixturePartyResolver(suite.scenario.communityId, actors),
     );
     service.useSuite(suite);
+  });
+
+  it("REQ-043: TradesIngested carries community mode", async () => {
+    const suite = createMockSuite("S1");
+    const actors = new Set(
+      suite.scenario.trades.flatMap((t) => [t.buyerActorId, t.sellerActorId]),
+    );
+    const liveOutbox = new InMemoryOutboxStore();
+    const liveService = new IntakeService(
+      new TradeStore(),
+      new OutboxService(liveOutbox),
+      new FixturePartyResolver(suite.scenario.communityId, actors),
+      new StaticBillingModeResolver("live"),
+    );
+    liveService.useSuite(suite);
+    await liveService.refreshIntake(WINDOW);
+    const events = await liveOutbox.list();
+    const ingested = events.find((e) => e.event.type === "TradesIngested");
+    expect(ingested?.event.billingMode).toBe("live");
   });
 
   it("stores each settled trade once and keeps market status (BR-01, BR-11)", async () => {

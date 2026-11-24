@@ -1,5 +1,7 @@
 import { Inject, Injectable, MiddlewareConsumer, Module, NestModule, OnModuleInit } from "@nestjs/common";
 import {
+  BILLING_MODE_RESOLVER,
+  createBillingModeResolver,
   createKycStatusClient,
   KYC_STATUS_CLIENT,
   ModuleTemplateModule,
@@ -101,6 +103,11 @@ class InvoicePersistence implements OnModuleInit {
     // INT-270 — PaymentStatusChanged → invoice Paid.
     PaymentStatusListener,
     ErasureRequestedListener,
+    // REQ-043 / A10.1 — per-community billing mode from AC-03.
+    {
+      provide: BILLING_MODE_RESOLVER,
+      useFactory: () => createBillingModeResolver(),
+    },
   ],
 })
 export class AppModule implements NestModule {

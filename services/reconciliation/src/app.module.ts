@@ -1,5 +1,9 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
-import { ModuleTemplateModule } from "@intelligent/module-template";
+import {
+  BILLING_MODE_RESOLVER,
+  createBillingModeResolver,
+  ModuleTemplateModule,
+} from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
 import { ReconciliationStore } from "./domain/store.js";
 import { BillingEventsListener } from "./events/billing-events.listener.js";
@@ -23,6 +27,11 @@ import { ReconciliationService } from "./reconciliation/reconciliation.service.j
     // INT-271 — NATS when NATS_URL set; in-memory otherwise (CI).
     { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
     BillingEventsListener,
+    // REQ-043 / A10.1 — per-community billing mode from AC-03.
+    {
+      provide: BILLING_MODE_RESOLVER,
+      useFactory: () => createBillingModeResolver(),
+    },
   ],
 })
 export class AppModule implements NestModule {

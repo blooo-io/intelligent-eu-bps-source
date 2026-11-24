@@ -4,11 +4,15 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
+  BILLING_MODE_RESOLVER,
   OutboxService,
   PassthroughTransaction,
+  StaticBillingModeResolver,
+  type BillingModeResolver,
   type RecordingTransaction,
 } from "@intelligent/module-template";
 import { InvoiceStore, type InvoiceWrite } from "../domain/store.js";
@@ -76,7 +80,17 @@ export class InvoicingService {
     @Inject(PARTICIPANTS_RESOLVER)
     private readonly idpResolver: ParticipantsResolverPort,
     @Inject(StatementsService) private readonly statements: StatementsService,
+    @Optional()
+    @Inject(BILLING_MODE_RESOLVER)
+    private readonly billingMode: BillingModeResolver | null = null,
   ) {}
+
+  /** REQ-043 — community live|virtual from AC-03 settings. */
+  private async modeOf(communityId: string) {
+    const resolver =
+      this.billingMode ?? new StaticBillingModeResolver("virtual");
+    return resolver.modeOf(communityId);
+  }
 
   resetStore(): void {
     this.store.reset();
@@ -190,10 +204,12 @@ export class InvoicingService {
   ): Promise<Record<string, unknown>[]> {
     const callerIds = await this.resolveCallerIds(subOrParticipantId);
     const set = new Set(callerIds);
-    return this.store
-      .list()
-      .filter((row) => this.isCallerOnInvoice(row, set))
-      .map((row) => this.toPublicInvoice(row));
+    return Promise.all(
+      this.store
+        .list()
+        .filter((row) => this.isCallerOnInvoice(row, set))
+        .map((row) => this.toPublicInvoice(row)),
+    );
   }
 
   /**
@@ -233,7 +249,7 @@ export class InvoicingService {
     if (!this.isCallerOnInvoice(row, callerIds)) {
       throw new NotFoundException(`Unknown invoice ${invoiceId}`);
     }
-    return this.toPublicInvoice(row);
+    return await this.toPublicInvoice(row);
   }
 
   /**
@@ -331,7 +347,7 @@ export class InvoicingService {
       type: "InvoiceIssued",
       producer: PRODUCER,
       communityId: settlement.communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(settlement.communityId),
       data: {
         invoiceId,
         issuerId: settlement.producerId,
@@ -443,7 +459,7 @@ export class InvoicingService {
       type: "PaymentReminderRequested",
       producer: PRODUCER,
       communityId: row.communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(row.communityId),
       data: {
         invoiceId,
         recipientId: row.consumerId,
@@ -463,7 +479,7 @@ export class InvoicingService {
         type: "AuditableActionPerformed",
         producer: PRODUCER,
         communityId: row.communityId,
-        billingMode: "virtual",
+        billingMode: await this.modeOf(row.communityId),
         data: {
           actorId: input.actorId,
           action: "invoice.reminder.manual",
@@ -561,7 +577,7 @@ export class InvoicingService {
       actorId: input.actorId,
       source: "manual",
     });
-    return this.toPublicInvoice(next);
+    return await this.toPublicInvoice(next);
   }
 
   /**
@@ -636,7 +652,7 @@ export class InvoicingService {
       type: "InvoiceStatusChanged",
       producer: PRODUCER,
       communityId: row.communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(row.communityId),
       data: {
         invoiceId: row.invoiceId,
         status: input.status,
@@ -652,7 +668,7 @@ export class InvoicingService {
       type: "AuditableActionPerformed",
       producer: PRODUCER,
       communityId: row.communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(row.communityId),
       data: {
         actorId: input.actorId,
         action: `invoice.status.${input.source}`,
@@ -689,7 +705,7 @@ export class InvoicingService {
       type: "ErasureCompleted",
       producer: PRODUCER,
       communityId,
-      billingMode: "virtual",
+      billingMode: await this.modeOf(communityId),
       data: {
         requestId: input.requestId,
         module: "AC-06",
@@ -699,7 +715,7 @@ export class InvoicingService {
     return { result: "completed", invoicesRetained: invoices.length };
   }
 
-  private toPublicInvoice(row: InvoiceRecord): Record<string, unknown> {
+  private async toPublicInvoice(row: InvoiceRecord): Promise<Record<string, unknown>> {
     return {
       invoiceId: row.invoiceId,
       legalNumber: row.legalNumber ?? undefined,
@@ -716,7 +732,7 @@ export class InvoicingService {
         vat: row.vatAmount ?? "0.00",
         total: row.total,
       },
-      billingMode: "virtual",
+      billingMode: await this.modeOf(row.communityId),
     };
   }
 }

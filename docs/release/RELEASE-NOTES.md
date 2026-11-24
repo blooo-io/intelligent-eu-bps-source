@@ -7,13 +7,31 @@
 
 ## What ships
 
-- Peer-to-peer self-billing invoices (producer is the bank): netting, threshold, carry-forward, early settlement (BR-01…BR-13).
+- Two-level billing (BR-01…BR-15): monthly participant statements (Level 1) plus self-billing legal invoices per consumer→producer pair (Level 2), with netting, per-pair threshold and carry-forward. REQ-057 settle-now is deprecated and removed.
+- In-house self-billing PDFs (`pdf-lib`) with gapless legal numbers `SB-<producer8>-<seq6>` per producer; Stripe Invoicing removed (A6).
+- Payouts from the producer's Stripe Connect account to their bank (manual schedule; optional `autoPayout`).
+- KYC for every participant role (Connect onboarding target) and Stripe Identity for community managers; `kycVerified` gates statements, invoices, payments and payouts.
 - NestJS modules AC-03…AC-14, Refine reference web app (AC-01), mock suite (AC-15).
-- Stripe test mode Connect payments and webhooks.
+- Stripe test mode Connect payments and webhooks; live keys selectable per community when enabled (REQ-043).
+- EWDS Client Gateway adapters (`@intelligent/ewds-client`) for the five billing records (`billingStatement`, `billingInvoice`, `billingPayment`, `billingPayout`, `billingKycStatus`) and the billing command channel; mock default until EWAG grants topics/roles.
+- Live or virtual billing mode per community (Greenvolt first live community).
 - GitOps deploy to Scaleway `k8s-intelligent-eu-dev` (`dev` / `int`) and packaging for `demo`.
 - OpenAPI / AsyncAPI contracts; EWDS invoice/payment schema validation via mocks.
 - Observability (OpenTelemetry), secrets via OpenBao + External Secrets, Keycloak OIDC, APISIX gateway.
 - Public docs site publishes the five architecture views (plus EWDS Client Gateway note) at `/architecture/`.
+
+## Changes since v1.1.6
+
+v6.1 source realignment (INT-422 parent; day closeouts INT-423…INT-430):
+
+- **INT-423** — Day 1: contracts for the two-level model, statements, payouts, KYC/Identity, EWDS records + command channel, `@intelligent/ewds-client`, public hygiene, FX precision.
+- **INT-424** — Day 2: PSP-neutral ports; settle-now / REQ-057 removal from APIs, UI and mock scenarios.
+- **INT-425** — Day 3: CollectPort pay + webhook path; participant statements.
+- **INT-426** — Day 4: producer payouts (manual schedule, withdrawal, `autoPayout`); Task 1.13 consumer Connect deferred.
+- **INT-427** — Day 5: reporting + KPI fields (initiated/settled, PSP fee, per-method).
+- **INT-428** — WS2 catch-up: billing-owned PDF / `SB-…` numbers, reminders (UAT-078 Pass), tariff amount mapping on publication.
+- **INT-429** — Day 5b: GDPR DSAR export, real IdP/PSP erasure adapters, Identity wizard step, EWDS invoice mapper + deploy/docs for adapter flags.
+- **INT-430** — Day 6: release notes, UAT re-run packaging, D5.5 report and tag cut (in progress; package version remains `1.1.6` until the cut).
 
 ## Changes since v1.1.5
 
@@ -78,16 +96,21 @@ In **live** mode, AC-07 erase-at-psp does **not** delete the Connect account. St
 
 | Area | Limitation |
 |---|---|
-| Billing mode | **Per community** live or virtual (REQ-043); A22 "all virtual" withdrawn. First live community: Greenvolt |
-| Payments | Stripe **test or live** keys selected by community billingMode; live charges only for live communities |
-| Market / data space / FX | GSY DEX, EWDS Client Gateway and ECB are **mocked** (assumption A32) |
+| Billing mode | **Live per community** (Greenvolt first); others virtual (REQ-043). A22 "all virtual" withdrawn |
+| Payments | **Stripe test** by default; live keys only where a community is enabled for live (REQ-043) |
+| Market / data space / FX | Real CG adapters exist and are selected by env; **mock** remains the default until EWAG grants topics/roles. UATs on the mock path are labelled (`Pass on mock path`). ECB stays mocked (A32) |
 | Crypto / AMM / stablecoin | Out of D5.5 scope (deferred to D5.10) |
-| Grid fees / taxes on P2P invoices | Not on P2P invoice body lines where A20 applies; tariff components published on EWDS when present (INT-428 / REQ-004 mapping). Full UAT-004 mock-tariff Pass pending WS4 |
-| Invoicing | Billing-owned PDF and `SB-…` legal numbers (A6); Stripe Invoicing removed (INT-428). Reminders: AC-06 path shipped; AC-11 reminder e-mail / missing-payment alert (UAT-078) not yet Pass |
-| Acceptance | **62 Pass / 0 Blocked** in-scope UATs historically (INT-204); UAT-078 added in-scope as **Not Run** pending Task 2.17 (INT-428). Remaining partner optimisations: pilot SLA number (NFR-008), onboarding step-count (NFR-016) — see [`docs/testing/v1-uat-package.md`](../testing/v1-uat-package.md) |
-| Partner IdP | V1 = single project IdP only (REQ-034 / REQ-037 and UAT-044 / UAT-047 out of scope, INT-192). Config-only issuer path Pass on UAT-061 |
-| Stripe Connect | Producers onboard in Stripe's embedded Account onboarding component; the producer pays Stripe fees and bears disputes, the platform absorbs nothing (INT-362). Direct charges on the producer account (INT-355). Operator test fixtures still use Account Tokens + test KYC tokens (INT-191 / INT-195). Cards only in V1 (INT-361) |
-| Billing period | Quarterly. The FX date is the period end (INT-353). Carry-forward is signed (INT-351). Money uses exact decimal arithmetic (INT-352). Each trade is an invoice line (INT-354) |
+| Grid fee / levy / tax | **0 + mention** on the invoice until a DSO tariff is published (REQ-004 / REQ-007). Publication maps fee components when present (INT-428); full UAT-004 mock-tariff Pass pending tariff billing + WS4 |
+| EV charging | Out of scope (A10.4) |
+| DID / VC identity | Not in V1 (REQ-062 → D5.10); OIDC RP stays Keycloak-based (A9) |
+| Stripe data residency | See [`05-physical-architecture.md`](../architecture/05-physical-architecture.md) §4.1 (third-party processor note) |
+| Invoicing | Billing-owned PDF and `SB-…` legal numbers (A6); Stripe Invoicing removed (INT-428). Reminders: UAT-078 Pass on mock path |
+| Acceptance | **63 Pass / 0 Blocked / 0 Fail** in-scope (61 Pass + 2 Pass on mock path). Historical INT-204 baseline was 62 in-scope Pass before UAT-078. v6.1 re-run list: [`v6.1-rerun.md`](../testing/v6.1-rerun.md). Partner optimisations: pilot SLA number (NFR-008), onboarding step-count (NFR-016) — see [`docs/testing/v1-uat-package.md`](../testing/v1-uat-package.md) |
+| Partner IdP | V1 = single project IdP only (REQ-034 / REQ-037 and UAT-044 / UAT-047 `scope_d55: out`, INT-192). Config-only issuer path Pass on UAT-061 |
+| Stripe Connect | Producers/prosumers onboard via embedded Connect; consumers still use Elements card setup only — **Task 1.13 (consumer Connect for every role) deferred** (INT-426). Direct charges on the producer account (INT-355). Cards + SEPA in the model; operator test fixtures still use Account Tokens + test KYC tokens (INT-191 / INT-195) |
+| KYC backend (WS3) | Contracts and wizard copy exist; unfinished backend Tasks **3.2–3.11** and **3.13–3.17** (KycService / Identity for managers, shared readiness, ActorSourcePort, BillingModeResolver, live-mode guards and PSP key selection). GDPR Tasks 3.18–3.24 shipped (INT-429) |
+| EWDS actor / command transport (WS4) | Record schemas, `@intelligent/ewds-client` and publication mappers shipped; **Actor intake transport**, command dispatcher/poller, erasure/tariff EWDS transports (Tasks 4.13–4.18) still missing — `ERASURE_REQUEST_SOURCE=ewds` fails closed until wired |
+| Billing period | **Monthly** by default, quarterly allowed (REQ-006); FX date = period end (INT-353). Carry-forward is signed (INT-351). Money uses exact decimal arithmetic (INT-352). Each trade is an invoice line (INT-354) |
 | Persistence | Settlement, invoices, payment attempts and the participant registry commit with the outbox in PostgreSQL when `DATABASE_URL` is set (INT-356, BR-13). CI without that variable stays in memory |
 | Database backups | CloudNativePG WAL and base backups are packaged and **left disabled** (`backup.enabled: false`) until the buckets and OpenBao paths exist (INT-358) |
 

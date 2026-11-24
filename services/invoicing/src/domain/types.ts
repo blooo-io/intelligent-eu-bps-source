@@ -38,8 +38,8 @@ export type PairSettlementInput = {
   periodFrom?: string;
   /** INT-376 — exclusive period end from the billing run (UTC date-time). */
   periodUntil?: string;
-  /** INT-376 — periodic, early or final. */
-  settlementType?: "periodic" | "early" | "final";
+  /** INT-376 / REQ-057 — periodic or final (early removed). */
+  settlementType?: "periodic" | "final";
   /** BR-07 — VAT fraction used when the settlement was computed. */
   vatRate?: number;
   communityId: string;

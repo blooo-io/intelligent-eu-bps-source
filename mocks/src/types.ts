@@ -9,7 +9,6 @@ export type ScenarioId =
   | "S6"
   | "S7"
   | "S8"
-  | "S9"
   | "S10"
   | "S11"
   | "S12"
@@ -73,7 +72,7 @@ export interface ScenarioDataset {
   communityId: string;
   currency: "EUR" | "CHF";
   period: TimeWindow;
-  settlementType?: "periodic" | "early" | "final";
+  settlementType?: "periodic" | "final";
   markets: MarketInfo[];
   trades: TradeFixture[];
   clearingResults: ClearingResult[];

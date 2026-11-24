@@ -1,6 +1,6 @@
 /**
  * INT-101 / AC-15 — scenario registry and port behaviour (REQ-001, REQ-002, REQ-048).
- * Covers architecture 03 §8 scenarios S1–S13.
+ * Covers architecture 03 §8 scenarios S1–S8 and S10–S13 (S9 early removed, REQ-057).
  */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -22,7 +22,6 @@ const ALL: ScenarioId[] = [
   "S6",
   "S7",
   "S8",
-  "S9",
   "S10",
   "S11",
   "S12",
@@ -30,7 +29,7 @@ const ALL: ScenarioId[] = [
 ];
 
 describe("scenario registry (INT-101 / 03 §8)", () => {
-  it("lists every V1 scenario S1–S13", () => {
+  it("lists every V1 scenario S1–S8 and S10–S13", () => {
     expect(listScenarioIds()).toEqual(ALL);
   });
 
@@ -144,11 +143,6 @@ describe("market / FX / data-space ports against scenarios", () => {
     expect(rate.rate).toBeGreaterThan(0);
     expect(rate.sourceCurrency).toBe("EUR");
     expect(rate.targetCurrency).toBe("CHF");
-  });
-
-  it("S9: early settlement metadata is present (REQ-057)", () => {
-    const s = loadScenario("S9");
-    expect(s.settlementType).toBe("early");
   });
 
   it("S10: documents Stripe test failure cards (REQ-016)", () => {

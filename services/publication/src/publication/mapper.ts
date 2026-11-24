@@ -1,11 +1,23 @@
 import type { InvoiceProjection, PaymentProjection } from "../domain/types.js";
 
 /**
- * Map local projections → EWDS topic payloads (NFR-004 / REQ-048).
- * Money is numeric on the wire; gridFeeAmount stays 0 until Task 2.18
- * publishes real tariffs (A10.2 / gridFeeStatus not_published).
+ * Map local projections → EWDS topic payloads (NFR-004 / REQ-048 / REQ-004).
+ * R6: gridFeeAmount = gridFee + levy; taxAmount = totalTaxAmount = tax + VAT.
  * BR-11: mapper never writes trade status — tradeIds are identifiers only.
  */
+
+/** Integer-cent sum of money values, returned as a major-unit number. */
+export function addMoney(...values: unknown[]): number {
+  let cents = 0;
+  for (const value of values) {
+    if (value === undefined || value === null || value === "") continue;
+    const n = Number(value);
+    if (!Number.isFinite(n)) continue;
+    cents += Math.round(n * 100);
+  }
+  return cents / 100;
+}
+
 export function toBillingInvoice(
   invoice: InvoiceProjection,
 ): Record<string, unknown> {
@@ -28,7 +40,7 @@ export function toBillingInvoice(
     totalAmount: invoice.totalAmount,
     outstandingAmount: invoice.outstandingAmount,
     energyAmount: invoice.energyAmount,
-    gridFeeAmount: 0,
+    gridFeeAmount: invoice.gridFeeAmount,
     gridFeeStatus: invoice.gridFeeStatus,
     taxAmount: invoice.taxAmount,
     totalTaxAmount: invoice.taxAmount,

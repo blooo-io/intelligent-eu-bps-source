@@ -109,6 +109,103 @@ describe("EWDS topic payload from contract events (INT-376, NFR-004, UAT-070)", 
     expect(payment.paymentDate).toBe("2026-12-01T06:00:00.000Z");
   });
 
+  it("REQ-004 publishes grid fee plus levy and tax plus VAT", async () => {
+    const dataspace = createMockDataSpace();
+    const store = new PublicationStore();
+    const service = new PublicationService(store, dataspace);
+    const bus = new InMemoryEventBus();
+    const listener = new BillingEventsListener(bus, service);
+    await listener.onModuleInit();
+
+    await bus.publish(
+      "InvoiceIssued",
+      envelope("InvoiceIssued", "AC-06", {
+        invoiceId: INVOICE_ID,
+        issuerId: PRODUCER,
+        recipientId: CONSUMER,
+        settlementId: SETTLEMENT_ID,
+        issuerStatementId: ISSUER_STATEMENT_ID,
+        dueDate: "2026-12-15",
+        billingPeriodFrom: "2026-11-01T00:00:00.000Z",
+        billingPeriodUntil: "2026-12-01T00:00:00.000Z",
+        settlementType: "periodic",
+        totalEnergyKWh: "10.000",
+        vatRate: 0.1,
+        carriedForwardAmount: "0.00",
+        exchangeRate: null,
+        amounts: {
+          energy: "2.00",
+          gridFee: "0.45",
+          levy: "0.10",
+          tax: "0.05",
+          vat: "0.26",
+          total: "2.86",
+        },
+        currency: "EUR",
+        tradeIds: ["0x1a2b3c4d5e6f708192a3b4c5d6e7f809"],
+      }),
+    );
+
+    expect(store.listOutbound().every((row) => row.status === "published")).toBe(
+      true,
+    );
+    const invoice = dataspace
+      .recorded()
+      .find((row) => row.topic === "billingInvoice")!.message as Record<
+      string,
+      unknown
+    >;
+    expect(invoice.gridFeeAmount).toBe(0.55);
+    expect(invoice.taxAmount).toBe(0.31);
+    expect(invoice.totalTaxAmount).toBe(0.31);
+    expect(invoice.totalAmount).toBe(2.86);
+    expect(invoice.gridFeeStatus).toBe("applied");
+  });
+
+  it("NFR-004 old events without gridFee publish 0", async () => {
+    const dataspace = createMockDataSpace();
+    const store = new PublicationStore();
+    const service = new PublicationService(store, dataspace);
+    const bus = new InMemoryEventBus();
+    const listener = new BillingEventsListener(bus, service);
+    await listener.onModuleInit();
+
+    await bus.publish(
+      "InvoiceIssued",
+      envelope("InvoiceIssued", "AC-06", {
+        invoiceId: INVOICE_ID,
+        issuerId: PRODUCER,
+        recipientId: CONSUMER,
+        settlementId: SETTLEMENT_ID,
+        issuerStatementId: ISSUER_STATEMENT_ID,
+        dueDate: "2026-12-15",
+        billingPeriodFrom: "2026-11-01T00:00:00.000Z",
+        billingPeriodUntil: "2026-12-01T00:00:00.000Z",
+        settlementType: "periodic",
+        totalEnergyKWh: "5.000",
+        vatRate: 0.081,
+        carriedForwardAmount: "0.00",
+        exchangeRate: null,
+        // Legacy shape — no gridFee / levy / tax keys.
+        amounts: { energy: "10.00", vat: "0.81", total: "10.81" },
+        currency: "EUR",
+        tradeIds: ["0x8f3a1c2b4d5e6f708192a3b4c5d6e7f8"],
+      }),
+    );
+
+    const invoice = dataspace
+      .recorded()
+      .find((row) => row.topic === "billingInvoice")!.message as Record<
+      string,
+      unknown
+    >;
+    expect(invoice.gridFeeAmount).toBe(0);
+    expect(invoice.gridFeeStatus).toBe("not_published");
+    expect(invoice.taxAmount).toBe(0.81);
+    expect(invoice.totalTaxAmount).toBe(0.81);
+    expect(invoice.totalAmount).toBe(10.81);
+  });
+
   it("publishes an EUR invoice with no exchange rate and maps declined", async () => {
     const dataspace = createMockDataSpace();
     const store = new PublicationStore();

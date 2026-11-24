@@ -4,6 +4,7 @@ import {
   InMemoryProcessedEventsStore,
 } from "@intelligent/module-template";
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { addMoney } from "../publication/mapper.js";
 import { PublicationService } from "../publication/publication.service.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
 
@@ -58,7 +59,9 @@ export class BillingEventsListener implements OnModuleInit {
     const amounts = (data.amounts as Record<string, unknown> | undefined) ?? {};
     const total = Number(amounts.total ?? data.total ?? 0);
     const energy = Number(amounts.energy ?? 0);
-    const vat = Number(amounts.vat ?? 0);
+    // R6 / REQ-004 — gridFeeAmount = gridFee + levy; taxAmount = tax + VAT.
+    const gridFeeAmount = addMoney(amounts.gridFee, amounts.levy);
+    const taxAmount = addMoney(amounts.tax, amounts.vat);
     const issuedAt = env.occurredAt || new Date().toISOString();
     const currency = asString(data.currency, "EUR");
     await this.publication.onInvoiceIssued({
@@ -85,10 +88,13 @@ export class BillingEventsListener implements OnModuleInit {
       totalAmount: total,
       outstandingAmount: total,
       energyAmount: energy,
-      // Task 2.18 publishes real fees; until then EWDS records stay not_published.
+      gridFeeAmount,
+      // A10.2 — applied when a non-zero grid fee is published.
       gridFeeStatus:
-        asString(data.gridFeeStatus) === "applied" ? "applied" : "not_published",
-      taxAmount: vat,
+        asString(data.gridFeeStatus) === "applied" || gridFeeAmount !== 0
+          ? "applied"
+          : "not_published",
+      taxAmount,
       vatRate: Number(data.vatRate ?? 0),
       carriedForwardAmount: Math.abs(Number(data.carriedForwardAmount ?? 0)),
       currency,

@@ -41,6 +41,11 @@ import {
   createConnectedCustomersStore,
 } from "./ports/connected-customers.store.js";
 import {
+  COMMUNITY_SETTINGS,
+  createCommunitySettings,
+  InMemoryCommunitySettings,
+} from "./ports/community-settings.port.js";
+import {
   HttpInvoiceLookup,
   InMemoryInvoiceLookup,
   INVOICE_LOOKUP,
@@ -95,6 +100,12 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
     StripePspEraseAdapter,
     InMemoryInvoiceLookup,
     InMemoryStatementLookup,
+    InMemoryCommunitySettings,
+    {
+      provide: COMMUNITY_SETTINGS,
+      useFactory: (memory: InMemoryCommunitySettings) => createCommunitySettings(process.env, memory),
+      inject: [InMemoryCommunitySettings],
+    },
     {
       provide: PAYMENT_ACCOUNTS_STORE,
       useFactory: () => createPaymentAccountsStore(),

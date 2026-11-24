@@ -15,6 +15,7 @@ import {
 } from "../domain/payouts.store.js";
 import { PaymentsStore, type AccountRecord } from "../domain/store.js";
 import type { JournalWrite } from "../persistence/payment-journal.js";
+import { COMMUNITY_SETTINGS, type CommunitySettingsPort } from "../ports/community-settings.port.js";
 import {
   PARTICIPANTS_RESOLVER,
   type ParticipantsResolverPort,
@@ -46,6 +47,12 @@ export type PayoutRefusalReason =
 
 export type WithdrawableView = { period: string; amount: string; currency: string };
 
+export type AutoPayoutRun = { requested: number; blocked: number; nearHoldingLimit: string[] };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Stripe holds manual-payout funds at most 90 days outside the US/TH; flag them 15 days earlier. */
+const HOLDING_LIMIT_WARNING_DAYS = 75;
+
 function refuse(reason: PayoutRefusalReason): ConflictException {
   return new ConflictException({ reason });
 }
@@ -65,6 +72,13 @@ const WEBHOOK_STATUS: Partial<Record<PspEvent["kind"], PayoutStatus>> = {
 };
 
 const TERMINAL_PAYOUT_STATUSES: readonly PayoutStatus[] = ["paid", "failed", "canceled"];
+
+/** What the participant sold in the period: its non-Void producer invoices. */
+function totalSold(participantId: string, statement: PayoutStatementView): bigint {
+  return statement.invoices
+    .filter((i) => i.producerId === participantId && i.status !== "Void")
+    .reduce((sum, i) => sum + toCents(i.total), 0n);
+}
 
 function statusOf(result: PayoutResult): PayoutStatus {
   return result.status === "pending" ? "in_transit" : result.status;
@@ -96,6 +110,7 @@ export class PayoutsService implements PayoutEventsHandler {
     @Inject(PARTICIPANTS_RESOLVER) private readonly idpResolver: ParticipantsResolverPort,
     @Inject(PAYMENT_ACCOUNTS_STORE) private readonly accounts: PaymentAccountsStore,
     @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(COMMUNITY_SETTINGS) private readonly settings: CommunitySettingsPort,
   ) {}
 
   useTransaction(tx: RecordingTransaction<JournalWrite> | PassthroughTransaction): void {
@@ -125,6 +140,52 @@ export class PayoutsService implements PayoutEventsHandler {
 
   applyPayoutWebhook(payload: PayoutWebhook): Promise<void> {
     return this.tx.run(() => this.performApplyPayoutWebhook(payload));
+  }
+
+  /**
+   * AC-14 RunAutoPayouts (REQ-015). With `autoPayout` on, requests a payout for every
+   * period a verified producer has sold in and has no live payout for. A2 refusals
+   * and PSP refusals count as `blocked`; any other error fails the job.
+   */
+  async runAutoPayouts(input: { communityId: string }): Promise<AutoPayoutRun> {
+    const { communityId } = input;
+    const run: AutoPayoutRun = { requested: 0, blocked: 0, nearHoldingLimit: [] };
+    if (!(await this.settings.get(communityId)).autoPayout) return run;
+
+    for (const account of await this.payoutAccountsOf(communityId)) {
+      const participantId = account.participantId;
+      const live = new Set(
+        this.payouts
+          .listForParticipant(participantId)
+          .filter((p) => ACTIVE_PAYOUT_STATUSES.includes(p.status))
+          .map((p) => p.period),
+      );
+      const statements = (await this.statements.list(participantId))
+        .filter((s) => !live.has(s.period) && totalSold(participantId, s) > 0n)
+        .sort((a, b) => a.period.localeCompare(b.period));
+      for (const statement of statements) {
+        try {
+          const row = await this.requestWithdrawal({
+            participantId,
+            communityId,
+            period: statement.period,
+            trigger: "auto",
+          });
+          if (row.status === "failed") run.blocked += 1;
+          else run.requested += 1;
+        } catch (error) {
+          if (!(error instanceof ConflictException)) throw error;
+          run.blocked += 1;
+        }
+      }
+      if (this.holdsFundsNearLimit(participantId)) run.nearHoldingLimit.push(participantId);
+    }
+    if (run.nearHoldingLimit.length > 0) {
+      this.logger.warn(
+        `payout.near_holding_limit communityId=${communityId} participantIds=${run.nearHoldingLimit.join(",")}`,
+      );
+    }
+    return run;
   }
 
   async listForParticipant(
@@ -280,6 +341,34 @@ export class PayoutsService implements PayoutEventsHandler {
   ): Promise<{ participantId: string; communityId?: string }> {
     const resolved = await this.idpResolver.resolveByIdpSub(subOrParticipantId);
     return resolved ?? { participantId: subOrParticipantId };
+  }
+
+  /** Verified Connect accounts of the community; the in-memory row wins over the durable one. */
+  private async payoutAccountsOf(communityId: string): Promise<AccountRecord[]> {
+    const byId = new Map<string, AccountRecord>();
+    for (const row of await this.accounts.listByCommunity(communityId)) byId.set(row.participantId, row);
+    for (const row of this.payments.listAccountsByCommunity(communityId)) byId.set(row.participantId, row);
+    return [...byId.values()]
+      .filter((a) => a.kycStatus === "verified" && a.pspAccountRef)
+      .sort((a, b) => a.participantId.localeCompare(b.participantId));
+  }
+
+  /** The oldest succeeded payment not yet in a live payout is at least 75 days old. */
+  private holdsFundsNearLimit(participantId: string): boolean {
+    const paidOut = new Set(
+      this.payouts
+        .listForParticipant(participantId)
+        .filter((p) => ACTIVE_PAYOUT_STATUSES.includes(p.status))
+        .flatMap((p) => p.invoiceIds),
+    );
+    const settled = this.payments
+      .listByPayeeId(participantId)
+      .filter((p) => p.status === "succeeded" && !paidOut.has(p.invoiceId))
+      .map((p) => p.settledAt ?? p.initiatedAt)
+      .filter((at): at is string => at !== undefined)
+      .map((at) => Date.parse(at));
+    if (settled.length === 0) return false;
+    return this.clock.now().getTime() - Math.min(...settled) >= HOLDING_LIMIT_WARNING_DAYS * DAY_MS;
   }
 
   private async accountOf(participantId: string): Promise<AccountRecord | undefined> {

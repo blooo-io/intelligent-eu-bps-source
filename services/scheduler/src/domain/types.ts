@@ -10,7 +10,8 @@ export type JobName =
   | "RetryPending"
   | "PurgeCache"
   | "ApplyRetention"
-  | "FetchRates";
+  | "FetchRates"
+  | "RunAutoPayouts";
 
 export type JobDefinition = {
   jobId: string;

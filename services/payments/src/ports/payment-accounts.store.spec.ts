@@ -58,4 +58,37 @@ describe("createPaymentAccountsStore (INT-228)", () => {
       communityId: "c1",
     });
   });
+  it("REQ-015: lists the accounts of one community", async () => {
+    const mem = new InMemoryPaymentAccountsStore();
+    const row = (participantId: string, communityId: string) => ({
+      participantId,
+      pspAccountRef: `acct_${participantId}`,
+      pspPaymentMethodRef: null,
+      kycStatus: "verified",
+      role: "producer" as const,
+      communityId,
+    });
+    await mem.put(row("p1", "c1"));
+    await mem.put(row("p2", "c2"));
+    expect((await mem.listByCommunity("c1")).map((r) => r.participantId)).toEqual(["p1"]);
+
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("WHERE community_id")) {
+        return {
+          rows: [{
+            participant_id: "p1",
+            psp_account_ref: "acct_p1",
+            psp_payment_method_ref: null,
+            kyc_status: "verified",
+            role: "producer",
+            community_id: "c1",
+          }],
+        };
+      }
+      return { rows: [] };
+    });
+    const pg = new PostgresPaymentAccountsStore({ query } as never);
+    expect(await pg.listByCommunity("c1")).toEqual([row("p1", "c1")]);
+    expect(query).toHaveBeenLastCalledWith(expect.stringContaining("WHERE community_id = $1"), ["c1"]);
+  });
 });

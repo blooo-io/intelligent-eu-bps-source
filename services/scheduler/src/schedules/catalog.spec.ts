@@ -40,4 +40,20 @@ describe("schedule catalog (INT-277)", () => {
   it("jobByName resolves catalogue entries", () => {
     expect(jobByName("StartRun").path).toBe("/billing-runs");
   });
+
+  it("REQ-015: RunAutoPayouts is scheduled daily 08:00 UTC and owned by AC-07", () => {
+    expect(
+      buildScheduleCatalog("C").find((s) => s.jobName === "RunAutoPayouts"),
+    ).toMatchObject({
+      scheduleId: "intelligent.run-auto-payouts.daily",
+      cronExpressions: ["0 8 * * *"],
+      body: { communityId: "C" },
+    });
+    expect(jobByName("RunAutoPayouts")).toMatchObject({
+      jobId: "a1000000-0000-4000-8000-00000000000c",
+      ownerModule: "AC-07",
+      path: "/payouts:run-auto",
+      method: "POST",
+    });
+  });
 });

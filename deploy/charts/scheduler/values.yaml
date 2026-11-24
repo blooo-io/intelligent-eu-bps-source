@@ -18,6 +18,7 @@ egressModules:
   - reporting
   - publication
   - invoicing
+  - payments
 ingressFrom: []
 keycloakEgress: true
 stripeEgress: false

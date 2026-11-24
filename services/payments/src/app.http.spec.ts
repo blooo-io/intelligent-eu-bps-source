@@ -7,6 +7,7 @@ import { AppModule } from "./app.module.js";
 import { PaymentsStore } from "./domain/store.js";
 import { PaymentsService } from "./payments/payments.service.js";
 import { PayoutsService } from "./payouts/payouts.service.js";
+import { InMemoryCommunitySettings } from "./ports/community-settings.port.js";
 import { InMemoryInvoiceLookup } from "./ports/invoice-lookup.port.js";
 import { InMemoryStatementLookup } from "./ports/statement-lookup.port.js";
 import { MockPspAdapter } from "./psp/mock-psp.adapter.js";
@@ -552,6 +553,34 @@ describe("payments HTTP (INT-107)", () => {
       );
       expect(paidEvents).toHaveLength(1);
       append.mockRestore();
+    });
+
+    it("REQ-015: POST /internal/v1/payouts:run-auto pays out the community when autoPayout is on (202)", async () => {
+      const runAuto = (body: unknown, roles = "service") =>
+        fetch(`${base}/internal/v1/payouts:run-auto`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-intelligent-roles": roles },
+          body: JSON.stringify(body),
+        });
+      const settings = app.get(InMemoryCommunitySettings);
+      settings.put(COMMUNITY, { autoPayout: false });
+      const off = await runAuto({ communityId: COMMUNITY });
+      expect(off.status).toBe(202);
+      expect(await off.json()).toEqual({ requested: 0, blocked: 0, nearHoldingLimit: [] });
+
+      settings.put(COMMUNITY, { autoPayout: true });
+      const on = await runAuto({ communityId: COMMUNITY });
+      expect(on.status).toBe(202);
+      expect(await on.json()).toEqual({ requested: 2, blocked: 0, nearHoldingLimit: [] });
+      const listed = (await (await fetch(`${base}/v1/me/payouts`, { headers: memberHeaders(PRODUCER) })).json()) as {
+        items: Array<{ trigger: string }>;
+      };
+      expect(listed.items.map((p) => p.trigger)).toEqual(["auto", "auto"]);
+      settings.reset();
+
+      expect((await runAuto({})).status).toBe(400);
+      expect((await runAuto({ communityId: "not-a-uuid" })).status).toBe(400);
+      expect((await runAuto({ communityId: COMMUNITY }, "member")).status).toBe(403);
     });
 
     it("409 PayoutRefused body, 400 on a malformed period, 401 without a member principal", async () => {

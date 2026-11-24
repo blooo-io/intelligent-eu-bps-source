@@ -170,6 +170,7 @@ export class SchedulerService {
       case "PurgeCache":
         return { before: new Date().toISOString() };
       case "MarkOverdue":
+      case "RunAutoPayouts":
         return { communityId };
       default:
         return {};

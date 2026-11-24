@@ -45,9 +45,20 @@ describe("SchedulerService", () => {
         "Reconcile",
         "RefreshIntake",
         "RetryPending",
+        "RunAutoPayouts",
         "StartRun",
       ].sort(),
     );
+  });
+
+  it("REQ-015: RunAutoPayouts dispatches the community to AC-07", async () => {
+    await service.runJob("a1000000-0000-4000-8000-00000000000c", {
+      communityId: COMMUNITY,
+    });
+    expect(service.recordedDispatches()[0]).toMatchObject({
+      job: { name: "RunAutoPayouts", ownerModule: "AC-07", path: "/payouts:run-auto" },
+      body: { communityId: COMMUNITY },
+    });
   });
 
   it("UAT-006 — StartRun dispatches periodic run for the community period", async () => {

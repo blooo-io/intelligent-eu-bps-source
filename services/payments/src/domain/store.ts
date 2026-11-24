@@ -95,6 +95,12 @@ export class PaymentsStore {
     return row ? { ...row } : undefined;
   }
 
+  listAccountsByCommunity(communityId: string): AccountRecord[] {
+    return [...this.accounts.values()]
+      .filter((row) => row.communityId === communityId)
+      .map((row) => ({ ...row }));
+  }
+
   putPayment(row: PaymentRecord): void {
     this.payments.set(row.paymentId, { ...row });
     if (this.recording) this.writes.push({ row: { ...row } });
@@ -118,6 +124,12 @@ export class PaymentsStore {
       if (row.pspCheckoutRef === pspCheckoutRef) found = row;
     }
     return found ? { ...found } : undefined;
+  }
+
+  listByPayeeId(payeeId: string): PaymentRecord[] {
+    return [...this.payments.values()]
+      .filter((row) => row.payeeId === payeeId)
+      .map((row) => ({ ...row }));
   }
 
   listByInvoiceId(invoiceId: string): PaymentRecord[] {

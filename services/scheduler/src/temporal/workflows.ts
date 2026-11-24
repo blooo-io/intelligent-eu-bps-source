@@ -63,3 +63,6 @@ export async function Job_ApplyRetention(input: JobWorkflowInput) {
 export async function Job_FetchRates(input: JobWorkflowInput) {
   return runJob(input);
 }
+export async function Job_RunAutoPayouts(input: JobWorkflowInput) {
+  return runJob(input);
+}

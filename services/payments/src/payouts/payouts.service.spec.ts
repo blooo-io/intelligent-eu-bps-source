@@ -8,6 +8,7 @@ import { InMemoryOutboxStore, OutboxService } from "@intelligent/module-template
 import type { Clock } from "../domain/clock.js";
 import { PayoutsStore } from "../domain/payouts.store.js";
 import { PaymentsStore, type AccountRecord, type PaymentRecord } from "../domain/store.js";
+import { InMemoryCommunitySettings } from "../ports/community-settings.port.js";
 import { InMemoryPaymentAccountsStore } from "../ports/payment-accounts.store.js";
 import type { ParticipantsResolverPort } from "../ports/participants-resolver.port.js";
 import { InMemoryStatementLookup } from "../ports/statement-lookup.port.js";
@@ -79,6 +80,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
   let outboxStore: InMemoryOutboxStore;
   let psp: FakePayouts;
   let resolver: ParticipantsResolverPort;
+  let settings: InMemoryCommunitySettings;
   let svc: PayoutsService;
   const req = { participantId: "P", communityId: COM, period: "2026-10", trigger: "participant" as const };
 
@@ -90,6 +92,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
     outboxStore = new InMemoryOutboxStore();
     psp = new FakePayouts();
     resolver = { resolveByIdpSub: vi.fn(async () => null) };
+    settings = new InMemoryCommunitySettings();
     svc = new PayoutsService(
       payouts,
       payments,
@@ -99,6 +102,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
       resolver,
       accounts,
       new FixedClock(),
+      settings,
     );
     payments.putAccount(account());
     statements.put({
@@ -389,6 +393,127 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
       await accounts.put(account());
       await svc.onPayoutEvent(pspEvent("payout.paid", { arrivalDate: "2026-11-27" }));
       expect(payouts.get(id)).toMatchObject({ status: "paid", arrivalDate: "2026-11-27" });
+    });
+  });
+
+  describe("automatic payouts (REQ-015, A2)", () => {
+    const run = () => svc.runAutoPayouts({ communityId: COM });
+
+    beforeEach(() => {
+      statements.reset();
+      statements.put({
+        participantId: "P",
+        period: "2026-10",
+        currency: "EUR",
+        invoices: [
+          { invoiceId: "iA", producerId: "P", consumerId: "A", total: "12.00", status: "Paid" },
+          { invoiceId: "iB", producerId: "P", consumerId: "B", total: "8.50", status: "Paid" },
+          { invoiceId: "iC", producerId: "C", consumerId: "P", total: "6.25", status: "Open" },
+        ],
+      });
+      payments.putAccount(account({ participantId: "Q", pspAccountRef: "acct_Q" }));
+      statements.put({
+        participantId: "Q",
+        period: "2026-10",
+        currency: "EUR",
+        invoices: [{ invoiceId: "iQ", producerId: "Q", consumerId: "A", total: "9.00", status: "Open" }],
+      });
+      psp.balance = "25.00";
+    });
+
+    it("REQ-015: autoPayout=false → nothing requested", async () => {
+      settings.put(COM, { autoPayout: false });
+      expect(await run()).toEqual({ requested: 0, blocked: 0, nearHoldingLimit: [] });
+      expect(psp.createPayout).not.toHaveBeenCalled();
+    });
+
+    it("REQ-015: autoPayout=true pays eligible periods and counts blocked ones", async () => {
+      settings.put(COM, { autoPayout: true });
+      expect(await run()).toEqual({ requested: 1, blocked: 1, nearHoldingLimit: [] });
+      const [p] = payouts.listForParticipant("P");
+      expect(p).toMatchObject({ trigger: "auto", period: "2026-10", amount: "19.70", status: "in_transit" });
+      expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "payout:P:2026-10:1");
+      expect(payouts.listForParticipant("Q")).toEqual([]);
+    });
+
+    it("a second run skips periods with a live payout", async () => {
+      settings.put(COM, { autoPayout: true });
+      await run();
+      expect(await run()).toEqual({ requested: 0, blocked: 1, nearHoldingLimit: [] });
+      expect(psp.createPayout).toHaveBeenCalledTimes(1);
+    });
+
+    it("skips unverified accounts, other communities and statements without sales", async () => {
+      settings.put(COM, { autoPayout: true });
+      payments.putAccount(account({ participantId: "Q", pspAccountRef: "acct_Q", kycStatus: "pending" }));
+      payments.putAccount(account({ participantId: "X", pspAccountRef: "acct_X", communityId: "other" }));
+      statements.put({
+        participantId: "X",
+        period: "2026-10",
+        currency: "EUR",
+        invoices: [{ invoiceId: "iX", producerId: "X", consumerId: "A", total: "3.00", status: "Paid" }],
+      });
+      statements.put({
+        participantId: "P",
+        period: "2026-11",
+        currency: "EUR",
+        invoices: [
+          { invoiceId: "iE", producerId: "C", consumerId: "P", total: "4.00", status: "Paid" },
+          { invoiceId: "iV", producerId: "P", consumerId: "A", total: "2.00", status: "Void" },
+        ],
+      });
+      expect(await run()).toEqual({ requested: 1, blocked: 0, nearHoldingLimit: [] });
+      expect(payouts.listForParticipant("X")).toEqual([]);
+    });
+
+    it("a PSP refusal counts as blocked; the period is retried by the next run", async () => {
+      settings.put(COM, { autoPayout: true });
+      psp.next = new PspError("insufficient_balance", "race");
+      expect(await run()).toEqual({ requested: 0, blocked: 2, nearHoldingLimit: [] });
+      expect(await run()).toEqual({ requested: 1, blocked: 1, nearHoldingLimit: [] });
+      expect(payouts.listForPeriod("P", "2026-10").map((p) => p.attempt)).toEqual([1, 2]);
+    });
+
+    it("reads the community's accounts from the durable store when memory is cold", async () => {
+      settings.put(COM, { autoPayout: true });
+      payments.reset();
+      payments.putPayment(payment("pA", "iA", "12.00", "0.43"));
+      payments.putPayment(payment("pB", "iB", "8.50", "0.37"));
+      await accounts.put(account());
+      await accounts.put(account({ participantId: "Y", pspAccountRef: "acct_Y", communityId: "other" }));
+      expect(await run()).toEqual({ requested: 1, blocked: 0, nearHoldingLimit: [] });
+    });
+
+    it("flags funds approaching Stripe's 90-day manual-payout limit", async () => {
+      settings.put(COM, { autoPayout: true });
+      const warn = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+      // P's 80-day-old payment is paid out by this run; Q's 76-day-old one is held by the A2 gate.
+      payments.putPayment({ ...payment("pA", "iA", "12.00", "0.43"), settledAt: "2026-09-05T09:00:00.000Z" });
+      payments.putPayment({ ...payment("pQ", "iQ-old", "3.00", "0.10"), payeeId: "Q", settledAt: "2026-09-09T09:00:00.000Z" });
+      payments.putPayment({ ...payment("pQ2", "iQ-new", "3.00", "0.10"), payeeId: "Q", initiatedAt: "2026-09-11T09:00:00.000Z" });
+      const r = await run();
+      expect(r.nearHoldingLimit).toEqual(["Q"]);
+      expect(warn).toHaveBeenCalledWith(`payout.near_holding_limit communityId=${COM} participantIds=Q`);
+      warn.mockRestore();
+    });
+
+    it("does not flag funds younger than 75 days or without a settlement date", async () => {
+      settings.put(COM, { autoPayout: true });
+      payments.putPayment({ ...payment("pQ", "iQ", "3.00", "0.10"), payeeId: "Q", initiatedAt: "2026-09-11T09:00:00.000Z" });
+      payments.putPayment({ ...payment("pQ3", "iQ3", "3.00", "0.10"), payeeId: "Q" });
+      payments.putPayment({
+        ...payment("pQ4", "iQ4", "3.00", "0.10"),
+        payeeId: "Q",
+        status: "failed",
+        settledAt: "2026-08-01T09:00:00.000Z",
+      });
+      expect((await run()).nearHoldingLimit).toEqual([]);
+    });
+
+    it("propagates unexpected errors so the scheduler records the job as failed", async () => {
+      settings.put(COM, { autoPayout: true });
+      psp.next = new Error("socket hang up");
+      await expect(run()).rejects.toThrow(/socket hang up/);
     });
   });
 });

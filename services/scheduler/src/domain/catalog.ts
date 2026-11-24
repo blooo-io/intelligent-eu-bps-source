@@ -29,6 +29,7 @@ const SPECS: Array<{
   { name: "PurgeCache", ownerModule: "AC-10", path: "/publication:purge-cache" },
   { name: "ApplyRetention", ownerModule: "AC-12", path: "/retention:apply" },
   { name: "FetchRates", ownerModule: "AC-13", path: "/rates:fetch" },
+  { name: "RunAutoPayouts", ownerModule: "AC-07", path: "/payouts:run-auto" },
 ];
 
 /** Deterministic UUID v5-like ids from name (fixed map for tests/operators). */
@@ -44,6 +45,7 @@ const FIXED_IDS: Record<JobName, string> = {
   PurgeCache: "a1000000-0000-4000-8000-000000000009",
   ApplyRetention: "a1000000-0000-4000-8000-00000000000a",
   FetchRates: "a1000000-0000-4000-8000-00000000000b",
+  RunAutoPayouts: "a1000000-0000-4000-8000-00000000000c",
 };
 
 export function buildJobCatalog(): JobDefinition[] {

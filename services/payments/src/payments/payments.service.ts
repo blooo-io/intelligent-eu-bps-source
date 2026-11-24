@@ -72,6 +72,36 @@ const PRODUCER = "AC-07";
 
 type ProvisionRole = "consumer" | "producer" | "prosumer";
 
+/**
+ * A7 — hosted KYC returnUrl must match KYC_RETURN_URL_ALLOWLIST (comma-separated
+ * origins). Missing allow-list or unmatched origin → 400.
+ */
+export function assertKycReturnUrlAllowed(
+  returnUrl: string | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  if (!returnUrl) {
+    throw new BadRequestException(
+      "returnUrl is required when surface is hosted",
+    );
+  }
+  let origin: string;
+  try {
+    origin = new URL(returnUrl).origin;
+  } catch {
+    throw new BadRequestException("returnUrl must be an absolute URL");
+  }
+  const allowlist = (env.KYC_RETURN_URL_ALLOWLIST ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (!allowlist.includes(origin)) {
+    throw new BadRequestException(
+      "returnUrl origin is not in KYC_RETURN_URL_ALLOWLIST",
+    );
+  }
+}
+
 /** REQ-013 — payment-account personal data for DSAR (never logged). */
 export type PaymentAccountPersonalData = {
   participantId: string;
@@ -358,21 +388,6 @@ export class PaymentsService {
     });
   }
 
-  private async provisionConsumerAccount(
-    input: {
-      participantId: string;
-      fresh?: boolean;
-    },
-    existing: AccountRecord,
-  ): Promise<ReturnType<PaymentsService["toPaymentAccountApi"]>> {
-    const fresh = input.fresh !== false;
-    if (!fresh && existing.pspPaymentMethodRef) {
-      return this.toPaymentAccountApi(existing);
-    }
-    await this.psp.createSetupIntent(input.participantId);
-    return this.toPaymentAccountApi(existing);
-  }
-
   async provisionPaymentAccount(input: {
     participantId: string;
     communityId: string;
@@ -383,11 +398,12 @@ export class PaymentsService {
     await this.ensureParticipant(input);
     const existing = this.store.getAccount(input.participantId)!;
 
-    if (input.role === "consumer") {
-      return this.provisionConsumerAccount(input, existing);
-    }
-
+    // REQ-051 — every role gets a Connect Custom account with test KYC on the
+    // fixture path (consumers included). Buyers also get a SetupIntent.
     if (!fresh && existing.pspAccountRef) {
+      if (input.role === "consumer" && !existing.pspPaymentMethodRef) {
+        await this.psp.createSetupIntent(input.participantId);
+      }
       return this.getPaymentAccount(input.participantId);
     }
 
@@ -412,7 +428,7 @@ export class PaymentsService {
     const verified =
       session.status === "complete" || session.status === "pending_verification";
     await this.saveAccount({
-      ...existing,
+      ...this.store.getAccount(input.participantId)!,
       pspAccountRef: created.pspAccountRef,
       kycStatus: verified ? "verified" : "pending",
       role: input.role,
@@ -427,7 +443,13 @@ export class PaymentsService {
         null,
       );
       if (input.role === "prosumer") {
-        await this.attachProsumerSeedPaymentMethod(input.participantId, existing);
+        await this.attachProsumerSeedPaymentMethod(
+          input.participantId,
+          this.store.getAccount(input.participantId)!,
+        );
+      }
+      if (input.role === "consumer") {
+        await this.psp.createSetupIntent(input.participantId);
       }
       await this.emitAccountStatus(input.participantId);
     }
@@ -437,10 +459,17 @@ export class PaymentsService {
     };
   }
 
+  /**
+   * REQ-051 / UAT-063 / A7 — single onboarding path for every participant role:
+   * Connect KYC first (embedded Account Session or hosted Account Link), then
+   * a SetupIntent (`elements`) for consumer and prosumer.
+   */
   async startOnboarding(input: {
     participantId: string;
     communityId: string;
     role: ProvisionRole;
+    surface?: "embedded" | "hosted";
+    returnUrl?: string;
   }): Promise<OnboardingSession> {
     // INT-230 / INT-394 — JWT sub is the IdP id; AC-03 is keyed by participantId.
     const caller = await this.resolveCallerParticipantId(input.participantId);
@@ -450,39 +479,43 @@ export class PaymentsService {
       communityId: caller.communityId ?? input.communityId,
       role: input.role,
     });
-    const account = this.store.getAccount(participantId)!;
+    const surface = input.surface ?? "embedded";
+    let account = this.store.getAccount(participantId)!;
 
-    // INT-269 — producer: Connect only. Prosumer: Connect first, then Elements.
-    if (input.role === "producer") {
-      return this.startProducerOnboarding(account);
-    }
-    if (input.role === "prosumer") {
-      if (!account.pspAccountRef || account.kycStatus !== "verified") {
-        const connect = await this.startProducerOnboarding(account);
-        if (connect.status !== "complete") return connect;
-      }
-      // INT-362 — Connect done (possibly just now): continue to the card step.
-      return this.startConsumerElementsOnboarding(
-        participantId,
-        this.store.getAccount(participantId)!,
+    // KYC first for every role (REQ-051 / A5).
+    if (!account.pspAccountRef || account.kycStatus !== "verified") {
+      const connect = await this.startKycOnboarding(
+        account,
+        surface,
+        input.returnUrl,
       );
+      if (connect.status !== "complete") return connect;
+      account = this.store.getAccount(participantId)!;
+      if (input.role === "producer") return connect;
+    } else if (input.role === "producer") {
+      const status = await this.psp.getAccountSession(account.pspAccountRef!);
+      return { ...status, mode: surface === "hosted" ? "hosted" : "embedded" };
     }
 
-    // INT-193 — consumer SetupIntent for in-wizard Payment Element.
+    // INT-193 / INT-269 — buyers continue to the card (Elements) step.
     return this.startConsumerElementsOnboarding(participantId, account);
   }
 
   /**
-   * INT-362 — embedded Connect onboarding. The first call creates the
-   * Stripe-collected account (producer pays fees and bears disputes); every
-   * call re-reads Stripe (TP-7), so the portal refreshes the status by calling
-   * Start again when the embedded component exits.
+   * INT-362 / A7 — Connect KYC via embedded Account Session or hosted Account
+   * Link. Renamed from startProducerOnboarding: every role uses this path.
    */
-  private async startProducerOnboarding(
+  private async startKycOnboarding(
     account: AccountRecord,
+    surface: "embedded" | "hosted",
+    returnUrl?: string,
   ): Promise<OnboardingSession> {
+    if (surface === "hosted") {
+      assertKycReturnUrlAllowed(returnUrl);
+    }
     let pspAccountRef = account.pspAccountRef;
     if (!pspAccountRef) {
+      // createEmbeddedProducerAccount — payments workstream may rename to createKycAccount.
       const created = await this.psp.createEmbeddedProducerAccount({
         participantId: account.participantId,
         country: "FR",
@@ -496,7 +529,26 @@ export class PaymentsService {
       if (this.store.getAccount(account.participantId)?.kycStatus !== "verified") {
         await this.completeProducerKyc(account.participantId);
       }
-      return { ...status, mode: "embedded" };
+      return {
+        ...status,
+        mode: surface === "hosted" ? "hosted" : "embedded",
+      };
+    }
+    if (surface === "hosted") {
+      const link = await this.psp.createHostedKycLink(pspAccountRef, {
+        returnUrl: returnUrl!,
+        refreshUrl: returnUrl!,
+      });
+      return {
+        mode: "hosted",
+        status: status.status,
+        pspAccountRef,
+        url: link.url,
+        expiresAt: link.expiresAt,
+        currentlyDue: status.currentlyDue,
+        eventuallyDue: status.eventuallyDue,
+        payoutsEnabled: status.payoutsEnabled,
+      };
     }
     const { clientSecret } =
       await this.psp.createAccountOnboardingSession(pspAccountRef);

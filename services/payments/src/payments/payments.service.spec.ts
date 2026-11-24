@@ -128,7 +128,7 @@ describe("PaymentsService", () => {
     expect(reused.pspAccountRef).toBe(second.pspAccountRef);
   });
 
-  it("provisions consumer SetupIntent path (INT-228)", async () => {
+  it("provisions consumer with Connect test KYC (INT-228 / REQ-051)", async () => {
     const row = await service.provisionPaymentAccount({
       participantId: CONSUMER,
       communityId: COMMUNITY,
@@ -136,7 +136,8 @@ describe("PaymentsService", () => {
       fresh: true,
     });
     expect(row.participantId).toBe(CONSUMER);
-    expect(row.pspAccountRef).toBeNull();
+    expect(row.pspAccountRef).toMatch(/^acct_test_/);
+    expect(store.getAccount(CONSUMER)?.kycVerified).toBe(true);
   });
 
   it("creates a Stripe-collected account and returns an embedded Account Session (INT-362 / REQ-051)", async () => {
@@ -431,6 +432,18 @@ describe("PaymentsService", () => {
       communityId: COMMUNITY,
       role: "consumer",
     });
+    // REQ-051 — KYC first; Elements re-notify only after Connect is verified.
+    const started = await service.startOnboarding({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    psp.completeOnboarding(started.pspAccountRef!);
+    await service.startOnboarding({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
     await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
     const before = (await outboxStore.list()).length;
     const session = await service.startOnboarding({
@@ -448,6 +461,17 @@ describe("PaymentsService", () => {
 
   it("startOnboarding fails when Ready notify fails and a card is saved (INT-390 / ANO-006)", async () => {
     await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    const started = await service.startOnboarding({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    psp.completeOnboarding(started.pspAccountRef!);
+    await service.startOnboarding({
       participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",
@@ -754,7 +778,81 @@ describe("PaymentsService", () => {
     expect(service.getWebhookDuplicateCount()).toBe(1);
   });
 
-  it("returns consumer SetupIntent elements session; pay on an unknown invoice is not found (INT-193)", async () => {
+  it("REQ-051 / UAT-063: consumer onboarding starts with Connect KYC (embedded)", async () => {
+    const session = await service.startOnboarding({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    expect(session.mode).toBe("embedded");
+    expect(session.pspAccountRef).toMatch(/^acct_/);
+    expect(store.getAccount(CONSUMER)?.pspAccountRef).toBe(session.pspAccountRef);
+  });
+
+  it("REQ-051: consumer moves to card step after KYC complete", async () => {
+    const started = await service.startOnboarding({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    psp.completeOnboarding(started.pspAccountRef!);
+    const session = await service.startOnboarding({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    expect(session.mode).toBe("elements");
+    expect(session.clientSecret).toBeDefined();
+    expect(session.clientSecret).toMatch(/^seti_test_/);
+  });
+
+  it("A7: hosted surface returns a PSP-hosted URL, never a billing URL", async () => {
+    const prev = process.env.KYC_RETURN_URL_ALLOWLIST;
+    process.env.KYC_RETURN_URL_ALLOWLIST = "https://ui.example";
+    try {
+      const session = await service.startOnboarding({
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+        role: "consumer",
+        surface: "hosted",
+        returnUrl: "https://ui.example/return",
+      });
+      expect(session.mode).toBe("hosted");
+      expect(session.url).toMatch(/^https:\/\/mock-psp\.local\//);
+      expect(session.url).not.toMatch(/blooo/i);
+    } finally {
+      if (prev === undefined) delete process.env.KYC_RETURN_URL_ALLOWLIST;
+      else process.env.KYC_RETURN_URL_ALLOWLIST = prev;
+    }
+  });
+
+  it("A7: hosted returnUrl outside allow-list is rejected", async () => {
+    const prev = process.env.KYC_RETURN_URL_ALLOWLIST;
+    process.env.KYC_RETURN_URL_ALLOWLIST = "https://ui.example";
+    try {
+      const { BadRequestException } = await import("@nestjs/common");
+      await expect(
+        service.startOnboarding({
+          participantId: CONSUMER,
+          communityId: COMMUNITY,
+          role: "consumer",
+          surface: "hosted",
+          returnUrl: "https://evil.example/return",
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    } finally {
+      if (prev === undefined) delete process.env.KYC_RETURN_URL_ALLOWLIST;
+      else process.env.KYC_RETURN_URL_ALLOWLIST = prev;
+    }
+  });
+
+  it("returns elements after KYC; pay on an unknown invoice is not found (INT-193)", async () => {
+    const started = await service.startOnboarding({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    psp.completeOnboarding(started.pspAccountRef!);
     const session = await service.startOnboarding({
       participantId: CONSUMER,
       communityId: COMMUNITY,
@@ -1569,12 +1667,21 @@ describe("PaymentsService", () => {
       status: "complete",
       last4: "4242",
     });
+    // REQ-051 — with PM but no KYC, Start begins Connect (not Elements).
     const again = await service.startOnboarding({
       participantId: idpSub,
       communityId: COMMUNITY,
       role: "consumer",
     });
-    expect(again).toEqual({ mode: "elements", status: "complete" });
+    expect(again.mode).toBe("embedded");
+    expect(again.pspAccountRef).toMatch(/^acct_/);
+    psp.completeOnboarding(again.pspAccountRef!);
+    const elements = await service.startOnboarding({
+      participantId: idpSub,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    expect(elements).toEqual({ mode: "elements", status: "complete" });
   });
 
   it("INT-394 — attach fails closed when Ready notify fails", async () => {

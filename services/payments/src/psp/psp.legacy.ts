@@ -7,13 +7,15 @@ import type { KycTestFixtureSubmission } from "./kyc-test-fixture.port.js";
 export type OnboardingRequirementsSubmission = KycTestFixtureSubmission;
 export type ProducerAccount = { pspAccountRef: string };
 export type LegacyOnboardingSession = {
-  mode: "embedded" | "requirements" | "link" | "elements";
+  mode: "embedded" | "hosted" | "requirements" | "link" | "elements";
   status: "requirements_due" | "pending_verification" | "complete";
   pspAccountRef?: string;
   currentlyDue?: string[];
   eventuallyDue?: string[];
   url?: string;
   clientSecret?: string;
+  /** Present when mode is hosted (A7 Account Link). */
+  expiresAt?: string;
   /** REQ-045 / REQ-051 — mirror of account.payouts_enabled. */
   payoutsEnabled?: boolean;
   /** REQ-051 — account.requirements.disabled_reason when present. */

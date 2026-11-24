@@ -34,12 +34,21 @@ export class PaymentsController {
   @Post("v1/me/payment-account/onboarding")
   @HttpCode(200)
   @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
-  async onboarding(@Req() req: AuthenticatedRequest) {
+  async onboarding(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { surface?: unknown; returnUrl?: unknown } | undefined,
+  ) {
     const user = req.user!;
+    const surface =
+      body?.surface === "hosted" || body?.surface === "embedded"
+        ? body.surface
+        : undefined;
     return this.payments.startOnboarding({
       participantId: user.sub,
       communityId: user.communityId,
       role: roleOf(user.roles),
+      surface,
+      returnUrl: typeof body?.returnUrl === "string" ? body.returnUrl : undefined,
     });
   }
 

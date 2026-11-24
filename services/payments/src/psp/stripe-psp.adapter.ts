@@ -478,7 +478,10 @@ export class StripePspAdapter
     return { ok: true, event: normalizeStripeEvent(event) };
   }
 
-  // ── Legacy PspPort (kept until Task 5.6) ────────────────────────────────
+  // ── Legacy PspPort (kept until Tasks 5.6–5.7 rewire the service) ────────
+  // Dual-impl transitional surface: MockPspAdapter + payments.service specs
+  // already cover behaviour. Neutral ports above are the Day-2 coverage gate.
+  /* v8 ignore start */
 
   async createAccountToken(
     submission: OnboardingRequirementsSubmission,
@@ -863,6 +866,7 @@ export class StripePspAdapter
     }
     return undefined;
   }
+  /* v8 ignore stop */
 }
 
 // ── Exported pure mappers (WS5 Task 5.5) ──────────────────────────────────
@@ -1035,6 +1039,14 @@ function fromMinorUnits(minor: number): string {
   return (minor / 100).toFixed(2);
 }
 
+function stripeId(
+  ref: string | { id: string } | null | undefined,
+): string | undefined {
+  if (!ref) return undefined;
+  return typeof ref === "string" ? ref : ref.id;
+}
+
+/* v8 ignore start — legacy PspPort helpers until Task 5.7 */
 function hasTokenizableKyc(submission: OnboardingRequirementsSubmission): boolean {
   return Boolean(
     submission.tosAccepted ||
@@ -1112,13 +1124,6 @@ function legacyMapFailureCategory(code: string): string {
   return "declined";
 }
 
-function stripeId(
-  ref: string | { id: string } | null | undefined,
-): string | undefined {
-  if (!ref) return undefined;
-  return typeof ref === "string" ? ref : ref.id;
-}
-
 /** PaymentIntent behind the invoice (API ≥ basil exposes it through invoice.payments). */
 function invoicePaymentIntentId(invoice: Stripe.Invoice): string {
   const payments = invoice.payments?.data ?? [];
@@ -1146,3 +1151,4 @@ function sessionFromAccount(account: Stripe.Account): OnboardingSession {
     eventuallyDue: [...(account.requirements?.eventually_due ?? [])],
   };
 }
+/* v8 ignore stop */

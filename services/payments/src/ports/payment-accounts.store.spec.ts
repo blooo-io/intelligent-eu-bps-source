@@ -23,6 +23,10 @@ describe("createPaymentAccountsStore (INT-228)", () => {
       kycStatus: "verified",
       role: "producer",
       communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+      kycVerified: true,
+      kycVerifiedAt: "2026-11-25T10:00:00.000Z",
+      kycMethod: "connect_onboarding",
+      payoutAccountVerified: true,
     });
     const got = await store.get("66666666-7777-4888-9999-aaaaaaaaaaaa");
     expect(got?.pspAccountRef).toBe("mock_acct_1");
@@ -56,17 +60,82 @@ describe("createPaymentAccountsStore (INT-228)", () => {
       kycStatus: "pending",
       role: "producer",
       communityId: "c1",
+      kycVerified: false,
+      kycVerifiedAt: null,
+      kycMethod: null,
+      payoutAccountVerified: false,
     });
   });
+  it("REQ-051: persists kycVerified and payoutAccountVerified", async () => {
+    const query = vi.fn(async (sql: string, params?: unknown[]) => {
+      if (sql.includes("CREATE TABLE") || sql.includes("ALTER TABLE") || sql.includes("RENAME COLUMN")) {
+        return { rows: [] };
+      }
+      if (sql.includes("SELECT")) {
+        return {
+          rows: [
+            {
+              participant_id: "p-kyc",
+              psp_account_ref: "acct_1",
+              psp_payment_method_ref: null,
+              kyc_status: "verified",
+              role: "producer",
+              community_id: "c1",
+              kyc_verified: true,
+              kyc_verified_at: new Date("2026-11-25T10:00:00.000Z"),
+              kyc_method: "connect_onboarding",
+              payout_account_verified: false,
+            },
+          ],
+        };
+      }
+      if (sql.includes("INSERT")) {
+        expect(params).toEqual(
+          expect.arrayContaining([
+            "p-kyc",
+            true,
+            "2026-11-25T10:00:00.000Z",
+            "connect_onboarding",
+            false,
+          ]),
+        );
+        return { rows: [] };
+      }
+      return { rows: [] };
+    });
+    const store = new PostgresPaymentAccountsStore({ query } as never);
+    await store.put({
+      participantId: "p-kyc",
+      pspAccountRef: "acct_1",
+      pspPaymentMethodRef: null,
+      kycStatus: "verified",
+      role: "producer",
+      communityId: "c1",
+      kycVerified: true,
+      kycVerifiedAt: "2026-11-25T10:00:00.000Z",
+      kycMethod: "connect_onboarding",
+      payoutAccountVerified: false,
+    });
+    const got = await store.get("p-kyc");
+    expect(got?.kycVerified).toBe(true);
+    expect(got?.kycVerifiedAt).toBe("2026-11-25T10:00:00.000Z");
+    expect(got?.payoutAccountVerified).toBe(false);
+    expect(got?.kycMethod).toBe("connect_onboarding");
+  });
+
   it("REQ-015: lists the accounts of one community", async () => {
     const mem = new InMemoryPaymentAccountsStore();
     const row = (participantId: string, communityId: string) => ({
       participantId,
       pspAccountRef: `acct_${participantId}`,
       pspPaymentMethodRef: null,
-      kycStatus: "verified",
+      kycStatus: "verified" as const,
       role: "producer" as const,
       communityId,
+      kycVerified: false,
+      kycVerifiedAt: null,
+      kycMethod: null,
+      payoutAccountVerified: false,
     });
     await mem.put(row("p1", "c1"));
     await mem.put(row("p2", "c2"));
@@ -82,6 +151,10 @@ describe("createPaymentAccountsStore (INT-228)", () => {
             kyc_status: "verified",
             role: "producer",
             community_id: "c1",
+            kyc_verified: false,
+            kyc_verified_at: null,
+            kyc_method: null,
+            payout_account_verified: false,
           }],
         };
       }

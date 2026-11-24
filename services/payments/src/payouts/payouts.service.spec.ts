@@ -57,6 +57,10 @@ const account = (over: Partial<AccountRecord> = {}): AccountRecord => ({
   kycStatus: "verified",
   role: "producer",
   communityId: COM,
+  kycVerified: true,
+  kycVerifiedAt: "2026-11-25T10:00:00.000Z",
+  kycMethod: "connect_onboarding",
+  payoutAccountVerified: true,
   ...over,
 });
 

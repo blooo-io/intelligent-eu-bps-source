@@ -37,6 +37,10 @@ import {
   PAYMENT_ACCOUNTS_STORE,
 } from "./ports/payment-accounts.store.js";
 import {
+  createKycLogStore,
+  KYC_LOG_STORE,
+} from "./ports/kyc-log.store.js";
+import {
   COMMUNITY_SETTINGS,
   createCommunitySettings,
   InMemoryCommunitySettings,
@@ -105,6 +109,10 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
     {
       provide: PAYMENT_ACCOUNTS_STORE,
       useFactory: () => createPaymentAccountsStore(),
+    },
+    {
+      provide: KYC_LOG_STORE,
+      useFactory: () => createKycLogStore(),
     },
     {
       provide: PSP_ADAPTER,

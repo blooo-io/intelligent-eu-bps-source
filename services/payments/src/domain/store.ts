@@ -28,25 +28,39 @@ export type PaymentRecord = {
   feeCurrency?: string;
 };
 
-/** REQ-013 / Task 3.18 — KYC audit row for DSAR (identifiers / status only). */
+/** REQ-051 / NFR-004 — KYC lifecycle status stored on the payment account. */
+export type KycStatus = "none" | "pending" | "verified" | "rejected";
+
+/**
+ * REQ-013 / Task 3.18 — denormalised KYC audit snapshot for DSAR.
+ * Canonical rows live in {@link import("../ports/kyc-log.store.js").KycLogStore}.
+ */
 export type KycLogEntry = {
   at: string;
   source: string;
   kycStatus: string;
   pspEventId?: string | null;
+  logId?: string;
+  subjectId?: string;
+  subjectType?: string;
+  requirementsDueCount?: number;
+  errorCode?: string | null;
 };
 
 export type AccountRecord = {
   participantId: string;
   pspAccountRef: string | null;
   pspPaymentMethodRef: string | null;
-  kycStatus: string;
+  /** REQ-051 — KYC result in the billing DB. */
+  kycStatus: KycStatus;
   role: "consumer" | "producer" | "prosumer";
   communityId: string;
-  /** REQ-013 — optional KYC mirror fields for DSAR (filled by later KYC tasks). */
-  kycVerified?: boolean;
-  kycVerifiedAt?: string | null;
-  payoutAccountVerified?: boolean;
+  /** REQ-051 / NFR-004 — ontology UserAccount.kycVerified. */
+  kycVerified: boolean;
+  kycVerifiedAt: string | null;
+  kycMethod: "connect_onboarding" | null;
+  payoutAccountVerified: boolean;
+  /** REQ-013 — optional DSAR snapshot (prefer KycLogStore.list). */
   kycLog?: KycLogEntry[];
   /**
    * Platform Stripe Customer ids for GDPR erase.
@@ -54,6 +68,14 @@ export type AccountRecord = {
    */
   platformCustomerIds?: string[];
 };
+
+/** REQ-051 — defaults for a newly provisioned payment account. */
+export const DEFAULT_KYC_ACCOUNT_FIELDS = {
+  kycVerified: false,
+  kycVerifiedAt: null as string | null,
+  kycMethod: null as "connect_onboarding" | null,
+  payoutAccountVerified: false,
+} as const;
 
 export type PaymentWrite = { row: PaymentRecord };
 

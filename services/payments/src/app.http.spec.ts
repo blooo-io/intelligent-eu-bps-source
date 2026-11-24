@@ -439,6 +439,10 @@ describe("payments HTTP (INT-107)", () => {
         kycStatus: "verified",
         role: "producer",
         communityId: COMMUNITY,
+        kycVerified: true,
+        kycVerifiedAt: "2026-11-25T10:00:00.000Z",
+        kycMethod: "connect_onboarding",
+        payoutAccountVerified: true,
       });
       const paid = (invoiceId: string, total: string) => ({
         invoiceId,

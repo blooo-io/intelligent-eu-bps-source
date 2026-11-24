@@ -1685,6 +1685,10 @@ describe("PaymentsService", () => {
       pspAccountRef: null,
       pspPaymentMethodRef: "pm_poison",
       kycStatus: "none",
+      kycVerified: false,
+      kycVerifiedAt: null,
+      kycMethod: null,
+      payoutAccountVerified: false,
     });
     await service.ensureParticipant({
       participantId: CONSUMER,

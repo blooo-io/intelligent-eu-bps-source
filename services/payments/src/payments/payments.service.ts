@@ -17,6 +17,7 @@ import {
 } from "@intelligent/module-template";
 import { CLOCK, type Clock } from "../domain/clock.js";
 import {
+  DEFAULT_KYC_ACCOUNT_FIELDS,
   PaymentsStore,
   type AccountRecord,
   type KycLogEntry,
@@ -222,6 +223,7 @@ export class PaymentsService {
       kycStatus: "none",
       role: input.role,
       communityId: input.communityId,
+      ...DEFAULT_KYC_ACCOUNT_FIELDS,
     });
   }
 

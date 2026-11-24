@@ -1,6 +1,7 @@
 import { Inject, Injectable, MiddlewareConsumer, Module, NestModule, OnModuleInit } from "@nestjs/common";
 import { ModuleTemplateModule, OutboxService } from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
+import { StatementStore } from "./domain/statement-store.js";
 import { InvoiceStore } from "./domain/store.js";
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
 import { createEventBus } from "./events/nats-event-bus.js";
@@ -10,21 +11,29 @@ import { SettlementCompletedListener } from "./events/settlement-completed.liste
 import { InvoicingController } from "./invoicing/invoicing.controller.js";
 import { PublicInvoicingController } from "./invoicing/public.controller.js";
 import { InvoicingService } from "./invoicing/invoicing.service.js";
+import { StatementsService } from "./invoicing/statements.service.js";
 import { createInvoiceTransaction } from "./persistence/invoice-journal.js";
 
-/** INT-356 — load invoices at boot and commit them with the outbox. */
+/** INT-356 / REQ-059 — load invoices and statements at boot and commit them with the outbox. */
 @Injectable()
 class InvoicePersistence implements OnModuleInit {
   constructor(
     @Inject(InvoiceStore) private readonly store: InvoiceStore,
+    @Inject(StatementStore) private readonly statementStore: StatementStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
     @Inject(InvoicingService) private readonly invoicing: InvoicingService,
+    @Inject(StatementsService) private readonly statements: StatementsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
-    const { transaction, hydrate } = createInvoiceTransaction(this.store, this.outbox);
+    const { transaction, hydrate } = createInvoiceTransaction(
+      this.store,
+      this.statementStore,
+      this.outbox,
+    );
     await hydrate();
     this.invoicing.useTransaction(transaction);
+    this.statements.useTransaction(transaction);
   }
 }
 import {
@@ -65,7 +74,9 @@ function resolveInvoiceProvider(): "stripe" | "mock" {
   controllers: [InvoicingController, PublicInvoicingController],
   providers: [
     InvoiceStore,
+    StatementStore,
     InvoicingService,
+    StatementsService,
     InvoicePersistence,
     MockStripeInvoiceAdapter,
     {

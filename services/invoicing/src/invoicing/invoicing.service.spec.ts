@@ -33,6 +33,7 @@ const settlement = (
   currency: "EUR",
   rate: "1.0000",
   rateDate: "2026-11-30",
+  period: "2026-11",
   periodFrom: "2026-11-01T00:00:00.000Z",
   periodUntil: "2026-12-01T00:00:00.000Z",
   settlementType: "periodic",
@@ -68,6 +69,13 @@ describe("InvoicingService", () => {
     );
   });
 
+  it("REQ-059: a settlement without a period leaves the invoice period empty", async () => {
+    const invoice = await service.createFromSettlement(
+      settlement({ period: undefined, periodFrom: undefined, periodUntil: undefined }),
+    );
+    expect(invoice).toMatchObject({ period: "", periodFrom: "", periodUntil: "" });
+  });
+
   it("maps a pair settlement to a Stripe invoice (TD-2, BR-10)", async () => {
     const invoice = await service.createFromSettlement(settlement());
     expect(invoice).not.toBeNull();
@@ -76,6 +84,13 @@ describe("InvoicingService", () => {
     expect(invoice!.status).toBe("Open");
     expect(invoice!.total).toBe("2.00");
     expect(stripe.created).toHaveLength(1);
+    // REQ-059 — run and period kept on the invoice for the statements.
+    expect(invoice).toMatchObject({
+      runId: "r1111111-1111-4111-8111-111111111111",
+      period: "2026-11",
+      periodFrom: "2026-11-01T00:00:00.000Z",
+      periodUntil: "2026-12-01T00:00:00.000Z",
+    });
 
     const again = await service.createFromSettlement(settlement());
     expect(again!.invoiceId).toBe(invoice!.invoiceId);

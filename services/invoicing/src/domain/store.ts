@@ -1,7 +1,10 @@
+import type { StatementRecord } from "./statement-store.js";
 import type { InvoiceRecord } from "./types.js";
 import { seedUatInvoices } from "./uat-seed.js";
 
-export type InvoiceWrite = { row: InvoiceRecord };
+export type InvoiceWrite =
+  | { kind: "invoice"; row: InvoiceRecord }
+  | { kind: "statement"; row: StatementRecord };
 
 /**
  * Rebuildable Stripe read cache + local invoice ids (TP-7).
@@ -11,14 +14,14 @@ export class InvoiceStore {
   private readonly byId = new Map<string, InvoiceRecord>();
   private readonly bySettlement = new Map<string, string>();
   private recording = false;
-  private writes: InvoiceWrite[] = [];
+  private writes: Extract<InvoiceWrite, { kind: "invoice" }>[] = [];
 
   beginRecording(): void {
     this.recording = true;
     this.writes = [];
   }
 
-  takeRecording(): InvoiceWrite[] {
+  takeRecording(): Extract<InvoiceWrite, { kind: "invoice" }>[] {
     this.recording = false;
     return this.writes.splice(0);
   }
@@ -70,7 +73,7 @@ export class InvoiceStore {
   put(row: InvoiceRecord): void {
     this.byId.set(row.invoiceId, structuredClone(row));
     this.bySettlement.set(row.settlementId, row.invoiceId);
-    if (this.recording) this.writes.push({ row: structuredClone(row) });
+    if (this.recording) this.writes.push({ kind: "invoice", row: structuredClone(row) });
   }
 
   list(): InvoiceRecord[] {

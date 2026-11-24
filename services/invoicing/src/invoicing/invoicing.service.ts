@@ -338,6 +338,10 @@ export class InvoicingService {
     const record: InvoiceRecord = {
       invoiceId,
       settlementId: settlement.settlementId,
+      runId: settlement.runId,
+      period: settlement.period ?? "",
+      periodFrom: settlement.periodFrom ?? "",
+      periodUntil: settlement.periodUntil ?? "",
       producerId: settlement.producerId,
       consumerId: settlement.consumerId,
       currency: settlement.currency,

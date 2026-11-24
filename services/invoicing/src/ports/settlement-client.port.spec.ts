@@ -33,6 +33,7 @@ describe("HttpSettlementClient (INT-223)", () => {
         currency: "EUR",
         rate: "1.0000",
         rateDate: "2026-11-30",
+        period: "2026-11",
         periodFrom: "2026-11-01T00:00:00.000Z",
         periodUntil: "2026-12-01T00:00:00.000Z",
         settlementType: "periodic",
@@ -50,6 +51,7 @@ describe("HttpSettlementClient (INT-223)", () => {
     expect(pair.energyAmount).toBe("1.25");
     expect(pair.producerStripeAccountId).toBe("acct_x");
     expect(pair.rateDate).toBe("2026-11-30");
+    expect(pair.period).toBe("2026-11");
     expect(pair.periodFrom).toBe("2026-11-01T00:00:00.000Z");
     expect(pair.settlementType).toBe("periodic");
     expect(pair.vatRate).toBe(0);

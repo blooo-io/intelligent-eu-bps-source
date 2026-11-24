@@ -148,13 +148,21 @@ describe("ErasureRequestPort (REQ-013 / Task 3.22)", () => {
     expect(store.listRequests()).toHaveLength(0);
   });
 
-  it("createErasureRequestPort defaults to none; mock when requested", () => {
+  it("createErasureRequestPort defaults to none; mock when requested; ewds via adapter", () => {
     expect(createErasureRequestPort({})).toBeInstanceOf(NoneErasureRequestAdapter);
     expect(createErasureRequestPort({ ERASURE_REQUEST_SOURCE: "mock" })).toBeInstanceOf(
       MockErasureRequestAdapter,
     );
+    expect(
+      createErasureRequestPort({ ERASURE_SOURCE_ADAPTER: "mock" }),
+    ).toBeInstanceOf(MockErasureRequestAdapter);
+    // ewds without CGW credentials fails closed at construction (loadCgwConfig).
     expect(() =>
-      createErasureRequestPort({ ERASURE_REQUEST_SOURCE: "ewds" }),
-    ).toThrow(/WS4/);
+      createErasureRequestPort({
+        ERASURE_SOURCE_ADAPTER: "ewds",
+        CGW_BASE_URL: "http://cgw",
+        // missing CGW_API_KEY
+      }),
+    ).toThrow(/CGW_API_KEY/);
   });
 });

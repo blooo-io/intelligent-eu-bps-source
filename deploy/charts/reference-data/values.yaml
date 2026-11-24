@@ -36,3 +36,5 @@ env:
   ERASURE_SOURCE_ADAPTER: mock
   TARIFF_ADAPTER: mock
   COMMAND_CHANNEL_ENABLED: "false"
+  # INT-432 — EWDS tariff topic (P-TARIFF).
+  EWDS_TARIFF_TOPIC: tariff

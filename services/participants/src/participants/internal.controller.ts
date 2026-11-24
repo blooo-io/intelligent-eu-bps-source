@@ -6,10 +6,14 @@ import {
   Inject,
   Param,
   Post,
+  Put,
+  Req,
   UseGuards,
 } from "@nestjs/common";
 import { ModuleAuthGuard } from "@intelligent/module-template";
+import type { Request } from "express";
 import { ActorSyncService } from "../actors/actor-sync.service.js";
+import { ActorAuthorizationService } from "../authorization/actor-authorization.service.js";
 import { ParticipantsService } from "./participants.service.js";
 
 /** Internal API — contracts/openapi/internal/participants.v1.yaml */
@@ -19,6 +23,8 @@ export class InternalParticipantsController {
   constructor(
     @Inject(ParticipantsService) private readonly participants: ParticipantsService,
     @Inject(ActorSyncService) private readonly actorSync: ActorSyncService,
+    @Inject(ActorAuthorizationService)
+    private readonly actorAuthz: ActorAuthorizationService,
   ) {}
 
   @Post(String.raw`parties\:resolve`)
@@ -96,5 +102,30 @@ export class InternalParticipantsController {
   @HttpCode(200)
   syncActors(@Param("communityId") communityId: string) {
     return this.actorSync.sync(communityId);
+  }
+
+  /**
+   * REQ-049 / REQ-052 — EWDS command authorizer lookup.
+   * Unknown actors return 200 with status `unknown` (no id probing via 404).
+   */
+  @Get("actors/:actorId/authorization")
+  getActorAuthorization(@Param("actorId") actorId: string) {
+    return this.actorAuthz.authorize(actorId);
+  }
+
+  /**
+   * REQ-010 / REQ-030 — bind a community manager (operator only).
+   */
+  @Put("communities/:communityId/managers/:actorId")
+  @HttpCode(204)
+  @UseGuards(new ModuleAuthGuard({ roles: ["operator"] }))
+  async bindCommunityManager(
+    @Param("communityId") communityId: string,
+    @Param("actorId") actorId: string,
+    @Req() req: Request,
+  ): Promise<void> {
+    const by =
+      (req as Request & { user?: { sub?: string } }).user?.sub ?? "operator";
+    await this.actorAuthz.bindManager(communityId, actorId, by);
   }
 }

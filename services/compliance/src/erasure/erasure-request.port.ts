@@ -1,8 +1,10 @@
+import { createEwdsErasureRequest } from "../ports/ewds-erasure-request.adapter.js";
 import { MockErasureRequestAdapter } from "./mock-erasure-request.adapter.js";
 
 /**
  * REQ-013 / Task 3.22 — inbound erasure requests from the EWDS (P-ERASURE-REQ).
- * The real EWDS adapter lands in WS4; V1 selects mock | ewds | none by env.
+ * V1 selects mock | ewds | none by env (`ERASURE_SOURCE_ADAPTER` or
+ * legacy `ERASURE_REQUEST_SOURCE`).
  */
 
 export type InboundErasureRequest = {
@@ -42,20 +44,24 @@ export class NoneErasureRequestAdapter implements ErasureRequestPort {
 
 /**
  * Select the erasure-request port.
- * `ERASURE_REQUEST_SOURCE=mock|ewds|none` (default none).
- * `ewds` is reserved for WS4; until then it throws so misconfiguration fails at boot.
+ * `ERASURE_SOURCE_ADAPTER` / `ERASURE_REQUEST_SOURCE` = mock|ewds|none
+ * (default none for local; chart default is mock).
  */
 export function createErasureRequestPort(
   env: NodeJS.ProcessEnv = process.env,
 ): ErasureRequestPort {
-  const source = (env.ERASURE_REQUEST_SOURCE ?? "none").trim().toLowerCase();
+  const source = (
+    env.ERASURE_SOURCE_ADAPTER ??
+    env.ERASURE_REQUEST_SOURCE ??
+    "none"
+  )
+    .trim()
+    .toLowerCase();
   if (source === "mock") {
     return new MockErasureRequestAdapter();
   }
   if (source === "ewds") {
-    throw new Error(
-      "ERASURE_REQUEST_SOURCE=ewds requires the WS4 EwdsErasureRequestAdapter (not yet wired)",
-    );
+    return createEwdsErasureRequest(env);
   }
   return new NoneErasureRequestAdapter();
 }

@@ -288,6 +288,9 @@ importers:
 
   services/compliance:
     dependencies:
+      '@intelligent/ewds-client':
+        specifier: workspace:*
+        version: link:../../packages/ewds-client
       '@intelligent/module-template':
         specifier: workspace:*
         version: link:../../packages/module-template
@@ -420,6 +423,9 @@ importers:
 
   services/participants:
     dependencies:
+      '@intelligent/ewds-client':
+        specifier: workspace:*
+        version: link:../../packages/ewds-client
       '@intelligent/mocks':
         specifier: workspace:*
         version: link:../../mocks
@@ -515,6 +521,9 @@ importers:
 
   services/publication:
     dependencies:
+      '@intelligent/ewds-client':
+        specifier: workspace:*
+        version: link:../../packages/ewds-client
       '@intelligent/mocks':
         specifier: workspace:*
         version: link:../../mocks
@@ -604,6 +613,9 @@ importers:
 
   services/reference-data:
     dependencies:
+      '@intelligent/ewds-client':
+        specifier: workspace:*
+        version: link:../../packages/ewds-client
       '@intelligent/mocks':
         specifier: workspace:*
         version: link:../../mocks

@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@intelligent/ewds-client": "workspace:*",
     "@intelligent/mocks": "workspace:*",
     "@intelligent/module-template": "workspace:*",
     "@nestjs/common": "^12.6.0",

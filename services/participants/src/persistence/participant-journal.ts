@@ -30,6 +30,13 @@ CREATE TABLE IF NOT EXISTS manager_consents (
   consent_key TEXT PRIMARY KEY,
   payload JSONB NOT NULL
 );
+-- REQ-049 / INT-432 — community manager bindings for EWDS command authz.
+CREATE TABLE IF NOT EXISTS community_manager (
+  actor_id TEXT NOT NULL,
+  community_id TEXT NOT NULL,
+  payload JSONB NOT NULL,
+  PRIMARY KEY (actor_id, community_id)
+);
 `;
 
 /** INT-356 / REQ-005 — registry rows committed with the outbox. */

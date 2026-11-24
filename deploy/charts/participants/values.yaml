@@ -47,3 +47,7 @@ env:
   ERASURE_SOURCE_ADAPTER: mock
   TARIFF_ADAPTER: mock
   COMMAND_CHANNEL_ENABLED: "false"
+  # REQ-008 — EWDS Actor intake (WS4); empty allow-list accepts any signed sender.
+  EWDS_ACTOR_TOPIC: actor
+  EWDS_ACTOR_FQCN: blooo.intelligent.actors.sub
+  EWDS_TOPIC_OWNER: integration.apps.intelligent.auth.ewc

@@ -140,6 +140,25 @@ describe("StripePspAdapter mapping (INT-424)", () => {
     });
   });
 
+  it("REQ-015 payout.paid carries the arrival date", () => {
+    expect(
+      normalizeStripeEvent({
+        id: "evt_po_paid",
+        type: "payout.paid",
+        created: 1764064800,
+        account: "acct_X",
+        data: { object: { id: "po_1", arrival_date: 1764115200 } },
+      } as unknown as import("stripe").Stripe.Event),
+    ).toEqual({
+      eventId: "evt_po_paid",
+      kind: "payout.paid",
+      occurredAt: "2025-11-25T10:00:00.000Z",
+      pspAccountRef: "acct_X",
+      pspPayoutRef: "po_1",
+      arrivalDate: "2025-11-26",
+    });
+  });
+
   it("maps ignored for unknown Stripe event types", () => {
     expect(
       normalizeStripeEvent({

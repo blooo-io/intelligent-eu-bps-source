@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, Logger } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import {
   OutboxService,
@@ -25,7 +25,8 @@ import {
 } from "../ports/payment-accounts.store.js";
 import { STATEMENT_LOOKUP, type StatementLookupPort } from "../ports/statement-lookup.port.js";
 import { PAYOUT_PORT, type PayoutPort, type PayoutResult } from "../psp/payout.port.js";
-import { PspError } from "../psp/psp.types.js";
+import type { PayoutEventsHandler } from "../psp/psp-events.port.js";
+import { PspError, type PspEvent } from "../psp/psp.types.js";
 
 const PRODUCER = "AC-07";
 
@@ -49,8 +50,31 @@ function refuse(reason: PayoutRefusalReason): ConflictException {
   return new ConflictException({ reason });
 }
 
+export type PayoutWebhook = {
+  payoutRef: string;
+  status: PayoutStatus;
+  accountRef: string;
+  arrivalDate?: string;
+  failureCategory?: string;
+};
+
+const WEBHOOK_STATUS: Partial<Record<PspEvent["kind"], PayoutStatus>> = {
+  "payout.paid": "paid",
+  "payout.failed": "failed",
+  "payout.canceled": "canceled",
+};
+
+const TERMINAL_PAYOUT_STATUSES: readonly PayoutStatus[] = ["paid", "failed", "canceled"];
+
 function statusOf(result: PayoutResult): PayoutStatus {
   return result.status === "pending" ? "in_transit" : result.status;
+}
+
+/** Terminal states are never left, except a bank return after `paid` (`paid → failed`). */
+function canMove(from: PayoutStatus, to: PayoutStatus): boolean {
+  if (from === to || to === "requested") return false;
+  if (TERMINAL_PAYOUT_STATUSES.includes(from)) return from === "paid" && to === "failed";
+  return true;
 }
 
 /**
@@ -59,7 +83,8 @@ function statusOf(result: PayoutResult): PayoutStatus {
  * `requestWithdrawal` is also the entry point of the EWDS `requestWithdrawal` command (A7).
  */
 @Injectable()
-export class PayoutsService {
+export class PayoutsService implements PayoutEventsHandler {
+  private readonly logger = new Logger(PayoutsService.name);
   private tx: { run<T>(fn: () => Promise<T> | T): Promise<T> } = new PassthroughTransaction();
 
   constructor(
@@ -83,6 +108,23 @@ export class PayoutsService {
 
   requestWithdrawal(input: WithdrawalRequest): Promise<PayoutRecord> {
     return this.tx.run(() => this.performRequestWithdrawal(input));
+  }
+
+  /** PAYOUT_EVENTS_HANDLER — runs inside the webhook transaction, after event-id dedupe (04 §7). */
+  async onPayoutEvent(event: PspEvent): Promise<void> {
+    const status = WEBHOOK_STATUS[event.kind];
+    if (!status || !event.pspPayoutRef) return;
+    await this.applyPayoutWebhook({
+      payoutRef: event.pspPayoutRef,
+      status,
+      accountRef: event.pspAccountRef ?? "",
+      ...(event.arrivalDate ? { arrivalDate: event.arrivalDate } : {}),
+      ...(event.failureCategory ? { failureCategory: event.failureCategory } : {}),
+    });
+  }
+
+  applyPayoutWebhook(payload: PayoutWebhook): Promise<void> {
+    return this.tx.run(() => this.performApplyPayoutWebhook(payload));
   }
 
   async listForParticipant(
@@ -155,6 +197,25 @@ export class PayoutsService {
     };
     this.payouts.put(record);
     return this.submit(record, accountRef);
+  }
+
+  private async performApplyPayoutWebhook(payload: PayoutWebhook): Promise<void> {
+    const record = this.payouts.findByPspPayoutRef(payload.payoutRef);
+    if (!record) return;
+    const account = await this.accountOf(record.participantId);
+    if (account?.pspAccountRef !== payload.accountRef) {
+      this.logger.warn(`payout.webhook_account_mismatch payoutId=${record.payoutId}`);
+      return;
+    }
+    if (!canMove(record.status, payload.status)) return;
+    const next: PayoutRecord = {
+      ...record,
+      status: payload.status,
+      ...(payload.arrivalDate ? { arrivalDate: payload.arrivalDate } : {}),
+      ...(payload.status === "failed" ? { failureCategory: payload.failureCategory ?? "other" } : {}),
+    };
+    this.payouts.put(next);
+    await this.announce(next);
   }
 
   private async submit(record: PayoutRecord, accountRef: string): Promise<PayoutRecord> {

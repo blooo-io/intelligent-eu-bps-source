@@ -15,9 +15,5 @@ export interface PayoutEventsHandler {
 }
 
 export const PAYOUT_EVENTS_HANDLER = Symbol("PAYOUT_EVENTS_HANDLER");
-
-export class NoopPayoutEventsHandler implements PayoutEventsHandler {
-  async onPayoutEvent(_event: PspEvent): Promise<void> {}
-}
 export const PSP_ADAPTER = Symbol("PSP_ADAPTER");
 

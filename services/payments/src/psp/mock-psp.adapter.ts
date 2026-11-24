@@ -710,6 +710,7 @@ export class MockPspAdapter
       pspPaymentRef: e.pspPaymentRef,
       pspCheckoutRef: e.pspCheckoutRef,
       pspPayoutRef: e.pspPayoutRef,
+      arrivalDate: e.arrivalDate,
       method: e.method,
       failureCategory: e.failureCategory,
     };

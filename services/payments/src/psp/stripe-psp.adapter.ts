@@ -455,13 +455,7 @@ export class StripePspAdapter
       return {
         pspPayoutRef: payout.id,
         status: mapPayoutStatus(payout.status),
-        ...(typeof payout.arrival_date === "number"
-          ? {
-              arrivalDate: new Date(payout.arrival_date * 1000)
-                .toISOString()
-                .slice(0, 10),
-            }
-          : {}),
+        ...payoutArrival(payout),
       };
     } catch (err) {
       const code = (err as { code?: string }).code;
@@ -969,6 +963,7 @@ export function normalizeStripeEvent(event: Stripe.Event): PspEvent {
         ...base,
         kind: "payout.paid",
         pspPayoutRef: payout.id,
+        ...payoutArrival(payout),
       };
     }
     case "payout.failed": {
@@ -977,6 +972,7 @@ export function normalizeStripeEvent(event: Stripe.Event): PspEvent {
         ...base,
         kind: "payout.failed",
         pspPayoutRef: payout.id,
+        ...payoutArrival(payout),
         failureCategory: toPspFailureCategory(
           payout.failure_code ?? "processing_error",
         ),
@@ -1018,6 +1014,12 @@ function mapPaymentIntentStatus(
     return "pending";
   }
   return "failed";
+}
+
+function payoutArrival(payout: Stripe.Payout): { arrivalDate?: string } {
+  return typeof payout.arrival_date === "number"
+    ? { arrivalDate: new Date(payout.arrival_date * 1000).toISOString().slice(0, 10) }
+    : {};
 }
 
 function mapPayoutStatus(status: string | null): PayoutResult["status"] {

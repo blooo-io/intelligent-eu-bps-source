@@ -65,7 +65,6 @@ import { KYC_TEST_FIXTURE_PORT } from "./psp/kyc-test-fixture.port.js";
 import { MockPspAdapter } from "./psp/mock-psp.adapter.js";
 import { PAYOUT_PORT } from "./psp/payout.port.js";
 import {
-  NoopPayoutEventsHandler,
   PAYOUT_EVENTS_HANDLER,
   PSP_ADAPTER,
   PSP_EVENTS_PORT,
@@ -119,7 +118,7 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
     { provide: PAYOUT_PORT, useExisting: PSP_ADAPTER },
     { provide: PSP_EVENTS_PORT, useExisting: PSP_ADAPTER },
     { provide: KYC_TEST_FIXTURE_PORT, useExisting: PSP_ADAPTER },
-    { provide: PAYOUT_EVENTS_HANDLER, useClass: NoopPayoutEventsHandler },
+    { provide: PAYOUT_EVENTS_HANDLER, useExisting: PayoutsService },
     {
       provide: PSP_ERASE_PORT,
       useFactory: (

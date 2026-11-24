@@ -68,6 +68,13 @@ export class PayoutsStore {
     return row ? structuredClone(row) : undefined;
   }
 
+  findByPspPayoutRef(pspPayoutRef: string): PayoutRecord | undefined {
+    for (const row of this.byId.values()) {
+      if (row.pspPayoutRef === pspPayoutRef) return structuredClone(row);
+    }
+    return undefined;
+  }
+
   /** Oldest attempt first. */
   listForPeriod(participantId: string, period: string): PayoutRecord[] {
     return this.listForParticipant(participantId).filter((p) => p.period === period);

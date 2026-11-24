@@ -1,7 +1,8 @@
 import "reflect-metadata";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
+import { OutboxService } from "@intelligent/module-template";
 import { AppModule } from "./app.module.js";
 import { PaymentsStore } from "./domain/store.js";
 import { PaymentsService } from "./payments/payments.service.js";
@@ -520,6 +521,37 @@ describe("payments HTTP (INT-107)", () => {
         items: unknown[];
       };
       expect(other).toEqual({ items: [], withdrawable: [] });
+    });
+
+    it("UAT-015: payout.paid webhook marks the payout paid and emits once; replay of the same event id is ignored", async () => {
+      const { payoutId } = (await (await withdraw("2026-10")).json()) as { payoutId: string };
+      const payouts = app.get(PayoutsService);
+      const [record] = (await payouts.listForParticipant(PRODUCER)).items;
+      const append = vi.spyOn(app.get(OutboxService), "append");
+      const body = JSON.stringify({
+        eventId: `evt_payout_paid_${payoutId}`,
+        kind: "payout.paid",
+        occurredAt: "2026-11-26T08:00:00.000Z",
+        pspAccountRef: "acct_test_payout_http",
+        pspPayoutRef: record!.pspPayoutRef,
+      });
+      const send = () =>
+        fetch(`${base}/webhooks/payment-provider`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "stripe-signature": MockPspAdapter.sign(body) },
+          body,
+        });
+      expect((await send()).status).toBe(204);
+      expect((await send()).status).toBe(204);
+      const listed = (await (await fetch(`${base}/v1/me/payouts`, { headers: memberHeaders(PRODUCER) })).json()) as {
+        items: Array<{ payoutId: string; status: string }>;
+      };
+      expect(listed.items).toEqual([expect.objectContaining({ payoutId, status: "paid" })]);
+      const paidEvents = append.mock.calls.filter(
+        ([e]) => e.type === "PayoutStatusChanged" && (e.data as { status: string }).status === "paid",
+      );
+      expect(paidEvents).toHaveLength(1);
+      append.mockRestore();
     });
 
     it("409 PayoutRefused body, 400 on a malformed period, 401 without a member principal", async () => {

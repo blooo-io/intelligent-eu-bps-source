@@ -3,6 +3,7 @@
  */
 import "reflect-metadata";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Logger } from "@nestjs/common";
 import { InMemoryOutboxStore, OutboxService } from "@intelligent/module-template";
 import type { Clock } from "../domain/clock.js";
 import { PayoutsStore } from "../domain/payouts.store.js";
@@ -11,7 +12,7 @@ import { InMemoryPaymentAccountsStore } from "../ports/payment-accounts.store.js
 import type { ParticipantsResolverPort } from "../ports/participants-resolver.port.js";
 import { InMemoryStatementLookup } from "../ports/statement-lookup.port.js";
 import type { PayoutPort, PayoutResult } from "../psp/payout.port.js";
-import { PspError } from "../psp/psp.types.js";
+import { PspError, type PspEvent } from "../psp/psp.types.js";
 import { PayoutsService } from "./payouts.service.js";
 
 const COM = "c0ffee00-1234-4abc-8def-0123456789ab";
@@ -298,5 +299,96 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
     payouts.put({ ...first, status: "failed" });
     const view = await svc.listForParticipant("P");
     expect(view.withdrawable.map((w) => w.period)).toEqual(["2026-10", "2026-11"]);
+  });
+
+  describe("payout webhooks (REQ-015, UAT-015)", () => {
+    let id: string;
+    const statuses = async () => (await events()).map((e) => (e.data as { status: string }).status);
+    const pspEvent = (kind: PspEvent["kind"], over: Partial<PspEvent> = {}): PspEvent => ({
+      eventId: `evt_${kind}`,
+      occurredAt: "2026-11-26T08:00:00.000Z",
+      kind,
+      pspAccountRef: "acct_P",
+      pspPayoutRef: "po_1",
+      ...over,
+    });
+
+    beforeEach(async () => {
+      psp.balance = "25.00";
+      id = (await svc.requestWithdrawal(req)).payoutId;
+    });
+
+    it("UAT-015: payout.paid marks the payout paid and emits once; a repeated status is ignored", async () => {
+      await svc.applyPayoutWebhook({ payoutRef: "po_1", status: "paid", accountRef: "acct_P", arrivalDate: "2026-11-26" });
+      await svc.applyPayoutWebhook({ payoutRef: "po_1", status: "paid", accountRef: "acct_P" });
+      expect(payouts.get(id)).toMatchObject({ status: "paid", arrivalDate: "2026-11-26" });
+      expect(await statuses()).toEqual(["in_transit", "paid"]);
+      expect((await events()).at(-1)).toMatchObject({
+        type: "PayoutStatusChanged",
+        data: { payoutId: id, participantId: "P", period: "2026-10", amount: "19.70", status: "paid" },
+      });
+    });
+
+    it("payout.failed after paid (bank return) moves to failed with failureCategory", async () => {
+      await svc.onPayoutEvent(pspEvent("payout.paid"));
+      await svc.onPayoutEvent(pspEvent("payout.failed", { failureCategory: "bank_account_invalid" }));
+      const row = payouts.get(id)!;
+      expect(row.status).toBe("failed");
+      expect(row.failureCategory).toBe("bank_account_invalid");
+      expect(await statuses()).toEqual(["in_transit", "paid", "failed"]);
+      expect((await events()).at(-1)).toMatchObject({ data: { status: "failed", failureCategory: "bank_account_invalid" } });
+      const view = await svc.listForParticipant("P");
+      expect(view.withdrawable.map((w) => w.period)).toContain("2026-10");
+    });
+
+    it("a payout event from another account is rejected", async () => {
+      const warn = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+      await svc.onPayoutEvent(pspEvent("payout.paid", { pspAccountRef: "acct_X" }));
+      await svc.onPayoutEvent(pspEvent("payout.paid", { pspAccountRef: undefined }));
+      expect(payouts.get(id)!.status).toBe("in_transit");
+      expect(await statuses()).toEqual(["in_transit"]);
+      expect(warn).toHaveBeenCalledWith(`payout.webhook_account_mismatch payoutId=${id}`);
+      warn.mockRestore();
+    });
+
+    it.each([
+      ["canceled", "paid"],
+      ["failed", "paid"],
+      ["canceled", "failed"],
+      ["failed", "canceled"],
+      ["paid", "canceled"],
+    ] as const)("terminal %s is never left for %s", async (terminal, next) => {
+      payouts.put({ ...payouts.get(id)!, status: terminal });
+      await svc.applyPayoutWebhook({ payoutRef: "po_1", status: next, accountRef: "acct_P" });
+      expect(payouts.get(id)!.status).toBe(terminal);
+      expect(await statuses()).toEqual(["in_transit"]);
+    });
+
+    it("payout.canceled ends an in-transit payout; the period is withdrawable again", async () => {
+      await svc.onPayoutEvent(pspEvent("payout.canceled"));
+      expect(payouts.get(id)!.status).toBe("canceled");
+      expect(await statuses()).toEqual(["in_transit", "canceled"]);
+      expect((await svc.listForParticipant("P")).withdrawable.map((w) => w.period)).toContain("2026-10");
+    });
+
+    it("payout.failed without a category records 'other'", async () => {
+      await svc.onPayoutEvent(pspEvent("payout.failed"));
+      expect(payouts.get(id)).toMatchObject({ status: "failed", failureCategory: "other" });
+    });
+
+    it("ignores unknown payout refs, events without a payout ref, and other kinds", async () => {
+      await svc.onPayoutEvent(pspEvent("payout.paid", { pspPayoutRef: "po_unknown" }));
+      await svc.onPayoutEvent(pspEvent("payout.paid", { pspPayoutRef: undefined }));
+      await svc.onPayoutEvent(pspEvent("payment.succeeded"));
+      expect(payouts.get(id)!.status).toBe("in_transit");
+      expect(await statuses()).toEqual(["in_transit"]);
+    });
+
+    it("reads the durable account when memory is cold", async () => {
+      payments.reset();
+      await accounts.put(account());
+      await svc.onPayoutEvent(pspEvent("payout.paid", { arrivalDate: "2026-11-27" }));
+      expect(payouts.get(id)).toMatchObject({ status: "paid", arrivalDate: "2026-11-27" });
+    });
   });
 });

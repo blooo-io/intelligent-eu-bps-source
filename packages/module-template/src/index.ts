@@ -56,6 +56,14 @@ export {
   type KycStatusSnapshot,
 } from "./kyc/kyc-status.client.js";
 export {
+  BILLING_MODE_RESOLVER,
+  StaticBillingModeResolver,
+  HttpBillingModeResolver,
+  createBillingModeResolver,
+  type BillingMode,
+  type BillingModeResolver,
+} from "./billing-mode/billing-mode.resolver.js";
+export {
   principalMiddleware,
   servicePrincipalMiddleware,
 } from "./auth/principal.middleware.js";

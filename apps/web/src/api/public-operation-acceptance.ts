@@ -12,6 +12,8 @@ export const ACCEPTED_STATUSES: Readonly<Record<string, readonly number[]>> = {
   acceptTerms: [201],
   getMyPaymentAccount: [200],
   createPaymentOnboarding: [200],
+  createIdentityVerification: [200],
+  getMyKycStatus: [200],
   attachMyPaymentMethod: [200],
   // Deprecated KYC submit. A consumer is rejected with the documented 400.
   submitPaymentOnboardingRequirements: [200, 400],
@@ -22,6 +24,7 @@ export const ACCEPTED_STATUSES: Readonly<Record<string, readonly number[]>> = {
   listMyStatements: [200],
   getInvoice: [200],
   getInvoiceDocument: [200],
+  sendInvoiceReminder: [202, 409],
   // 400: live "not payable" when the member has no Open invoice (not in the contract).
   payInvoice: [201, 400],
   setInvoiceStatus: [200],
@@ -34,14 +37,17 @@ export const ACCEPTED_STATUSES: Readonly<Record<string, readonly number[]>> = {
   startBillingRun: [202],
   getBillingRun: [200],
   getPaymentsOverview: [200],
-  getPayoutsOverview: [200, 403],
+  // 403 is documented on the contract but never counts as e2e coverage.
+  getPayoutsOverview: [200],
   getParticipantHistory: [200],
   getPeriodicSummary: [200],
+  getPaymentMethodReport: [200],
   listDiscrepancies: [200],
   listIntakeAnomalies: [200],
   getKpiExport: [200, 404],
   createDataSubjectRequest: [201],
   getDataSubjectRequest: [200],
+  getDataSubjectExport: [200, 410],
   listJobs: [200],
   runJob: [202],
 };

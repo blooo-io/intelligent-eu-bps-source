@@ -86,6 +86,26 @@ export const PUBLIC_OPERATIONS: readonly PublicOperation[] = [
     "body": null
   },
   {
+    "operationId": "createIdentityVerification",
+    "method": "POST",
+    "path": "/me/identity-verification",
+    "tag": "Profile",
+    "summary": "Start Stripe Identity verification for a community manager",
+    "params": [],
+    "body": {
+      "returnUrl": ""
+    }
+  },
+  {
+    "operationId": "getMyKycStatus",
+    "method": "GET",
+    "path": "/me/kyc",
+    "tag": "Profile",
+    "summary": "Read the caller's KYC status",
+    "params": [],
+    "body": null
+  },
+  {
     "operationId": "attachMyPaymentMethod",
     "method": "POST",
     "path": "/me/payment-account/payment-method",
@@ -205,6 +225,21 @@ export const PUBLIC_OPERATIONS: readonly PublicOperation[] = [
     "path": "/invoices/{id}/document",
     "tag": "Invoices",
     "summary": "Invoice PDF",
+    "params": [
+      {
+        "in": "path",
+        "name": "id",
+        "required": true
+      }
+    ],
+    "body": null
+  },
+  {
+    "operationId": "sendInvoiceReminder",
+    "method": "POST",
+    "path": "/invoices/{id}/reminders",
+    "tag": "Invoices",
+    "summary": "Send payment reminders for an invoice",
     "params": [
       {
         "in": "path",
@@ -462,6 +497,26 @@ export const PUBLIC_OPERATIONS: readonly PublicOperation[] = [
     "body": null
   },
   {
+    "operationId": "getPaymentMethodReport",
+    "method": "GET",
+    "path": "/reports/payment-methods",
+    "tag": "Reports",
+    "summary": "Per-method payment KPIs (TE-2)",
+    "params": [
+      {
+        "in": "query",
+        "name": "communityId",
+        "required": true
+      },
+      {
+        "in": "query",
+        "name": "period",
+        "required": true
+      }
+    ],
+    "body": null
+  },
+  {
     "operationId": "listDiscrepancies",
     "method": "GET",
     "path": "/reconciliation/discrepancies",
@@ -529,6 +584,21 @@ export const PUBLIC_OPERATIONS: readonly PublicOperation[] = [
     "path": "/data-subject-requests/{id}",
     "tag": "Privacy",
     "summary": "Read a data-subject request",
+    "params": [
+      {
+        "in": "path",
+        "name": "id",
+        "required": true
+      }
+    ],
+    "body": null
+  },
+  {
+    "operationId": "getDataSubjectExport",
+    "method": "GET",
+    "path": "/data-subject-requests/{id}/export",
+    "tag": "Privacy",
+    "summary": "Download the machine-readable DSAR export",
     "params": [
       {
         "in": "path",

@@ -41,12 +41,23 @@ const channel = {
 };
 
 describe("RequestReplyClient (REQ-001)", () => {
+  const clients: RequestReplyClient[] = [];
+
   beforeEach(() => {
+    clients.length = 0;
     vi.useFakeTimers();
   });
   afterEach(() => {
+    // Clear poll intervals before restoring real timers (avoids unhandled rejections).
+    for (const c of clients) c.close();
+    clients.length = 0;
     vi.useRealTimers();
   });
+
+  function track(rr: RequestReplyClient): RequestReplyClient {
+    clients.push(rr);
+    return rr;
+  }
 
   it("REQ-001: matches the response by requestId and ignores others", async () => {
     const state: FakeState = {
@@ -71,7 +82,7 @@ describe("RequestReplyClient (REQ-001)", () => {
       receiveCalls: 0,
     };
     const cgw = fakeCgw(state);
-    const rr = new RequestReplyClient(cgw, channel, () => "r1");
+    const rr = track(new RequestReplyClient(cgw, channel, () => "r1"));
     const p = rr.request("tradesQuery", { from: 0, to: 86400 });
     await vi.runAllTimersAsync();
     await expect(p).resolves.toEqual([{ x: 1 }]);
@@ -106,10 +117,12 @@ describe("RequestReplyClient (REQ-001)", () => {
     };
     const cgw = fakeCgw(state);
     let n = 0;
-    const rr = new RequestReplyClient(cgw, channel, () => {
-      n += 1;
-      return n === 1 ? "req-1" : "req-2";
-    });
+    const rr = track(
+      new RequestReplyClient(cgw, channel, () => {
+        n += 1;
+        return n === 1 ? "req-1" : "req-2";
+      }),
+    );
     const p1 = rr.request("tradesQuery", { id: 1 }, { timeoutMs: 500 });
     const p2 = rr.request("tradesQuery", { id: 2 }, { timeoutMs: 500 });
     await vi.runAllTimersAsync();
@@ -125,7 +138,7 @@ describe("RequestReplyClient (REQ-001)", () => {
       receiveCalls: 0,
     };
     const cgw = fakeCgw(state);
-    const rr = new RequestReplyClient(cgw, { ...channel, pollMs: 10 });
+    const rr = track(new RequestReplyClient(cgw, { ...channel, pollMs: 10 }));
     const p = rr.request("tradesQuery", {}, { timeoutMs: 50 });
     const assertion = expect(p).rejects.toBeInstanceOf(EwdsTimeoutError);
     await vi.advanceTimersByTimeAsync(60);
@@ -142,7 +155,7 @@ describe("RequestReplyClient (REQ-001)", () => {
       receiveCalls: 0,
     };
     const cgw = fakeCgw(state);
-    const rr = new RequestReplyClient(cgw, channel, () => "r1");
+    const rr = track(new RequestReplyClient(cgw, channel, () => "r1"));
     const p = rr.request("tradesQuery", {});
     const assertion = expect(p).rejects.toBeInstanceOf(EwdsRemoteError);
     await vi.runAllTimersAsync();
@@ -165,7 +178,7 @@ describe("RequestReplyClient (REQ-001)", () => {
       receiveCalls: 0,
     };
     const cgw = fakeCgw(state);
-    const rr = new RequestReplyClient(cgw, channel, () => "r1");
+    const rr = track(new RequestReplyClient(cgw, channel, () => "r1"));
     const p = rr.request("tradesQuery", {});
     const assertion = expect(p).rejects.toMatchObject({
       name: "EwdsRemoteError",
@@ -192,19 +205,15 @@ describe("RequestReplyClient (REQ-001)", () => {
       receiveCalls: 0,
     };
     const cgw = fakeCgw(state);
-    const rr = new RequestReplyClient(
-      cgw,
-      { ...channel, pollMs: 5, ttlMs: 10 },
-      () => "noise",
+    const rr = track(
+      new RequestReplyClient(cgw, { ...channel, pollMs: 5, ttlMs: 10 }, () => "noise"),
     );
     const p1 = rr.request("tradesQuery", {}, { timeoutMs: 30 });
     await vi.advanceTimersByTimeAsync(35);
     await expect(p1).rejects.toBeInstanceOf(EwdsTimeoutError);
 
-    const rr2 = new RequestReplyClient(
-      cgw,
-      { ...channel, pollMs: 5, ttlMs: 10 },
-      () => "stale",
+    const rr2 = track(
+      new RequestReplyClient(cgw, { ...channel, pollMs: 5, ttlMs: 10 }, () => "stale"),
     );
     const p2 = rr2.request("tradesQuery", {}, { timeoutMs: 30 });
     await vi.advanceTimersByTimeAsync(35);
@@ -229,8 +238,10 @@ describe("RequestReplyClient (REQ-001)", () => {
     };
     const cgw = fakeCgw(state);
     let n = 0;
-    const rr = new RequestReplyClient(cgw, { ...channel, pollMs: 5 }, () =>
-      n++ === 0 ? "other" : "cached",
+    const rr = track(
+      new RequestReplyClient(cgw, { ...channel, pollMs: 5 }, () =>
+        n++ === 0 ? "other" : "cached",
+      ),
     );
     const dangling = rr.request("tradesQuery", {}, { timeoutMs: 40 });
     const hang = expect(dangling).rejects.toBeInstanceOf(EwdsTimeoutError);
@@ -254,7 +265,9 @@ describe("RequestReplyClient (REQ-001)", () => {
       receiveCalls: 0,
     };
     const cgw = fakeCgw(state);
-    const rr = new RequestReplyClient(cgw, { ...channel, pollMs: 5 }, () => "r1");
+    const rr = track(
+      new RequestReplyClient(cgw, { ...channel, pollMs: 5 }, () => "r1"),
+    );
     const p = rr.request("tradesQuery", {}, { timeoutMs: 50 });
     const assertion = expect(p).rejects.toBeInstanceOf(EwdsTimeoutError);
     await vi.advanceTimersByTimeAsync(60);
@@ -278,10 +291,12 @@ describe("RequestReplyClient (REQ-001)", () => {
       receiveCalls: 0,
     };
     const cgw = fakeCgw(state);
-    const rr = new RequestReplyClient(
-      cgw,
-      { ...channel, ttlMs: 60_000, pollMs: 5 },
-      () => "wanted",
+    const rr = track(
+      new RequestReplyClient(
+        cgw,
+        { ...channel, ttlMs: 60_000, pollMs: 5 },
+        () => "wanted",
+      ),
     );
     const p = rr.request("tradesQuery", {}, { timeoutMs: 200 });
     const assertion = expect(p).rejects.toBeInstanceOf(EwdsTimeoutError);

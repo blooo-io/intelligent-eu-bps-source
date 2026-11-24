@@ -118,6 +118,20 @@ export class RequestReplyClient {
 
   private stopPollLoopIfIdle(): void {
     if (this.pending.size > 0) return;
+    this.clearPollTimer();
+  }
+
+  /** Stop polling and reject any still-pending requests (tests / shutdown). */
+  close(): void {
+    this.clearPollTimer();
+    for (const [, p] of this.pending) {
+      p.reject(new EwdsTimeoutError());
+    }
+    this.pending.clear();
+    this.orphans.clear();
+  }
+
+  private clearPollTimer(): void {
     if (this.pollTimer !== undefined) {
       clearInterval(this.pollTimer);
       this.pollTimer = undefined;

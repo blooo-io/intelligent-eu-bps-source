@@ -1,8 +1,8 @@
 # EWDS / DDHub Client Gateway — Blooo instance (INT-306)
 
-Status: **Phase 1 packaging in Git** (INT-308). Phase 0 EWAG unblock (INT-307) is operator-owned (mail stays outside Git). Sources: Energy Web official docs + D3.1 briefing + NFR-017.
+Status: **Deployed (INT-308)**, mTLS enabled with the EWF-signed client certificate (INT-309, see [`docs/release/ddhub-client-gateway.md`](../release/ddhub-client-gateway.md)); API keys and topic/role grants pending EWAG. Sources: Energy Web official docs + D3.1 briefing + NFR-017.
 
-> **V1 today:** P-DS / P-MKT stay on **mocks** (assumption A32). UAT-068 Pass is on the mock path. This note tracks the **live** Blooo Client Gateway and adapter cut-over. Mock remains the default until EWAG status is Configured + Verified.
+> **Billing adapters** for trades, Actor data, erasure requests, commands and publication are real and selected by environment variables; **mock stays the code default** until the grants land (A8). Deployed environments switch adapters live (A8-live). UAT results on the mock path are labelled `mock` (see `docs/testing/v1-functional-cases.md`).
 
 ## Official documentation (Energy Web)
 
@@ -39,21 +39,24 @@ Helm (EWC defaults, chart `1.3.0-ewc`):
 | Scheduler caches/fetches/cleans messages | Billing still persists payloads as system of record (REQ-053 / A26 ≤ 7 days) |
 | WebSocket uses subprotocol `ddhub-protocol` | Optional; Blooo default proposal remains **REST short polling** for workers |
 
-## Current EWAG status (as of May 2026 report)
+## Blooo-side checklist (INT-429)
 
 | Gate | Status |
 |---|---|
-| Onboarded | yes |
-| Configured | **no** |
-| Verified | **no** |
+| CG packaged & deployed (INT-308) | yes |
+| mTLS (EWF-signed client cert, INT-309) | yes |
+| API key minted (`USER_AUTH_ENABLED`) | **pending** (INT-309) |
+| `topiccreator` / channel roles | **pending** EWAG |
+| GSY subscriber roles | **pending** EWAG (A12) |
+| Configured / Verified (EWAG) | **pending** |
 
-Open assumptions: **A12** (GSY topic schemas / roles), **A26** (≤ 7 day cache — REQ-053).
+Open assumptions: **A12** (GSY topic schemas / roles), **A26** (≤ 7 day cache — REQ-053). Mock remains the code default (A32 / A8) until those land; deployed envs still set adapters to `ewds` and alert when blocked.
 
 ## What we need from EWAG (docs-aligned)
 
 Per [preparing-to-set-up](https://docs.energyweb.org/energy-solutions/digital-spine-by-energy-web/component-guides/ddhub-client-gateway/deployment-guide/preparing-to-set-up-a-client-gateway) and [configure-mtls](https://docs.energyweb.org/energy-solutions/digital-spine-by-energy-web/component-guides/ddhub-client-gateway/deployment-guide/post-deployment/configure-mtls):
 
-1. **CSR → EWF-signed mTLS certificate** (we generate the CSR; EWF issues the client cert).
+1. **CSR → EWF-signed mTLS certificate** (done for INT-309; renewals still with EWAG).
 2. **Outbound IP whitelist** for our cluster egress toward the Message Broker.
 3. **EWT faucet** (or transfer) so we can fund the EWC wallet with ≥ 1 EWT and record the Gateway DID.
 4. **Enterprise user-role enrolment** (Message Broker user, `topiccreator`; GSY subscriber roles when A12 closes).
@@ -77,9 +80,9 @@ Operator sends the unblock mail outside Git (copy not stored in the repo). Ask E
 | Gateway chart / Argo | `deploy/charts/ddhub-client-gateway` → `platform-ddhub-client-gateway` (Blooo manifests; EW images) |
 | Operator notes | [`docs/release/ddhub-client-gateway.md`](../release/ddhub-client-gateway.md) |
 
-Pinned Phase 1 values (auth later — INT-309):
+Pinned Phase 1 values (API auth later — INT-309):
 
-- `clientgateway.config.mtls_enabled: false` until CSR / enrolment
+- `clientgateway.config.mtls_enabled: true` (INT-309)
 - `USER_AUTH_ENABLED: "false"` until API keys are minted
 - `clientgateway.ui.enabled: false`, `ingress.enabled: false`
 - `clientgateway.config.dsb_base_url: https://ddhub-ewc.energyweb.org`
@@ -94,20 +97,20 @@ Pinned Phase 1 values (auth later — INT-309):
 1. Fund EWC wallet (≥ 1 EWT); record Gateway DID.
 2. CSR → EWF-signed mTLS certificate; configure via post-deploy mTLS guide.
 3. VCs: Message Broker user; `topiccreator`; GSY subscriber roles when A12 closes.
-4. Enable API auth; store `x-api-key` only in OpenBao.
+4. Enable API auth; store `x-api-key` only in OpenBao (`ddhub/api-key`).
 
 ### Phase 3 — Topics and Billing persistence
 
-1. Register `billingInvoice` / `billingPayment` (and GSY channels when published).
+1. Register `billingInvoice` / `billingPayment` / statement / payout / KYC / command topics (and GSY channels when published).
 2. Durable inbound message store in Billing (CG cache is not the system of record).
 3. Purge after successful ingest; hard max **7 days** (REQ-053).
 
 ### Phase 4 — Adapter cut-over
 
-1. Real P-DS (AC-10) and P-MKT (AC-04) adapters selected by configuration; **mock remains default**.
+1. Real P-DS (AC-10) and P-MKT (AC-04) adapters selected by configuration; **mock remains the code default**.
 2. First slice: REST short-polling consumer + publish path for invoice/payment.
 3. Operator alerts: broker disconnect, mTLS expiry, silence threshold (REQ-029).
-4. Re-execute UAT-068 / UAT-069 / UAT-001 / UAT-070 against live CG before changing `v1_mode`.
+4. Re-execute UAT-068 / UAT-069 / UAT-001 / UAT-070 against live CG (`*_ADAPTER=ewds`) before changing `v1_mode` — see the mock-path labels in `docs/testing/`.
 
 ## Proposed Blooo decisions (pending EWAG)
 

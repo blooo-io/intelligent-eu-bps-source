@@ -16,14 +16,14 @@ Environment: module test runners with AC-15 fixtures (`createMockSuite`); Stripe
 | S3 | UAT-073 | Pass (prior) | Carry-forward under threshold; portal/billing notes already Pass |
 | S4 | UAT-075 | Pass (prior) | `services/trade-intake` unknown-party anomaly |
 | S5 | UAT-052 | Pass | `services/reconciliation` + mock clearing mismatch |
-| S6+S7 | UAT-001 | Pass | Mock S6/S7 flags; intake stores duplicate `tradeId` once (S7) |
+| S6+S7 | UAT-001 | Pass (mock path) | Mock S6/S7 flags; intake stores duplicate `tradeId` once (S7) |
 | S8 | UAT-002 | Pass | `services/settlement` CHF + ECB fixture rate `0.94` |
 | ~~S9~~ | ~~UAT-074~~ | Removed (INT-424) | Early settlement deleted (REQ-057 deprecated) |
 | S10 | UAT-016 | Pass | `services/payments` failure categories on pay / webhook path |
 | S10 KPIs | UAT-057 | Pass | Fixed on INT-82 — KPI CSV includes cause, corrective action, processingTimeMs |
 | S11 | UAT-056 | Pass | `services/invoicing` holds until producer readiness (BR-09 / KYC gate) |
 | S12 | UAT-013 | Pass (prior) | `services/compliance` erasure propagation |
-| S13 | UAT-070 | Pass | `mocks` data-space schema validation + `services/publication` |
+| S13 | UAT-070 | Pass (mock path) | `mocks` data-space schema validation + `services/publication` |
 
 ## Defects
 

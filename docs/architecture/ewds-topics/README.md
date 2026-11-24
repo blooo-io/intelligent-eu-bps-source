@@ -31,7 +31,13 @@ Subscribe channels are restricted by role to the consortium application.
 - **billingPayment:** on every payment status change (pending → succeeded / failed / cancelled / refunded).
 - **billingPayout:** on payout request and on every payout status change.
 - **billingKycStatus:** when Connect account or Stripe Identity verification status changes for a participant.
-- **billingCommandRequest / Reply:** request/reply on the command channel (REQ-052, A7). The project UI never calls Blooo REST directly.
+- **billingCommandRequest / Reply:** request/reply on the command channel (REQ-052, A7). The project UI never calls Blooo REST directly; `/v1` is the reference-client API (`apps/web`) only.
+
+### Command authorization (three layers)
+
+1. **CGW channel restriction** on `blooo.intelligent.billing.commands.sub` (UI gateway DID or project role, configured with EWAG).
+2. **Sender check:** `senderDid ∈ EWDS_COMMAND_ALLOWED_DIDS` **and** signature valid.
+3. **Actor role** for the asserted `actorId` per command (participants authorization).
 
 Subscribers should treat primary ids as idempotency keys and keep the latest `updatedAt`.
 

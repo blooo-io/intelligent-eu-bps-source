@@ -171,14 +171,14 @@ Each port is a logical interface. Its V1 implementation follows decision A32: **
 
 | Port | Direction | Purpose | Real implementation (target) | **V1 implementation** |
 |---|---|---|---|---|
-| **P-MKT Market** | out → in | Get settled trades per time window (≤ 24 h), clearing results per market, markets (delivery period, community, mechanism) | GSY DEX via EWDS request/reply (`tradesQuery`, `clearingResultsQuery`, `marketsQuery`); GSY off-chain storage REST for backfill | **Mock**: fixture datasets (pairs, netting, threshold, unknown party, incomplete market, late trade, duplicate) |
+| **P-MKT Market** | out → in | Get settled trades per time window (≤ 24 h), clearing results per market, markets (delivery period, community, mechanism) | GSY DEX via EWDS request/reply (`tradesQuery`, `clearingResultsQuery`, `marketsQuery`); GSY off-chain storage REST is a **test fixture only** (A8) | **EWDS Client Gateway adapter** selected by `MARKET_ADAPTER` (mock default until EWAG grants roles) |
 | **P-DS Data space** | out | Publish `billingInvoice` / `billingPayment` messages; purge cached messages | EWDS Client Gateway (Blooo instance) | **Mock**: in-memory/broker stub that validates each message against the draft schemas and records it |
 | **P-PSP Payment provider** | out + in (events) | Producer account onboarding and KYC, consumer payment method, payment to producer's account, refunds; incoming provider events | Stripe (Connect, Identity, PaymentIntents, webhooks) | **Stripe test mode** (real integration) |
 | **P-IDP Identity provider** | out + in | Token validation and claims; account creation, invitation and erasure | Project IdP (Keycloak operated by Blooo, replaceable by a pilot OIDC IdP) | Local development instance |
 | **P-FX Rates** | out | EUR→CHF reference rate for a date | ECB reference rates | **Mock**: fixture table |
 | **P-MAIL Mail** | out | Send e-mails with attachments | Transactional mail service | Local mail catcher |
 | **P-KPI KPI export** | out | Deliver periodic billing exports for WP6 / GSY Analytics | Format/channel to agree (file or EWDS) | File export |
-| **Client API** | in | Used by the reference screens and the project UI | — | Real (Blooo reference screens) |
+| **Client API** | in | Used by the reference client (`apps/web`) only; the project UI uses EWDS records + command channel (A7) | — | Real (Blooo reference client) |
 
 ## 4. Internal interactions
 

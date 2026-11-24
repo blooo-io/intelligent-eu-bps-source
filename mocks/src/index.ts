@@ -21,3 +21,9 @@ export { createMockSuite } from "./suite.js";
 export { createMockMarket } from "./market/mock-market.js";
 export { createFxFixture } from "./fx/fx-fixture.js";
 export { createMockDataSpace } from "./dataspace/mock-dataspace.js";
+export {
+  ACTOR_FIXTURE_COMMUNITY_ID,
+  ewdsActorFixtures,
+  type ActorFixture,
+  type ActorFixtureAddress,
+} from "./dataspace/actors.fixture.js";

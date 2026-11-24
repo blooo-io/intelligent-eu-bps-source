@@ -293,7 +293,14 @@ export class ParticipantsService {
     }
     const created = [];
     for (const row of rows) {
-      if (this.store.findByMarketActorId(row.marketActorId)) {
+      const existingMarket = this.store.findByMarketActorId(row.marketActorId);
+      if (existingMarket) {
+        // REQ-058 — CSV must not overwrite an EWDS-sourced actor.
+        if (existingMarket.source === "ewds") {
+          throw new BadRequestException(
+            "marketActorId already sourced from EWDS",
+          );
+        }
         throw new BadRequestException(
           `marketActorId already registered: ${row.marketActorId}`,
         );
@@ -340,6 +347,7 @@ export class ParticipantsService {
         phone: null,
         termsAcceptedAt: null,
         kycVerified: false,
+        actorVersion: null,
       };
       this.store.putParticipant(record);
       await this.outbox.append({
@@ -730,20 +738,20 @@ export class ParticipantsService {
       participantId: row.participantId,
       communityId: row.communityId,
       role: row.role,
-      source: row.source ?? "import",
+      source: row.source,
       marketActorId: row.marketActorId,
       meterId: row.meterId,
       profile: row.profile ?? { name: "", address: "", email: "" },
-      postalAddress: row.postalAddress ?? null,
-      phone: row.phone ?? null,
+      postalAddress: row.postalAddress,
+      phone: row.phone,
       idpUserId: row.idpUserId,
       consents: {
         termsVersion: row.termsVersionAccepted,
-        termsAcceptedAt: row.termsAcceptedAt ?? null,
+        termsAcceptedAt: row.termsAcceptedAt,
         selfBillingMandate: row.selfBillingMandate,
       },
       readiness: deriveReadiness(row),
-      kycVerified: row.kycVerified ?? row.paymentAccountReady,
+      kycVerified: row.kycVerified,
     };
   }
 

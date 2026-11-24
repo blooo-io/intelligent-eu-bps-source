@@ -18,6 +18,10 @@ function base(over: Partial<ParticipantRecord> = {}): ParticipantRecord {
     paymentBlockReason: null,
     termsAcceptedAt: null,
     kycVerified: false,
+    source: "import",
+    postalAddress: null,
+    phone: null,
+    actorVersion: null,
     ...over,
   };
 }

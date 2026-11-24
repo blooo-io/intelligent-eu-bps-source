@@ -89,6 +89,9 @@ export function seedUatParticipants(): ParticipantRecord[] {
       termsAcceptedAt: null,
       kycVerified: false,
       source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     {
       participantId: "2a3a56e5-2e71-4990-bf26-2b4708e4adcd",
@@ -110,6 +113,9 @@ export function seedUatParticipants(): ParticipantRecord[] {
       termsAcceptedAt: null,
       kycVerified: false,
       source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     {
       participantId: "4e1933c8-368e-45f5-9751-ac975a2de45e",
@@ -131,6 +137,9 @@ export function seedUatParticipants(): ParticipantRecord[] {
       termsAcceptedAt: null,
       kycVerified: false,
       source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
   ];
 }
@@ -173,6 +182,9 @@ export function seedS1Participants(): ParticipantRecord[] {
       // REQ-045 — S1 Ready fixtures: KYC already verified so payment alone → Ready.
       kycVerified: true,
       source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     {
       participantId: S1_PRODUCER_A_ID,
@@ -190,6 +202,9 @@ export function seedS1Participants(): ParticipantRecord[] {
       termsAcceptedAt: "2026-01-01T00:00:00.000Z",
       kycVerified: true,
       source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     {
       participantId: S1_PRODUCER_B_ID,
@@ -207,6 +222,9 @@ export function seedS1Participants(): ParticipantRecord[] {
       termsAcceptedAt: "2026-01-01T00:00:00.000Z",
       kycVerified: true,
       source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     {
       participantId: S1_MANAGER_ID,
@@ -224,6 +242,9 @@ export function seedS1Participants(): ParticipantRecord[] {
       termsAcceptedAt: "2026-01-01T00:00:00.000Z",
       kycVerified: true,
       source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
     // INT-285 — full Get-ready wizard on Horizon Energy; Léa stays TermsAccepted
     // for the money path (trades → invoices → Pay).
@@ -247,6 +268,9 @@ export function seedS1Participants(): ParticipantRecord[] {
       termsAcceptedAt: null,
       kycVerified: false,
       source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
     },
   ];
 }

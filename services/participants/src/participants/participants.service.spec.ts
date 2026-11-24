@@ -561,6 +561,7 @@ describe("ParticipantsService", () => {
       phone: "+351910000000",
       termsAcceptedAt: "2026-11-20T12:00:00.000Z",
       kycVerified: true,
+      actorVersion: "1",
     };
     store.putParticipant(fixture);
 

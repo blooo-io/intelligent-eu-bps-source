@@ -98,7 +98,7 @@ export async function runPublicApiCoverage(input: {
   await call("attachMyPaymentMethod", member, {}, { paymentMethodId });
   await call("submitPaymentOnboardingRequirements", member, {}, { country: "FR" });
 
-  const balances = asArray(json<unknown>(await call("listMyBalances", member, {})));
+  await call("listMyBalances", member, {});
   const invoices = asArray(json<unknown>(await call("listMyInvoices", member, {})));
   const invoice = pickInvoice(invoices);
   if (!invoice?.invoiceId) {

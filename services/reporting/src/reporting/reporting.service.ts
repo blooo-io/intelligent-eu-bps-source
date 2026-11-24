@@ -3,18 +3,21 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { suggestedCorrectiveAction } from "@intelligent/module-template";
 import { ReportingStore } from "../domain/store.js";
 import type {
   InvoiceProjection,
+  PaymentMethodReport,
   PaymentProjection,
   PayoutProjection,
   PeriodicSummary,
   StatementProjection,
 } from "../domain/types.js";
 import { sumMoney } from "./money.js";
+import { buildPaymentMethodReport } from "./payment-method-report.js";
 
 /**
  * AC-09 reporting — read models from projected billing events (INT-112 / INT-82).
@@ -23,6 +26,8 @@ import { sumMoney } from "./money.js";
  */
 @Injectable()
 export class ReportingService {
+  private readonly logger = new Logger(ReportingService.name);
+
   constructor(
     @Inject(ReportingStore) private readonly store: ReportingStore,
   ) {}
@@ -217,6 +222,41 @@ export class ReportingService {
     const built = this.store.getReport(communityId, period);
     if (built) return built.summary;
     return this.computeSummary(communityId, period);
+  }
+
+  /**
+   * Per-payment-method KPIs for a community period (REQ-046 / TE-2 / ER1.4).
+   * Selects payments whose invoice projection has the requested period;
+   * payments with no projected invoice are excluded and logged.
+   */
+  getPaymentMethodReport(
+    communityId: string,
+    period: string,
+  ): PaymentMethodReport {
+    if (!communityId || !period) {
+      throw new BadRequestException("communityId and period are required");
+    }
+    const selected: PaymentProjection[] = [];
+    let missingInvoice = 0;
+    for (const pay of this.store.listPayments({ communityId })) {
+      const invoice = this.store.getInvoice(pay.invoiceId);
+      if (!invoice) {
+        missingInvoice += 1;
+        continue;
+      }
+      if (invoice.period !== period) continue;
+      selected.push(pay);
+    }
+    if (missingInvoice > 0) {
+      this.logger.warn(
+        `payment-method report excluded ${missingInvoice} payment(s) with no projected invoice (communityId=${communityId} period=${period})`,
+      );
+    }
+    return {
+      communityId,
+      period,
+      rows: buildPaymentMethodReport(selected),
+    };
   }
 
   /** BuildReport — AC-14 after period close (REQ-032). */

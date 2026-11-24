@@ -164,6 +164,20 @@ describe("reporting HTTP (INT-112)", () => {
     );
     expect(summary.status).toBe(403);
 
+    // UAT-060 / REQ-049 — payment-method report is community-scoped like summary.
+    const paymentMethodsDenied = await fetch(
+      `${base}/v1/reports/payment-methods?communityId=${COMMUNITY}&period=${PERIOD}`,
+      {
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-token-use": "user",
+          "x-intelligent-sub": "manager-b",
+          "x-intelligent-community": OTHER,
+        },
+      },
+    );
+    expect(paymentMethodsDenied.status).toBe(403);
+
     const foreignHistory = await fetch(
       `${base}/v1/participants/${CONSUMER}/history`,
       {
@@ -217,6 +231,42 @@ describe("reporting HTTP (INT-112)", () => {
       },
     );
     expect(unbound.status).toBe(404);
+  });
+
+  it("UAT-057 ER1.4 GET /reports/payment-methods returns per-method KPIs", async () => {
+    service.projectPayment({
+      paymentId: "dddddddd-dddd-4ddd-8ddd-eeeeeeeeeeee",
+      invoiceId: INV,
+      communityId: COMMUNITY,
+      amount: "10.00",
+      currency: "EUR",
+      status: "succeeded",
+      method: "card",
+      processingTimeMs: 2000,
+      feeAmount: "0.44",
+      feeCurrency: "EUR",
+    });
+
+    const res = await fetch(
+      `${base}/v1/reports/payment-methods?communityId=${COMMUNITY}&period=${PERIOD}`,
+      {
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-community": COMMUNITY,
+        },
+      },
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      communityId: string;
+      period: string;
+      rows: Array<{ method: string; succeededCount: number }>;
+    };
+    expect(body.communityId).toBe(COMMUNITY);
+    expect(body.period).toBe(PERIOD);
+    expect(body.rows.some((r) => r.method === "card" && r.succeededCount >= 1)).toBe(
+      true,
+    );
   });
 
   // REQ-049 — community B must not read community A's payout overview.

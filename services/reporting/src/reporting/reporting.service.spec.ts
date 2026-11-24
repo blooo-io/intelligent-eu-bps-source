@@ -330,4 +330,31 @@ describe("ReportingService", () => {
     expect(() => service.getKpiExport("2099-01", COMMUNITY)).toThrow(/No KPI data/);
     expect(() => service.getKpiExport("", COMMUNITY)).toThrow(/period/);
   });
+
+  it("UAT-057 / TE-2 getPaymentMethodReport selects by invoice period and skips orphan payments", () => {
+    service.projectPayment({
+      paymentId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      invoiceId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+      communityId: COMMUNITY,
+      amount: "1.00",
+      currency: "EUR",
+      status: "succeeded",
+      method: "sepa_debit",
+      feeAmount: "0.35",
+      feeCurrency: "EUR",
+      processingTimeMs: 1000,
+    });
+    const report = service.getPaymentMethodReport(COMMUNITY, PERIOD);
+    expect(report.communityId).toBe(COMMUNITY);
+    expect(report.period).toBe(PERIOD);
+    expect(report.rows).toEqual([
+      expect.objectContaining({
+        method: "card",
+        count: 2,
+        succeededCount: 1,
+        failedCount: 1,
+      }),
+    ]);
+    expect(() => service.getPaymentMethodReport("", PERIOD)).toThrow(/communityId/);
+  });
 });

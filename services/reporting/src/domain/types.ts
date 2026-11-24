@@ -76,6 +76,27 @@ export type PeriodicSummary = {
   paidOut: string;
 };
 
+/** Per-method payment KPIs (REQ-046 / TE-2 / ER1.4). */
+export type PaymentMethodStats = {
+  method: string;
+  feeCurrency: string;
+  count: number;
+  succeededCount: number;
+  failedCount: number;
+  pendingCount: number;
+  successRate: number | null;
+  medianProcessingTimeMs: number | null;
+  totalFee: string;
+  averageFee: string | null;
+  feeMissingCount: number;
+};
+
+export type PaymentMethodReport = {
+  communityId: string;
+  period: string;
+  rows: PaymentMethodStats[];
+};
+
 export type KpiExportRow = {
   communityId: string;
   period: string;

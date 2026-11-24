@@ -99,6 +99,21 @@ export class PublicReportingController {
     return this.reporting.getPeriodicSummary(communityId, period);
   }
 
+  @Get("reports/payment-methods")
+  @UseGuards(
+    new ModuleAuthGuard({
+      roles: ["manager", "operator"],
+      // REQ-049 / UAT-060 — same community-scope as reports/summary.
+      requireCommunityScope: true,
+    }),
+  )
+  paymentMethods(
+    @Query("communityId") communityId: string,
+    @Query("period") period: string,
+  ) {
+    return this.reporting.getPaymentMethodReport(communityId, period);
+  }
+
   @Get("kpi-exports/:period")
   @UseGuards(new ModuleAuthGuard({ roles: ["operator"] }))
   @Header("Content-Type", "application/octet-stream")

@@ -38,10 +38,10 @@ export function seedUatInvoices(): InvoiceRecord[] {
       // Paid — journey asserts View/PDF; Pay stays disabled (no PSP method required).
       status: "Paid",
       total: "22.00",
-      tradeIds: ["0xuat218seed000000000000000000001"],
+      tradeIds: ["0xuat218seed000000000001"],
       lines: [
         {
-          tradeId: "0xuat218seed000000000000000000001",
+          tradeId: "0xuat218seed000000000001",
           deliveryStart: "2026-11-01T00:00:00Z",
           deliveryEnd: "2026-11-01T01:00:00Z",
           kWh: "100.000",

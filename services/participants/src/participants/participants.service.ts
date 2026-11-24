@@ -15,6 +15,7 @@ import { SEED_COMMUNITY_ID } from "../domain/seed.js";
 import type {
   BillingProfile,
   CommunitySettings,
+  CommunitySettingsWrite,
   ParticipantImportRow,
   ParticipantPatch,
   ParticipantRecord,
@@ -104,14 +105,14 @@ export class ParticipantsService {
 
   updateCommunitySettings(
     communityId: string,
-    write: Omit<CommunitySettings, "communityId">,
+    write: CommunitySettingsWrite,
   ): Promise<CommunitySettings> {
     return this.tx.run(() => this.performUpdateCommunitySettings(communityId, write));
   }
 
   private performUpdateCommunitySettings(
     communityId: string,
-    write: Omit<CommunitySettings, "communityId">,
+    write: CommunitySettingsWrite,
   ): CommunitySettings {
     if (!this.store.getCommunity(communityId)) {
       throw new NotFoundException(`Unknown community ${communityId}`);
@@ -120,7 +121,11 @@ export class ParticipantsService {
     if (write.billingMode === "live") {
       throw new BadRequestException("V1 communities must remain virtual");
     }
-    const next: CommunitySettings = { communityId, ...write };
+    const next: CommunitySettings = {
+      communityId,
+      ...write,
+      autoPayout: write.autoPayout ?? false,
+    };
     this.store.putCommunity(next);
     return next;
   }

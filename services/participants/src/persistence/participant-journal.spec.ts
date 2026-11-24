@@ -62,6 +62,22 @@ describe("participant journal (INT-356)", () => {
     );
   });
 
+  it("REQ-015: hydrated communities persisted without autoPayout read as false", async () => {
+    const store = new ParticipantsStore();
+    const { autoPayout: _omitted, ...legacy } = store.getCommunity(SEED_COMMUNITY_ID)!;
+    const enabled = { ...legacy, communityId: "33333333-3333-4333-8333-333333333333", autoPayout: true };
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("FROM communities")) {
+        return { rows: [{ payload: JSON.stringify(legacy) }, { payload: enabled }] };
+      }
+      return { rows: [] };
+    });
+
+    await hydrateParticipants({ query }, store);
+    expect(store.getCommunity(SEED_COMMUNITY_ID)?.autoPayout).toBe(false);
+    expect(store.getCommunity(enabled.communityId)?.autoPayout).toBe(true);
+  });
+
   it("createParticipantTransaction uses passthrough when DATABASE_URL is unset", async () => {
     const store = new ParticipantsStore();
     const outbox = new OutboxService(new InMemoryOutboxStore());

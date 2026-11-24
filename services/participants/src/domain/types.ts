@@ -23,6 +23,13 @@ export type CommunitySettings = {
   threshold: string;
   vatRate: string;
   billingMode: BillingMode;
+  /** REQ-015 — AC-07 pays out producers automatically when true. */
+  autoPayout: boolean;
+};
+
+/** PUT body: `autoPayout` is optional and defaults to false (REQ-015). */
+export type CommunitySettingsWrite = Omit<CommunitySettings, "communityId" | "autoPayout"> & {
+  autoPayout?: boolean;
 };
 
 export type ParticipantRecord = {

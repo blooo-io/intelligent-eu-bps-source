@@ -78,8 +78,9 @@ describe("participants HTTP (INT-103)", () => {
       { headers: { "x-intelligent-roles": "service" } },
     );
     expect(settings.status).toBe(200);
-    const body = (await settings.json()) as { billingMode: string };
+    const body = (await settings.json()) as { billingMode: string; autoPayout: boolean };
     expect(body.billingMode).toBe("virtual");
+    expect(body.autoPayout).toBe(false);
 
     const readiness = await fetch(
       `${base}/internal/v1/participants/${imported[0].participantId}/readiness`,
@@ -294,7 +295,9 @@ describe("participants HTTP (INT-103)", () => {
       threshold: string;
       vatRate: string;
       billingMode: string;
+      autoPayout: boolean;
     };
+    expect(settings.autoPayout).toBe(false);
 
     const settingsPut = await fetch(
       `${base}/v1/communities/${SEED_COMMUNITY_ID}/settings`,
@@ -309,11 +312,12 @@ describe("participants HTTP (INT-103)", () => {
         body: JSON.stringify({
           ...settings,
           threshold: "10.00",
+          autoPayout: true,
         }),
       },
     );
     expect(settingsPut.status).toBe(200);
-    expect(await settingsPut.json()).toMatchObject({ threshold: "10.00" });
+    expect(await settingsPut.json()).toMatchObject({ threshold: "10.00", autoPayout: true });
 
     const patched = await fetch(
       `${base}/v1/participants/${created.participantId}`,

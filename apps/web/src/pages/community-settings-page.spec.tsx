@@ -54,6 +54,7 @@ describe("CommunitySettingsPage (INT-144 / REQ-006 / REQ-043 / REQ-056)", () => 
             threshold: "5.00",
             vatRate: "0.00",
             billingMode: "virtual",
+            autoPayout: false,
           }),
         };
       }
@@ -105,7 +106,59 @@ describe("CommunitySettingsPage (INT-144 / REQ-006 / REQ-043 / REQ-056)", () => 
       threshold: "10.00",
       vatRate: "0.00",
       billingMode: "virtual",
+      autoPayout: false,
     });
+  });
+
+  it("REQ-015: manager toggles automatic payout", async () => {
+    const oidc: OidcFacade = {
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn(),
+      getUser: vi.fn(),
+      getAccessToken: vi.fn().mockResolvedValue("tok"),
+    };
+    let putBody: Record<string, unknown> = {};
+    const fetchImpl = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+      if (path.endsWith("/v1/me")) {
+        return { ok: true, json: async () => ({ communityId, roles: ["manager"] }) };
+      }
+      if (init?.method === "PUT") {
+        putBody = JSON.parse(init.body as string) as Record<string, unknown>;
+        return { ok: true, json: async () => ({ communityId, ...putBody }) };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          communityId,
+          currency: "EUR",
+          billingPeriod: "monthly",
+          threshold: "5.00",
+          vatRate: "0.00",
+          billingMode: "virtual",
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchImpl);
+
+    render(
+      <MemoryRouter>
+        <CommunitySettingsPage config={config} oidc={oidc} />
+      </MemoryRouter>,
+    );
+
+    const toggle = await screen.findByRole("switch", { name: /pay out automatically/i });
+    expect(toggle).not.toBeChecked();
+    fireEvent.click(toggle);
+    expect(toggle).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: /save settings/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Settings saved/i)).toBeInTheDocument();
+    });
+    expect(putBody.autoPayout).toBe(true);
+    expect(screen.getByRole("switch", { name: /pay out automatically/i })).toBeChecked();
   });
 
   it("shows an error when load fails", async () => {

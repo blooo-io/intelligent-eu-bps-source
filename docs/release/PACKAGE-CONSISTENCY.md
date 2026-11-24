@@ -10,7 +10,7 @@ Internal check that the tagged source, `docs/` and UAT statuses describe the sam
 
 | # | Check | Result |
 |---|---|---|
-| 1 | Git tag `v1.0.0` matches root `package.json` version `1.0.0` | **Not published.** INT-92 named the tag; it was never pushed. INT-359 publishes `v1.0.1` against package version `1.0.1`. Current package on `develop` is `1.1.6` (INT-421); v6.1 tag cut is separate (INT-430) |
+| 1 | Git tag `v1.0.0` matches root `package.json` version `1.0.0` | **Not published.** INT-92 named the tag; it was never pushed. INT-359 publishes `v1.0.1` against package version `1.0.1`. Current package on this branch is `1.2.0` (INT-430); upcoming SemVer tag `v1.2.0` is cut after merge |
 | 2 | [`SOURCE-RELEASE.md`](SOURCE-RELEASE.md) lists the same doc/code roots as the repo map | Pass |
 | 3 | [`RELEASE-NOTES.md`](RELEASE-NOTES.md) limitations align with in-scope UAT statuses | Pass at freeze (**62 Pass / 0 Blocked**, INT-204). v6.1 counts and gaps are refreshed in the release notes and [`../testing/v6.1-rerun.md`](../testing/v6.1-rerun.md) under INT-430 |
 | 4 | [`../testing/v1-validation-summary.md`](../testing/v1-validation-summary.md) counts match UAT notes | Pass at freeze (INT-204). Re-run campaign updates the summary + `v6.1-rerun.md` |

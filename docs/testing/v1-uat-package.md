@@ -25,7 +25,7 @@ Assemble acceptance for partners from the existing UAT notes. **Case text stays 
 
 ## Already accepted (do not re-run unless regressing)
 
-See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. After INT-204 (2026-10-18): **62 Pass**, **0 Blocked** in-scope, **0 Fail**. UAT-040 Pass (duration deferred). UAT-053 Pass. UAT-050 Pass. UAT-028 / UAT-015 / UAT-067 / UAT-051 Pass; UAT-044 / UAT-047 out.
+See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. Freeze baseline after INT-204 (2026-10-18): **62 Pass**, **0 Blocked** in-scope, **0 Fail**. For the v6.1 / `v1.2.0` campaign, recompute counts from UAT notes and follow [`v6.1-rerun.md`](v6.1-rerun.md) (mock-path labelling). UAT-040 Pass (duration deferred). UAT-053 Pass. UAT-050 Pass. UAT-028 / UAT-015 / UAT-067 / UAT-051 Pass; UAT-044 / UAT-047 out.
 
 ## Keycloak UAT IdP users (INT-194)
 

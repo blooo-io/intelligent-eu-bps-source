@@ -107,6 +107,10 @@ components:
       type: string
       description: Payment lifecycle (02 §5).
       enum: [pending, succeeded, failed, cancelled, refunded]
+    PayoutStatus:
+      type: string
+      description: Connect payout lifecycle (REQ-015, REQ-060).
+      enum: [requested, in_transit, paid, failed, canceled]
     BillingRunType:
       type: string
       description: Kind of billing run (02 §6). Early settlement removed (REQ-057 deprecated).
@@ -115,6 +119,81 @@ components:
       type: string
       description: Billing run lifecycle (02 §5).
       enum: [Scheduled, Collecting, Computing, Completed, Failed]
+    PspHandoffHosted:
+      type: object
+      additionalProperties: false
+      description: A7-bis — redirect to Stripe-hosted UI (checkout, connect, verify).
+      required: [surface, provider, purpose, url, expiresAt]
+      properties:
+        surface:
+          const: hosted
+        provider:
+          const: stripe
+        purpose:
+          type: string
+          enum: [checkout, setup, connect_onboarding, identity]
+        url:
+          type: string
+          pattern: '^https://(checkout|connect|verify)\.stripe\.com/'
+        expiresAt:
+          type: string
+          format: date-time
+    PspHandoffEmbedded:
+      type: object
+      additionalProperties: false
+      description: A7-bis — Stripe.js / Connect embedded components (no Blooo URL).
+      required: [surface, provider, purpose, publishableKey, clientSecret, expiresAt]
+      properties:
+        surface:
+          const: embedded
+        provider:
+          const: stripe
+        purpose:
+          type: string
+          enum: [payment, setup, connect_onboarding, identity]
+        publishableKey:
+          type: string
+          pattern: '^pk_(test|live)_'
+        clientSecret:
+          type: string
+          minLength: 8
+        connectedAccountRef:
+          type: string
+          pattern: '^acct_'
+          description: Stripe Connect account for direct charges (Payment Element).
+        expiresAt:
+          type: string
+          format: date-time
+    PspHandoff:
+      description: Stripe UI handoff for payment, setup, Connect onboarding or Identity (A7-bis).
+      oneOf:
+        - $ref: '#/components/schemas/PspHandoffHosted'
+        - $ref: '#/components/schemas/PspHandoffEmbedded'
+    ActorAuthorization:
+      type: object
+      additionalProperties: false
+      required: [actorId, status, memberships]
+      properties:
+        actorId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active, offboarded, unknown]
+        memberships:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [communityId, role]
+            properties:
+              communityId:
+                $ref: '#/components/schemas/Uuid'
+              role:
+                type: string
+                enum: [member, manager, operator]
+              participantRole:
+                $ref: '#/components/schemas/ParticipantRole'
     JobName:
       type: string
       description: Scheduled job owned by a module (02 §4.5).
@@ -130,6 +209,7 @@ components:
         - PurgeCache
         - ApplyRetention
         - FetchRates
+        - RunAutoPayouts
     Problem:
       type: object
       additionalProperties: false

@@ -222,6 +222,49 @@ paths:
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /actors/{actorId}/authorization:
+    get:
+      operationId: getActorAuthorization
+      tags: [Participants]
+      summary: Resolve EWDS caller authorization for an actor
+      description: >
+        REQ-052 — used by the publication command authorizer to validate
+        actorId and community role before dispatching internal commands.
+      parameters:
+        - name: actorId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Actor authorization view.
+          content:
+            application/json:
+              schema:
+                $ref: '../components/schemas.yaml#/components/schemas/ActorAuthorization'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /communities/{communityId}/managers/{actorId}:
+    put:
+      operationId: bindCommunityManager
+      tags: [Participants]
+      summary: Bind a manager actor to a community (operator)
+      description: Operator-only binding used when onboarding community managers.
+      parameters:
+        - $ref: '#/components/parameters/CommunityId'
+        - name: actorId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '204':
+          description: Manager bound.
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
 components:
   securitySchemes:
     serviceAuth:
@@ -243,7 +286,7 @@ components:
     CommunitySettings:
       type: object
       additionalProperties: false
-      required: [communityId, currency, billingPeriod, threshold, vatRate, billingMode]
+      required: [communityId, currency, billingPeriod, threshold, vatRate, billingMode, autoPayout]
       properties:
         communityId:
           $ref: '../components/schemas.yaml#/components/schemas/Uuid'
@@ -257,3 +300,6 @@ components:
           $ref: '../components/schemas.yaml#/components/schemas/Rate'
         billingMode:
           $ref: '../components/schemas.yaml#/components/schemas/BillingMode'
+        autoPayout:
+          type: boolean
+          description: When true, AC-07 pays out producers automatically (REQ-015).

@@ -25,3 +25,24 @@ test("INT-306 Client Gateway plan covers briefing constraints and GitOps", async
   assert.doesNotMatch(index, /ewag-unblock-mail/);
   assert.doesNotMatch(text, /ewag-unblock-mail/);
 });
+
+test("A7: command targets are declared in internal contracts", async () => {
+  for (const [file, pathKey] of [
+    ["payments", "/payments:start"],
+    ["payments", "/payouts:request"],
+    ["payments", "/kyc:start"],
+    ["invoicing", "/invoices/{invoiceId}/status"],
+    ["notification", "/reminders"],
+    ["participants", "/actors/{actorId}/authorization"],
+  ]) {
+    const yaml = await readFile(
+      `contracts/openapi/internal/${file}.v1.yaml`,
+      "utf8",
+    );
+    assert.match(
+      yaml,
+      new RegExp(`^  ${pathKey.replace(/[{}]/g, "\\$&")}:`, "m"),
+      `${file}.v1.yaml missing path ${pathKey}`,
+    );
+  }
+});

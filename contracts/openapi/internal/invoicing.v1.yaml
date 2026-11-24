@@ -222,6 +222,56 @@ paths:
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
         '401':
           $ref: '../components/schemas.yaml#/components/responses/Unauthorized'
+  /invoices/{invoiceId}/status:
+    post:
+      operationId: setInvoiceStatusInternal
+      tags: [Invoicing]
+      summary: Change invoice status (EWDS setInvoiceStatus target)
+      description: >
+        REQ-044 — manager-initiated status change with mandatory reason.
+        Called by AC-10 command dispatcher on behalf of an authorized actor.
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status, reason, actorId, communityId]
+              properties:
+                status:
+                  $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
+                reason:
+                  type: string
+                  minLength: 3
+                actorId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                communityId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Updated invoice (identifiers and status).
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [invoiceId, invoiceStatus]
+                properties:
+                  invoiceId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  invoiceStatus:
+                    $ref: '../components/schemas.yaml#/components/schemas/InvoiceStatus'
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
 components:
   securitySchemes:
     serviceAuth:

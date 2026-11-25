@@ -773,6 +773,40 @@ describe("payments HTTP (INT-107)", () => {
       });
     });
 
+    it("POST /internal/v1/payments:start returns embedded PaymentIntent handoff (A7-bis)", async () => {
+      invoices.put({
+        invoiceId: INVOICE,
+        producerId: PRODUCER,
+        consumerId: CONSUMER,
+        currency: "EUR",
+        status: "Open",
+        total: "5.25",
+        producerPspAccountRef: "acct_test_cmd_emb",
+      });
+      const res = await fetch(`${base}/internal/v1/payments:start`, {
+        method: "POST",
+        headers: SERVICE_HEADERS,
+        body: JSON.stringify({
+          invoiceId: INVOICE,
+          actorId: CONSUMER,
+          surface: "embedded",
+        }),
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        paymentId: expect.any(String),
+        status: "requires_action",
+        handoff: {
+          surface: "embedded",
+          provider: "stripe",
+          purpose: "payment",
+          clientSecret: expect.stringMatching(/_secret/),
+          connectedAccountRef: "acct_test_cmd_emb",
+          publishableKey: expect.stringMatching(/^pk_test_/),
+        },
+      });
+    });
+
     it("POST /internal/v1/kyc:start connect_account returns hosted Connect handoff", async () => {
       const fresh = "cccccccc-dddd-4eee-8fff-000000000001";
       await service.ensureParticipant({

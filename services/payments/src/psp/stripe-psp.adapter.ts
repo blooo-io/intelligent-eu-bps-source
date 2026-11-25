@@ -6,6 +6,8 @@ import type {
   CollectPort,
   CollectResult,
   DirectChargeInput,
+  EmbeddedPaymentInput,
+  EmbeddedPaymentSession,
   PaymentMethodDetails as CollectPaymentMethodDetails,
 } from "./collect.port.js";
 import type {
@@ -405,6 +407,39 @@ export class StripePspAdapter
       pspCheckoutRef: session.id,
       checkoutUrl: session.url,
       expiresAt,
+    };
+  }
+
+  /**
+   * A7-bis / REQ-014 — unconfirmed PaymentIntent on the producer account for
+   * the embedded Payment Element (card + SEPA). Idempotent via Stripe key.
+   */
+  async createEmbeddedPayment(
+    input: EmbeddedPaymentInput,
+  ): Promise<EmbeddedPaymentSession> {
+    const intent = await this.stripe.paymentIntents.create(
+      {
+        amount: toMinorUnits(input.amount),
+        currency: input.currency.toLowerCase(),
+        // Payment Element collects the method in the UI; we do not confirm here.
+        confirm: false,
+        // Stripe SDK 23 — allowed_payment_method_types on PI create.
+        allowed_payment_method_types: input.methods,
+        metadata: { invoiceId: input.invoiceId },
+        ...(input.pspCustomerRef ? { customer: input.pspCustomerRef } : {}),
+      },
+      {
+        stripeAccount: input.pspAccountRef,
+        idempotencyKey: input.idempotencyKey,
+      },
+    );
+    if (!intent.client_secret) {
+      throw new Error("PaymentIntent missing client_secret");
+    }
+    return {
+      pspPaymentRef: intent.id,
+      clientSecret: intent.client_secret,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     };
   }
 

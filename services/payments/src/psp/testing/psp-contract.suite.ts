@@ -173,6 +173,31 @@ export function runPspContractSuite(
         expect(c.checkoutUrl).toMatch(/^https:\/\//);
         expect(c.pspCheckoutRef).toMatch(/\S+/);
       });
+
+      it("REQ-014 embedded payment intent is created on the producer account and is idempotent", async () => {
+        const h = await makeHarness();
+        const { a, pspAccountRef } = await readyCollect(h);
+        const first = await a.createEmbeddedPayment({
+          invoiceId: INV2,
+          amount: "12.00",
+          currency: "EUR",
+          pspAccountRef,
+          methods: ["card", "sepa_debit"],
+          idempotencyKey: `emb:${INV2}`,
+        });
+        expect(first.clientSecret).toMatch(/_secret/);
+        expect(first.pspPaymentRef).toMatch(/\S+/);
+        const second = await a.createEmbeddedPayment({
+          invoiceId: INV2,
+          amount: "12.00",
+          currency: "EUR",
+          pspAccountRef,
+          methods: ["card", "sepa_debit"],
+          idempotencyKey: `emb:${INV2}`,
+        });
+        expect(second.pspPaymentRef).toBe(first.pspPaymentRef);
+        expect(second.clientSecret).toBe(first.clientSecret);
+      });
     });
 
     describe("Payout+Events", () => {

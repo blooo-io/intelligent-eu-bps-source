@@ -947,24 +947,65 @@ export class PaymentsService {
       throw new BadRequestException("communityId could not be resolved for actor");
     }
 
-    const paid = await this.payInvoice({
-      invoiceId: input.invoiceId,
-      participantId: input.actorId,
-      communityId,
-      returnUrl: input.returnUrl,
-    });
-
-    const status = mapPayStatus(paid.status);
-    if (!paid.checkoutUrl) {
-      return { paymentId: paid.paymentId, status };
+    // Saved card → off-session direct charge (no browser handoff).
+    const savedMethod = account?.pspPaymentMethodRef
+      ? await this.paymentMethodType(account.pspPaymentMethodRef)
+      : undefined;
+    if (savedMethod === "card" || input.surface === "hosted") {
+      const paid = await this.payInvoice({
+        invoiceId: input.invoiceId,
+        participantId: input.actorId,
+        communityId,
+        returnUrl: input.returnUrl,
+      });
+      const status = mapPayStatus(paid.status);
+      if (!paid.checkoutUrl) {
+        return { paymentId: paid.paymentId, status };
+      }
+      return {
+        paymentId: paid.paymentId,
+        status,
+        handoff: hostedHandoff("checkout", paid.checkoutUrl),
+      };
     }
-    // Hosted Checkout handoff (A7-bis). `surface=embedded` still uses Checkout
-    // until CollectPort.createEmbeddedPayment ships (WS5 Task 5.7 / V1 #2).
-    void input.surface;
+
+    // A7-bis / REQ-014 — embedded Payment Element on the producer account.
+    const invoice = await this.invoices.getInvoice(input.invoiceId);
+    const pspAccountRef = await this.producerPspAccountRef(invoice);
+    const modePsp = await this.pspFor(communityId);
+    const collect: CollectPort = modePsp;
+    const initiatedAt = this.clock.now().toISOString();
+    const session = await collect.createEmbeddedPayment({
+      invoiceId: input.invoiceId,
+      amount: invoice.total,
+      currency: invoice.currency,
+      pspAccountRef,
+      methods: [...CHECKOUT_METHODS],
+      idempotencyKey: `emb:${input.invoiceId}:${initiatedAt.slice(0, 10)}`,
+    });
+    const participantId = caller.participantId;
+    const row: PaymentRecord = {
+      invoiceId: input.invoiceId,
+      participantId,
+      communityId,
+      amount: invoice.total,
+      currency: invoice.currency,
+      payeeId: invoice.producerId,
+      pspAccountRef,
+      paymentId: randomUUID(),
+      status: "requires_action",
+      pspPaymentRef: session.pspPaymentRef,
+      initiatedAt,
+    };
+    this.store.putPayment(row);
     return {
-      paymentId: paid.paymentId,
-      status,
-      handoff: hostedHandoff("checkout", paid.checkoutUrl),
+      paymentId: row.paymentId,
+      status: "requires_action",
+      handoff: embeddedHandoff("payment", {
+        clientSecret: session.clientSecret,
+        connectedAccountRef: pspAccountRef,
+        expiresAt: session.expiresAt,
+      }),
     };
   }
 

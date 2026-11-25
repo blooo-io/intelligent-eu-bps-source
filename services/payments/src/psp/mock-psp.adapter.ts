@@ -6,6 +6,8 @@ import type {
   CollectPort,
   CollectResult,
   DirectChargeInput,
+  EmbeddedPaymentInput,
+  EmbeddedPaymentSession,
   PaymentMethodDetails as CollectPaymentMethodDetails,
 } from "./collect.port.js";
 import type {
@@ -103,6 +105,8 @@ export class MockPspAdapter
   private readonly chargesByRef = new Map<string, ChargeRecord>();
   private readonly checkoutsByKey = new Map<string, CheckoutSession>();
   private readonly checkoutsByRef = new Map<string, CheckoutInput>();
+  /** INT-440 / A7-bis — embedded PaymentIntent sessions keyed by idempotency. */
+  private readonly embeddedByKey = new Map<string, EmbeddedPaymentSession>();
   private readonly payoutsByKey = new Map<string, PayoutResult>();
   private accountSeq = 0;
 
@@ -332,6 +336,32 @@ export class MockPspAdapter
     };
     this.checkoutsByKey.set(input.idempotencyKey, session);
     this.checkoutsByRef.set(pspCheckoutRef, { ...input });
+    return { ...session };
+  }
+
+  async createEmbeddedPayment(
+    input: EmbeddedPaymentInput,
+  ): Promise<EmbeddedPaymentSession> {
+    const existing = this.embeddedByKey.get(input.idempotencyKey);
+    if (existing) return { ...existing };
+    const pspPaymentRef = `mock_pi_${shortId()}`;
+    const session: EmbeddedPaymentSession = {
+      pspPaymentRef,
+      clientSecret: `${pspPaymentRef}_secret_test`,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    };
+    this.embeddedByKey.set(input.idempotencyKey, session);
+    // Track as an open charge so webhooks can settle by pspPaymentRef later.
+    this.chargesByRef.set(pspPaymentRef, {
+      pspPaymentRef,
+      status: "pending",
+      method: input.methods[0] ?? "card",
+      invoiceId: input.invoiceId,
+      amount: input.amount,
+      currency: input.currency,
+      pspAccountRef: input.pspAccountRef,
+      settled: false,
+    });
     return { ...session };
   }
 

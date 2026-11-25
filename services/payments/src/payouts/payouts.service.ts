@@ -59,8 +59,12 @@ export type WithdrawableView = { period: string; amount: string; currency: strin
 export type AutoPayoutRun = { requested: number; blocked: number; nearHoldingLimit: string[] };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** Stripe holds manual-payout funds at most 90 days outside the US/TH; flag them 15 days earlier. */
-const HOLDING_LIMIT_WARNING_DAYS = 75;
+/** B1 — operator alert when funds have sat on Connect for 70 days (Stripe caps ~90). */
+const HOLDING_LIMIT_ALERT_DAYS = 70;
+/** B1 — force-payout available balance at day 80 regardless of debtor invoice status. */
+const HOLDING_LIMIT_FORCE_DAYS = 80;
+/** Synthetic period key for B1 forced holding-limit payouts (not a billing month). */
+const HOLDING_LIMIT_PERIOD = "_holding_limit";
 
 function refuse(reason: PayoutRefusalReason): ConflictException {
   return new ConflictException({ reason });
@@ -196,39 +200,54 @@ export class PayoutsService implements PayoutEventsHandler {
   async runAutoPayouts(input: { communityId: string }): Promise<AutoPayoutRun> {
     const { communityId } = input;
     const run: AutoPayoutRun = { requested: 0, blocked: 0, nearHoldingLimit: [] };
-    if (!(await this.settings.get(communityId)).autoPayout) return run;
+    const settings = await this.settings.get(communityId);
+    // B1 forced holding-limit payouts run even when autoPayout is off.
+    const accounts = await this.payoutAccountsOf(communityId);
 
-    for (const account of await this.payoutAccountsOf(communityId)) {
+    for (const account of accounts) {
       const participantId = account.participantId;
-      const live = new Set(
-        this.payouts
-          .listForParticipant(participantId)
-          .filter((p) => ACTIVE_PAYOUT_STATUSES.includes(p.status))
-          .map((p) => p.period),
-      );
-      const statements = (await this.statements.list(participantId))
-        .filter((s) => !live.has(s.period) && totalSold(participantId, s) > 0n)
-        .sort((a, b) => a.period.localeCompare(b.period));
-      for (const statement of statements) {
-        try {
-          const row = await this.requestWithdrawal({
-            participantId,
-            communityId,
-            period: statement.period,
-            trigger: "auto",
-          });
-          if (row.status === "failed") run.blocked += 1;
-          else run.requested += 1;
-        } catch (error) {
-          if (!(error instanceof ConflictException)) throw error;
-          run.blocked += 1;
+      if (settings.autoPayout) {
+        const live = new Set(
+          this.payouts
+            .listForParticipant(participantId)
+            .filter((p) => ACTIVE_PAYOUT_STATUSES.includes(p.status))
+            .map((p) => p.period),
+        );
+        const statements = (await this.statements.list(participantId))
+          .filter((s) => !live.has(s.period) && totalSold(participantId, s) > 0n)
+          .sort((a, b) => a.period.localeCompare(b.period));
+        for (const statement of statements) {
+          try {
+            const row = await this.requestWithdrawal({
+              participantId,
+              communityId,
+              period: statement.period,
+              trigger: "auto",
+            });
+            if (row.status === "failed") run.blocked += 1;
+            else run.requested += 1;
+          } catch (error) {
+            if (!(error instanceof ConflictException)) throw error;
+            run.blocked += 1;
+          }
         }
       }
-      if (this.holdsFundsNearLimit(participantId)) run.nearHoldingLimit.push(participantId);
+      // B1 — day 80 force before the day-70 alert so a forced run is not double-logged.
+      if (this.holdsFundsPastForce(participantId) && account.pspAccountRef) {
+        const forced = await this.forceHoldingLimitPayout({
+          participantId,
+          communityId,
+          accountRef: account.pspAccountRef,
+        });
+        if (forced === "requested") run.requested += 1;
+        else if (forced === "blocked") run.blocked += 1;
+      } else if (this.holdsFundsNearLimit(participantId)) {
+        run.nearHoldingLimit.push(participantId);
+      }
     }
     if (run.nearHoldingLimit.length > 0) {
       this.logger.warn(
-        `payout.near_holding_limit communityId=${communityId} participantIds=${run.nearHoldingLimit.join(",")}`,
+        `payout.holding_limit_alert_day70 communityId=${communityId} participantIds=${run.nearHoldingLimit.join(",")}`,
       );
     }
     return run;
@@ -403,8 +422,8 @@ export class PayoutsService implements PayoutEventsHandler {
       .sort((a, b) => a.participantId.localeCompare(b.participantId));
   }
 
-  /** The oldest succeeded payment not yet in a live payout is at least 75 days old. */
-  private holdsFundsNearLimit(participantId: string): boolean {
+  /** Age in ms of the oldest succeeded payment not covered by a live payout. */
+  private oldestUnpaidSettledAgeMs(participantId: string): number | null {
     const paidOut = new Set(
       this.payouts
         .listForParticipant(participantId)
@@ -417,8 +436,95 @@ export class PayoutsService implements PayoutEventsHandler {
       .map((p) => p.settledAt ?? p.initiatedAt)
       .filter((at): at is string => at !== undefined)
       .map((at) => Date.parse(at));
-    if (settled.length === 0) return false;
-    return this.clock.now().getTime() - Math.min(...settled) >= HOLDING_LIMIT_WARNING_DAYS * DAY_MS;
+    if (settled.length === 0) return null;
+    return this.clock.now().getTime() - Math.min(...settled);
+  }
+
+  /** B1 — day 70 operator alert (funds approaching Stripe's ~90-day cap). */
+  private holdsFundsNearLimit(participantId: string): boolean {
+    const age = this.oldestUnpaidSettledAgeMs(participantId);
+    if (age === null) return false;
+    return (
+      age >= HOLDING_LIMIT_ALERT_DAYS * DAY_MS &&
+      age < HOLDING_LIMIT_FORCE_DAYS * DAY_MS
+    );
+  }
+
+  /** B1 — day 80 forced payout of available Connect balance. */
+  private holdsFundsPastForce(participantId: string): boolean {
+    const age = this.oldestUnpaidSettledAgeMs(participantId);
+    return age !== null && age >= HOLDING_LIMIT_FORCE_DAYS * DAY_MS;
+  }
+
+  /**
+   * B1 — payout available balance without the A2 "all invoices Paid" gate.
+   * Idempotent on `po:<participantId>:_holding_limit`.
+   */
+  private async forceHoldingLimitPayout(input: {
+    participantId: string;
+    communityId: string;
+    accountRef: string;
+  }): Promise<"requested" | "blocked" | "skipped"> {
+    const live = this.payouts
+      .listForParticipant(input.participantId)
+      .find(
+        (p) =>
+          p.period === HOLDING_LIMIT_PERIOD &&
+          ACTIVE_PAYOUT_STATUSES.includes(p.status),
+      );
+    if (live) return "skipped";
+
+    const balance = await this.psp.getAvailableBalance(input.accountRef, "EUR");
+    if (toCents(balance.amount) <= 0n) return "skipped";
+
+    const record: PayoutRecord = {
+      payoutId: randomUUID(),
+      participantId: input.participantId,
+      communityId: input.communityId,
+      period: HOLDING_LIMIT_PERIOD,
+      amount: balance.amount,
+      currency: balance.currency,
+      status: "requested",
+      trigger: "auto",
+      attempt: 1,
+      pspPayoutRef: null,
+      invoiceIds: [],
+      requestedAt: this.clock.now().toISOString(),
+    };
+    this.payouts.put(record);
+    this.logger.warn(
+      `payout.holding_limit_force_day80 communityId=${input.communityId} participantId=${input.participantId}`,
+    );
+    // Idempotency key shape from remediation §2: po:<participantId>:<period>.
+    const idempotencyKey = `po:${input.participantId}:${HOLDING_LIMIT_PERIOD}`;
+    try {
+      const result = await this.psp.createPayout(
+        input.accountRef,
+        record.amount,
+        record.currency,
+        idempotencyKey,
+      );
+      const next: PayoutRecord = {
+        ...record,
+        status: statusOf(result),
+        pspPayoutRef: result.pspPayoutRef,
+        ...(result.arrivalDate ? { arrivalDate: result.arrivalDate } : {}),
+        ...(result.failureCategory
+          ? { failureCategory: result.failureCategory }
+          : {}),
+      };
+      this.payouts.put(next);
+      await this.announce(next);
+      return next.status === "failed" ? "blocked" : "requested";
+    } catch (error) {
+      if (!(error instanceof PspError)) throw error;
+      this.payouts.put({
+        ...record,
+        status: "failed",
+        failureCategory: error.code,
+      });
+      return "blocked";
+    }
   }
 
   private async accountOf(participantId: string): Promise<AccountRecord | undefined> {

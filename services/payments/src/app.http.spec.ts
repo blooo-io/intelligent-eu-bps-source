@@ -773,6 +773,34 @@ describe("payments HTTP (INT-107)", () => {
       });
     });
 
+    it("INT-440: onboarding/requirements returns 404 when NODE_ENV=production", async () => {
+      const prevNode = process.env.NODE_ENV;
+      const prevAllow = process.env.ALLOW_KYC_TEST_FIXTURE;
+      process.env.NODE_ENV = "production";
+      delete process.env.ALLOW_KYC_TEST_FIXTURE;
+      try {
+        const res = await fetch(
+          `${base}/v1/me/payment-account/onboarding/requirements`,
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-intelligent-roles": "member,producer",
+              "x-intelligent-sub": PRODUCER,
+              "x-intelligent-community": COMMUNITY,
+            },
+            body: JSON.stringify({ accountToken: "ct_blocked" }),
+          },
+        );
+        expect(res.status).toBe(404);
+      } finally {
+        if (prevNode === undefined) delete process.env.NODE_ENV;
+        else process.env.NODE_ENV = prevNode;
+        if (prevAllow === undefined) delete process.env.ALLOW_KYC_TEST_FIXTURE;
+        else process.env.ALLOW_KYC_TEST_FIXTURE = prevAllow;
+      }
+    });
+
     it("POST /internal/v1/payments:start returns embedded PaymentIntent handoff (A7-bis)", async () => {
       invoices.put({
         invoiceId: INVOICE,

@@ -20,3 +20,33 @@ When `/api/v2/messages/ack` is absent from the pinned OpenAPI snapshot, `CgwClie
 ## Secrets
 
 Never commit API keys. `loadCgwConfig` reads `CGW_API_KEY` from the environment (OpenBao / External Secrets in cluster).
+
+## Mock CGW harness (INT-441 / REQ-052)
+
+While EWAG topiccreator / API-key enrolment block live CGW Blooo, use
+`startMockCgwServer()` as a loopback stand-in for **[CGW Blooo → BPS]**:
+
+- Same REST subset as `CgwClient`: `GET/POST /api/v2/messages`, `POST …/ack`, `GET …/identity`, header `x-api-key`
+- Schema-checks `billingCommandRequest` / `billingCommandReply`
+- `commandChannelScenarios()` covers every contracted operation (startPayment, requestWithdrawal, setInvoiceStatus, startKyc, sendReminder, triggerBillingRun, setupPaymentMethod)
+
+```ts
+import {
+  CgwClient,
+  startMockCgwServer,
+  commandChannelScenarios,
+  MOCK_CGW_COMMAND_FQCN,
+} from "@intelligent/ewds-client";
+
+const stub = await startMockCgwServer();
+const client = new CgwClient({
+  baseUrl: stub.baseUrl,
+  apiKey: stub.apiKey,
+  clientId: "bps-local",
+});
+// Point AC-10 at stub.baseUrl via CGW_BASE_URL when wiring a local stack.
+await stub.close();
+```
+
+Does **not** replace Spine / CGW R2M / EWAG. Energy Web’s Mirage mock
+(`NEXT_PUBLIC_MOCK`) is UI-only and is not this harness.

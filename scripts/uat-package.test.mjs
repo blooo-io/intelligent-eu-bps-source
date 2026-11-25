@@ -2,13 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-/** Remaining Blocked cases listed in docs/testing/v1-uat-package.md (INT-80 / INT-195). */
-const REMAINING = [
-  "UAT-028",
-  "UAT-040",
-  "UAT-050",
-  "UAT-053",
-];
+/**
+ * In-scope UATs still Not Run after the v6.1 campaign (Task 6.14 / INT-437).
+ * Empty when every in-scope note is Pass / Pass on mock path — package must then
+ * link the re-run packaging doc instead of listing leftover Blocked ids.
+ */
+const REMAINING = [];
 
 test("UAT package lists remaining cases without copying note text (INT-79)", async () => {
   const pack = await readFile("docs/testing/v1-uat-package.md", "utf8");
@@ -21,6 +20,8 @@ test("UAT package lists remaining cases without copying note text (INT-79)", asy
   assert.match(pack, /INT-80/);
   assert.match(pack, /does not|Case text stays|no duplicated/i);
   assert.match(plan, /v1-uat-package\.md/);
+  // Task 6.14: campaign packaging lives in v6.1-rerun.md once REMAINING is empty.
+  assert.match(pack, /v6\.1-rerun\.md/);
   for (const id of REMAINING) {
     assert.match(pack, new RegExp(`\\b${id}\\b`), `missing ${id}`);
   }

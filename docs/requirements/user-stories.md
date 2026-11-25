@@ -20,6 +20,7 @@ Key context (v4, identity workshop 02/10/2026): users log in through a **project
 | US-035 | P6 Platform Operator | Should | As a platform operator, I want to switch a community to its pilot's own OIDC IdP through configuration rather than a code change, so that the project IdP can be replaced without redeploying the billing service. |
 | US-036 | P4 Community Manager | W (was Could) | As a community manager, I want to see which of my members failed SSO login (and why, if the IdP provides a reason), so that I can help members stuck at their IdP's login screen. *(Deprecated in v4 — R-1.)* |
 | US-043 | P6 Platform Operator | Must | As a platform operator, I want users' roles and community membership to be managed in the identity provider and applied by the billing service, so that access rights are administered in a single place. |
+| US-050 | P1/P2/P4 Community member or manager | Could | As a community member, I want to log in with the project's decentralised identity, so that I do not need a separate account for billing. *(Target D5.10.)* |
 
 ## Epic: BILL — Billing calculation
 
@@ -34,6 +35,7 @@ Key context (v4, identity workshop 02/10/2026): users log in through a **project
 | US-037 | P1/P2/P3 Community member | Must | As a community member, I want to receive or access a clear PDF invoice showing the amount due or owed and its main components, so that I can understand the result of the billing calculation. |
 | US-040 | P4 Community Manager | Must | As a community manager of a pilot where real invoicing is not yet permitted, I want the platform to compute and issue virtual bills and run payments in a test environment without moving real money, so that the pilot can evaluate P2P billing. |
 | US-045 | P2 Consumer + P1 Prosumer | Must | As a consumer, I want to receive one invoice per producer I bought energy from in a period, netted with what I sold to them, so that I pay each producer exactly what I owe them. |
+| US-048 | P1 Prosumer + P2 Consumer | Must | As a community member, I want one invoice per period that adds up what I bought and what I sold, so that I know whether I have to pay or will receive money. |
 
 ## Epic: ADMIN — Administrative management (GDPR)
 
@@ -58,7 +60,7 @@ Key context (v4, identity workshop 02/10/2026): users log in through a **project
 | US-017 | P4 Community Manager | Should | As a community manager, I want an aggregated view of fiat payment status across all members for a billing period, so that I can see collection/payout completion at a glance. |
 | US-039 | P6 Platform Operator | Must | As a Billing & Payment Platform Operator, I want the payment-provider onboarding required for payments and payouts to be integrated seamlessly into the platform flow, so that community members can use the fiat payment service with minimal additional steps. |
 | US-046 | P1 Prosumer | Must | As a producer, I want the energy I sell to be invoiced in my name and paid directly to my account, so that I get paid without the platform holding my money. |
-| US-047 | P2 Consumer | Should | As a consumer, I want to settle what I owe a producer before the end of the period, so that I can pay when it suits me. |
+| US-047 | P2 Consumer | W (was S) | As a consumer, I want to settle what I owe a producer before the end of the period, so that I can pay when it suits me. *(Deprecated in v6 — source alignment.)* |
 
 ## Epic: CRYPTO — Crypto payments (wallets) — *deferred to D5.10*
 
@@ -101,6 +103,7 @@ Key context (v4, identity workshop 02/10/2026): users log in through a **project
 | US-030 | P4 Community Manager | Must | As a community manager, I want to look up a specific member's full billing/payment history when they raise a dispute, so that I can resolve it with evidence rather than guesswork. |
 | US-031 | P4 Community Manager | Should | As a community manager, I want a periodic summary report (billed, collected, paid out, failed) for my pilot, so that I can monitor billing and payment reconciliation. |
 | US-041 | P4 Community Manager | Should | As a community manager, I want to update an invoice's payment status manually with a reason when a payment was settled outside the platform, so that the billing status stays accurate. |
+| US-049 | P4 Community Manager | Should | As a community manager, I want to see the payouts per participant and send reminders for unpaid invoices, so that I can follow open items in my community. |
 
 ---
 

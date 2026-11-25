@@ -31,6 +31,10 @@ import {
   PSP_CAPABILITIES_PORT,
   type PspCapabilitiesPort,
 } from "../ports/psp-capabilities.port.js";
+import {
+  OPEN_PERIODS_PORT,
+  type OpenPeriodsPort,
+} from "../ports/open-periods.port.js";
 import { deriveReadiness, isInvoiceReady } from "./readiness.js";
 
 const PRODUCER = "AC-03";
@@ -128,6 +132,8 @@ export class ParticipantsService {
     @Inject(IDP_ADMIN_PORT) private readonly idp: IdpAdminPort,
     @Inject(PSP_CAPABILITIES_PORT)
     private readonly pspCapabilities: PspCapabilitiesPort,
+    @Inject(OPEN_PERIODS_PORT)
+    private readonly openPeriods: OpenPeriodsPort,
   ) {}
 
   /** Test seam — wipe fixture state between cases. */
@@ -188,6 +194,14 @@ export class ParticipantsService {
         const caps = await this.pspCapabilities.get();
         if (!caps.liveConfigured) {
           throw new ConflictException({ code: "live_keys_missing" });
+        }
+        // REQ-043 — refuse while settlement still has unbilled/open periods.
+        const open = await this.openPeriods.list(communityId);
+        if (open.periods.length > 0) {
+          throw new ConflictException({
+            code: "open_period",
+            periods: open.periods,
+          });
         }
       }
     }

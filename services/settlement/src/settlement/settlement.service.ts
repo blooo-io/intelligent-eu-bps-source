@@ -144,6 +144,41 @@ export class SettlementService {
     return row;
   }
 
+  /**
+   * REQ-043 / INT-440 — periods with unbilled trades or a non-zero carry.
+   * AC-03 refuses virtual→live while this list is non-empty.
+   */
+  async listOpenPeriods(
+    communityId: string,
+  ): Promise<{ communityId: string; periods: string[] }> {
+    if (!communityId) {
+      throw new BadRequestException("communityId is required");
+    }
+    await this.refreshBillingContext(communityId);
+    const cadence = this.context.billingPeriod;
+    const now = this.clock();
+    const unbilled = await this.trades.getUnbilled(
+      communityId,
+      now.toISOString(),
+    );
+    const periods = new Set<string>();
+    for (const trade of unbilled) {
+      const at = trade.deliveryStart
+        ? new Date(trade.deliveryStart)
+        : now;
+      periods.add(periodContaining(at, cadence));
+    }
+    // Carry has no period key — treat any outstanding balance as blocking
+    // the current calendar period for a live-mode switch.
+    if (this.store.listCarries(communityId).length > 0) {
+      periods.add(periodContaining(now, cadence));
+    }
+    return {
+      communityId,
+      periods: [...periods].sort(),
+    };
+  }
+
   /** INT-196 / UAT-028 — expose run + settlementIds for invoice bridging. */
   getBillingRun(runId: string) {
     const row = this.store.getRun(runId);

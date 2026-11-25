@@ -30,15 +30,25 @@ describe("ActorSyncService (REQ-008 / UAT-008)", () => {
     outboxStore = new InMemoryOutboxStore();
     idp = new MockIdpAdapter();
     const outbox = new OutboxService(outboxStore);
-    participants = new ParticipantsService(store, outbox, idp, {
-      async get() {
-        return {
-          provider: "mock" as const,
-          testConfigured: true,
-          liveConfigured: false,
-        };
+    participants = new ParticipantsService(
+      store,
+      outbox,
+      idp,
+      {
+        async get() {
+          return {
+            provider: "mock" as const,
+            testConfigured: true,
+            liveConfigured: false,
+          };
+        },
       },
-    });
+      {
+        async list(communityId: string) {
+          return { communityId, periods: [] as string[] };
+        },
+      },
+    );
     communityId = participants.seedCommunityId();
     actors = ewdsActorFixtures(communityId) as ActorRecord[];
     sync = new ActorSyncService(

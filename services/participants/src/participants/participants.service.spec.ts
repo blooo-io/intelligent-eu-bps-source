@@ -49,6 +49,7 @@ describe("ParticipantsService", () => {
       new OutboxService(outboxStore),
       idp,
       pspCapabilities,
+      { async list(communityId: string) { return { communityId, periods: [] as string[] }; } },
     );
     communityId = service.seedCommunityId();
   });
@@ -160,6 +161,32 @@ describe("ParticipantsService", () => {
             "community.billing-mode.live",
       ),
     ).toBe(true);
+  });
+
+  it("REQ-043: switch to live refused while settlement has an unbilled or open period", async () => {
+    const settings = service.getCommunitySettings(communityId);
+    pspCapabilities.liveConfigured = true;
+    // Rebuild with a stub that reports an open period (Task 3.14).
+    service = new ParticipantsService(
+      store,
+      new OutboxService(outboxStore),
+      idp,
+      pspCapabilities,
+      {
+        async list(id: string) {
+          return { communityId: id, periods: ["2026-11"] };
+        },
+      },
+    );
+    await expect(
+      service.updateCommunitySettings(
+        communityId,
+        { ...settings, billingMode: "live" },
+        ["operator"],
+      ),
+    ).rejects.toMatchObject({
+      response: { code: "open_period", periods: ["2026-11"] },
+    });
   });
 
   it("REQ-043: live to virtual is refused (409)", async () => {

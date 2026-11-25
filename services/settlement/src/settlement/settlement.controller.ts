@@ -33,6 +33,12 @@ export class SettlementController {
     return this.settlement.getBillingRun(runId);
   }
 
+  /** REQ-043 — periods that block a virtual→live switch. */
+  @Get("communities/:communityId/open-periods")
+  async listOpenPeriods(@Param("communityId") communityId: string) {
+    return this.settlement.listOpenPeriods(communityId);
+  }
+
   @Post("billing-runs")
   @HttpCode(202)
   async startRun(

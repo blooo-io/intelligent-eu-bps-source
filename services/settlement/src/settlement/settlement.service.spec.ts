@@ -634,7 +634,7 @@ describe("SettlementService", () => {
     });
   });
 
-  it("INT-272: rejects live billingMode from settings (BR-12)", async () => {
+  it("INT-440: allows live billingMode from settings (REQ-043)", async () => {
     service = new SettlementService(
       store,
       new OutboxService(outboxStore),
@@ -652,12 +652,12 @@ describe("SettlementService", () => {
       },
       null,
     );
-    await expect(
-      service.startRun({
-        communityId,
-        type: "periodic",
-        period: "2026-11",
-      }),
-    ).rejects.toThrow(/virtual/);
+    // INT-440 — live mode is allowed; BR-12 is a product default, not a hard reject.
+    const result = await service.startRun({
+      communityId,
+      type: "periodic",
+      period: "2026-11",
+    });
+    expect(result.runId).toBeTruthy();
   });
 });

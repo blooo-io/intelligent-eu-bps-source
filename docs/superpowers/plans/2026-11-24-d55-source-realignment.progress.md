@@ -34,7 +34,19 @@
 | WS4 EWDS transport catch-up | INT-432 | Done | [#200](https://github.com/blooo-io/intelligent-eu-bps-source/pull/200) squash-merged `dd5b3dc` | 4.13–4.18 |
 | Release train unblockers | INT-433…436 | Done | [#202](https://github.com/blooo-io/intelligent-eu-bps-source/pull/202)–[#205](https://github.com/blooo-io/intelligent-eu-bps-source/pull/205) | nodemailer · trivyignore · ewds-client Docker · participants mocks |
 | Remaining closeout | INT-437 | Done | [#207](https://github.com/blooo-io/intelligent-eu-bps-source/pull/207) | 4.4 live CGW · 6.4–6.6 · 6.8–6.15 · UAT-074 deprecated |
-| Dev evidence + crashloop | INT-438 | In progress | `cursor/fix-int-438-dev-crashloop-evidence-5f1c` | ewds-client dist build · StripePspErase Nest DI · evidence matrix |
+| Dev evidence + crashloop | INT-438 | Done | [#210](https://github.com/blooo-io/intelligent-eu-bps-source/pull/210) | Probe all-green; OpenBao CGW seeded |
+| INT-439 CGW clientId/poll + reply encrypt | INT-439 | Done | [#209](https://github.com/blooo-io/intelligent-eu-bps-source/pull/209)/[#211](https://github.com/blooo-io/intelligent-eu-bps-source/pull/211)/[#212](https://github.com/blooo-io/intelligent-eu-bps-source/pull/212) | CrashLoops cleared; channels empty → TOPIC bind needs EWAG |
+| **Remediation v1.2.1 (audit ebed7e4)** | INT-440 | In progress | `cursor/feature-int-440-d55-remediation-v121-5f1c` | Honesty: many prior "Done" rows overclaim (PDF stub, 2/5 topics, market adapter mock, live mode throw). Spec sync committed. |
+
+## Honesty downgrade (INT-440 / audit V1–V4)
+| Claimed Done | Reality | Action |
+|---|---|---|
+| WS2 PDF / UAT-050 Pass | Stub `UAT_INLINE_PDF`, no pdf-lib | UAT-050 → Not Run; implement Task 2.10–2.12 |
+| UAT-053 Pass numbering | Partial; evidence assumed PDF | UAT-053 → Not Run until document flow real |
+| 4.12 five topics | Only invoice+payment published | Downgrade; implement statement/payout/kyc |
+| 4.8–4.11 A8-live adapters | Hard-wired mock suite | Implement MARKET/DATASPACE factories |
+| Live mode | `throw V1 billingMode must be virtual` | Removing; BillingModeResolver |
+| OpenBao CGW blocked | Stale — secrets Ready on probe | Cleared in Externally blocked |
 
 ## Decisions / deviations
 | When | What | Why |
@@ -51,9 +63,9 @@
 ## Externally blocked
 | Item | Impact | Next |
 |---|---|---|
-| OpenBao `secret/ddhub/api-key` missing (`*-cgw` ExternalSecret SecretSyncedError) | No live-cg Pass until key exists; adapters stay labelled mock-path / Blocked | Operator seeds OpenBao per `scripts/openbao-seed-ddhub-cg.mjs` (GitOps: no live KV write from agents) |
-| EWAG topics/roles for live CGW UAT re-run | Even with API key, publish/subscribe may 403 | Coordinate with EWAG; then flip `run_path` to `live-cg` with message ids |
-| Spec vault sync (Task 6.7) | `scripts/sync-spec.mjs` ready; vault path / `draft v6.1` gate not available in this agent | Spec owner publishes vault v6.1 then run sync |
+| EWAG topiccreator / topic registration | Channels exist; `POST /topics` 403; messages `TOPIC::NOT_RELATED_TO_CHANNEL` | Send ontology-aligned schemas to Digital Spine (after INT-440 schema fix); they configure topics |
+| R2M gateway DID allow-list unknown | Empty `EWDS_COMMAND_ALLOWED_DIDS` rejects all commands | Log; set when R2M provides DID |
+| Live Stripe keys | Never in repo; live mode with test keys + mode guard | Keep test keys only |
 
 ## UAT re-runs
 | When | What | Result |

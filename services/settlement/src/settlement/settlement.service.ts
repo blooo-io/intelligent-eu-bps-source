@@ -267,10 +267,8 @@ export class SettlementService {
     // INT-272 — AC-03 settings + AC-13 VAT/FX before threshold / VAT / FX (BR-05..07).
     await this.refreshBillingContext(input.communityId);
 
-    // BR-12 — V1 communities are virtual; settlement still computes amounts.
-    if (this.context.billingMode === "live") {
-      throw new BadRequestException("V1 billingMode must be virtual");
-    }
+    // INT-440 / remediation — live mode is allowed; BR-12 "virtual communities"
+    // is a V1 product default, not a hard reject. PSP routing uses BillingModeResolver.
 
     // REQ-006 — without a period, a periodic run closes the last elapsed period
     // of the community calendar, once (AC-14 cron and its retries).

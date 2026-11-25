@@ -30,7 +30,9 @@ test.describe("INT-251 Stripe money path", () => {
   test("Pay open invoice creates a succeeded Stripe charge", async ({
     page,
   }) => {
-    test.setTimeout(180_000);
+    // INT-445 — prior green run needed ~2.8m; 180s wall flakes when charge poll
+    // + invoice find + INT-443 payee resolve stack. Keep headroom under 5m job.
+    test.setTimeout(300_000);
     const stripeKey = requireStripeSecretKey(process.env);
     const createdAfter = Math.floor(Date.now() / 1000) - 5;
 

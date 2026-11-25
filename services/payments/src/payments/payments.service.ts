@@ -1190,6 +1190,7 @@ export class PaymentsService {
     }
     // INT-443 / INT-230 — invoice.producerId may be IdP sub (UAT seed); resolve
     // before hydrate so KYC keyed by participantId is found.
+    // INT-445 — resolve once; reuse for PSP binding (avoid a second AC-03 hop).
     const payeeResolved = await this.resolveCallerParticipantId(
       invoice.producerId,
     );
@@ -1223,7 +1224,22 @@ export class PaymentsService {
     if (processing) {
       return this.toPayResult(processing);
     }
-    const pspAccountRef = await this.producerPspAccountRef(invoice);
+    // INT-445 — reuse hydrated payee; do not re-resolve IdP for PSP binding.
+    const boundPayeeAccount = payee.pspAccountRef || undefined;
+    if (
+      invoice.producerPspAccountRef &&
+      boundPayeeAccount &&
+      invoice.producerPspAccountRef !== boundPayeeAccount
+    ) {
+      throw new BadRequestException("Producer PSP account does not match AC-07");
+    }
+    const pspAccountRef =
+      boundPayeeAccount ?? invoice.producerPspAccountRef;
+    if (!pspAccountRef) {
+      throw new BadRequestException(
+        "Producer PSP account required for direct charge",
+      );
+    }
 
     const pspPaymentMethodRef = account?.pspPaymentMethodRef ?? undefined;
     const savedMethod = pspPaymentMethodRef

@@ -46,6 +46,8 @@ export function seedCommunitySettings(): CommunitySettings {
     billingMode: "virtual",
     // REQ-015 — producers withdraw manually until the manager opts in.
     autoPayout: false,
+    // B2 — grid-fee billing off until legal clearance.
+    tariffBilling: false,
   };
 }
 
@@ -58,6 +60,7 @@ export function seedS1CommunitySettings(): CommunitySettings {
     vatRate: "0.00",
     billingMode: "virtual",
     autoPayout: false,
+    tariffBilling: false,
   };
 }
 

@@ -209,6 +209,8 @@ export class ParticipantsService {
       communityId,
       ...write,
       autoPayout: write.autoPayout ?? false,
+      // B2 / REQ-004 — omit or undefined keeps tariff billing off.
+      tariffBilling: write.tariffBilling ?? false,
     };
     this.store.putCommunity(next);
     if (modeChanging && next.billingMode === "live") {

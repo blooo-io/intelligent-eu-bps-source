@@ -632,6 +632,24 @@ describe("ParticipantsService", () => {
     expect(reset.autoPayout).toBe(false);
   });
 
+  it("B2 / REQ-004: tariffBilling defaults to false and round-trips", async () => {
+    const current = service.getCommunitySettings(communityId);
+    expect(current.tariffBilling).toBe(false);
+    const enabled = await service.updateCommunitySettings(
+      communityId,
+      { ...current, tariffBilling: true },
+      ["manager"],
+    );
+    expect(enabled.tariffBilling).toBe(true);
+    const { tariffBilling: _omitted, ...without } = enabled;
+    const reset = await service.updateCommunitySettings(
+      communityId,
+      without,
+      ["manager"],
+    );
+    expect(reset.tariffBilling).toBe(false);
+  });
+
   it("REQ-013 / INT-275 — erasure anonymizes profile and emits ErasureCompleted", async () => {
     const participantId = "f69e6745-3bfe-49ad-b84e-0853aa86ad05";
     const before = store.getParticipant(participantId)!;

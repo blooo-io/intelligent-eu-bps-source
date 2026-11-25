@@ -15,6 +15,7 @@ Covers Horizon Energy personas, the Invite CSV path (REQ-008 / Mailpit), filled 
 | [Manual S1 portal journey](./manual-s1-portal-journey.md) | Money-path S1 complement |
 | [V1 UAT package](./v1-uat-package.md) | UAT pack / accounts |
 | [v6.1 re-run packaging](./v6.1-rerun.md) | Computed UAT counts + mock-path legend (INT-430) |
+| [v6.1 evidence matrix](./v6.1-evidence-matrix.md) | Process → run_path → artifact rules (INT-438; no silent mocks) |
 | [V1 validation summary](./v1-validation-summary.md) | Status table with Path column |
 | [AC-01 e2e](./ac01-e2e.md) | Deployed Playwright |
 

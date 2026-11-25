@@ -304,7 +304,24 @@ test("Dockerfiles for ewds-client consumers COPY packages/ewds-client", async ()
       /COPY packages\/ewds-client packages\/ewds-client/,
       `${dir}/Dockerfile missing ewds-client sources COPY`,
     );
+    // INT-438 — emit JS into dist/ before deploy; Node 22 cannot strip .ts under node_modules.
+    assert.match(
+      dockerfile,
+      /pnpm --filter @intelligent\/ewds-client build/,
+      `${dir}/Dockerfile must build ewds-client before deploy`,
+    );
   }
+});
+
+test("INT-438 ewds-client package exports compiled dist (not raw .ts)", async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const pkg = JSON.parse(
+    await readFile(path.join(root, "packages/ewds-client/package.json"), "utf8"),
+  );
+  assert.equal(pkg.main, "./dist/index.js");
+  assert.equal(pkg.exports["."].import, "./dist/index.js");
+  assert.equal(pkg.scripts.build, "tsc -p tsconfig.build.json");
+  assert.deepEqual(pkg.files, ["dist", "schemas", "sql"]);
 });
 
 // INT-436 — participants mock ActorSource imports @intelligent/mocks fixtures.

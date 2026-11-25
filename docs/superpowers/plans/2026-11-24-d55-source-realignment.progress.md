@@ -33,7 +33,8 @@
 | WS3 KYC catch-up | INT-431 | Done | [#199](https://github.com/blooo-io/intelligent-eu-bps-source/pull/199) squash-merged `6e8dd7b` | 3.2–3.11, 3.13–3.17 |
 | WS4 EWDS transport catch-up | INT-432 | Done | [#200](https://github.com/blooo-io/intelligent-eu-bps-source/pull/200) squash-merged `dd5b3dc` | 4.13–4.18 |
 | Release train unblockers | INT-433…436 | Done | [#202](https://github.com/blooo-io/intelligent-eu-bps-source/pull/202)–[#205](https://github.com/blooo-io/intelligent-eu-bps-source/pull/205) | nodemailer · trivyignore · ewds-client Docker · participants mocks |
-| Remaining closeout | INT-437 | In progress | branch `cursor/feature-int-437-d55-remaining-closeout-5f1c` | 4.4 live CGW · 1.13 already done · 6.4–6.6 · 6.8–6.15 · UAT-074 deprecated |
+| Remaining closeout | INT-437 | Done | [#207](https://github.com/blooo-io/intelligent-eu-bps-source/pull/207) | 4.4 live CGW · 6.4–6.6 · 6.8–6.15 · UAT-074 deprecated |
+| Dev evidence + crashloop | INT-438 | In progress | `cursor/fix-int-438-dev-crashloop-evidence-5f1c` | ewds-client dist build · StripePspErase Nest DI · evidence matrix |
 
 ## Decisions / deviations
 | When | What | Why |
@@ -50,9 +51,9 @@
 ## Externally blocked
 | Item | Impact | Next |
 |---|---|---|
-| EWAG topics/roles for live CGW UAT re-run | Adapters stay `ewds` in Helm; UATs stay labelled mock-path until topics granted | Coordinate with EWAG; then flip `run_path` to `live-cg` |
+| OpenBao `secret/ddhub/api-key` missing (`*-cgw` ExternalSecret SecretSyncedError) | No live-cg Pass until key exists; adapters stay labelled mock-path / Blocked | Operator seeds OpenBao per `scripts/openbao-seed-ddhub-cg.mjs` (GitOps: no live KV write from agents) |
+| EWAG topics/roles for live CGW UAT re-run | Even with API key, publish/subscribe may 403 | Coordinate with EWAG; then flip `run_path` to `live-cg` with message ids |
 | Spec vault sync (Task 6.7) | `scripts/sync-spec.mjs` ready; vault path / `draft v6.1` gate not available in this agent | Spec owner publishes vault v6.1 then run sync |
-| D5.5 Word report (Tasks 6.17–6.19) | Outside git — INT-90 / INT-91 | Drive deliverable + partner review |
 
 ## UAT re-runs
 | When | What | Result |

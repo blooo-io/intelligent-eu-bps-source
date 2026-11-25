@@ -15,6 +15,7 @@ COPY packages/ewds-client packages/ewds-client
 COPY mocks mocks
 COPY services/publication services/publication
 RUN pnpm --filter @intelligent/module-template build \
+ && pnpm --filter @intelligent/ewds-client build \
  && pnpm --filter @intelligent/mocks build \
  && pnpm --filter @intelligent/publication build \
  && pnpm --filter @intelligent/publication deploy --prod /out

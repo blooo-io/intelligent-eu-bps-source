@@ -1,0 +1,91 @@
+{
+  "collectedAt": "2026-11-25T06:17:35.889Z",
+  "rulesRef": "docs/testing/v6.1-evidence-matrix.md",
+  "namespace": "int-apps",
+  "pods": {
+    "ready": 17,
+    "total": 22,
+    "crashLoop": [
+      "compliance-686dfd9f45-47qv9",
+      "participants-7956f4745-wj9c4",
+      "payments-69cc956b64-twgmz",
+      "publication-86969cc44c-hxlcw",
+      "reference-data-5d878f8875-d7bst"
+    ]
+  },
+  "externalSecretsCgw": [
+    {
+      "name": "compliance-cgw",
+      "ready": false,
+      "reason": "SecretSyncedError",
+      "message": "could not get secret data from provider"
+    },
+    {
+      "name": "participants-cgw",
+      "ready": false,
+      "reason": "SecretSyncedError",
+      "message": "could not get secret data from provider"
+    },
+    {
+      "name": "publication-cgw",
+      "ready": false,
+      "reason": "SecretSyncedError",
+      "message": "could not get secret data from provider"
+    },
+    {
+      "name": "reference-data-cgw",
+      "ready": false,
+      "reason": "SecretSyncedError",
+      "message": "could not get secret data from provider"
+    },
+    {
+      "name": "trade-intake-cgw",
+      "ready": false,
+      "reason": "SecretSyncedError",
+      "message": "could not get secret data from provider"
+    }
+  ],
+  "stripeTest": {
+    "attempted": true,
+    "ok": true,
+    "detail": {
+      "httpStatus": 200,
+      "hasAvailable": true
+    }
+  },
+  "cgwIdentity": {
+    "attempted": false,
+    "ok": false,
+    "detail": null
+  },
+  "blockers": [
+    {
+      "id": "crashloop",
+      "message": "CrashLoopBackOff: compliance-686dfd9f45-47qv9, participants-7956f4745-wj9c4, payments-69cc956b64-twgmz, publication-86969cc44c-hxlcw, reference-data-5d878f8875-d7bst"
+    },
+    {
+      "id": "externalsecret-compliance-cgw",
+      "message": "could not get secret data from provider"
+    },
+    {
+      "id": "externalsecret-participants-cgw",
+      "message": "could not get secret data from provider"
+    },
+    {
+      "id": "externalsecret-publication-cgw",
+      "message": "could not get secret data from provider"
+    },
+    {
+      "id": "externalsecret-reference-data-cgw",
+      "message": "could not get secret data from provider"
+    },
+    {
+      "id": "externalsecret-trade-intake-cgw",
+      "message": "could not get secret data from provider"
+    },
+    {
+      "id": "cgw-api-key",
+      "message": "CGW_API_KEY unavailable to collector (OpenBao ExternalSecret *-cgw not Ready or not exported)"
+    }
+  ]
+}

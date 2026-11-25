@@ -76,6 +76,17 @@ describe("EwdsTariffAdapter (REQ-004)", () => {
     expect(consumer.pull).not.toHaveBeenCalled();
   });
 
+  it("INT-439: CGW pull failure returns 0 and does not throw", async () => {
+    const consumer: TariffTopicConsumer = {
+      pull: vi.fn(async () => {
+        throw new Error("CGW /api/v2/messages returned 400: CHANNEL::NOT_FOUND");
+      }),
+      done: vi.fn(async () => {}),
+    };
+    const adapter = new EwdsTariffAdapter(consumer, 60_000, false);
+    await expect(adapter.ingest()).resolves.toBe(0);
+  });
+
   it("formatUnitPrice maps 0.045 to 0.0450", () => {
     expect(formatUnitPrice(0.045)).toBe("0.0450");
     expect(formatUnitPrice(0.045123)).toBe("0.045123");

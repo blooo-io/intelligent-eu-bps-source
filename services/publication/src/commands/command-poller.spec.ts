@@ -265,6 +265,17 @@ describe("CommandPoller (REQ-052 / A7 / REQ-053)", () => {
     expect(consumer.pull).toHaveBeenCalledTimes(1);
   });
 
+  it("INT-439: CGW pull failure is swallowed so the pod stays up", async () => {
+    const consumer: CommandTopicConsumer = {
+      pull: vi.fn(async () => {
+        throw new Error("CGW /api/v2/messages returned 400: CHANNEL::NOT_FOUND");
+      }),
+      done: vi.fn(async () => {}),
+    };
+    const { poller } = buildPoller({ consumer });
+    await expect(poller.tick()).resolves.toBeUndefined();
+  });
+
   it("layer-2 drop marks message done without CGW reply", async () => {
     const doneIds: string[] = [];
     const consumer: CommandTopicConsumer = {

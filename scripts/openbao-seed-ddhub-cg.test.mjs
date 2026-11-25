@@ -35,4 +35,6 @@ test("INT-308 seed script CLI uses Set.has and is documented", async () => {
   assert.match(source, /ddhub\/api-key/);
   assert.match(source, /CGW_API_KEY/);
   assert.match(source, /dev-only-replace-me/);
+  // INT-439 — seed must set BAO_ADDR so root token can list/enable mounts.
+  assert.match(source, /BAO_ADDR=http:\/\/127\.0\.0\.1:8200/);
 });

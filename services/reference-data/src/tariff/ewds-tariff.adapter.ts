@@ -90,6 +90,11 @@ export class EwdsTariffAdapter implements TariffPort {
           `tariff upsert communityId=${tariff.communityId} validFrom=${tariff.validFrom}`,
         );
       }
+    } catch (err) {
+      // INT-439 — CGW 400 (charset / CHANNEL::NOT_FOUND) must not CrashLoop the pod.
+      this.logger.warn(
+        `tariff poll failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       this.ticking = false;
     }

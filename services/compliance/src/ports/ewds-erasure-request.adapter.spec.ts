@@ -94,6 +94,19 @@ describe("EwdsErasureRequestAdapter (REQ-013)", () => {
     expect(adapter).toBeInstanceOf(EwdsErasureRequestAdapter);
     adapter.stop();
   });
+
+  it("INT-439: CGW pull failure is logged and does not throw", async () => {
+    const consumer: ErasureTopicConsumer = {
+      pull: vi.fn(async () => {
+        throw new Error("CGW /api/v2/messages returned 400: CHANNEL::NOT_FOUND");
+      }),
+      done: vi.fn(async () => {}),
+    };
+    const adapter = new EwdsErasureRequestAdapter(consumer, [CONTROLLER], 60_000);
+    adapter.onRequest(async () => {});
+    await expect(adapter.tick()).resolves.toBeUndefined();
+    adapter.stop();
+  });
 });
 
 function sampleBody(

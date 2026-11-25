@@ -167,6 +167,11 @@ export class CommandPoller implements OnModuleInit, OnModuleDestroy {
       }
       this.pending.length = 0;
       this.pending.push(...stillPending);
+    } catch (err) {
+      // INT-439 — CGW pull 400 (charset / CHANNEL::NOT_FOUND) must not CrashLoop.
+      this.logger.warn(
+        `command poll failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       this.ticking = false;
     }

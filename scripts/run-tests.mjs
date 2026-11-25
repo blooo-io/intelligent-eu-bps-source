@@ -62,6 +62,7 @@ await run(process.execPath, ["--test", path.join(root, "scripts/sync-spec.test.m
 await run(process.execPath, ["--test", path.join(root, "scripts/collect-dev-evidence.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/public-hygiene.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/billing-model-contracts.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/reset-v1-journals.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/invoice-contracts.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/contracts-ws3.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/psp-neutral-contracts.test.mjs")]);

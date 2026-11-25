@@ -82,7 +82,12 @@ export class PublicationService {
   }
 
   async onPaymentStatusChanged(payment: PaymentProjection): Promise<void> {
-    this.store.putPayment(payment);
+    // Ontology Payment.createdAt is immutable — keep the first seen value.
+    const existing = this.store.getPayment(payment.paymentId);
+    const nextPayment: PaymentProjection = existing
+      ? { ...payment, createdAt: existing.createdAt }
+      : payment;
+    this.store.putPayment(nextPayment);
     const invoice = this.store.getInvoice(payment.invoiceId);
     if (invoice) {
       const paymentIds = invoice.paymentIds.includes(payment.paymentId)

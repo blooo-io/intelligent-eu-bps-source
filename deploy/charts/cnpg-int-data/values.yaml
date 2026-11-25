@@ -50,6 +50,14 @@ recovery:
   # RFC 3339 timestamp; empty = replay to the end of the archived WAL.
   targetTime: ""
 
+# A10.6 / Task 1.21 — one-shot V1 journal truncate (GitOps PostSync Job).
+# Keep disabled. To run: set enabled=true + a fresh nonce in deploy/envs/*,
+# merge, let Argo sync, bump module podAnnotations.resetNonce, then disable.
+resetV1Journals:
+  enabled: false
+  nonce: ""
+
+
 # name = PostgreSQL database + role; module = deploy chart / service directory.
 databases:
   - name: participants

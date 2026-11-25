@@ -99,6 +99,24 @@ describe("PublicationService", () => {
     service = new PublicationService(store, dataspace);
   });
 
+  it("Payment.createdAt stays immutable across status updates", async () => {
+    const first = succeededPayment({
+      paymentStatus: "pending",
+      createdAt: "2026-12-01T06:00:00Z",
+      updatedAt: "2026-12-01T06:00:00Z",
+      paymentDate: null,
+    });
+    await service.onPaymentStatusChanged(first);
+    await service.onPaymentStatusChanged(
+      succeededPayment({
+        createdAt: "2026-12-03T10:14:30+01:00",
+        updatedAt: "2026-12-03T10:14:30+01:00",
+      }),
+    );
+    expect(store.getPayment(PAYMENT_ID)?.createdAt).toBe("2026-12-01T06:00:00Z");
+    expect(store.getPayment(PAYMENT_ID)?.paymentStatus).toBe("succeeded");
+  });
+
   it("publishes Paid invoice and payment that validate on EWDS topics (REQ-048, UAT-070)", async () => {
     await service.onInvoiceIssued(openInvoice());
     await service.onPaymentStatusChanged(succeededPayment());

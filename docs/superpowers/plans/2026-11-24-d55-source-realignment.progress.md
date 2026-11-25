@@ -36,7 +36,7 @@
 | Remaining closeout | INT-437 | Done | [#207](https://github.com/blooo-io/intelligent-eu-bps-source/pull/207) | 4.4 live CGW · 6.4–6.6 · 6.8–6.15 · UAT-074 deprecated |
 | Dev evidence + crashloop | INT-438 | Done | [#210](https://github.com/blooo-io/intelligent-eu-bps-source/pull/210) | Probe all-green; OpenBao CGW seeded |
 | INT-439 CGW clientId/poll + reply encrypt | INT-439 | Done | [#209](https://github.com/blooo-io/intelligent-eu-bps-source/pull/209)/[#211](https://github.com/blooo-io/intelligent-eu-bps-source/pull/211)/[#212](https://github.com/blooo-io/intelligent-eu-bps-source/pull/212) | CrashLoops cleared; channels empty → TOPIC bind needs EWAG |
-| **Remediation v1.2.1 (audit ebed7e4)** | INT-440 | In progress | [#213](https://github.com/blooo-io/intelligent-eu-bps-source/pull/213) | Blockers 1–7 done; e2e seed refresh + adjustedPrice + D1/D2/D4/D6 + hygiene scrub landed; remaining majors §2 + e2e green + tag v1.2.1 |
+| **Remediation v1.2.1 (audit ebed7e4)** | INT-440 | In progress | [#213](https://github.com/blooo-io/intelligent-eu-bps-source/pull/213) | Blockers 1–7 + e2e seed + hygiene/diagrams + WS3/WS4 production guards + createEmbeddedPayment + B1 day70/80 + tariffBilling default; remaining tariff charges / psp.legacy / e2e green / tag |
 
 ## Honesty downgrade (INT-440 / audit V1–V4)
 | Claimed Done | Reality | Action |

@@ -5,8 +5,9 @@ Mock implementations of the external systems that are **not** integrated in V1 (
 | Mock | Replaces | Used by |
 |---|---|---|
 | Market mock (`createMockMarket`) | GSY DEX request/reply over EWDS (`tradesQuery`, `clearingResultsQuery`, `marketsQuery`) | `trade-intake` |
-| Data-space mock (`createMockDataSpace`) | EWDS Client Gateway; validates and records `billingInvoice` / `billingPayment` against `docs/architecture/ewds-topics/*.schema.json` | `publication` |
+| Data-space mock (`createMockDataSpace`) | EWDS publish port; validates and records billing records against schemas | `publication` |
 | FX fixture (`createFxFixture`) | ECB reference rates | `reference-data` |
+| **Mock CGW HTTP** (`startMockCgwServer` in `@intelligent/ewds-client`) | DDHub CGW REST (`/api/v2/messages` …) for command-channel protocol tests without EWAG (INT-441) | `ewds-client` tests; local AC-10 via `CGW_BASE_URL` |
 
 **Scenario datasets S1–S8 and S10–S13** (see 03 §8; S9 early settlement removed, INT-424) are loaded with `loadScenario` / `createMockSuite`:
 

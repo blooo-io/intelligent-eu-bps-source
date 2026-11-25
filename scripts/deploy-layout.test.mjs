@@ -172,6 +172,8 @@ test("A8-live: every deployed environment runs the EWDS adapters live", async ()
       assert.match(text, new RegExp(`${key}:\\s*ewds`), `${envName} ${key}`);
     }
     assert.match(text, /COMMAND_CHANNEL_ENABLED:\s*"true"/);
+    // INT-439 — publication command poller requires reply encryption when enabled.
+    assert.match(text, /EWDS_REPLY_ENCRYPTED:\s*"true"/);
     assert.match(text, /INTAKE_BOOTSTRAP_S1:\s*"false"/);
   }
 });

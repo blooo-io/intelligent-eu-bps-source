@@ -12,7 +12,7 @@ import {
   StaticBillingModeResolver,
   type BillingModeResolver,
 } from "@intelligent/module-template";
-import type { KycStatus } from "../domain/store.js";
+import type { AccountRecord, KycStatus } from "../domain/store.js";
 import {
   KYC_LOG_STORE,
   type KycLogEntry,
@@ -27,6 +27,10 @@ import {
   PAYMENT_ACCOUNTS_STORE,
   type PaymentAccountsStore,
 } from "../ports/payment-accounts.store.js";
+import {
+  PARTICIPANTS_RESOLVER,
+  type ParticipantsResolverPort,
+} from "../ports/participants-resolver.port.js";
 import {
   KYC_ONBOARDING_PORT,
   type KycOnboardingPort,
@@ -200,17 +204,39 @@ export class ManagerKycService {
   }
 }
 
-/** REQ-045 / REQ-051 — participants first, then managers. */
+/**
+ * REQ-045 / REQ-051 — participants first, then managers.
+ * INT-442 / INT-230 — JWT `sub` may be Keycloak idpUserId; resolve via AC-03
+ * before treating the subject as unknown (RequireVerifiedKycGuard uses IdP sub).
+ */
 @Injectable()
 export class KycQueryService {
   constructor(
     @Inject(PAYMENT_ACCOUNTS_STORE)
     private readonly accounts: PaymentAccountsStore,
     @Inject(MANAGER_KYC_STORE) private readonly managers: ManagerKycStore,
+    @Optional()
+    @Inject(PARTICIPANTS_RESOLVER)
+    private readonly idpResolver: ParticipantsResolverPort | null = null,
   ) {}
 
+  /** Direct participantId hit, else IdP sub → participantId (INT-230). */
+  private async accountFor(
+    subjectId: string,
+  ): Promise<AccountRecord | undefined> {
+    const direct = await this.accounts.get(subjectId);
+    if (direct) {
+      return direct;
+    }
+    const resolved = await this.idpResolver?.resolveByIdpSub(subjectId);
+    if (!resolved) {
+      return undefined;
+    }
+    return this.accounts.get(resolved.participantId);
+  }
+
   async statusOf(subjectId: string): Promise<KycStatus> {
-    const participant = await this.accounts.get(subjectId);
+    const participant = await this.accountFor(subjectId);
     if (participant) {
       return participant.kycStatus;
     }
@@ -223,7 +249,7 @@ export class KycQueryService {
 
   /** Full status payload for public / internal KYC routes. */
   async getStatus(subjectId: string): Promise<PublicKycStatus> {
-    const participant = await this.accounts.get(subjectId);
+    const participant = await this.accountFor(subjectId);
     if (participant) {
       return {
         subjectId,

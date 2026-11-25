@@ -23,8 +23,11 @@ Never commit API keys. `loadCgwConfig` reads `CGW_API_KEY` from the environment 
 
 ## Mock CGW harness (INT-441 / REQ-052)
 
+**Validated scope:** tests protocol + messages + use cases as close as possible to
+**[CGW Blooo → BPS]**, without EWAG constraints.
+
 While EWAG topiccreator / API-key enrolment block live CGW Blooo, use
-`startMockCgwServer()` as a loopback stand-in for **[CGW Blooo → BPS]**:
+`startMockCgwServer()` as a loopback stand-in for that segment:
 
 - Same REST subset as `CgwClient`: `GET/POST /api/v2/messages`, `POST …/ack`, `GET …/identity`, header `x-api-key`
 - Schema-checks `billingCommandRequest` / `billingCommandReply`

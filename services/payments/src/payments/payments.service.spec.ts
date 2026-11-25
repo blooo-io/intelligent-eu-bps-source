@@ -2050,6 +2050,68 @@ describe("PaymentsService", () => {
     expect(resolver.resolveByIdpSub).toHaveBeenCalledWith(idpSub);
   });
 
+  it("INT-443 — payInvoice resolves payee IdP sub for KYC (UAT seed)", async () => {
+    const producerIdp = "producer-idp-sub-uat";
+    const resolver = {
+      resolveByIdpSub: vi.fn(async (sub: string) => {
+        if (sub === producerIdp) {
+          return { participantId: PRODUCER, communityId: COMMUNITY };
+        }
+        return null;
+      }),
+    };
+    service = new PaymentsService(
+      store,
+      new OutboxService(outboxStore),
+      psp,
+      invoices,
+      new NoopParticipantsNotifier(),
+      accountsStore,
+      resolver,
+      pspErase,
+      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
+      psp,
+      clock,
+      psp,
+      payoutEvents,
+      kycOf(),
+    );
+    await service.ensureParticipant({
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+      role: "consumer",
+    });
+    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+    await markKycVerified(store, CONSUMER, accountsStore);
+    await service.ensureParticipant({
+      participantId: PRODUCER,
+      communityId: COMMUNITY,
+      role: "producer",
+    });
+    await markKycVerified(store, PRODUCER, accountsStore);
+    // Bind Connect account under participant UUID (seed path).
+    store.putAccount({
+      ...store.getAccount(PRODUCER)!,
+      pspAccountRef: "acct_payee_idp",
+    });
+    invoices.put({
+      invoiceId: "inv-payee-idp",
+      pspInvoiceRef: "in_inv-payee-idp",
+      producerId: producerIdp,
+      consumerId: CONSUMER,
+      currency: "EUR",
+      status: "Open",
+      total: "1.50",
+    });
+    const payment = await service.payInvoice({
+      invoiceId: "inv-payee-idp",
+      participantId: CONSUMER,
+      communityId: COMMUNITY,
+    });
+    expect(payment.status).toBe("succeeded");
+    expect(resolver.resolveByIdpSub).toHaveBeenCalledWith(producerIdp);
+  });
+
   it("INT-395 — pays an invoice that names the consumer by IdP sub", async () => {
     const idpSub = "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f";
     const resolver = {

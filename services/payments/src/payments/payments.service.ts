@@ -1188,7 +1188,12 @@ export class PaymentsService {
         subject: "payer",
       });
     }
-    const payee = await this.hydrateAccount(invoice.producerId);
+    // INT-443 / INT-230 — invoice.producerId may be IdP sub (UAT seed); resolve
+    // before hydrate so KYC keyed by participantId is found.
+    const payeeResolved = await this.resolveCallerParticipantId(
+      invoice.producerId,
+    );
+    const payee = await this.hydrateAccount(payeeResolved.participantId);
     if (!payee?.kycVerified) {
       throw new ForbiddenException({
         code: "kyc_not_verified",
@@ -1305,7 +1310,9 @@ export class PaymentsService {
     producerId: string;
     producerPspAccountRef?: string;
   }): Promise<string> {
-    const producerAccount = await this.hydrateAccount(invoice.producerId);
+    // INT-443 — same IdP→participant resolve as payee KYC check.
+    const resolved = await this.resolveCallerParticipantId(invoice.producerId);
+    const producerAccount = await this.hydrateAccount(resolved.participantId);
     const boundAccount = producerAccount?.pspAccountRef || undefined;
     if (
       invoice.producerPspAccountRef &&

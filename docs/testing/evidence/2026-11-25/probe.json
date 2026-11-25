@@ -1,15 +1,11 @@
 {
-  "collectedAt": "2026-11-25T06:58:54.739Z",
+  "collectedAt": "2026-11-25T07:34:03.465Z",
   "rulesRef": "docs/testing/v6.1-evidence-matrix.md",
   "namespace": "int-apps",
   "pods": {
-    "ready": 15,
-    "total": 18,
-    "crashLoop": [
-      "compliance-6dd57496c6-8fvhg",
-      "publication-689d8d77dd-v2dkv",
-      "reference-data-6f99599c79-h9vf5"
-    ]
+    "ready": 17,
+    "total": 17,
+    "crashLoop": []
   },
   "externalSecretsCgw": [
     {
@@ -59,10 +55,5 @@
       "hasDid": false
     }
   },
-  "blockers": [
-    {
-      "id": "crashloop",
-      "message": "CrashLoopBackOff: compliance-6dd57496c6-8fvhg, publication-689d8d77dd-v2dkv, reference-data-6f99599c79-h9vf5"
-    }
-  ]
+  "blockers": []
 }

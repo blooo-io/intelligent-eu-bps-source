@@ -1,9 +1,20 @@
 # V1 release notes (INT-95)
 
 **Deliverable:** D5.5 — Billing & Payment Service V1  
-**Source tag:** `v1.2.0` (INT-430), after `v1.1.6` (INT-421), `v1.1.5` (INT-417), `v1.1.4` (INT-415), `v1.1.3` (INT-412), `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
+**Source tag:** `v1.2.1` (INT-440 / INT-446), after `v1.2.0` (INT-430), `v1.1.6` (INT-421), `v1.1.5` (INT-417), `v1.1.4` (INT-415), `v1.1.3` (INT-412), `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
 **Project:** Horizon Europe INTELLIGENT (GA 101160678), Task T5.6, led by Blooo  
 **Licence:** Apache License 2.0 — see [`LICENSE`](../../LICENSE) and [`NOTICE`](../../NOTICE)
+
+## Changes since v1.2.0
+
+D5.5 remediation closeout (INT-440) and e2e-dev recovery on `dev`:
+
+- **INT-440** — ontology / blockers / honest UAT progress; do not move `v1.2.0`.
+- **INT-441** — Mock CGW harness: protocol + messages + use cases as close as possible to `[CGW Blooo → BPS]`, without EWAG.
+- **INT-442** — APISIX routes `/v1/me/kyc` + identity-verification to payments; `KycQueryService` IdP `sub` → participant.
+- **INT-443** — `payInvoice` resolves payee IdP for KYC (UAT seed); onboarding e2e accepts `of 3|4` steps.
+- **INT-445** — money-path e2e timeout headroom + single payee resolve for PSP binding.
+- e2e-dev green on develop tip that ships this patch.
 
 ## What ships
 

@@ -38,6 +38,7 @@ describe("community-settings port (INT-272)", () => {
       vatRate: 0.08,
       billingMode: "virtual",
       billingPeriod: "monthly",
+      tariffBilling: false,
     });
     expect(fetchImpl).toHaveBeenCalledOnce();
     const [url, init] = fetchImpl.mock.calls[0]!;
@@ -60,6 +61,7 @@ describe("community-settings port (INT-272)", () => {
       vatRate: 0,
       billingMode: "virtual",
       billingPeriod: "monthly",
+      tariffBilling: false,
     });
 
     const fail = new HttpCommunitySettings(
@@ -85,6 +87,26 @@ describe("community-settings port (INT-272)", () => {
     await expect(client.get("c1")).resolves.toMatchObject({
       billingMode: "live",
       billingPeriod: "quarterly",
+      tariffBilling: false,
+    });
+  });
+
+  it("B2 / REQ-004 maps tariffBilling when enabled", async () => {
+    const client = new HttpCommunitySettings(
+      "http://participants:8080",
+      vi.fn(async () =>
+        Response.json({
+          currency: "EUR",
+          threshold: 5,
+          vatRate: 0,
+          billingMode: "virtual",
+          billingPeriod: "monthly",
+          tariffBilling: true,
+        }),
+      ) as never,
+    );
+    await expect(client.get("c1")).resolves.toMatchObject({
+      tariffBilling: true,
     });
   });
 });

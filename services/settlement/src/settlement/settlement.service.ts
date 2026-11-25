@@ -12,7 +12,22 @@ import {
   PassthroughTransaction,
   type RecordingTransaction,
 } from "@intelligent/module-template";
-import { type Dec, ZERO, compareAbs, dec, mul, roundCentDec, toNumber } from "../domain/decimal.js";
+import {
+  type Dec,
+  ZERO,
+  add,
+  compareAbs,
+  dec,
+  mul,
+  roundCentDec,
+  toNumber,
+} from "../domain/decimal.js";
+import {
+  computeTariffCharges,
+  orientCharges,
+  totalCharges,
+  type TariffQuote,
+} from "../domain/charges.js";
 import { formatKWh, formatMoney, formatRate } from "../domain/money.js";
 import { buildInvoiceTradeLines } from "../domain/trade-lines.js";
 import { decidePairBalance } from "../domain/carry.js";
@@ -71,6 +86,8 @@ export class SettlementService {
     vatRate: 0,
     billingMode: "virtual",
     billingPeriod: "monthly",
+    // B2 / REQ-004 — tariff billing off until the community enables it.
+    tariffBilling: false,
   };
   private clock: () => Date = () => new Date();
   private tx: { run<T>(fn: () => Promise<T> | T): Promise<T> } = new PassthroughTransaction();
@@ -342,19 +359,45 @@ export class SettlementService {
       input.type === "periodic" ? lastBusinessDayOf(bounds) : businessDayOnOrBefore(now),
     );
 
+    // REQ-004 — tariff of the same date as the FX rate; skipped when AC-13
+    // is unwired or the community has tariffBilling off (B2 / R4).
+    const tariff = await this.resolveTariff(input.communityId, rateDate);
+
     for (const pair of pairs) {
+      // REQ-004 / BR-05 / BR-08 — charges in canonical orientation enter the
+      // pair amount before the threshold decision (R2).
+      const charges = computeTariffCharges({
+        trades: pair.trades,
+        tariff,
+        communityCurrency: this.context.currency,
+        fxRate,
+      });
       const decision = decidePairBalance(
         {
           low: pair.low,
           high: pair.high,
-          energy: mul(pair.netEur, fxRate),
+          energy: add(mul(pair.netEur, fxRate), totalCharges(charges)),
           carriedIn: this.store.getCarry(pair.low, pair.high),
         },
         threshold,
         forceInvoice,
       );
 
-      // BR-07 — VAT at community rate (default 0).
+      // R3 — orient and store charges only when invoiced; else zeros (BR-05).
+      const oriented =
+        decision.invoiced !== ZERO
+          ? orientCharges(charges, decision.direction)
+          : {
+              gridFee: ZERO,
+              levy: ZERO,
+              tax: ZERO,
+              tariffId: null as string | null,
+            };
+      const chargeTotal = totalCharges(oriented);
+      // Energy line excludes charges; VAT base stays decision.invoiced (R3).
+      const energyInvoiced = decision.invoiced - chargeTotal;
+
+      // BR-07 — VAT at community rate (default 0) on the full invoiced total.
       const vat = roundCentDec(mul(decision.invoiced, dec(this.context.vatRate)));
       const settlementId = randomUUID();
       const record: PairSettlementRecord = {
@@ -367,11 +410,15 @@ export class SettlementService {
           trades: pair.trades,
           direction: decision.direction,
           fxRate,
-          invoiced: decision.invoiced,
+          invoiced: energyInvoiced,
           carriedInOriented: decision.carriedInOriented,
         }),
         kWh: formatKWh(pair.netKWh),
-        energyAmount: formatMoney(decision.invoiced),
+        energyAmount: formatMoney(energyInvoiced),
+        gridFeeAmount: formatMoney(oriented.gridFee),
+        levyAmount: formatMoney(oriented.levy),
+        taxAmount: formatMoney(oriented.tax),
+        tariffId: oriented.tariffId,
         vat: formatMoney(vat),
         currency: this.context.currency,
         rate: formatRate(fxRate),
@@ -515,5 +562,19 @@ export class SettlementService {
       return this.referenceData.getRate("CHF", date);
     }
     return this.fx.getRate("CHF", date).rate;
+  }
+
+  /**
+   * REQ-004 / B2 — fetch the community tariff when AC-13 is wired and the
+   * community has enabled tariffBilling; otherwise no tariff (R4).
+   */
+  private async resolveTariff(
+    communityId: string,
+    date: string,
+  ): Promise<TariffQuote | null> {
+    if (this.referenceData === null || this.context.tariffBilling !== true) {
+      return null;
+    }
+    return this.referenceData.getTariff(communityId, date);
   }
 }

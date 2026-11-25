@@ -46,6 +46,48 @@ describe("reference-data port (INT-272)", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it("REQ-004 HttpReferenceData maps GetTariff and null", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo) => {
+      const url = String(input);
+      expect(url).toContain("/internal/v1/communities/c1/tariff");
+      expect(url).toContain("date=2026-11-30");
+      return Response.json({
+        communityId: "c1",
+        date: "2026-11-30",
+        tariff: {
+          tariffId: "tariff-uat004-2026",
+          communityId: "c1",
+          currency: "EUR",
+          validFrom: "2026-01-01",
+          validUntil: null,
+          gridFeePerKWh: "0.0450",
+          levyPerKWh: "0.0100",
+          taxPerKWh: "0.0050",
+          source: "mock",
+        },
+      });
+    });
+    const client = new HttpReferenceData(
+      "http://reference-data:8080",
+      fetchImpl as never,
+    );
+    await expect(client.getTariff("c1", "2026-11-30")).resolves.toEqual({
+      tariffId: "tariff-uat004-2026",
+      currency: "EUR",
+      gridFeePerKWh: "0.0450",
+      levyPerKWh: "0.0100",
+      taxPerKWh: "0.0050",
+    });
+
+    const empty = new HttpReferenceData(
+      "http://reference-data:8080",
+      vi.fn(async () =>
+        Response.json({ communityId: "c1", date: "2026-11-30", tariff: null }),
+      ) as never,
+    );
+    await expect(empty.getTariff("c1", "2026-11-30")).resolves.toBeNull();
+  });
+
   it("HttpReferenceData defaults empty bodies and throws on HTTP errors", async () => {
     const empty = new HttpReferenceData(
       "http://reference-data:8080/",
@@ -60,6 +102,9 @@ describe("reference-data port (INT-272)", () => {
     );
     await expect(fail.getVatRate("c1")).rejects.toThrow(/failed with 404/);
     await expect(fail.getRate("CHF", "2026-11-28")).rejects.toThrow(
+      /failed with 404/,
+    );
+    await expect(fail.getTariff("c1", "2026-11-30")).rejects.toThrow(
       /failed with 404/,
     );
   });

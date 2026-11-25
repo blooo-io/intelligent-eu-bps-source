@@ -15,6 +15,7 @@ type SettingsDto = {
   vatRate?: string | number;
   billingMode?: string;
   billingPeriod?: string;
+  tariffBilling?: boolean;
 };
 
 /**
@@ -53,6 +54,8 @@ export class HttpCommunitySettings implements CommunitySettingsPort {
       vatRate: Number(body.vatRate ?? 0),
       billingMode,
       billingPeriod: cadenceOf(body.billingPeriod),
+      // B2 / REQ-004 — omit or false keeps tariff billing off.
+      tariffBilling: body.tariffBilling === true,
     };
   }
 }

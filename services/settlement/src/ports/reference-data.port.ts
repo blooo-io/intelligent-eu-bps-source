@@ -1,10 +1,15 @@
 import { resolveServiceAuthHeaders, type ServiceAuthSource } from "@intelligent/module-template";
+import type { TariffQuote } from "../domain/charges.js";
+
 /**
- * Narrow client of AC-13 GetVatRate / GetRate (BR-06 / BR-07 / REQ-002).
+ * Narrow client of AC-13 GetVatRate / GetRate / GetTariff
+ * (BR-06 / BR-07 / REQ-002 / REQ-004).
  */
 export interface ReferenceDataPort {
   getVatRate(communityId: string): Promise<number>;
   getRate(currency: "EUR" | "CHF", date: string): Promise<number>;
+  /** REQ-004 — community tariff for the rate date, or null when none applies. */
+  getTariff(communityId: string, date: string): Promise<TariffQuote | null>;
 }
 
 export const REFERENCE_DATA_PORT = Symbol("REFERENCE_DATA_PORT");
@@ -61,6 +66,47 @@ export class HttpReferenceData implements ReferenceDataPort {
     }
     const body = (await res.json()) as { rate?: string | number };
     return Number(body.rate ?? 1);
+  }
+
+  async getTariff(
+    communityId: string,
+    date: string,
+  ): Promise<TariffQuote | null> {
+    const url = new URL(
+      `${this.baseUrl.replace(/\/$/, "")}/internal/v1/communities/${communityId}/tariff`,
+    );
+    url.searchParams.set("date", date);
+    const res = await this.fetchImpl(url.toString(), {
+      method: "GET",
+      headers: {
+        ...(await resolveServiceAuthHeaders("ac-05-settlement", this.auth)),
+      },
+    });
+    if (!res.ok) {
+      throw new Error(
+        `reference-data getTariff ${communityId} ${date} failed with ${res.status}`,
+      );
+    }
+    const body = (await res.json()) as {
+      tariff?: {
+        tariffId?: string;
+        currency?: string;
+        gridFeePerKWh?: string;
+        levyPerKWh?: string;
+        taxPerKWh?: string;
+      } | null;
+    };
+    const t = body.tariff;
+    if (!t?.tariffId || (t.currency !== "EUR" && t.currency !== "CHF")) {
+      return null;
+    }
+    return {
+      tariffId: t.tariffId,
+      currency: t.currency,
+      gridFeePerKWh: String(t.gridFeePerKWh ?? "0"),
+      levyPerKWh: String(t.levyPerKWh ?? "0"),
+      taxPerKWh: String(t.taxPerKWh ?? "0"),
+    };
   }
 }
 

@@ -274,6 +274,39 @@ test("selectDockerfilesForChangedPaths unions multiple module hits", () => {
   );
 });
 
+// INT-435 — services that depend on @intelligent/ewds-client must COPY it
+// into the image build context (otherwise `tsc` fails in supply-chain).
+test("Dockerfiles for ewds-client consumers COPY packages/ewds-client", async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const consumers = [
+    "services/compliance",
+    "services/participants",
+    "services/publication",
+    "services/reference-data",
+  ];
+  for (const dir of consumers) {
+    const pkg = JSON.parse(
+      await readFile(path.join(root, dir, "package.json"), "utf8"),
+    );
+    assert.equal(
+      pkg.dependencies?.["@intelligent/ewds-client"],
+      "workspace:*",
+      `${dir} should depend on ewds-client`,
+    );
+    const dockerfile = await readFile(path.join(root, dir, "Dockerfile"), "utf8");
+    assert.match(
+      dockerfile,
+      /COPY packages\/ewds-client\/package\.json packages\/ewds-client\//,
+      `${dir}/Dockerfile missing ewds-client package.json COPY`,
+    );
+    assert.match(
+      dockerfile,
+      /COPY packages\/ewds-client packages\/ewds-client/,
+      `${dir}/Dockerfile missing ewds-client sources COPY`,
+    );
+  }
+});
+
 test("dockerfileForModulePath and path classifiers", () => {
   assert.equal(dockerfileForModulePath("apps/web/src/App.tsx"), "apps/web/Dockerfile");
   assert.equal(dockerfileForModulePath("services/foo/bar.ts"), "services/foo/Dockerfile");

@@ -1,5 +1,5 @@
 {
-  "collectedAt": "2026-11-25T06:58:20.586Z",
+  "collectedAt": "2026-11-25T06:58:54.739Z",
   "rulesRef": "docs/testing/v6.1-evidence-matrix.md",
   "namespace": "int-apps",
   "pods": {
@@ -52,18 +52,17 @@
     }
   },
   "cgwIdentity": {
-    "attempted": false,
-    "ok": false,
-    "detail": null
+    "attempted": true,
+    "ok": true,
+    "detail": {
+      "httpStatus": 200,
+      "hasDid": false
+    }
   },
   "blockers": [
     {
       "id": "crashloop",
       "message": "CrashLoopBackOff: compliance-6dd57496c6-8fvhg, publication-689d8d77dd-v2dkv, reference-data-6f99599c79-h9vf5"
-    },
-    {
-      "id": "cgw-api-key",
-      "message": "CGW_API_KEY unavailable to collector (OpenBao ExternalSecret *-cgw not Ready or not exported)"
     }
   ]
 }

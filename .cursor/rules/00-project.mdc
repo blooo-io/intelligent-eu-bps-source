@@ -5,10 +5,10 @@ alwaysApply: true
 # Project rules (always on)
 
 - Read `AGENTS.md` first. The Jira issue (`INT-xxx`) defines the scope. `docs/` defines what to build.
-- **Billing model:** one invoice per consumer→producer pair and period, issued in the producer's name (self-billing). Purchases and sales are netted per pair. A 5 €/CHF threshold applies, with carry-forward. Early settlement is possible. Payment goes directly to the producer's Stripe Connect account. Grid fees, taxes and levies are **not** on P2P invoices (A20).
-- **V1 = Stripe test mode is the only real integration.** GSY DEX, EWDS and ECB go through adapters with mock implementations.
+- **Billing model (two levels):** monthly participant statement (not payable) + legal invoices per producer→consumer pair (self-billing mandate in T&C), netted per pair, threshold per pair (default 5 EUR/CHF, carried forward, forced at year end or exit). Direct charge on the producer's Stripe Connect account; payout once period invoices where the participant is producer are Paid. The platform never holds funds. Grid fee / levy / tax lines come from the tariff port; 0 with a mention when no DSO tariff is published (REQ-004, REQ-007).
+- **V1 scope:** live mode per community (operator + live Stripe keys), Greenvolt first; others virtual (Stripe test). EWDS Client Gateway adapters are real, selected by environment variables; mock is the default until EWAG grants roles/topics.
 - Language of code, comments, docs and commits: **English**.
-- Business rules BR-01..BR-13 (`docs/architecture/01-functional-architecture.md` §6) are mandatory. Cite the rule id in code comments where a rule is implemented.
+- Business rules BR-01..BR-15 (`docs/architecture/01-functional-architecture.md` §6) are mandatory. Cite the rule id in code comments where a rule is implemented.
 - Do not invent requirements. If something is missing or contradictory in `docs/`, stop and state it in the PR description (proposed spec change).
 - Never read or modify `brain/` or `docs/project-context/` (confidential, not in Git).
 - Do not attribute work to a coding assistant or an editor product in source, documentation, comments, commit messages, notices, or generated files. Do not add a Co-authored-by trailer for one. Credit stays with Blooo and the INTELLIGENT project.

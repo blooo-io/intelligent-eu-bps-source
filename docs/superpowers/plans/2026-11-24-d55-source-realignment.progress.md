@@ -33,6 +33,7 @@
 | WS3 KYC catch-up | INT-431 | Done | [#199](https://github.com/blooo-io/intelligent-eu-bps-source/pull/199) squash-merged `6e8dd7b` | 3.2–3.11, 3.13–3.17 |
 | WS4 EWDS transport catch-up | INT-432 | Done | [#200](https://github.com/blooo-io/intelligent-eu-bps-source/pull/200) squash-merged `dd5b3dc` | 4.13–4.18 |
 | Release train unblockers | INT-433…436 | Done | [#202](https://github.com/blooo-io/intelligent-eu-bps-source/pull/202)–[#205](https://github.com/blooo-io/intelligent-eu-bps-source/pull/205) | nodemailer · trivyignore · ewds-client Docker · participants mocks |
+| Remaining closeout | INT-437 | In progress | branch `cursor/feature-int-437-d55-remaining-closeout-5f1c` | 4.4 live CGW · 1.13 already done · 6.4–6.6 · 6.8–6.15 · UAT-074 deprecated |
 
 ## Decisions / deviations
 | When | What | Why |
@@ -41,14 +42,19 @@
 | 2026-11-24 | Confirmed A7: R2M never calls `/v1` directly | Overrides prior AGENTS/REQ-052 interpretation |
 | 2026-11-24 | Pin `@intelligent/public-api-client` TypeScript to 5.9.3 | openapi-typescript peer; TS 7 breaks generate |
 | 2026-11-24 | A7-bis command reply uses `handoff` PspHandoff (not `data.redirect`) | Master A7-bis overrides Task 4.2 hosted-only text |
-| 2026-11-24 | CGW OpenAPI snapshot is a stub | No KUBECONFIG/cluster for live `/docs-json` capture |
+| 2026-11-24 | CGW OpenAPI snapshot was a stub (superseded INT-437) | Secret was `KUBECONFIG_INTELLIGENT_EU_DEV` (not `KUBECONFIG`); kubectl was missing in the agent image |
+| 2026-11-25 | Live CGW `/docs-json` captured into `packages/ewds-client/test/cgw-openapi.snapshot.json` | Port-forward `svc/ddhub-client-gateway` (ns `ddhub`), image tag `intelligent-canary` |
 | 2026-11-24 | Keep `docs/superpowers/plans/` (defer full 6.3 folder removal) | Kickoff stores plan+progress there; 6.3 only drops superseded specs |
 | 2026-11-24 | Scrubbed `Q-031` from REQ-003 for hygiene HEAD-clean | Unblocks 6.2 before vault sync 6.6 |
 
 ## Externally blocked
 | Item | Impact | Next |
 |---|---|---|
-| Live CGW Swagger capture (Task 4.4) | Stub snapshot in `packages/ewds-client/test/` | Port-forward `ddhub-client-gateway` when kubeconfig available |
+| EWAG topics/roles for live CGW UAT re-run | Adapters stay `ewds` in Helm; UATs stay labelled mock-path until topics granted | Coordinate with EWAG; then flip `run_path` to `live-cg` |
+| Spec vault sync (Task 6.7) | `scripts/sync-spec.mjs` ready; vault path / `draft v6.1` gate not available in this agent | Spec owner publishes vault v6.1 then run sync |
+| D5.5 Word report (Tasks 6.17–6.19) | Outside git — INT-90 / INT-91 | Drive deliverable + partner review |
 
 ## UAT re-runs
-_(none yet)_
+| When | What | Result |
+|---|---|---|
+| 2026-11-25 | Task 6.14 packaging on `v1.2.0` | All in-scope notes have `run_path`; **62 Pass / 0 Blocked** (27 mock-path). Live CGW UAT execution still pending EWAG grants. |

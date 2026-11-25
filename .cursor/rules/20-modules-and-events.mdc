@@ -16,8 +16,5 @@ alwaysApply: false
   - Debezium relays it to NATS JetStream; never publish to NATS directly from business code;
   - consumers deduplicate on `eventId` (processed-events table) and must be safe to replay.
 - **Time-based work** (logical view §4.5) runs as Temporal workflows in `services/scheduler`. Workflows only call the owning module's command; business logic stays in the module.
-- **Stripe (TP-7):**
-  - store only Stripe ids and links, plus a read cache fed by webhooks (lists and reports only);
-  - detail views read Stripe live;
-  - webhooks: verify the signature and deduplicate on the Stripe event id.
+- **Stripe (TP-7):** billing owns statements, invoices (number, PDF, status) and payment/payout records; Stripe owns connected accounts, KYC evidence and charge/payout execution. Store Stripe ids and a status cache fed by webhooks. Webhooks: verify the signature and deduplicate on the Stripe event id.
 - Never update a trade status. Payment status is derived from published Invoice and Payment records (REQ-048).

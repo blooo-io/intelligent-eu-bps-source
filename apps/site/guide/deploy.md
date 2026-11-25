@@ -52,7 +52,7 @@ Repeat for the modules you enable. Set `replicaCount` ≥ 1 only when the image 
 ### 5. Wire the gateway and web app
 
 - Expose the **public API** (`/v1`) through your gateway with OIDC validation.
-- Serve `apps/web` (or your own UI) against that public API only.
+- Serve `apps/web` (reference client) against `/v1` if you have no project UI. In the INTELLIGENT deployment the project UI reads billing records and sends commands through the EWDS; actions needing card entry or KYC open Stripe-hosted pages.
 - Configure CORS and redirect URIs for your IdP client.
 
 ### 6. Smoke test

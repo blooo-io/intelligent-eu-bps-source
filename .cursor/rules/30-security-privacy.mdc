@@ -11,7 +11,8 @@ alwaysApply: false
   - modules re-check role and community scope with the module-template guard on every request (REQ-010, REQ-049).
 - **Personal data** (name, address, e-mail, IBAN, KYC data) lives only in:
   - `participants` (billing profile);
-  - Stripe (invoices, KYC);
+  - Stripe (KYC evidence, payment instruments);
+  - `invoicing` (invoice PDFs);
   - `compliance` (audit).
 
   Never put it in logs, traces, metrics labels, events or EWDS messages. Use participant ids.

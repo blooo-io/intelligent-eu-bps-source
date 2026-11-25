@@ -6,25 +6,28 @@ External systems are reached only through **adapter ports**, selected by environ
 
 | Mode | When to use |
 |---|---|
-| Stripe test mode | Default V1 path — Connect onboarding, charges, webhooks |
+| Stripe test or live per community | Connect accounts, **direct charges**, payouts, webhooks |
 | Mock PSP | Automated tests / offline demos |
 
-Implementations live under `services/payments`. Point webhook endpoints at your public API gateway URL.
+Implementations live under `services/payments`. Point webhook endpoints at your public API gateway URL. Billing issues PDF invoices in-house; Stripe does **not** host invoice documents.
 
 ## Local market & data space (EWDS)
 
-Trade intake and publication talk to GSY DEX / EWDS through adapters:
+Trade intake and publication reach GSY DEX / EWDS through **Client Gateway adapters**, selected by environment variables (mock default):
 
-| Port | Flag | Live path |
+| Adapter | Flag | Role |
 |---|---|---|
-| Market (P-MKT) | `MARKET_ADAPTER` | EWDS request/reply on GSY channels |
-| Data space (P-DS) | `DATASPACE_ADAPTER` | Blooo Client Gateway publish / receive |
-| Actor intake | `ACTOR_SOURCE_ADAPTER` | EWDS Actor records |
-| Erasure intake | `ERASURE_SOURCE_ADAPTER` | EWDS erasure requests |
-| Tariff | `TARIFF_ADAPTER` | EWDS tariff records (or 0 until published) |
-| Command channel | `COMMAND_CHANNEL_ENABLED` | Project UI request/reply |
+| Trade source (P-MKT) | `MARKET_ADAPTER` | Settled trades from the local market |
+| Publication (P-DS) | `DATASPACE_ADAPTER` | Publish billing records to the data space |
+| Actor intake | `ACTOR_SOURCE_ADAPTER` | Participant / manager data from Actor records |
+| Erasure intake | `ERASURE_SOURCE_ADAPTER` | GDPR erasure requests |
+| Command channel | `COMMAND_CHANNEL_ENABLED` | Project UI request/reply commands |
 
 Ship-with mocks cover scenarios S1–S13 under `mocks/`. The GSY off-chain storage REST adapter is a **test fixture only** — never a production backfill path (A8). Keep message shapes aligned with the [EWDS topic schemas](/architecture/ewds-topics) (and AsyncAPI contracts). See also the [EWDS Client Gateway](/architecture/ewds-client-gateway) note.
+
+## Tariffs
+
+Grid fee, levy and tax amounts come from the **tariff port** (`TARIFF_ADAPTER`, mock or EWDS). While no DSO tariff is published, components are **0** and the invoice carries a short mention (REQ-004).
 
 ### Command authorization (three layers)
 

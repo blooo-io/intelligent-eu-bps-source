@@ -17,19 +17,20 @@ This site describes how to **use and run** the software in **your** environment.
 
 ## Billing model in one minute
 
-1. **One invoice per consumer→producer pair** and billing period, issued **in the producer’s name** (self-billing).
-2. Purchases and sales between the same pair are **netted**.
-3. Amounts below a community **threshold** are carried forward; early settlement is possible.
-4. The consumer pays the producer **directly** through the payment provider (Stripe Connect). Money does not transit through the billing platform.
-5. Grid fees, taxes and levies stay on the supplier/DSO bill — not on P2P invoices.
+1. **Monthly statement** per participant and billing period — informative totals and net balance; not payable (REQ-059).
+2. **One invoice per consumer→producer pair** and period, issued **in the producer’s name** (self-billing).
+3. Purchases and sales between the same pair are **netted**.
+4. Amounts below a **per-pair threshold** are carried forward (forced settlement at year end or exit).
+5. The consumer pays the producer **directly** via a charge on the producer’s Stripe Connect account; money never transits the billing platform. Producers **withdraw** (or schedule) payouts from their connected account once period invoices where they are producer are paid.
 
-Full business rules: [functional architecture](/architecture/01-functional-architecture) on this site.
+Grid fees, levies and taxes come from the tariff port; **0 with a mention** while no DSO tariff is published. Full business rules: [functional architecture](/architecture/01-functional-architecture) on this site.
 
 ## V1 scope
 
-- Communities run in **virtual** mode.
-- The only required real external integration is **Stripe test mode** (or your own PSP adapter).
-- Local market (GSY DEX), data space (EWDS) and ECB FX rates ship with **mock adapters** you can replace.
+- Communities are **virtual or live** per community (`billingMode`); live rollout needs the operator role and live Stripe keys in your secret store.
+- **Stripe** runs in test or live mode per community — Connect accounts, direct charges, payouts and webhooks (or your PSP adapter).
+- **EWDS Client Gateway adapters** (market trade source, Actor intake, erasure intake, command channel, publication) are **real** in code and selected by environment variables; **mock is the default** until you enable them.
+- The **INTELLIGENT project UI** reads billing records and sends commands through the EWDS — not through `/v1`. **`apps/web`** is a **reference client** on the public REST API for adopters without the project UI.
 - Identity is OIDC (reference deployment uses Keycloak; any OIDC IdP works if claims match the contracts).
 
 ## Repository layout (high level)

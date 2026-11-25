@@ -2,7 +2,7 @@
 
 Status: **Deployed (INT-308)**, mTLS enabled with the EWF-signed client certificate (INT-309, see [`docs/release/ddhub-client-gateway.md`](../release/ddhub-client-gateway.md)); API keys and topic/role grants pending EWAG. Sources: Energy Web official docs + D3.1 briefing + NFR-017.
 
-> **Billing adapters** for trades, Actor data, erasure requests, commands and publication are real and selected by environment variables; **mock stays the code default** until the grants land (A8). Deployed environments switch adapters live (A8-live). UAT results on the mock path are labelled `mock` (see `docs/testing/v1-functional-cases.md`).
+> **Billing adapters** for trades, Actor data, erasure requests, commands and publication are real and selected by environment variables; **mock stays the code default** until the grants land (A8). Deployed environments switch adapters live (A8-live). UAT results on the mock path are labelled `mock` (see [`docs/testing/v6.1-rerun.md`](../testing/v6.1-rerun.md)).
 
 ## Official documentation (Energy Web)
 
@@ -110,7 +110,7 @@ Pinned Phase 1 values (API auth later — INT-309):
 1. Real P-DS (AC-10) and P-MKT (AC-04) adapters selected by configuration; **mock remains the code default**.
 2. First slice: REST short-polling consumer + publish path for invoice/payment.
 3. Operator alerts: broker disconnect, mTLS expiry, silence threshold (REQ-029).
-4. Re-execute UAT-068 / UAT-069 / UAT-001 / UAT-070 against live CG (`*_ADAPTER=ewds`) before changing `v1_mode` — see the mock-path labels in `docs/testing/`.
+4. Re-execute UATs listed in [`docs/testing/v6.1-rerun.md`](../testing/v6.1-rerun.md) against live CG (`*_ADAPTER=ewds`) before changing `v1_mode`.
 
 ## Proposed Blooo decisions (pending EWAG)
 

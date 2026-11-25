@@ -2,24 +2,24 @@
 title: Billing & Payment Service — Physical architecture
 view: physical
 iteration: 5
-status: validated
-version: "1.0"
-date: 2026-10-08
-baseline: 04-technical-architecture.md v1.0 (validated 2026-10-07); 03
-  application v1.0; requirements v5; assumptions A1–A33
+status: revised
+version: "2.0"
+date: 2026-11-25
+baseline: 04-technical-architecture.md v2.0 (revised 2026-11-25); 03
+  application v2.0; requirements v6.1; assumptions A1–A33
 ---
 # Billing & Payment Service: physical architecture
 
 > **View 5 of 5** (functional → logical → application → technical → **physical**, see [README](README.md)).
 > This view answers: **where and how the components of the technical view run**: hosting, environments, cluster topology, network exposure, storage, backups and operations.
-> Status: **validated (2026-10-08)**. Deployed-state correction (2026-11-10, INT-374): §3 shows the running cluster. The cloud environment is `dev` (namespaces `int-*`). `demo` is not deployed. CNPG backups are not configured. The apps namespace runs 13 back-end modules (AC-03…AC-15), not 15. Prometheus retention on `dev` is 2 days.
+> Status: **revised (2026-11-25), revalidation pending**. Deployed-state correction (2026-11-10, INT-374): §3 shows the running cluster. The cloud environment is `dev` (namespaces `int-*`). `demo` is not deployed. CNPG backups are not configured. The apps namespace runs 13 back-end modules (AC-03…AC-15), not 15. Prometheus retention on `dev` is 2 days.
 
 ## 1. Decisions framing this view
 
 | # | Decision | Source |
 |---|---|---|
 | PD-1 | **Hosting: Scaleway** (French provider, not subject to the US CLOUD Act). **Everything runs in the Amsterdam region (nl-ams)**: the managed Kubernetes cluster (**Kapsule**, since capacity is no longer available in Paris), block storage and Object Storage. The Netherlands is in the EU, so NFR-002 is met. **No multi-zone requirement for V1**: these are non-production environments. | 2026-10-08; NFR-002 |
-| PD-2 | **Environments for V1:** `local` (developer laptop, k3d + Tilt), **`dev`** (automatic deployment on every merge to `develop`; namespaces `int-apps` and `int-data`) and **`demo`** (stable version for partners and pilots, packaged in Git, **not deployed**). `dev` runs in **virtual mode with Stripe test**. There is no production environment before the first live community. | 2026-10-07; A32; naming and deploy state 2026-11-10 |
+| PD-2 | **Environments for V1:** `local` (developer laptop, k3d + Tilt), **`dev`** (automatic deployment on every merge to `develop`; namespaces `int-apps` and `int-data`) and **`demo`** (stable version for partners and pilots, packaged in Git, **not deployed**). **`dev` is virtual (Stripe test)**; a community goes **live** only with the operator role and live keys in OpenBao (`<community>` path); Greenvolt first. | 2026-10-07; A10.1; naming and deploy state 2026-11-10 |
 | PD-3 | **One managed cluster for V1**, with one set of namespaces per environment, NetworkPolicies and resource quotas. Production will get its own cluster later. | 2026-10-07 |
 | PD-4 | **Backups (target):** CloudNativePG continuous backup (WAL archiving + daily base backup) to **Scaleway Object Storage in nl-ams** (same region, separate bucket per environment), with **point-in-time recovery**. Retention is 7 days on `dev` and 30 days on `demo`. For non-production, the risk that a regional incident affects both the cluster and its backups is accepted. Production will add a second region. **Not configured** on the deployed cluster: `backup.enabled: false` until the buckets and OpenBao paths exist (INT-358). §3 does not draw a backup path. | 2026-10-08; disabled state INT-358 |
 | PD-5 | **Domain:** all public hosts live under **`intelligent-eu-bp.blooo.dev`** (§4). | 2026-10-08 |
@@ -85,7 +85,8 @@ flowchart TB
 %% elk %%
 flowchart LR
   USER([Users - browsers]) --> DNS{{*.intelligent-eu-bp.blooo.dev - TLS cert-manager}}
-  STRIPE((Stripe test)) --> DNS
+  STRIPE((Stripe API test/live)) --> DNS
+  EWF((EWF Message Broker)) -. mTLS .- MODS
   DNS --> LB((Scaleway load balancer))
   LB --> APX[APISIX]
   APX --> WEB[web app]
@@ -112,8 +113,17 @@ Base domain: **`intelligent-eu-bp.blooo.dev`**. In the table, `<env>` is `dev` f
 DNS: in the `blooo.dev` zone, the records of `*.intelligent-eu-bp.blooo.dev` point to the Scaleway load balancer of the cluster. cert-manager issues one Let's Encrypt certificate per host (HTTP-01 challenge). A wildcard certificate (DNS-01) is possible later if the DNS provider of `blooo.dev` offers an API.
 
 - **Everything else is private**: modules, databases, NATS, Temporal, OpenBao, observability. Operators access the observability UIs and Argo CD through an authenticated route (Keycloak) or port-forward.
-- **Egress:** Stripe API (HTTPS). Mail goes to Mailpit inside the cluster, so no external mail in V1. ECB and EWDS are mocked in V1.
+- **Egress:** Stripe API (HTTPS, test or live per community). **EWF Message Broker** (mTLS, Client Gateway). Mail goes to Mailpit inside the cluster, so no external mail in V1. ECB rates use a fixture.
 - **TLS:** cert-manager certificates (Let's Encrypt) on every public host.
+
+### 4.1 Third-party processors: Stripe
+
+Facts for the D5.5 data-protection review (sources linked; re-verify on update):
+
+1. **Processing scope.** Stripe processes KYC evidence, payment instruments, charges and payouts. Billing sends **no invoice PDF** to Stripe (TD-2, in-house pdf-lib).
+2. **Contracting entity (EEA).** For EEA accounts the contracting entity is [Stripe Payments Europe, Ltd.](https://stripe.com/ie/legal/ssa) (Ireland). Stripe's [Data Processing Agreement](https://stripe.com/legal/dpa) applies. Transfers to Stripe, Inc. (US) rely on the EU-US Data Privacy Framework and [Standard Contractual Clauses](https://stripe.com/privacy-center/legal).
+3. **Residual risk.** Stripe, Inc. remains a US group company (CLOUD Act). Mitigations: no invoice/statement content at Stripe (amounts and ids only in API calls), PSP port is PSP-neutral (NFR-014) with Mangopay/Lemonway documented as alternatives (D5.5 report §3.7).
+4. **DPO sign-off.** Pending (A25) — listed as a deviation in the D5.5 report.
 
 ## 5. Storage, backups and recovery
 
@@ -147,7 +157,7 @@ These figures are estimates and will be adjusted after the first load test on `d
 |---|---|
 | Deployment | GitHub Actions builds, tests and pushes images. Argo CD syncs helmfile-rendered manifests: `dev` follows `develop`. `demo` follows a release tag and is not deployed. |
 | Cluster access | Scaleway IAM for cluster administration. Day-to-day work goes through Argo CD; `kubectl` access is limited to named Blooo operators. |
-| Secrets | OpenBao is the source of truth and ESO syncs secrets per namespace. Stripe test keys and the webhook secret differ per environment. |
+| Secrets | OpenBao is the source of truth and ESO syncs secrets per namespace. **Stripe test and live keys differ per environment and per live community** (OpenBao `<community>` path). |
 | Monitoring and alerts | Prometheus alert rules: workload health, job failures (`JobFailed`), intake anomalies, reconciliation discrepancies, Stripe webhook rejections, certificate expiry, backup failures, disk usage. **Alertmanager** (Apache-2.0, part of the Prometheus stack) sends the alerts to a **dedicated Blooo Slack channel** (name and webhook to be defined), with the `dev` environment label. Prometheus retention on `dev` is 2 days (INT-331). |
 | Updates | Monthly patching of the platform components through Argo CD; Dependabot for application dependencies; the Kapsule Kubernetes version follows Scaleway's support window. |
 | Data reset (demo) | Scripted reset of the `demo` data and Stripe test objects between demo campaigns. |
@@ -156,7 +166,7 @@ These figures are estimates and will be adjusted after the first load test on `d
 - Scaleway project and account set-up at Blooo; Kapsule cluster and Object Storage buckets in nl-ams.
 - DNS records for `*.intelligent-eu-bp.blooo.dev` in the `blooo.dev` zone.
 - Name of the Slack alert channel and its incoming webhook (stored in OpenBao).
-- **Future production:** a dedicated cluster (Stripe live, first live community), multiple zones, backups in a second region. When the EWDS adapter becomes real, the egress and mTLS set-up to the EWF Message Broker for the Blooo Client Gateway (NFR-017).
+- **Future production:** a dedicated cluster (first live community at scale), multiple zones, backups in a second region. EWDS Client Gateway mTLS to the EWF Message Broker is packaged (INT-308/309); API keys and topic roles remain pending EWAG.
 
 ## 9. Validation checklist
 - [ ] Hosting decision and selection criteria

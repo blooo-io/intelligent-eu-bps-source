@@ -2,11 +2,11 @@
 title: Billing & Payment Service — Technical architecture
 view: technical
 iteration: 4
-status: validated
-version: "1.0"
-date: 2026-10-07
-baseline: 03-application-architecture.md v1.0 (validated 2026-10-07); 02 logical
-  v1.0; 01 functional v1.0; requirements v5
+status: revised
+version: "2.0"
+date: 2026-11-25
+baseline: 03-application-architecture.md v2.0 (revised 2026-11-25); 02 logical
+  v2.0; 01 functional v2.0; requirements v6.1
 ---
 # Billing & Payment Service: technical architecture
 
@@ -22,10 +22,10 @@ baseline: 03-application-architecture.md v1.0 (validated 2026-10-07); 02 logical
 | TP-2 | **Permissive licences only: MIT or Apache-2.0** for every component we embed, link or ship, consistent with the Apache-2.0 publication of the service (NFR-012) and with no GPL code linked. AGPL, SSPL, BSL and similar licences are excluded. A copyleft tool that only runs as a separate, unmodified service is flagged and needs an explicit decision. | 2026-10-07; NFR-012 |
 | TP-3 | **Kubernetes-native.** Every module is a container. Prefer components with an official Helm chart or operator. | AD-2 |
 | TP-4 | **EU hosting and data minimisation** in every product choice: no personal data sent to services outside the EU/adequacy area. | NFR-002 |
-| TP-5 | **Stripe test mode is the only real external integration in V1.** Everything else runs as a mock or a local instance behind the same adapter. | A32 |
+| TP-5 | **Adapters for every external system; EWDS adapters real and env-selected (mock default); Stripe test or live per community.** | A8, A10.1 |
 | TP-6 | **Licence check by local `git clone`** of each candidate. The result is recorded in §4 with date and commit date. | brain rule 9 |
-| TP-7 | **Single master per data item.** Billing is master of invoices (numbering, PDF, e-mail); Stripe is master of accounts, KYC and payments. Data mastered by an external system is never copied as a source of truth — only identifiers and links are stored, plus a rebuildable read cache where lists or reports need it. | 2026-10-07; A6 / INT-428 2026-11-24 |
-| TP-8 | **API-first, contract-first.** Every interface is described by a versioned contract **before** it is implemented: OpenAPI 3.1 for the public and internal REST APIs, AsyncAPI 3 for domain events and the EWDS command channel, and JSON Schema for EWDS record topics. The contracts live in the repository, are reviewed like code, and are the single source for mocks, clients, validation and documentation. `/v1` serves the reference client (`apps/web`) only; the project UI uses EWDS records and commands (A7). | 2026-10-07; A7 |
+| TP-7 | **Single master per data item.** Billing masters statements, invoices (number, PDF, status), payment and payout records. Stripe masters connected accounts, KYC evidence and the execution of charges and payouts; billing stores Stripe ids + a webhook-fed status cache. | 2026-10-07; v2.0 / A6 |
+| TP-8 | **API-first, contract-first.** Every interface is described by a versioned contract **before** it is implemented: OpenAPI 3.1 for REST, AsyncAPI 3 for domain events and the EWDS command channel, and JSON Schema for **EWDS record schemas and the command channel**. `/v1` serves the reference client (`apps/web`) only; the project UI uses EWDS (A7). | 2026-10-07; A7 |
 
 ## 2. Reuse map: what can replace custom code
 
@@ -33,20 +33,20 @@ For each application component, the existing open-source building blocks (all MI
 
 | Component | Candidate accelerators | What stays custom | Reuse potential |
 |---|---|---|---|
-| AC-01 Web app | **Refine** (MIT) or **react-admin** (MIT) for the manager console and portal (CRUD, lists, forms, auth providers); Stripe-hosted onboarding and payment pages | Balances, settle-now and readiness screens | High |
+| AC-01 Web app | **Refine** (MIT) or **react-admin** (MIT) for the **reference client** (`apps/web`); Stripe-hosted onboarding, Checkout and Identity pages | Statements, payouts and readiness screens | High |
 | AC-02 API gateway | **Apache APISIX** (Apache-2.0), **Kong OSS** (Apache-2.0), **Envoy Gateway** (Apache-2.0) or **Traefik** (MIT) + **oauth2-proxy** (MIT); OpenAPI from the framework | Route and role configuration | Very high (no code) |
 | AC-03 Participants | **Keycloak** (Apache-2.0) admin API for accounts and invitations; framework CRUD | Registry, readiness rules, CSV import | Medium |
 | AC-04 Trade intake | Stripe/HTTP clients; EWDS client patterns from the GSY/EWAG repos | Window querying, deduplication, attribution, completeness | Low (core logic) |
 | AC-05 Settlement | **Formance Ledger** (MIT) or **TigerBeetle** (Apache-2.0) for the immutable double-entry ledger and the carry-forward balances | Pair computation, netting, threshold, FX and VAT rules | Medium |
-| AC-06 Invoicing | **In-house PDF with pdf-lib (MIT)**, stored in the invoicing database; legal number sequential per producer, owned by billing; e-mail by AC-11. Stripe Invoicing removed (A6) | Mapping a pair settlement to an invoice; self-billing mention; numbering; PDF layout | Medium |
+| AC-06 Invoicing | **In-house PDF with pdf-lib (MIT)**, stored in the invoicing database; legal number sequential per producer, owned by billing; e-mail by AC-11 (A6) | Mapping a pair settlement to an invoice; self-billing mention; numbering; PDF layout | Medium |
 | AC-07 Payments | **stripe-node / stripe-java** (MIT); Stripe Connect, Identity, hosted onboarding, webhooks | Readiness sync, failure categorisation | High |
 | AC-08 Reconciliation | SQL over read models | Matching rules | Low |
 | AC-09 Reporting & exports | Read models in the database; optionally a BI tool (see §5, Grafana is AGPL) | Report queries, KPI export format | Medium |
 | AC-10 Publication | **Transactional outbox library** (framework-native, **Debezium** (Apache-2.0), **Eventuate Tram** (Apache-2.0) or **Watermill** (MIT)); JSON Schema validators | Mapping to `billingInvoice` / `billingPayment` | High |
-| AC-11 Notification | Stripe e-mails (invoices, receipts); a templating library; **Mailpit** (MIT) as the local mail catcher | Invitation and failure templates | High |
+| AC-11 Notification | **Billing templates**; **Mailpit** (MIT) locally; a templating library | Invitation, invoice PDF e-mail, reminders, failure templates | High |
 | AC-12 Compliance | Keycloak and Stripe deletion APIs; database audit features | DSAR orchestration, retention rules | Medium |
 | AC-13 Reference data | Simple HTTP client to the ECB feed | Rate storage | Low effort anyway |
-| AC-14 Scheduler | **Temporal** (MIT): durable workflows, timers and retries for runs, early settlements and DSAR sagas. Alternatively **Kubernetes CronJobs** + **Quartz** (Apache-2.0) | Job definitions | High |
+| AC-14 Scheduler | **Temporal** (MIT): durable workflows, timers and retries for runs, **payout gating and auto payouts**, and DSAR sagas. Alternatively **Kubernetes CronJobs** + **Quartz** (Apache-2.0) | Job definitions | High |
 | Event transport | **NATS JetStream** (Apache-2.0) | — | Very high (no code) |
 | Database | **PostgreSQL** (PostgreSQL licence, permissive) on **CloudNativePG** (Apache-2.0) | Schemas | Very high |
 | Observability | **OpenTelemetry Collector** (Apache-2.0), **Prometheus** (Apache-2.0); dashboard tool to choose (§5) | Dashboards | Very high |
@@ -60,18 +60,18 @@ For each application component, the existing open-source building blocks (all MI
 | # | Topic | Decision | Date |
 |---|---|---|---|
 | TD-1 | Reuse strategy and licences | TP-1 / TP-2 adopted. Explicit TP-2 exceptions for separate unmodified services: OpenBao (MPL-2.0, TD-9), SonarQube Community Build (INT-292), and DDHub Client Gateway (GPL-3.0, INT-308 / NFR-017) | 2026-10-07; INT-292 2026-10-22; INT-308 2026-10-23 |
-| TD-2 | Invoicing engine | **In-house PDF with pdf-lib (MIT)**, stored in the invoicing database; legal number sequential per producer, owned by billing; e-mail by AC-11. Stripe Invoicing removed (A6). Self-billing mention, trade summary and ECB rate are rendered on the billing PDF | 2026-10-07; A6 / INT-428 2026-11-24 |
-| TD-3 | Workflow and scheduling | **Temporal** (MIT; TypeScript SDK and Helm charts MIT) for all time-based jobs, billing runs, early settlements and multi-step sagas (DSAR propagation, retries). It implements AC-14 | 2026-10-07 |
+| TD-2 | Invoicing engine | **In-house PDF with pdf-lib (MIT)**, stored in the invoicing database; legal number sequential per producer, owned by billing; e-mail by AC-11 (A6). Self-billing mention, trade summary and ECB rate are rendered on the billing PDF | 2026-10-07; A6 / INT-428 2026-11-24 |
+| TD-3 | Workflow and scheduling | **Temporal** (MIT; TypeScript SDK and Helm charts MIT) for all time-based jobs, billing runs, **payout gating and auto payouts**, and multi-step sagas (DSAR propagation, retries). It implements AC-14 | 2026-10-07 |
 | TD-4 | Back-end language and framework | **TypeScript + NestJS** (MIT) for the 13 modules, with stripe-node (MIT), Temporal TS SDK (MIT), OpenAPI contracts written first (TD-13), with express-openapi-validator (MIT) validating requests and responses against them and OpenTelemetry JS (Apache-2.0). A shared module template covers health, configuration, outbox, idempotent consumers and telemetry | 2026-10-07 |
-| TD-5 | Front-end framework | **Refine** (MIT), React, with an MIT UI kit (Ant Design or MUI, to fix at implementation), OIDC auth provider and REST data provider on the public API | 2026-10-07 |
-| TD-6 | Data and database | **Single master per data item (TP-7):** Billing is master of invoices (numbering, PDF, e-mail); Stripe is master of accounts, KYC and payments, and we keep only Stripe ids and links for those. **PostgreSQL** on **CloudNativePG** (Apache-2.0), **one database and one user per module**, holds the data we master (including invoice documents); calculation tables are append-only. A **read-only cache** of Stripe payment fields, fed by webhooks, is used only for lists, reports and reconciliation. It is rebuildable from Stripe and checked nightly | 2026-10-07; A6 / INT-428 2026-11-24 |
+| TD-5 | Front-end framework | **Refine** (MIT), React, with an MIT UI kit (Ant Design or MUI, to fix at implementation), OIDC auth provider and REST data provider on the public API — **`apps/web` = reference client** | 2026-10-07 |
+| TD-6 | Data and database | **Single master per data item (TP-7):** Billing masters statements, invoices (number, PDF, status), payments and payouts. Stripe masters Connect accounts, KYC evidence, charge and payout execution; we store Stripe ids and a webhook-fed status cache only. **PostgreSQL** on **CloudNativePG** (Apache-2.0), **one database and one user per module**, holds mastered data (including invoice PDFs in AC-06). Calculation tables are append-only. | 2026-10-07; v2.0 |
 | TD-7 | Event transport and outbox | **NATS JetStream** (Apache-2.0; NACK operator Apache-2.0) as the event channel. **Debezium Server** (Apache-2.0) reads each module's outbox table (PostgreSQL CDC) and publishes to JetStream, so there is no custom relay code. Consumers are idempotent (module template) | 2026-10-07 |
 | TD-8 | API gateway | **Apache APISIX** (Apache-2.0) + APISIX Ingress Controller (Apache-2.0): openid-connect plugin (Keycloak), routing, rate limiting, CORS, public OpenAPI | 2026-10-07 |
 | TD-9 | Secrets and certificates | **External Secrets Operator** (Apache-2.0) syncs Kubernetes secrets from **OpenBao** (MPL-2.0). OpenBao is accepted as an exception to TP-2: it is deployed as a separate, unmodified service and never linked into our code. ESO keeps the secret backend replaceable later (cloud KMS, another vault). TLS certificates come from **cert-manager** (Apache-2.0) | 2026-10-07 |
 | TD-10 | Observability | **100 % Apache-2.0 stack:** OpenTelemetry (collector + JS SDK), Prometheus (+ kube-prometheus), Jaeger (traces), VictoriaLogs (logs), Perses (dashboards). The Grafana stack (AGPL) is not used | 2026-10-07 |
 | TD-11 | CI/CD and Kubernetes packaging | **GitHub Actions** for CI (tests, build, Trivy scan (Apache-2.0), gitleaks (MIT)); **one Helm chart per module, orchestrated with helmfile** (MIT); **Argo CD** (Apache-2.0) for GitOps deployment. Dependabot for dependencies (Renovate is AGPL) | 2026-10-07 |
 | TD-12 | Local development environment | **k3d** (MIT) local cluster with the same charts as the target, deployed with helmfile; **Tilt** (Apache-2.0) for live reload; **Stripe CLI** (Apache-2.0) to forward Stripe test webhooks; **Mailpit** (MIT) as mail catcher; mock suite AC-15 | 2026-10-07 |
-| TD-13 | API contract-first tooling | Contracts: **OpenAPI 3.1** (REST, public and internal) and **AsyncAPI 3** (events), in `contracts/`. Lint with **Spectral** (Apache-2.0) and **Redocly CLI** (MIT), which also builds the documentation. Breaking-change detection in CI with **oasdiff** (Apache-2.0). Mock server for R2M and front-end work with **Prism** (Apache-2.0). TypeScript types and clients generated with **openapi-typescript** (MIT) and **Orval** (MIT, for Refine/React). Runtime validation in NestJS with **express-openapi-validator** (MIT). Contract tests in CI with **Schemathesis** (MIT). Event documentation and code generation with **AsyncAPI CLI / Generator** (Apache-2.0) | 2026-10-07 |
+| TD-13 | API contract-first tooling | Contracts: **OpenAPI 3.1** (REST, public and internal) and **AsyncAPI 3** (events **and EWDS command channel**), in `contracts/`. Lint with **Spectral** (Apache-2.0) and **Redocly CLI** (MIT). Breaking-change detection in CI with **oasdiff** (Apache-2.0). Mock server for the **reference client and module consumers** with **Prism** (Apache-2.0). TypeScript types and clients generated with **openapi-typescript** (MIT) and **Orval** (MIT). Runtime validation in NestJS with **express-openapi-validator** (MIT). Contract tests in CI with **Schemathesis** (MIT). Event documentation and code generation with **AsyncAPI CLI / Generator** (Apache-2.0) | 2026-10-07 |
 
 ### 3.1 Technology map per application component
 
@@ -81,20 +81,20 @@ For each application component, the existing open-source building blocks (all MI
 | AC-02 API gateway | APISIX + openid-connect plugin, APISIX Ingress Controller |
 | AC-03 … AC-13 modules | NestJS (TypeScript), PostgreSQL (own database), outbox → Debezium Server → NATS JetStream, OpenTelemetry |
 | AC-06 Invoicing | + pdf-lib (MIT) for invoice PDF |
-| AC-07 Payments | + stripe-node, Stripe Connect, Identity, webhooks (test mode in V1) |
+| AC-07 Payments | + stripe-node, Stripe Connect, Identity, webhooks (test or live per community) |
 | AC-03 Participants | + Keycloak admin REST API |
 | AC-14 Scheduler | Temporal (workflows and timers), TypeScript workers |
 | AC-15 Mock suite | NestJS mock services + fixtures; Stripe test mode is real |
 | Platform | Keycloak, Temporal, NATS JetStream, CloudNativePG, Debezium Server, ESO + OpenBao, cert-manager, OTel + Prometheus + Jaeger + VictoriaLogs + Perses, Argo CD |
 
 ### 3.2 Consequences to track
-- **TP-7, single master (done in v2.0 / A6):** Billing is master of invoices (numbering, PDF, e-mail); Stripe is master of accounts, KYC and payments. REQ-039 and REQ-042 are implemented by AC-06 / AC-11.
+- **TP-7, single master (done in v2.0 / A6):** Billing masters statements, invoices (number, PDF, status) and payment/payout records; Stripe masters connected accounts, KYC evidence and charge/payout execution. REQ-039 and REQ-042 are implemented by AC-06 / AC-11.
 - **13 NestJS services:** the shared module template and the helmfile layout are the first implementation deliverables.
 
 ### 3.3 Contract-first workflow
 
-1. **Design.** The API change is written in `contracts/openapi/*.yaml` (or `contracts/asyncapi/*.yaml` for events), linted with Spectral and Redocly, and reviewed in a pull request. R2M can review the public API at this stage.
-2. **Mock.** Prism serves the contract immediately, so AC-01, the project UI and dependent modules can work before the implementation exists.
+1. **Design.** The API change is written in `contracts/openapi/*.yaml` (or `contracts/asyncapi/*.yaml` for events and EWDS commands), linted with Spectral and Redocly, and reviewed in a pull request.
+2. **Mock.** Prism serves the contract immediately, so AC-01 (reference client) and dependent modules can work before the implementation exists.
 3. **Generate.** openapi-typescript produces the server-side types, and Orval the typed clients for the web app and for module-to-module calls.
 4. **Implement.** The NestJS module implements the contract. express-openapi-validator rejects any request or response that does not match it.
 5. **Verify in CI.** Schemathesis runs contract tests against the running module. oasdiff blocks unannounced breaking changes, which require a new `/v2` version. Redocly publishes the API documentation (REQ-052).
@@ -111,7 +111,8 @@ For each application component, the existing open-source building blocks (all MI
 | Envoy Gateway | Apache-2.0 | 2026-10-07 | OK |
 | Traefik | MIT | 2026-10-06 | OK |
 | oauth2-proxy | MIT | 2026-10-01 | OK |
-| Gotenberg | MIT | 2026-10-05 | OK |
+| pdf-lib | MIT | 2026-11-25 | OK |
+| Gotenberg | MIT | 2026-10-05 | OK (not used; AC-06 uses pdf-lib) |
 | Mailpit | MIT | 2026-10-07 | OK |
 | Debezium | Apache-2.0 | 2026-10-07 | OK |
 | Eventuate Tram core | Apache-2.0 | 2026-08-28 | OK |
@@ -223,7 +224,7 @@ flowchart TB
     PER[Perses]
   end
   subgraph Ext[external]
-    STRIPE((Stripe test mode))
+    STRIPE((Stripe test / live))
   end
   APISIX --> WEB
   APISIX --> MODS
@@ -253,7 +254,7 @@ sequenceDiagram
   participant GW as APISIX
   participant M as NestJS module
   participant DB as PostgreSQL (module DB)
-  participant ST as Stripe test
+  participant ST as Stripe test/live
   B->>KC: OIDC Authorization Code + PKCE
   KC-->>B: access token (roles, community)
   B->>GW: GET /v1/me/invoices (Bearer)
@@ -261,7 +262,7 @@ sequenceDiagram
   GW->>M: forward with verified claims
   M->>M: guard: role and community scope (REQ-010, REQ-049)
   M->>DB: read references and read cache
-  M->>ST: live detail if needed (invoice, PDF link)
+  M->>DB: invoice PDF from AC-06
   M-->>B: response
 ```
 
@@ -286,7 +287,7 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-  participant ST as Stripe test
+  participant ST as Stripe test/live
   participant GW as APISIX (public route, no OIDC, rate-limited)
   participant PAY as AC-07 Payments
   participant DB as Payments DB
@@ -308,7 +309,7 @@ sequenceDiagram
 | Service-to-service       | Internal APIs require a service token: a Keycloak client-credentials grant per module, validated by the module guard. Kubernetes **NetworkPolicies** use default deny and only allow the synchronous dependencies of 03 §2.2, plus NATS, PostgreSQL, Temporal and the OTel collector. A service mesh for mTLS between pods is **deferred**. | NFR-001                                |
 | Secrets                  | ESO syncs Kubernetes secrets from OpenBao, with one path per module and per environment. They cover Stripe secret keys, the webhook signing secret and the Keycloak client secrets. Database credentials are generated by CloudNativePG. No secret is stored in Git or in container images (gitleaks in CI).                                | NFR-005, NFR-015                       |
 | Transport security       | TLS at the edge (cert-manager certificates), TLS to PostgreSQL (CloudNativePG default), TLS to NATS. Stripe is called over HTTPS.                                                                                                                                                                                                           | NFR-001, NFR-015                       |
-| Data at rest             | PostgreSQL volumes are encrypted by the storage layer (physical view). Personal data is limited to AC-03 profiles, AC-06 invoice party fields under legal retention, and AC-12 audit records; invoice documents are stored by billing (TP-7 / A6).                                                                                              | NFR-001, NFR-002                       |
+| Data at rest             | PostgreSQL volumes are encrypted by the storage layer (physical view). Personal data is limited to AC-03 profiles, AC-06 invoice party fields under legal retention, and AC-12 audit records; **invoice PDFs are held by AC-06 (encrypted volume, nl-ams, TP-7).**                                                                                              | NFR-001, NFR-002                       |
 | Webhooks                 | Public route only for `/webhooks/payment-provider`, rate-limited. Stripe signature verification with timestamp tolerance. Idempotency on the Stripe event id. Raw body preserved by the gateway.                                                                                                                                            | NFR-015, REQ-016                       |
 | Logs and telemetry       | Structured logs without personal data. The OTel Collector applies a redaction processor (e-mail, names, IBAN patterns). Traces carry only identifiers.                                                                                                                                                                                      | NFR-015, REQ-030                       |
 | Audit                    | Every module emits `AuditableActionPerformed` for access to or changes of personal or payment data. AC-12 stores them append-only. Keycloak admin events are enabled.                                                                                                                                                                       | REQ-030                                |
@@ -319,7 +320,7 @@ sequenceDiagram
 
 | Item | Assumption |
 |---|---|
-| Communities | 4 pilots, all in virtual mode |
+| Communities | 4 pilots; virtual by default; live per community when enabled |
 | Participants | ≤ 50 per community, about 200 in total |
 | Trades | Upper bound 200 participants × 96 slots/day ≈ 20 000 trades/day, ≈ 600 000/month. Trade payloads are small (< 1 kB) |
 | Invoices / payments | At most a few thousand per month (one per consumer→producer pair, after netting and the 5 € threshold) |

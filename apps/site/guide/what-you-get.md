@@ -11,8 +11,8 @@ Thirteen NestJS domain modules plus a web app and a mock suite. Each module owns
 | Participants | Registry, readiness, terms, community settings |
 | Trade intake | Settled trades from market / data space (or mock) |
 | Settlement | Billing runs, netting, threshold, carry-forward |
-| Invoicing | Self-billing invoices (Stripe Invoicing in V1) |
-| Payments | Connect accounts, KYC, payment methods, webhooks |
+| Invoicing | Self-billing invoices with **in-house PDF** and per-producer numbering; monthly statements |
+| Payments | Connect accounts, KYC, direct charges, **payouts**, webhooks |
 | Reconciliation | Invoice ↔ payment and market checks |
 | Reporting | Read models, KPI export, operator traces |
 | Publication | Outbound billing events to the data space |
@@ -40,6 +40,6 @@ You may substitute equivalent components (another gateway, IdP, vault, GitOps en
 ## What is not included
 
 - Production Stripe live-mode go-live runbooks for your legal entity
-- Grid / DSO billing
+- Grid fees only when a DSO tariff is published (otherwise 0 + mention on invoices)
 - Crypto or AMM payment rails
 - A mandatory cloud vendor — the reference charts assume generic Kubernetes APIs

@@ -10,7 +10,7 @@ Modules are configured through **environment variables** and Kubernetes values. 
 | Database | `DATABASE_URL` | One DB per module |
 | Public base URL | `PUBLIC_BASE_URL` / web `config.json` | Browser-facing origin |
 | OIDC | Issuer URL, client id, audience | Must match gateway + web app |
-| Stripe | `STRIPE_SECRET_KEY`, webhook secret | Test mode for V1 |
+| Stripe | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Test or live keys **per community** |
 | NATS | `NATS_URL` | JetStream enabled |
 | Temporal | Host / namespace | Scheduler workers |
 | CGW | `CGW_BASE_URL`, `CGW_API_KEY` (OpenBao) | Never inline the API key in Helm values |

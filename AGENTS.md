@@ -4,25 +4,21 @@ This file tells an agent **what to read, in which order, and which rules are non
 
 ## 1. Context in five lines
 - Billing & Payment Service of the Horizon Europe project INTELLIGENT (Task T5.6, Deliverable D5.5, public). Led by Blooo.
-- **Billing model ("the producer is the bank"):**
-  - one invoice per consumer→producer pair and per period, issued in the producer's name (self-billing);
-  - purchases and sales between the same pair are netted;
-  - amounts below the threshold are carried forward;
-  - early settlement is possible;
-  - payment goes directly to the producer's Stripe Connect account.
-- **V1:** every community is virtual and **only Stripe test mode is integrated**. GSY DEX, EWDS and ECB are mocked behind adapters.
+- **Billing model (two levels):** (1) monthly participant **statement** (ontology `Billing`), one per participant and period (monthly default, quarterly allowed), not payable — totals bought/sold, net balance, list of invoices; (2) **legal invoices** per producer→consumer pair, issued in the producer's name (self-billing mandate in the T&C), netted per pair, threshold per pair (default 5 EUR/CHF, carried forward, forced at year end or exit). Payment = direct charge to the producer's Stripe Connect account; payout = withdrawal from the connected account (manual schedule, or `autoPayout`), allowed once that period's invoices where the participant is producer are Paid. The platform never holds funds.
+- **V1 scope:** live mode per community (operator role + live Stripe keys), Greenvolt first; others virtual (Stripe test). EWDS Client Gateway adapters are real and selected by environment variables; mock is the default until EWAG grants roles/topics.
+- **Project UI** integrates only through the EWDS (records + command channel). `apps/web` is the reference client for adopters without the project UI.
 - **Architecture:** 13 NestJS modules (one per logical block) + a Refine web app + a mock suite, on Kubernetes (Scaleway Kapsule, nl-ams). Events go through a transactional outbox → Debezium → NATS JetStream. Workflows run on Temporal. APISIX is the gateway and Keycloak the identity provider.
 - **Work items** live in Jira project `INT` (Blooo). **Specification and architecture** live in `docs/` (source of truth).
 
 ## 2. Read before coding (in this order)
 1. The Jira issue you are working on (`INT-xxx`): scope, covered `REQ-xxx` / `UAT-xxx`, module.
 2. `docs/architecture/README.md`, then the views relevant to your task:
-   - `01-functional-architecture.md`: actors, processes, **business rules BR-01..BR-13**;
+   - `01-functional-architecture.md`: actors, processes, **business rules BR-01..BR-15**;
    - `02-logical-architecture.md`: blocks, data ownership, events, lifecycles, scheduled jobs;
    - `03-application-architecture.md`: modules AC-01..AC-15, **public and internal APIs**, event catalogue, adapters, mock scenarios;
    - `04-technical-architecture.md`: technology decisions TD-1..TD-13, principles TP-1..TP-8, security;
    - `05-physical-architecture.md`: environments, hosts, operations.
-3. `docs/requirements/items/requirements/REQ-xxx.md` and `.../uat/UAT-xxx.md` for each item in scope. These item notes are the source of truth; `requirements.md` is the narrative view. Also read the **Assumptions A1–A33** at the end of `requirements.md`.
+3. `docs/requirements/items/requirements/REQ-xxx.md` and `.../uat/UAT-xxx.md` for each item in scope. These item notes are the source of truth; `requirements.md` is the narrative view. Also read the **Assumptions A1 through A33 (v6.1 status column)** at the end of `requirements.md`.
 4. The contracts in `contracts/` for the APIs and events you touch.
 
 ## 3. Non-negotiable rules
@@ -31,12 +27,10 @@ This file tells an agent **what to read, in which order, and which rules are non
    - A module never reads or writes another module's database.
    - Cross-module communication goes only through internal APIs (03 §3.2) or events (03 §4).
 3. **Events:** write business data and the outbox row in the same transaction. Consumers are idempotent (deduplicate on `eventId`).
-4. **Single master per data item (TP-7):**
-   - Stripe is master of accounts, KYC, invoices and payments; we store only Stripe ids, links and a rebuildable read cache.
-   - Billing never changes a trade status.
+4. **Single master per data item (TP-7):** billing owns statements, invoices (number, PDF, status) and payment/payout records; Stripe owns connected accounts, KYC evidence and the execution of charges and payouts; we store Stripe ids and a status cache fed by webhooks. Billing never changes a trade status.
 5. **No personal data** in logs, traces, events or EWDS messages. Use identifiers only.
 6. **Dependencies:** MIT or Apache-2.0 only (TP-2). Check the licence before adding a package. AGPL, GPL, SSPL and BUSL are refused.
-7. **External systems** are reached only through adapters (ports). In V1, every adapter except Stripe uses the mock implementation, selected by configuration.
+7. **External systems** are reached only through adapters (ports), selected by environment variables. Mock is the default for EWDS adapters until access is granted; Stripe runs in test or live mode per community.
 8. **Secrets** are never committed. They come from OpenBao via External Secrets.
 9. **Traceability:**
    - test names and PR descriptions reference the `REQ-xxx` / `UAT-xxx` they cover;
@@ -56,7 +50,7 @@ This file tells an agent **what to read, in which order, and which rules are non
     - Details: `.cursor/rules/19-ux-mockup-revalidation.mdc`.
 
 ## 4. Typical task flow
-`INT-xxx` (Jira; create the issue first if none exists) → branch `<type>/INT-xxx-short-description` from `develop` (`feature`, `fix`, `docs`, `test`, `refactor`, `ci` or `chore`, matching the commit type) → contract → Prism mock → generated types/clients → implementation → unit tests + UAT scenario (mocks + Stripe test) → PR (template) → request `blooo-io/github-admin` → CI green, including every test script and 80% statements, branches, functions and lines per module → **agent squash-merges** when mergeable and not blocked (INT-162) → Argo CD deploys to `dev`. **Dependabot (INT-322):** squash-merge green/mergeable Dependabot PRs as soon as they are ready; do not leave them open and do not force-merge failing ones.
+`INT-xxx` (Jira; create the issue first if none exists) → branch `<type>/INT-xxx-short-description` from `develop` (`feature`, `fix`, `docs`, `test`, `refactor`, `ci` or `chore`, matching the commit type) → contract → Prism mock → generated types/clients → implementation → unit tests + UAT scenario; record the run path (`mock`, `stripe-test`, `live-cg`, `stripe-live`) in the UAT note → PR (template) → request `blooo-io/github-admin` → CI green, including every test script and 80% statements, branches, functions and lines per module → **agent squash-merges** when mergeable and not blocked (INT-162) → Argo CD deploys to `dev`. **Dependabot (INT-322):** squash-merge green/mergeable Dependabot PRs as soon as they are ready; do not leave them open and do not force-merge failing ones.
 
 After a version is built and its tests pass, deploy it to the cluster `k8s-intelligent-eu-dev`, environment `dev`, **via GitOps** (Argo pulling `develop`). Pass the operator kubeconfig through `KUBECONFIG` only for investigation or for documented apply of already-merged packaging; keep it outside the repository. Before the first deployment, create any missing Helm charts, helmfile or Argo CD definitions on INT-135 and its own branch.
 

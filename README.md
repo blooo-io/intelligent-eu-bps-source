@@ -33,20 +33,22 @@ Billing and payment service of the Horizon Europe project **INTELLIGENT** ([GA 1
 
 The service turns energy trades settled on a local market into **peer-to-peer invoices and payments between community members**, then publishes results to a project data space (EWDS).
 
-> **Status:** V1 — target D5.5 at M24 (**30/11/2026**). Every community runs in **virtual mode**. The only required real external integration is **Stripe in test mode** (or your PSP adapter). GSY DEX, EWDS and ECB rates ship with **mock adapters** ([assumption A32](docs/requirements/requirements.md)).
+> **Status:** V1 — D5.5 due **30/11/2026**. Communities run virtual (Stripe test) or live per community (Greenvolt first). EWDS Client Gateway adapters ship real and mock; mock stays the default until EWAG grants the topics and roles.
 
-## Billing model — “the producer is the bank”
+## Billing model — monthly statement + per-pair invoices
 
-Documented in the [functional architecture](https://intelligent.docs.blooo.dev/architecture/01-functional-architecture) ([source](docs/architecture/01-functional-architecture.md)) and [requirements](docs/requirements/requirements.md) (assumptions A19–A22, business rules BR-01…BR-13):
+Documented in the [functional architecture](https://intelligent.docs.blooo.dev/architecture/01-functional-architecture) ([source](docs/architecture/01-functional-architecture.md)) and [requirements](docs/requirements/requirements.md) (assumptions A19–A22, business rules BR-01…BR-15):
 
 | Rule | Meaning |
 |---|---|
-| One invoice per pair | Each **consumer→producer** pair gets one invoice per period, issued **in the producer’s name** (self-billing) |
-| Netting | Purchases and sales between the same pair are netted |
-| Threshold | Amounts below a community threshold (e.g. 5 €/CHF) are carried forward; early settlement is possible |
-| Direct payment | Money never transits through the platform — the consumer pays the producer’s **Stripe Connect** account |
-| Off-invoice grid costs | Grid fees, taxes and levies stay on the supplier/DSO bill (**A20**) — not on P2P invoices |
-| Market price is final | Billing never recomputes market results or changes a trade status |
+| Monthly statement | One per participant and period — totals bought/sold, net balance, list of invoices; not payable (**REQ-059**) |
+| Invoice per pair | **Producer→consumer**, issued in the producer’s name, self-billing mandate in T&C (**REQ-054**, **REQ-050**) |
+| Netting | Purchases and sales between the same pair are netted (**REQ-055**) |
+| Threshold | Per pair, default 5 EUR/CHF, carried forward, forced at year end or exit (**REQ-056**; **REQ-057** deprecated) |
+| Direct payment | Direct charge on the producer’s **Stripe Connect** account; the platform never holds funds (**REQ-014**) |
+| Payout | Withdrawal or `autoPayout` once the debtors of the period have paid (**REQ-015**) |
+| Grid fee / levy / tax | From the tariff port; 0 with a mention while no DSO tariff is published (**REQ-004**, **REQ-007**) |
+| Market price is final | Uses `adjustedPrice` when GSY provides it, else `tradePrice`; billing never changes a trade status |
 
 ## Architecture at a glance
 
@@ -54,7 +56,7 @@ Five validated views (iterative, each refining the previous). **Read them on the
 
 | View | On the docs site | Source file | Answers |
 |---|---|---|---|
-| Functional | [Functional](https://intelligent.docs.blooo.dev/architecture/01-functional-architecture) | [`01-…`](docs/architecture/01-functional-architecture.md) | Actors, processes, objects, **BR-01…BR-13** |
+| Functional | [Functional](https://intelligent.docs.blooo.dev/architecture/01-functional-architecture) | [`01-…`](docs/architecture/01-functional-architecture.md) | Actors, processes, objects, **BR-01…BR-15** |
 | Logical | [Logical](https://intelligent.docs.blooo.dev/architecture/02-logical-architecture) | [`02-…`](docs/architecture/02-logical-architecture.md) | Blocks, data ownership, events, jobs |
 | Application | [Application](https://intelligent.docs.blooo.dev/architecture/03-application-architecture) | [`03-…`](docs/architecture/03-application-architecture.md) | Modules **AC-01…AC-15**, APIs, adapters, mocks S1–S13 |
 | Technical | [Technical](https://intelligent.docs.blooo.dev/architecture/04-technical-architecture) | [`04-…`](docs/architecture/04-technical-architecture.md) | Decisions **TD-1…TD-13**, principles **TP-1…TP-8** |
@@ -68,9 +70,10 @@ flowchart LR
   MOD --> PG[(PostgreSQL · CNPG)]
   MOD --> OUT[Outbox] --> DBZ[Debezium] --> NATS[NATS JetStream]
   SCH[AC-14 Temporal] --> MOD
-  MOD --> STRIPE[(Stripe test)]
+  MOD --> STRIPE[(Stripe test / live per community)]
   MOD --> KC[(Keycloak)]
-  MOD -.->|mocked V1| EXT[(GSY DEX · EWDS · ECB)]
+  MOD <-->|Client Gateway adapters, mock by default| EXT[(EWDS: GSY trades · project UI · Actor data)]
+  MOD -.->|fixture| ECB[(ECB)]
 ```
 
 **Runtime stack (TD-4…TD-11):** TypeScript · NestJS · React/Refine · PostgreSQL (CloudNativePG) · NATS JetStream · Debezium · Temporal · Apache APISIX · Keycloak · OpenBao + External Secrets · OpenTelemetry · Argo CD on Kubernetes.
@@ -86,7 +89,7 @@ flowchart LR
 | [`docs/maintainers/`](docs/maintainers/) | Upstream-only process pointers |
 | [`contracts/`](contracts/) | **Contract-first** OpenAPI 3.1 (REST) and AsyncAPI 3 (events) |
 | [`services/`](services/) | NestJS modules — one database per module |
-| [`apps/web/`](apps/web/) | AC-01 reference UI (participant portal + manager console) |
+| [`apps/web/`](apps/web/) | AC-01 — reference client for adopters without the project UI (the INTELLIGENT project UI integrates through the EWDS) |
 | [`apps/site/`](apps/site/) | **Public docs site** (VitePress → GitHub Pages) |
 | [`apps/docs-portal/`](apps/docs-portal/) | Redocly public OpenAPI portal |
 | [`packages/`](packages/) | Shared NestJS module template, generated clients |

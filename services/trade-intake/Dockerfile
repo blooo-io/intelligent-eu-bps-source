@@ -6,14 +6,18 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/module-template/package.json packages/module-template/
+COPY packages/ewds-client/package.json packages/ewds-client/
 COPY mocks/package.json mocks/
 COPY services/trade-intake/package.json services/trade-intake/
 COPY config ./config
 RUN pnpm install --frozen-lockfile --filter @intelligent/trade-intake...
 COPY packages/module-template packages/module-template
+COPY packages/ewds-client packages/ewds-client
 COPY mocks mocks
 COPY services/trade-intake services/trade-intake
+# INT-440 — MARKET_ADAPTER=ewds needs @intelligent/ewds-client in the image.
 RUN pnpm --filter @intelligent/module-template build \
+ && pnpm --filter @intelligent/ewds-client build \
  && pnpm --filter @intelligent/mocks build \
  && pnpm --filter @intelligent/trade-intake build \
  && pnpm --filter @intelligent/trade-intake deploy --prod /out

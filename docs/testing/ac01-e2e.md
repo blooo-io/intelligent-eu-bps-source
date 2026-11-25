@@ -27,7 +27,7 @@ Hard asserts on REQ outcomes (no soft-accept of API error alerts).
 | `e2e/journeys/onboarding-happy-path.spec.ts` | REQ-009, REQ-050, NFR-007 · UAT-009, UAT-062, UAT-067 |
 | `e2e/journeys/payment-setup.spec.ts` | REQ-015, REQ-051 · UAT-015, UAT-051 |
 | `e2e/journeys/invoices-pdf-pay.spec.ts` | REQ-007, REQ-014, REQ-039 · UAT-007, UAT-014, UAT-050 |
-| `e2e/journeys/money-path-stripe.spec.ts` | INT-251 · REQ-014 / UAT-014 / TD-6 — Pay must create a succeeded Stripe Charge. INT-368 — pays only the invoices listed in `E2E_FRESH_INVOICE_IDS`, which `scripts/stripe-fresh-billing-run.mjs` writes to `$GITHUB_ENV` |
+| `e2e/journeys/money-path-stripe.spec.ts` | INT-251 · REQ-014 / UAT-014 / TD-6 — Pay must create a succeeded Stripe Charge. INT-368 / INT-444 — opens only `E2E_FRESH_INVOICE_IDS` rows (Ant `data-row-key`), not a full View scan; seed script writes those ids to `$GITHUB_ENV` |
 | `e2e/journeys/manager-billing-run.spec.ts` | REQ-006, REQ-043 · UAT-006 |
 | `e2e/journeys/participant-import.spec.ts` | REQ-008 · UAT-008 |
 | `e2e/journeys/payments-overview.spec.ts` | REQ-016, REQ-018 |

@@ -12,15 +12,11 @@ import {
  * Uses S1 consumer (Horizon Energy), not hugo.petit — seed invoices from
  * stripe-fresh-billing-run land on participant 11111111-… (INT-236 / INT-238).
  */
-const INVOICE_DETAIL_PATH = /\/v1\/invoices\/([^/]+)$/;
-
-function freshInvoiceIds(): Set<string> {
-  return new Set(
-    (process.env.E2E_FRESH_INVOICE_IDS ?? "")
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean),
-  );
+function freshInvoiceIds(): string[] {
+  return (process.env.E2E_FRESH_INVOICE_IDS ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
 }
 
 test.describe("INT-251 Stripe money path", () => {
@@ -34,6 +30,14 @@ test.describe("INT-251 Stripe money path", () => {
     const stripeKey = requireStripeSecretKey(process.env);
     const createdAfter = Math.floor(Date.now() / 1000) - 5;
 
+    // INT-368 — pay only invoices the seed created this run; an older Open row
+    // may already be paid on Stripe and can never yield a new charge.
+    const fresh = freshInvoiceIds();
+    expect(
+      fresh.length,
+      "INT-251: E2E_FRESH_INVOICE_IDS required (stripe-fresh-billing-run)",
+    ).toBeGreaterThan(0);
+
     await loginAs(page, "s1-consumer");
     await page.goto("/invoices");
     await expectPageReady(page, /^invoices$|^issued invoices$/i);
@@ -42,52 +46,55 @@ test.describe("INT-251 Stripe money path", () => {
       timeout: 20_000,
     });
 
-    // Prefer an Open row so Pay is enabled.
-    const viewButtons = page.getByRole("button", { name: /^view$/i });
-    await expect(viewButtons.first()).toBeVisible({ timeout: 20_000 });
-
-    // INT-368 — pay only invoices the seed created this run; an older Open row
-    // may already be paid on Stripe and can never yield a new charge.
-    const fresh = freshInvoiceIds();
+    // INT-444 — Léa accumulates ~100 invoice rows on dev; clicking every View
+    // while InvoicesPage `busy` disables siblings burns 20s waits and hits the
+    // 180s test timeout after Pay. Open only seed-fresh ids via Ant rowKey
+    // (table shows legalNumber, not the UUID).
     let invoiceId: string | null = null;
-    const count = await viewButtons.count();
-    for (let i = 0; i < count; i++) {
+    for (const candidateId of fresh) {
+      const row = page.locator(`tr[data-row-key="${candidateId}"]`);
+      await expect(
+        row,
+        `fresh invoice ${candidateId} must appear in the list`,
+      ).toBeVisible({ timeout: 20_000 });
+      await row.scrollIntoViewIfNeeded();
+
       const detail = page.waitForResponse(
         (res) =>
           res.request().method() === "GET" &&
-          INVOICE_DETAIL_PATH.test(new URL(res.url()).pathname),
+          res.ok() &&
+          new URL(res.url()).pathname.endsWith(`/v1/invoices/${candidateId}`),
         { timeout: 20_000 },
       );
-      await viewButtons.nth(i).click();
-      const rowInvoiceId = new URL((await detail).url()).pathname.match(INVOICE_DETAIL_PATH)?.[1];
-      if (fresh.size > 0 && (!rowInvoiceId || !fresh.has(rowInvoiceId))) continue;
-      const status = page.locator("code").filter({ hasText: /Open|Paid|Draft/i });
-      await expect(status.first()).toBeVisible({ timeout: 10_000 });
-      const statusText = (await status.first().textContent()) ?? "";
-      if (/^Open$/i.test(statusText.trim())) {
-        // Capture invoice id from the payment network call after Pay.
-        const pay = page.getByRole("button", { name: /^pay$/i });
-        await expect(pay).toBeEnabled();
-
-        const paymentResponse = page.waitForResponse(
-          (res) =>
-            res.request().method() === "POST" &&
-            /\/v1\/invoices\/[^/]+\/payments/.test(res.url()) &&
-            res.ok(),
-          { timeout: 60_000 },
-        );
-        await pay.click();
-        const res = await paymentResponse;
-        const url = res.url();
-        const match = url.match(/\/v1\/invoices\/([^/]+)\/payments/);
-        invoiceId = match?.[1] ?? null;
-        const body = (await res.json()) as { status?: string; paymentId?: string };
-        expect(body.status?.toLowerCase()).toMatch(/succeeded|pending/);
-        await expect(
-          page.getByText(/payment|paid|succeeded/i).first(),
-        ).toBeVisible({ timeout: 30_000 });
-        break;
+      await row.getByRole("button", { name: /^view$/i }).click();
+      const detailRes = await detail;
+      const detailBody = (await detailRes.json()) as { status?: string };
+      // Prefer the detail payload — the table has many <code> status cells.
+      if (!/^Open$/i.test((detailBody.status ?? "").trim())) {
+        continue;
       }
+
+      const pay = page.getByRole("button", { name: /^pay$/i });
+      await expect(pay).toBeEnabled({ timeout: 10_000 });
+
+      const paymentResponse = page.waitForResponse(
+        (res) =>
+          res.request().method() === "POST" &&
+          /\/v1\/invoices\/[^/]+\/payments/.test(res.url()) &&
+          res.ok(),
+        { timeout: 60_000 },
+      );
+      await pay.click();
+      const res = await paymentResponse;
+      const url = res.url();
+      const match = url.match(/\/v1\/invoices\/([^/]+)\/payments/);
+      invoiceId = match?.[1] ?? null;
+      const body = (await res.json()) as { status?: string; paymentId?: string };
+      expect(body.status?.toLowerCase()).toMatch(/succeeded|pending/);
+      await expect(
+        page.getByText(/payment|paid|succeeded/i).first(),
+      ).toBeVisible({ timeout: 30_000 });
+      break;
     }
 
     expect(

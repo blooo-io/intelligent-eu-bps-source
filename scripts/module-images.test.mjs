@@ -283,6 +283,8 @@ test("Dockerfiles for ewds-client consumers COPY packages/ewds-client", async ()
     "services/participants",
     "services/publication",
     "services/reference-data",
+    // INT-440 — MARKET_ADAPTER=ewds pulls ewds-client into trade-intake.
+    "services/trade-intake",
   ];
   for (const dir of consumers) {
     const pkg = JSON.parse(

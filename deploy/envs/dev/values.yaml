@@ -18,5 +18,7 @@ env:
   ACTOR_SOURCE_ADAPTER: ewds
   ERASURE_SOURCE_ADAPTER: ewds
   TARIFF_ADAPTER: ewds
+  # INT-439 — command poller refuses to boot without reply-channel encryption (NFR-017).
   COMMAND_CHANNEL_ENABLED: "true"
+  EWDS_REPLY_ENCRYPTED: "true"
   INTAKE_BOOTSTRAP_S1: "false"

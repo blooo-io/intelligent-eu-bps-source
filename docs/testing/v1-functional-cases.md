@@ -7,7 +7,7 @@ See also: [`v1-test-plan.md`](v1-test-plan.md), [`v1-integration-scenarios.md`](
 
 ## Confirmed set
 
-Count: **62** in-scope UAT notes.
+Count: **66** in-scope UAT notes.
 
 | UAT | Requirement | Status (latest) |
 |---|---|---|
@@ -44,13 +44,15 @@ Count: **62** in-scope UAT notes.
 | UAT-041 | NFR-009 | Pass |
 | UAT-042 | NFR-010 | Pass |
 | UAT-043 | REQ-033 | Pass |
+| UAT-044 | REQ-034 | Not Run |
 | UAT-045 | REQ-035 | Pass |
 | UAT-046 | REQ-036 | Pass |
+| UAT-047 | REQ-037 | Not Run |
 | UAT-049 | NFR-011 | Pass |
-| UAT-050 | REQ-039 | Pass |
+| UAT-050 | REQ-039 | Not Run |
 | UAT-051 | REQ-040 | Pass |
 | UAT-052 | REQ-041 | Pass |
-| UAT-053 | REQ-042 | Pass |
+| UAT-053 | REQ-042 | Not Run |
 | UAT-054 | REQ-043 | Pass |
 | UAT-055 | REQ-044 | Pass |
 | UAT-056 | REQ-045 | Pass |
@@ -72,6 +74,8 @@ Count: **62** in-scope UAT notes.
 | UAT-072 | REQ-055 | Pass |
 | UAT-073 | REQ-056 | Pass |
 | UAT-075 | REQ-058 | Pass |
+| UAT-076 | REQ-059 | Not Run |
+| UAT-077 | REQ-060 | Not Run |
 | UAT-078 | REQ-061 | Pass (mock path) |
 
 UAT-074 (REQ-057 early settlement) is **out of scope / deprecated** for v6.1 and is not counted above.

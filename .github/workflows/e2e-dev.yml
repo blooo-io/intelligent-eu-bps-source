@@ -164,10 +164,13 @@ jobs:
           echo $! > /tmp/pf-settlement.pid
           kubectl -n int-apps port-forward deploy/invoicing 18086:8080 >/tmp/pf-invoicing.log 2>&1 &
           echo $! > /tmp/pf-invoicing.pid
+          # INT-440 — seed refreshes AC-04 before StartRun when the store is empty.
+          kubectl -n int-apps port-forward deploy/trade-intake 18084:8080 >/tmp/pf-trade-intake.log 2>&1 &
+          echo $! > /tmp/pf-trade-intake.pid
           kubectl -n keycloak port-forward svc/platform-keycloak-keycloakx-http 18081:80 >/tmp/pf-keycloak.log 2>&1 &
           echo $! > /tmp/pf-keycloak.pid
           cleanup() {
-            for f in /tmp/pf-payments.pid /tmp/pf-settlement.pid /tmp/pf-invoicing.pid /tmp/pf-keycloak.pid; do
+            for f in /tmp/pf-payments.pid /tmp/pf-settlement.pid /tmp/pf-invoicing.pid /tmp/pf-trade-intake.pid /tmp/pf-keycloak.pid; do
               if [ -f "$f" ]; then kill "$(cat "$f")" 2>/dev/null || true; fi
             done
           }
@@ -176,6 +179,7 @@ jobs:
             if curl -sf "http://127.0.0.1:18087/health" >/dev/null \
               && curl -sf "http://127.0.0.1:18085/health" >/dev/null \
               && curl -sf "http://127.0.0.1:18086/health" >/dev/null \
+              && curl -sf "http://127.0.0.1:18084/health" >/dev/null \
               && curl -sf "http://127.0.0.1:18081/realms/int" >/dev/null; then
               break
             fi
@@ -186,6 +190,7 @@ jobs:
           PAYMENTS_URL=http://127.0.0.1:18087 \
           SETTLEMENT_URL=http://127.0.0.1:18085 \
           INVOICING_URL=http://127.0.0.1:18086 \
+          TRADE_INTAKE_URL=http://127.0.0.1:18084 \
           KEYCLOAK_BASE_URL=http://127.0.0.1:18081 \
           KEYCLOAK_REALM=int \
           KEYCLOAK_SERVICE_CLIENT_ID=module-service \

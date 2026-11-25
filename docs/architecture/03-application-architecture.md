@@ -53,41 +53,47 @@ That makes 13 back-end modules, the web app and the mock suite. Every component 
 
 ### 2.1 Overview by layer
 
+D6 (spec v6.1) — module map. The reference web app is the only `/v1` client; the project UI uses the EWDS command channel.
+
 ```mermaid
 %% elk %%
 flowchart TB
   subgraph Clients
-    WEB[AC-01 Web app]
-    RM[Project UI - EWDS]
+    WEB[AC-01 Reference web app]
   end
   subgraph Edge
-    GW[AC-02 API gateway]
+    GW[AC-02 APISIX]
   end
-  subgraph Domain[Domain modules]
-    PART[AC-03 Participants]
-    TIN[AC-04 Trade intake]
-    SET[AC-05 Settlement]
-    INV[AC-06 Invoicing]
-    PAY[AC-07 Payments]
+  subgraph Domain
+    PART[AC-03 Participants: registry, Actor intake, T&C, settings, live mode guard]
+    TIN[AC-04 Trade intake: EWDS market adapter]
+    SET[AC-05 Settlement: pair netting, threshold, tariff charges]
+    INV[AC-06 Invoicing: legal invoices, PDF, numbering, statements, reminders]
+    PAY[AC-07 Payments: KYC, direct charges, payouts, PSP ports]
   end
-  subgraph Control[Control and read side]
+  subgraph Control
     REC[AC-08 Reconciliation]
-    RPT[AC-09 Reporting & exports]
+    RPT[AC-09 Reporting: payouts overview, KPI, per-method report]
   end
-  subgraph Support[Support modules]
-    PUB[AC-10 Publication]
-    NOT[AC-11 Notification]
-    CMP[AC-12 Compliance]
-    REF[AC-13 Reference data]
-    JOB[AC-14 Scheduler]
+  subgraph Integration
+    PUB[AC-10 Publication: EWDS records + command channel]
+    EWC[[ewds-client package: CGW REST, request/reply, inbound store]]
   end
-  Clients --> Edge --> Domain
-  Edge --> Control
-  Edge --> Support
-  BUS{{Event channel - outbox based}}
-  Domain -.- BUS
-  Control -.- BUS
-  Support -.- BUS
+  subgraph Support
+    NOT[AC-11 Notification: invoice, reminder, payout mails]
+    CMP[AC-12 Compliance: DSAR export, erasure incl. from EWDS]
+    REF[AC-13 Reference data: FX, TariffPort]
+    SCH[AC-14 Scheduler]
+  end
+  WEB --> GW --> PART & INV & PAY & RPT & CMP
+  TIN --> EWC
+  PUB --> EWC
+  PART --> EWC
+  CMP --> EWC
+  REF --> EWC
+  PUB --> PAY & INV & SET & PART
+  SET --> INV --> PAY
+  PAY --> STRIPE[(Stripe)]
 ```
 
 ### 2.2 Synchronous dependencies between modules
@@ -376,7 +382,7 @@ sequenceDiagram
 
 ### 5.4 EWDS command request/reply
 
-The project UI sends `billingCommandRequest` messages (startPayment, requestWithdrawal, startKyc, sendReminder, triggerBillingRun, …). AC-10 authorizes the three layers (channel role, sender DID, actor role), dispatches to the owning module, and publishes `billingCommandReply` with **Stripe-hosted URLs only** in the payload (A7-bis).
+The project UI sends `billingCommandRequest` messages (startPayment, requestWithdrawal, startKyc, sendReminder, triggerBillingRun, …). AC-10 authorizes the three layers (channel role, sender DID, actor role), dispatches to the owning module, and publishes `billingCommandReply` with a **PspHandoff** — Stripe-hosted URL or embedded `clientSecret` + `publishableKey` (A7-bis). See D4 in [`ewds-client-gateway.md`](ewds-client-gateway.md).
 
 ## 6. Reference screens (AC-01 — reference client, V1)
 

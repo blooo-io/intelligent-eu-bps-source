@@ -36,7 +36,7 @@
 | Remaining closeout | INT-437 | Done | [#207](https://github.com/blooo-io/intelligent-eu-bps-source/pull/207) | 4.4 live CGW · 6.4–6.6 · 6.8–6.15 · UAT-074 deprecated |
 | Dev evidence + crashloop | INT-438 | Done | [#210](https://github.com/blooo-io/intelligent-eu-bps-source/pull/210) | Probe all-green; OpenBao CGW seeded |
 | INT-439 CGW clientId/poll + reply encrypt | INT-439 | Done | [#209](https://github.com/blooo-io/intelligent-eu-bps-source/pull/209)/[#211](https://github.com/blooo-io/intelligent-eu-bps-source/pull/211)/[#212](https://github.com/blooo-io/intelligent-eu-bps-source/pull/212) | CrashLoops cleared; channels empty → TOPIC bind needs EWAG |
-| **Remediation v1.2.1 (audit ebed7e4)** | INT-440 | In progress | [#213](https://github.com/blooo-io/intelligent-eu-bps-source/pull/213) | Blockers 1–7 landed (repo D5.5 report + DEV-01..14); majors §2 + e2e + tag v1.2.1 remain |
+| **Remediation v1.2.1 (audit ebed7e4)** | INT-440 | In progress | [#213](https://github.com/blooo-io/intelligent-eu-bps-source/pull/213) | Blockers 1–7 done; e2e seed refresh + adjustedPrice + D1/D2/D4/D6 + hygiene scrub landed; remaining majors §2 + e2e green + tag v1.2.1 |
 
 ## Honesty downgrade (INT-440 / audit V1–V4)
 | Claimed Done | Reality | Action |
@@ -58,12 +58,15 @@
 | 2026-11-24 | CGW OpenAPI snapshot was a stub (superseded INT-437) | Secret was `KUBECONFIG_INTELLIGENT_EU_DEV` (not `KUBECONFIG`); kubectl was missing in the agent image |
 | 2026-11-25 | Live CGW `/docs-json` captured into `packages/ewds-client/test/cgw-openapi.snapshot.json` | Port-forward `svc/ddhub-client-gateway` (ns `ddhub`), image tag `intelligent-canary` |
 | 2026-11-24 | Keep `docs/superpowers/plans/` (defer full 6.3 folder removal) | Kickoff stores plan+progress there; 6.3 only drops superseded specs |
-| 2026-11-24 | Scrubbed `Q-031` from REQ-003 for hygiene HEAD-clean | Unblocks 6.2 before vault sync 6.6 |
+| 2026-11-24 | Scrubbed vault REQ-003 brain markers for hygiene HEAD-clean | Unblocks 6.2 before vault sync 6.6 |
+| 2026-11-25 | Removed `docs/superpowers/` hygiene exemption; scrubbed remaining brain ids in plan | INT-440 §4 |
+| 2026-11-25 | Seed calls AC-04 `intake:refresh` before StartRun; adjustedPrice preferred on ingest | INT-440 e2e + Task 2.5 |
 
 ## Externally blocked
 | Item | Impact | Next |
 |---|---|---|
 | EWAG topiccreator / topic registration | Channels exist; `POST /topics` 403; messages `TOPIC::NOT_RELATED_TO_CHANNEL` | Send ontology-aligned schemas to Digital Spine (after INT-440 schema fix); they configure topics |
+| GSY market topics (A12) | `deploy/envs/dev` keeps `MARKET_ADAPTER=mock` + `INTAKE_BOOTSTRAP_S1=true` so e2e-dev StartRun has trades | Flip to `ewds` when EWAG registers GSY topics |
 | R2M gateway DID allow-list unknown | Empty `EWDS_COMMAND_ALLOWED_DIDS` rejects all commands | Log; set when R2M provides DID |
 | Live Stripe keys | Never in repo; live mode with test keys + mode guard | Keep test keys only |
 

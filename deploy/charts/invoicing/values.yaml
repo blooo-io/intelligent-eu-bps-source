@@ -8,14 +8,18 @@ image:
   tag: "0.0.0"
 port: 8080
 # INT-287 — peer allow-list only (no namespace-wide ingress).
-# A6 / INT-428 — Stripe Invoicing removed; no payments egress.
+# A6 / INT-428 — Stripe Invoicing removed; PAYMENTS_INTERNAL_URL is KYC only (REQ-045).
 egressModules:
   - settlement
   - participants
+  # INT-440 / REQ-045 — manager KYC gate via AC-07 (no AllowAll in cluster).
+  - payments
 ingressFrom:
   - payments
   - scheduler-worker
   - notification
+  # INT-440 — AC-12 DSAR invoice list.
+  - compliance
 keycloakEgress: true
 stripeEgress: false
 # INT-223 — JetStream SettlementCompleted → createFromSettlement.
@@ -36,5 +40,7 @@ env:
   NATS_STREAM: DebeziumStream
   SETTLEMENT_INTERNAL_URL: http://settlement:8080
   PARTICIPANTS_INTERNAL_URL: http://participants:8080
+  # INT-440 / REQ-045 — HttpKycStatusClient (AllowAll refused when NODE_ENV=production).
+  PAYMENTS_INTERNAL_URL: http://payments:8080
   REMINDER_INTERVAL_DAYS: "7"
   REMINDER_MAX: "3"

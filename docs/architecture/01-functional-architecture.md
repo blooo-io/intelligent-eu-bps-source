@@ -51,22 +51,56 @@ The Billing & Payment Service (T5.6, deliverable D5.5) turns the energy trades s
 
 ### Context diagram
 
+D1 (spec v6.1): the project UI never calls billing `/v1`; it talks to the EWDS through its own Client Gateway. `/v1` serves only the reference web app. Card, IBAN and identity data go from the user's browser straight to Stripe (A7-bis hosted or embedded).
+
 ```mermaid
 %% elk %%
 flowchart LR
-  C([Consumer]) --- B
-  P([Producer]) --- B
-  CM([Community manager]) --- B
-  OP([Platform operator]) --- B
-  DPO([Compliance / DPO]) --- B
-  B[[Billing & Payment Service]]
-  B -- "settled trades, clearing results, markets" --- MKT[(Local market<br/>GSY DEX)]
-  B -- "records + command channel via EWDS" --- DS[(Project data space<br/>EWDS)]
-  B -- "KYC, payments, payouts" --- PSP[(Payment provider<br/>Stripe)]
-  B -- "authentication, roles" --- IDP[(Identity provider)]
-  B -- "EUR→CHF rates" --- FX[(ECB rates)]
-  EXT[(Project UI · WP6 / Analytics)]
-  EXT -. "records + commands (EWDS)" .-> DS
+  subgraph EWDS["EWDS (Energy Web Digital Spine) — hub and spoke"]
+    MB[(Message broker)]
+  end
+  subgraph BPS["Billing & Payment Service (Blooo)"]
+    CGWB[Billing Client Gateway]
+    CORE[Billing modules]
+    WEB[Reference web app apps/web]
+  end
+  subgraph UI["Project UI (R2M)"]
+    UIS[UI server]
+    CGWU[UI Client Gateway]
+  end
+  GSY[GSY DEX] --- CGWG[GSY Client Gateway]
+  PILOT[Pilot systems / DSO] --- CGWP[Pilot Client Gateway]
+  CGWG <--> MB
+  CGWP <--> MB
+  CGWU <--> MB
+  CGWB <--> MB
+  UIS --> CGWU
+  CORE --> CGWB
+  WEB -->|/v1 REST, OIDC| CORE
+  CORE -->|API| STRIPE[(Stripe Connect + Identity)]
+  CORE -->|OIDC| KC[(Keycloak)]
+  USER((Community member / manager)) --> UIS
+  USER -.->|hosted page or embedded component| STRIPE
+```
+
+### Money flow (two-level model)
+
+D2: statements are informative; pair invoices are the legal payable documents. Funds go from the consumer to the producer's connected account, then to the producer's bank. The platform never holds them.
+
+```mermaid
+%% elk %%
+flowchart LR
+  T[Settled trades of the month] --> N[Netting per consumer→producer pair + threshold carry-forward]
+  N --> INV1[Invoice C1→P1 in P1's name]
+  N --> INV2[Invoice C1→P2 in P2's name]
+  INV1 --> ST1[Statement of C1: bought, sold, net balance, invoice list]
+  INV2 --> ST1
+  INV1 --> STP1[Statement of P1]
+  INV2 --> STP2[Statement of P2]
+  C1((Consumer C1)) -->|direct charge| A1[(P1 connected account)]
+  C1 -->|direct charge| A2[(P2 connected account)]
+  A1 -->|payout after period invoices Paid| B1[(P1 bank)]
+  A2 -->|payout after period invoices Paid| B2[(P2 bank)]
 ```
 
 ## 3. Functional map

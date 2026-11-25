@@ -201,6 +201,24 @@ describe("IntakeService", () => {
     expect(result.ingested).toBe(0);
   });
 
+  it("REQ-003: stores adjustedPrice when the market publishes one (Task 2.5)", async () => {
+    const suite = createMockSuite("S1");
+    const trade = suite.scenario.trades[0];
+    service.useSuite({
+      ...suite,
+      market: {
+        ...suite.market,
+        queryTrades: async () => [
+          { ...trade, pricePerKWhEur: 0.2, adjustedPricePerKWhEur: 0.18 },
+        ],
+        queryMarkets: async () => suite.scenario.markets,
+      },
+    });
+    await service.refreshIntake(WINDOW);
+    // formatMoney keeps two decimal places (BR-08 money string).
+    expect(store.get(trade.tradeId)!.price).toBe("0.18");
+  });
+
   it("uses trade delivery when market row is absent (BR-02 fallback)", async () => {
     const suite = createMockSuite("S1");
     const trade = suite.scenario.trades[0];

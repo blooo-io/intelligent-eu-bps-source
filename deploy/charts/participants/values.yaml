@@ -8,7 +8,10 @@ image:
   tag: "0.0.0"
 port: 8080
 # INT-287 — peer allow-list only (no namespace-wide ingress).
-egressModules: []
+egressModules:
+  # INT-440 — live switch needs PSP capabilities (AC-07) + open periods (AC-05).
+  - payments
+  - settlement
 ingressFrom:
   - invoicing
   - settlement
@@ -41,6 +44,9 @@ env:
   NATS_SUBJECT_PREFIX: intelligent.dev
   NATS_STREAM: DebeziumStream
   CGW_BASE_URL: http://ddhub-client-gateway.ddhub.svc.cluster.local
+  # INT-440 — REQ-043 live switch: PSP capabilities + open-period guard.
+  PAYMENTS_INTERNAL_URL: http://payments:8080
+  SETTLEMENT_INTERNAL_URL: http://settlement:8080
   MARKET_ADAPTER: mock
   DATASPACE_ADAPTER: mock
   ACTOR_SOURCE_ADAPTER: mock

@@ -11,6 +11,9 @@ port: 8080
 # INT-287 — peer allow-list only (no namespace-wide ingress).
 egressModules:
   - participants
+  # INT-440 — DSAR export + erasure adapters (AC-03 / AC-06 / AC-07).
+  - payments
+  - invoicing
 ingressFrom:
   - scheduler-worker
 keycloakEgress: true
@@ -32,6 +35,9 @@ env:
   SERVICE_JWT_REQUIRED: "true"
   # INT-336 — manager/DPO DSR target must belong to the caller community (AC-03).
   PARTICIPANTS_INTERNAL_URL: http://participants:8080
+  # INT-440 / REQ-013 — DSAR HTTP sources + IdP/PSP erasure (no Lisboa fixture in cluster).
+  PAYMENTS_INTERNAL_URL: http://payments:8080
+  INVOICING_INTERNAL_URL: http://invoicing:8080
   CGW_BASE_URL: http://ddhub-client-gateway.ddhub.svc.cluster.local
   MARKET_ADAPTER: mock
   DATASPACE_ADAPTER: mock

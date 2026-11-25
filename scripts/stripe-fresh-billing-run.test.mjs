@@ -43,4 +43,11 @@ describe("stripe-fresh-billing-run.mjs (INT-228 / INT-238)", () => {
     assert.match(src, /KEYCLOAK_BASE_URL/);
     assert.match(src, /SERVICE_JWT_REQUIRED/);
   });
+
+  it("refreshes AC-04 intake before StartRun (INT-440 e2e seed)", () => {
+    assert.match(src, /TRADE_INTAKE_URL/);
+    assert.match(src, /intake:refresh/);
+    assert.match(src, /intakeRefresh/);
+    assert.match(src, /2026-11-01T00:00:00Z/);
+  });
 });

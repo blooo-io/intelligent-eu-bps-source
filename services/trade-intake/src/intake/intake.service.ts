@@ -144,6 +144,12 @@ export class IntakeService {
         continue;
       }
 
+      // REQ-003 / A10.3 — bill at adjustedPrice when the market publishes one.
+      const billedPrice =
+        fixture.adjustedPricePerKWhEur !== undefined &&
+        fixture.adjustedPricePerKWhEur !== null
+          ? fixture.adjustedPricePerKWhEur
+          : fixture.pricePerKWhEur;
       const inserted = this.store.insertOnce({
         tradeId: fixture.tradeId,
         marketId: fixture.marketId,
@@ -153,7 +159,7 @@ export class IntakeService {
         producerId: seller.participantId,
         communityId: buyer.communityId,
         kWh: formatKWh(fixture.energyKWh),
-        price: formatMoney(fixture.pricePerKWhEur),
+        price: formatMoney(billedPrice),
         // BR-11: persist market status as-is; never rewrite later.
         status: fixture.status,
         deliveryStart,

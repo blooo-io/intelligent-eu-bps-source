@@ -125,10 +125,15 @@ test.describe("AC-01 member screens and buttons", () => {
     ).toBeVisible();
     await expect(page.getByText(/^(Pay|Payouts)$/i).first()).toBeVisible();
     // The step indicator is not clickable (INT-391 / ANO-003): it must not change the step.
-    const heading = page.getByRole("heading", { name: /get ready — step \d of 3/i });
+    // INT-443 — consumers include payment → 4 steps; sellers stay at 3.
+    const heading = page.getByRole("heading", {
+      name: /get ready — step \d of [34]/i,
+    });
     const headingBefore = await heading.textContent();
     await page.getByText("Billing identity").click();
-    await expect(heading).toHaveText(headingBefore ?? /get ready — step \d of 3/i);
+    await expect(heading).toHaveText(
+      headingBefore ?? /get ready — step \d of [34]/i,
+    );
     await expect(
       page
         .getByRole("button", {

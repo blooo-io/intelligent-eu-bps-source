@@ -152,4 +152,35 @@ describe("ManagerKycService (REQ-051)", () => {
     await accounts.put(participant);
     expect(await query.statusOf(MANAGER)).toBe("verified");
   });
+
+  it("INT-442: statusOf resolves IdP sub → participantId before manager miss", async () => {
+    const participantId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const idpSub = "keycloak-sofia-sub";
+    await accounts.put({
+      participantId,
+      pspAccountRef: "acct_sofia",
+      pspPaymentMethodRef: null,
+      kycStatus: "verified",
+      role: "prosumer",
+      communityId: COMMUNITY,
+      ...DEFAULT_KYC_ACCOUNT_FIELDS,
+      kycVerified: true,
+      kycVerifiedAt: new Date().toISOString(),
+    });
+    const withResolver = new KycQueryService(accounts, store, {
+      resolveByIdpSub: async (sub) =>
+        sub === idpSub
+          ? { participantId, communityId: COMMUNITY }
+          : null,
+    });
+    expect(await withResolver.statusOf(idpSub)).toBe("verified");
+    const status = await withResolver.getStatus(idpSub);
+    expect(status).toMatchObject({
+      subjectId: idpSub,
+      subjectType: "participant",
+      kycVerified: true,
+      kycStatus: "verified",
+      method: "connect_onboarding",
+    });
+  });
 });

@@ -65,6 +65,8 @@ spec:
       plugins:
 {{ include "apisix-gateway.oidcPlugin" . | nindent 8 }}
     - name: payments
+      # INT-442 — /v1/me/kyc and identity-verification must beat participants /v1/me/*
+      # (priority 50); otherwise Nest on AC-03 returns 404 Cannot GET/POST.
       priority: 60
       match:
         hosts:
@@ -74,6 +76,10 @@ spec:
           - /v1/me/payment-account/*
           - /v1/me/payouts
           - /v1/me/payouts/*
+          - /v1/me/kyc
+          - /v1/me/kyc/*
+          - /v1/me/identity-verification
+          - /v1/me/identity-verification/*
           - /v1/invoices/*/payments
           - /v1/invoices/*/payments/*
       backends:

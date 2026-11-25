@@ -7,13 +7,40 @@ export type InvoiceStatus =
   | "Void"
   | "Disputed";
 
+/** REQ-039 — party shown on the self-billing PDF (retained under REQ-013). */
+export type InvoiceParty = {
+  participantId: string;
+  name: string;
+  address: string;
+};
+
+/** REQ-054 / REQ-050 — self-billing mandate accepted in the T&C. */
+export type SelfBillingMandate = {
+  termsVersion: string;
+  acceptedAt: string | null;
+};
+
+/** REQ-007 / REQ-004 — amount split on the invoice. */
+export type InvoiceAmounts = {
+  energy: string;
+  gridFee: string;
+  levy: string;
+  tax: string;
+  vat: string;
+  total: string;
+};
+
 /** REQ-007 — one trade on the invoice, signed in the invoice direction. */
 export type InvoiceTradeLine = {
   tradeId: string;
   deliveryStart?: string;
   deliveryEnd?: string;
+  /** Addressee role on this trade (REQ-007). */
+  role?: "buyer" | "seller";
   kWh: string;
   pricePerKWh: string;
+  /** A10.3 — market-adjusted price when present. */
+  adjustedPricePerKWh?: string;
   amount: string;
 };
 
@@ -29,6 +56,11 @@ export type PairSettlementInput = {
   carriedForwardIn?: string;
   kWh: string;
   energyAmount: string;
+  /** REQ-004 — grid fee / levy / tax when a DSO tariff applies; else 0. */
+  gridFeeAmount?: string;
+  levyAmount?: string;
+  taxAmount?: string;
+  tariffId?: string | null;
   vat: string;
   currency: string;
   rate: string;
@@ -92,6 +124,28 @@ export type InvoiceRecord = {
   statusAudit: InvoiceStatusAudit[];
   /** REQ-061 — reminders already sent (manual + scheduled). */
   reminders: InvoiceReminder[];
+  /** ISO timestamp when the invoice was issued (PDF metadata / DSAR). */
+  issuedAt?: string;
+  /** REQ-039 — producer as legal issuer (names stay in DB only). */
+  issuer?: InvoiceParty;
+  /** REQ-039 — consumer as addressee. */
+  addressee?: InvoiceParty;
+  /** REQ-054 — self-billing mandate shown on the PDF. */
+  mandate?: SelfBillingMandate | null;
+  /** REQ-007 / REQ-004 — full amount split for the PDF and public API. */
+  amounts?: InvoiceAmounts;
+  /** BR-07 — VAT fraction (0..1) shown as a percentage on the PDF. */
+  vatRate?: number;
+  /** BR-06 — ECB rate when the community currency is not EUR. */
+  exchangeRate?: { rate: string; rateDate: string } | null;
+  /** REQ-004 — DSO tariff id when charges apply. */
+  tariffId?: string | null;
+  /** REQ-039 — stored PDF fingerprint (bytes live in the document store). */
+  document?: { sha256: string; byteLength: number } | null;
+  /** Total energy covered by the invoice. */
+  totalKWh?: string;
+  carriedForwardIn?: string;
+  settlementType?: "periodic" | "final";
 };
 
 /**

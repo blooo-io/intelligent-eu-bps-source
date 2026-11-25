@@ -1,11 +1,13 @@
+import { createHash } from "node:crypto";
 import { formatLegalNumber, legalNumberSeq } from "./legal-number.js";
 import type { StatementRecord } from "./statement-store.js";
 import type { InvoiceRecord } from "./types.js";
-import { seedUatInvoices } from "./uat-seed.js";
+import { seedUatInvoices, UAT_INLINE_PDF } from "./uat-seed.js";
 
 export type InvoiceWrite =
   | { kind: "invoice"; row: InvoiceRecord }
-  | { kind: "statement"; row: StatementRecord };
+  | { kind: "statement"; row: StatementRecord }
+  | { kind: "document"; invoiceId: string; sha256: string; content: Buffer };
 
 /**
  * Billing-owned invoice store (TP-7 / A6): legal numbers and documents live here.
@@ -14,15 +16,20 @@ export type InvoiceWrite =
 export class InvoiceStore {
   private readonly byId = new Map<string, InvoiceRecord>();
   private readonly bySettlement = new Map<string, string>();
+  /** REQ-039 — PDF bytes keyed by invoice id (not in row snapshot). */
+  private readonly documents = new Map<
+    string,
+    { sha256: string; content: Buffer }
+  >();
   private recording = false;
-  private writes: Extract<InvoiceWrite, { kind: "invoice" }>[] = [];
+  private writes: Extract<InvoiceWrite, { kind: "invoice" | "document" }>[] = [];
 
   beginRecording(): void {
     this.recording = true;
     this.writes = [];
   }
 
-  takeRecording(): Extract<InvoiceWrite, { kind: "invoice" }>[] {
+  takeRecording(): Extract<InvoiceWrite, { kind: "invoice" | "document" }>[] {
     this.recording = false;
     return this.writes.splice(0);
   }
@@ -32,6 +39,7 @@ export class InvoiceStore {
     this.writes = [];
   }
 
+  /** Snapshot excludes document bytes (Task 2.8). */
   snapshot(): string {
     return JSON.stringify([...this.byId.values()]);
   }
@@ -43,21 +51,36 @@ export class InvoiceStore {
     this.byId.clear();
     this.bySettlement.clear();
     for (const row of rows) this.put(row);
+    // Drop documents of invoices absent after restore / rollback.
+    const keep = new Set(rows.map((r) => r.invoiceId));
+    for (const id of [...this.documents.keys()]) {
+      if (!keep.has(id)) this.documents.delete(id);
+    }
     this.recording = recording;
   }
 
   constructor() {
     // INT-218 — load UAT fixture invoices once (survives nothing; re-seed on construct).
-    for (const row of seedUatInvoices()) {
-      this.put(row);
-    }
+    this.seedFixtures();
   }
 
   reset(): void {
     this.byId.clear();
     this.bySettlement.clear();
-    for (const row of seedUatInvoices()) {
+    this.documents.clear();
+    this.seedFixtures();
+  }
+
+  private seedFixtures(): void {
+    for (const seeded of seedUatInvoices()) {
+      // Seed document until a rendered PDF replaces it at issue (Task 2.10 / 2.12).
+      const sha256 = createHash("sha256").update(UAT_INLINE_PDF).digest("hex");
+      const row: InvoiceRecord = {
+        ...seeded,
+        document: { sha256, byteLength: UAT_INLINE_PDF.byteLength },
+      };
       this.put(row);
+      this.putDocument(row.invoiceId, sha256, UAT_INLINE_PDF);
     }
   }
 
@@ -75,6 +98,20 @@ export class InvoiceStore {
     this.byId.set(row.invoiceId, structuredClone(row));
     this.bySettlement.set(row.settlementId, row.invoiceId);
     if (this.recording) this.writes.push({ kind: "invoice", row: structuredClone(row) });
+  }
+
+  /** REQ-039 — store the rendered PDF (insert-only at the journal layer). */
+  putDocument(invoiceId: string, sha256: string, content: Buffer): void {
+    const copy = Buffer.from(content);
+    this.documents.set(invoiceId, { sha256, content: copy });
+    if (this.recording) {
+      this.writes.push({ kind: "document", invoiceId, sha256, content: copy });
+    }
+  }
+
+  getDocument(invoiceId: string): Buffer | undefined {
+    const doc = this.documents.get(invoiceId);
+    return doc ? Buffer.from(doc.content) : undefined;
   }
 
   list(): InvoiceRecord[] {

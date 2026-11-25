@@ -6,7 +6,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   BILLING_MODE_RESOLVER,
   OutboxService,
@@ -23,7 +23,11 @@ import type {
   InvoiceSummary,
   PairSettlementInput,
 } from "../domain/types.js";
-import { UAT_INLINE_PDF } from "../domain/uat-seed.js";
+import {
+  INVOICE_RENDERER,
+  renderInvoicePdf,
+  type InvoiceRenderer,
+} from "../pdf/invoice-pdf.renderer.js";
 import {
   PARTICIPANTS_RESOLVER,
   type ParticipantsResolverPort,
@@ -83,7 +87,14 @@ export class InvoicingService {
     @Optional()
     @Inject(BILLING_MODE_RESOLVER)
     private readonly billingMode: BillingModeResolver | null = null,
+    @Optional()
+    @Inject(INVOICE_RENDERER)
+    private readonly renderer: InvoiceRenderer | null = null,
   ) {}
+
+  private renderPdf(invoice: InvoiceRecord): Promise<Uint8Array> {
+    return (this.renderer ?? renderInvoicePdf)(invoice);
+  }
 
   /** REQ-043 — community live|virtual from AC-03 settings. */
   private async modeOf(communityId: string) {
@@ -230,8 +241,7 @@ export class InvoicingService {
         total: row.total,
         currency: row.currency,
         status: row.status,
-        // InvoiceRecord has no issue timestamp yet (A6); null until stored.
-        issuedAt: null,
+        issuedAt: row.issuedAt ?? null,
       }))
       .sort((a, b) => a.period.localeCompare(b.period));
   }
@@ -253,25 +263,52 @@ export class InvoicingService {
   }
 
   /**
-   * REQ-039 / A6 — billing-stored PDF for the caller (member on the invoice).
-   * Stub bytes until the pdf-lib renderer (Task 2.10) stores a real document.
+   * REQ-039 / A6 / UAT-050 — billing-stored PDF for a member on the invoice
+   * or a manager of the invoice community (REQ-049).
    */
   async getDocumentForCaller(
     invoiceId: string,
-    subOrParticipantId: string,
+    caller: { sub: string; roles: string[]; communityId?: string },
   ): Promise<{ legalNumber: string; content: Buffer }> {
     const row = this.store.get(invoiceId);
     if (!row) {
       throw new NotFoundException(`Unknown invoice ${invoiceId}`);
     }
-    const callerIds = await this.resolveCallerIds(subOrParticipantId);
-    if (!this.isCallerOnInvoice(row, callerIds)) {
+    const isManager = caller.roles.includes("manager");
+    if (isManager) {
+      if (!caller.communityId || caller.communityId !== row.communityId) {
+        throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+      }
+    } else {
+      const callerIds = await this.resolveCallerIds(caller.sub);
+      if (!this.isCallerOnInvoice(row, callerIds)) {
+        throw new NotFoundException(`Unknown invoice ${invoiceId}`);
+      }
+    }
+    return this.requireStoredDocument(row, invoiceId);
+  }
+
+  /** REQ-039 — internal GetInvoiceDocument (service role). */
+  getDocument(invoiceId: string): { legalNumber: string; content: Buffer } {
+    const row = this.store.get(invoiceId);
+    if (!row) {
       throw new NotFoundException(`Unknown invoice ${invoiceId}`);
     }
+    return this.requireStoredDocument(row, invoiceId);
+  }
+
+  private requireStoredDocument(
+    row: InvoiceRecord,
+    invoiceId: string,
+  ): { legalNumber: string; content: Buffer } {
     if (!row.legalNumber) {
       throw new NotFoundException(`No document for invoice ${invoiceId}`);
     }
-    return { legalNumber: row.legalNumber, content: Buffer.from(UAT_INLINE_PDF) };
+    const content = this.store.getDocument(invoiceId);
+    if (!content) {
+      throw new NotFoundException(`No document for invoice ${invoiceId}`);
+    }
+    return { legalNumber: row.legalNumber, content };
   }
 
   /**
@@ -305,18 +342,33 @@ export class InvoicingService {
       );
     }
 
-    const dueDate = new Date();
+    const issuedAt = new Date().toISOString();
+    const dueDate = new Date(issuedAt);
     dueDate.setUTCDate(dueDate.getUTCDate() + 14);
     const due = dueDate.toISOString().slice(0, 10);
 
+    const gridFee = settlement.gridFeeAmount ?? "0.00";
+    const levy = settlement.levyAmount ?? "0.00";
+    const tax = settlement.taxAmount ?? "0.00";
     const total = (
-      Number(settlement.energyAmount) + Number(settlement.vat)
+      Number(settlement.energyAmount) +
+      Number(gridFee) +
+      Number(levy) +
+      Number(tax) +
+      Number(settlement.vat)
     ).toFixed(2);
 
     // BR-10 / REQ-042 — assign inside the issue transaction (A6).
+    // Put only after a successful render so a failed render leaves no gap.
     const legalNumber = this.store.nextLegalNumber(settlement.producerId);
 
     const invoiceId = randomUUID();
+    const exchangeRate =
+      settlement.currency === "EUR" || !settlement.rateDate
+        ? null
+        : { rate: settlement.rate, rateDate: settlement.rateDate };
+
+    // Stub parties until InvoicePartyPort (Task 2.9 / 2.11) supplies profiles.
     const record: InvoiceRecord = {
       invoiceId,
       settlementId: settlement.settlementId,
@@ -338,8 +390,41 @@ export class InvoicingService {
       communityId: settlement.communityId,
       statusAudit: [],
       reminders: [],
+      issuedAt,
+      issuer: {
+        participantId: settlement.producerId,
+        name: "Producer",
+        address: "",
+      },
+      addressee: {
+        participantId: settlement.consumerId,
+        name: "Consumer",
+        address: "",
+      },
+      mandate: { termsVersion: "v1", acceptedAt: null },
+      amounts: {
+        energy: settlement.energyAmount,
+        gridFee,
+        levy,
+        tax,
+        vat: settlement.vat,
+        total,
+      },
+      vatRate: settlement.vatRate ?? 0,
+      exchangeRate,
+      tariffId: settlement.tariffId ?? null,
+      totalKWh: settlement.kWh,
+      carriedForwardIn: settlement.carriedForwardIn ?? "0.00",
+      settlementType: settlement.settlementType ?? "periodic",
+      document: null,
     };
+
+    // REQ-039 / UAT-050 — render and store PDF + sha256 at issue.
+    const bytes = Buffer.from(await this.renderPdf(record));
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    record.document = { sha256, byteLength: bytes.byteLength };
     this.store.put(record);
+    this.store.putDocument(invoiceId, sha256, bytes);
 
     await this.outbox.append({
       aggregateType: "Invoice",
@@ -369,10 +454,7 @@ export class InvoicingService {
         carriedForwardAmount: settlement.carriedForwardIn ?? "0.00",
         // NFR-004 — no conversion on an EUR invoice. A foreign currency
         // carries the ECB rate the settlement already applied (BR-06).
-        exchangeRate:
-          settlement.currency === "EUR" || !settlement.rateDate
-            ? null
-            : { rate: settlement.rate, rateDate: settlement.rateDate },
+        exchangeRate,
       },
     });
 
@@ -716,6 +798,14 @@ export class InvoicingService {
   }
 
   private async toPublicInvoice(row: InvoiceRecord): Promise<Record<string, unknown>> {
+    const amounts = row.amounts ?? {
+      energy: row.energyAmount ?? row.total,
+      gridFee: "0.00",
+      levy: "0.00",
+      tax: "0.00",
+      vat: row.vatAmount ?? "0.00",
+      total: row.total,
+    };
     return {
       invoiceId: row.invoiceId,
       legalNumber: row.legalNumber ?? undefined,
@@ -727,11 +817,7 @@ export class InvoicingService {
       pairSettlementId: row.settlementId,
       tradeIds: row.tradeIds,
       lines: row.lines ?? [],
-      amounts: {
-        energy: row.energyAmount ?? row.total,
-        vat: row.vatAmount ?? "0.00",
-        total: row.total,
-      },
+      amounts,
       billingMode: await this.modeOf(row.communityId),
     };
   }

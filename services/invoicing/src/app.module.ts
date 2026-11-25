@@ -37,6 +37,10 @@ import {
   createSettlementClient,
   SETTLEMENT_CLIENT,
 } from "./ports/settlement-client.port.js";
+import {
+  INVOICE_RENDERER,
+  renderInvoicePdf,
+} from "./pdf/invoice-pdf.renderer.js";
 
 /** INT-356 / REQ-059 — load invoices and statements at boot and commit them with the outbox. */
 @Injectable()
@@ -98,6 +102,11 @@ class InvoicePersistence implements OnModuleInit {
       provide: PARTICIPANTS_RESOLVER,
       // INT-236 — IdP sub → participantId for public invoice list/detail.
       useFactory: () => createParticipantsResolver(),
+    },
+    {
+      provide: INVOICE_RENDERER,
+      // A6 / REQ-039 — in-house pdf-lib renderer (INT-440).
+      useValue: renderInvoicePdf,
     },
     SettlementCompletedListener,
     // INT-270 — PaymentStatusChanged → invoice Paid.

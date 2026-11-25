@@ -38,6 +38,18 @@ export class InternalParticipantsController {
     return this.participants.getCommunitySettings(communityId);
   }
 
+  /** REQ-061 / Task 2.9 — AC-11 missing-payment alert inbox. */
+  @Get("communities/:communityId/manager-contact")
+  getManagerContact(@Param("communityId") communityId: string) {
+    return this.participants.getManagerContact(communityId);
+  }
+
+  /** REQ-039 / Task 2.9 — AC-06 PDF issuer / addressee + self-billing mandate. */
+  @Get("participants/:participantId/invoice-party")
+  getInvoiceParty(@Param("participantId") participantId: string) {
+    return this.participants.getInvoiceParty(participantId);
+  }
+
   @Get("participants/:participantId/readiness")
   checkReadiness(@Param("participantId") participantId: string) {
     return this.participants.checkReadiness(participantId);

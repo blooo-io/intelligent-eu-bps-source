@@ -112,6 +112,25 @@ describe("participants HTTP (INT-103)", () => {
       participantId: "f69e6745-3bfe-49ad-b84e-0853aa86ad05",
       communityId: SEED_COMMUNITY_ID,
     });
+
+    // INT-440 / Task 2.9 — invoice-party for AC-06 PDF (S1 producer A).
+    const party = await fetch(
+      `${base}/internal/v1/participants/66666666-7777-4888-9999-aaaaaaaaaaaa/invoice-party`,
+      { headers: { "x-intelligent-roles": "service" } },
+    );
+    expect(party.status).toBe(200);
+    expect(await party.json()).toMatchObject({
+      name: "Thomas Bernard",
+      address: "1 Fixture Lane",
+      selfBillingMandate: { termsVersion: "v1.0.0", acceptedAt: null },
+    });
+
+    // REQ-061 — manager-contact 404 until settings write.
+    const unset = await fetch(
+      `${base}/internal/v1/communities/${SEED_COMMUNITY_ID}/manager-contact`,
+      { headers: { "x-intelligent-roles": "service" } },
+    );
+    expect(unset.status).toBe(404);
   });
 
   it("manager import + list participants (REQ-008)", async () => {

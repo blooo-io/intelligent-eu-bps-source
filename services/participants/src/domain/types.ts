@@ -44,15 +44,18 @@ export type CommunitySettings = {
    * until legal clears charging DSO amounts onto the producer Connect account.
    */
   tariffBilling: boolean;
+  /** REQ-061 — manager inbox for payment alerts (AC-11). */
+  managerContactEmail?: string;
 };
 
 /** PUT body: optional flags default to false (REQ-015 / B2). */
 export type CommunitySettingsWrite = Omit<
   CommunitySettings,
-  "communityId" | "autoPayout" | "tariffBilling"
+  "communityId" | "autoPayout" | "tariffBilling" | "managerContactEmail"
 > & {
   autoPayout?: boolean;
   tariffBilling?: boolean;
+  managerContactEmail?: string;
 };
 
 export type ParticipantRecord = {

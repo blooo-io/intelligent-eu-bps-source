@@ -650,6 +650,63 @@ describe("ParticipantsService", () => {
     expect(reset.tariffBilling).toBe(false);
   });
 
+  it("REQ-039: invoice-party returns name, address and mandate for a producer", () => {
+    // S1 producer A — profile + self-billing mandate from seed.
+    const party = service.getInvoiceParty(
+      "66666666-7777-4888-9999-aaaaaaaaaaaa",
+    );
+    expect(party).toMatchObject({
+      participantId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      name: "Thomas Bernard",
+      address: "1 Fixture Lane",
+      selfBillingMandate: {
+        termsVersion: "v1.0.0",
+        acceptedAt: null,
+      },
+    });
+  });
+
+  it("REQ-039: invoice-party 404 when the billing profile is missing", () => {
+    const id = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0001";
+    store.putParticipant({
+      participantId: id,
+      communityId,
+      role: "consumer",
+      status: "Invited",
+      marketActorId: id,
+      meterId: "m-none",
+      idpUserId: null,
+      profile: null,
+      termsVersionAccepted: null,
+      selfBillingMandate: false,
+      paymentAccountReady: false,
+      paymentBlockReason: null,
+      source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
+    });
+    expect(() => service.getInvoiceParty(id)).toThrow(/No invoice party profile/);
+  });
+
+  it("REQ-061: manager-contact 404 when unset, 200 after settings write", async () => {
+    expect(() => service.getManagerContact(communityId)).toThrow(
+      /No manager contact/,
+    );
+    await service.updateCommunitySettings(
+      communityId,
+      {
+        ...service.getCommunitySettings(communityId),
+        managerContactEmail: "manager@example.invalid",
+      },
+      ["manager"],
+    );
+    expect(service.getManagerContact(communityId)).toEqual({
+      communityId,
+      email: "manager@example.invalid",
+    });
+  });
+
   it("REQ-013 / INT-275 — erasure anonymizes profile and emits ErasureCompleted", async () => {
     const participantId = "f69e6745-3bfe-49ad-b84e-0853aa86ad05";
     const before = store.getParticipant(participantId)!;

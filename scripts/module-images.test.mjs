@@ -307,6 +307,39 @@ test("Dockerfiles for ewds-client consumers COPY packages/ewds-client", async ()
   }
 });
 
+// INT-436 — participants mock ActorSource imports @intelligent/mocks fixtures.
+test("Dockerfiles for mocks consumers COPY mocks/", async () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const consumers = [
+    "services/participants",
+    "services/publication",
+    "services/reference-data",
+    "services/settlement",
+    "services/trade-intake",
+  ];
+  for (const dir of consumers) {
+    const pkg = JSON.parse(
+      await readFile(path.join(root, dir, "package.json"), "utf8"),
+    );
+    assert.equal(
+      pkg.dependencies?.["@intelligent/mocks"],
+      "workspace:*",
+      `${dir} should depend on mocks`,
+    );
+    const dockerfile = await readFile(path.join(root, dir, "Dockerfile"), "utf8");
+    assert.match(
+      dockerfile,
+      /COPY mocks\/package\.json mocks\//,
+      `${dir}/Dockerfile missing mocks package.json COPY`,
+    );
+    assert.match(
+      dockerfile,
+      /COPY mocks mocks/,
+      `${dir}/Dockerfile missing mocks sources COPY`,
+    );
+  }
+});
+
 test("dockerfileForModulePath and path classifiers", () => {
   assert.equal(dockerfileForModulePath("apps/web/src/App.tsx"), "apps/web/Dockerfile");
   assert.equal(dockerfileForModulePath("services/foo/bar.ts"), "services/foo/Dockerfile");

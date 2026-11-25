@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import Stripe from "stripe";
 import type {
   PspEraseInput,
@@ -6,6 +6,9 @@ import type {
   PspEraseResult,
 } from "./psp-erase.port.js";
 import { readStripeEnv, resolvePspProvider } from "./stripe-env.js";
+
+/** Optional Nest token for the Stripe erase test seam (INT-438). */
+export const STRIPE_ERASE_CLIENT = Symbol("STRIPE_ERASE_CLIENT");
 
 type StripeCustomersDel = {
   del: (
@@ -40,7 +43,13 @@ export class StripePspEraseAdapter implements PspErasePort {
   private readonly stripe: StripeEraseClient;
 
   constructor(
-    /** Test seam — inject a stub instead of the live Stripe SDK. */
+    /**
+     * Test seam — inject a stub instead of the live Stripe SDK.
+     * Named token + `@Optional()` so Nest does not resolve the type alias as
+     * `Object` (INT-438 CrashLoop: UnknownDependenciesException).
+     */
+    @Optional()
+    @Inject(STRIPE_ERASE_CLIENT)
     stripeClient?: StripeEraseClient,
   ) {
     if (stripeClient) {

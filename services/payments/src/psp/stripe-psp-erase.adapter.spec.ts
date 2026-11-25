@@ -29,6 +29,11 @@ describe("StripePspEraseAdapter (INT-275 / INT-429)", () => {
     }
   });
 
+  // INT-438 — no-arg construction must work (Nest provides no STRIPE_ERASE_CLIENT).
+  it("INT-438: constructs without an injected Stripe erase client", () => {
+    expect(() => new StripePspEraseAdapter()).not.toThrow();
+  });
+
   it("REQ-013 / UAT-013: test-mode erase deletes customers and the connected account", async () => {
     process.env.PSP_PROVIDER = "stripe";
     const stripe = stubStripe();

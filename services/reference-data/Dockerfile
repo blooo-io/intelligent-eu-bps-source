@@ -17,6 +17,7 @@ COPY packages/ewds-client packages/ewds-client
 COPY mocks mocks
 COPY services/reference-data services/reference-data
 RUN pnpm --filter @intelligent/module-template build \
+ && pnpm --filter @intelligent/ewds-client build \
  && pnpm --filter @intelligent/mocks build \
  && pnpm --filter @intelligent/reference-data build \
  && pnpm --filter @intelligent/reference-data deploy --prod /out

@@ -13,6 +13,7 @@ COPY packages/module-template packages/module-template
 COPY packages/ewds-client packages/ewds-client
 COPY services/compliance services/compliance
 RUN pnpm --filter @intelligent/module-template build \
+ && pnpm --filter @intelligent/ewds-client build \
  && pnpm --filter @intelligent/compliance build \
  && pnpm --filter @intelligent/compliance deploy --prod /out
 

@@ -29,10 +29,10 @@
 | Day 5 reporting + KPIs | INT-427 | Done | [#195](https://github.com/blooo-io/intelligent-eu-bps-source/pull/195) squash-merged `1ff21f9` | 1.19–1.20 + 5.9–5.13 |
 | WS2 catch-up invoicing | INT-428 | Done | [#196](https://github.com/blooo-io/intelligent-eu-bps-source/pull/196) squash-merged `8bc38bd` | 2.13–2.19 + 1.14; UAT-078 Pass |
 | Day 5b GDPR + EWDS | INT-429 | Done | [#197](https://github.com/blooo-io/intelligent-eu-bps-source/pull/197) squash-merged `b5ee28b` | 3.12, 3.18–3.24, 4.12, 4.19–4.20 |
-| Day 6 release closeout | INT-430 | In progress | [#198](https://github.com/blooo-io/intelligent-eu-bps-source/pull/198) squash-merged `ef6a03d` | Task 6.16 done; tag blocked on WS3/WS4 |
+| Day 6 release closeout | INT-430 | Done | [#198](https://github.com/blooo-io/intelligent-eu-bps-source/pull/198) / [#201](https://github.com/blooo-io/intelligent-eu-bps-source/pull/201) | Tag [v1.2.0](https://github.com/blooo-io/intelligent-eu-bps-source/releases/tag/v1.2.0) @ `3675952` |
 | WS3 KYC catch-up | INT-431 | Done | [#199](https://github.com/blooo-io/intelligent-eu-bps-source/pull/199) squash-merged `6e8dd7b` | 3.2–3.11, 3.13–3.17 |
 | WS4 EWDS transport catch-up | INT-432 | Done | [#200](https://github.com/blooo-io/intelligent-eu-bps-source/pull/200) squash-merged `dd5b3dc` | 4.13–4.18 |
-| Day 6 release closeout (resume) | INT-430 | In progress | [#201](https://github.com/blooo-io/intelligent-eu-bps-source/pull/201) | UAT re-run · refresh notes · tag v1.2.0 |
+| Release train unblockers | INT-433…436 | Done | [#202](https://github.com/blooo-io/intelligent-eu-bps-source/pull/202)–[#205](https://github.com/blooo-io/intelligent-eu-bps-source/pull/205) | nodemailer · trivyignore · ewds-client Docker · participants mocks |
 
 ## Decisions / deviations
 | When | What | Why |

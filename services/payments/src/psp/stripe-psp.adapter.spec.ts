@@ -619,6 +619,44 @@ describe("StripePspAdapter mapping (INT-424)", () => {
     ).rejects.toThrow(/boom/);
   });
 
+  it("createEmbeddedPayment returns clientSecret and refuses a missing one", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
+      participantId: "part-emb",
+      country: "FR",
+    });
+    fake.completeKyc(pspAccountRef);
+    await expect(
+      adapter.createEmbeddedPayment({
+        invoiceId: INV1,
+        amount: "12.50",
+        currency: "EUR",
+        pspAccountRef,
+        methods: ["card", "sepa_debit"],
+        idempotencyKey: "pi:emb:ok",
+        pspCustomerRef: "cus_test_1",
+      }),
+    ).resolves.toMatchObject({
+      pspPaymentRef: expect.stringMatching(/^pi_/),
+      clientSecret: expect.stringMatching(/_secret_/),
+      expiresAt: expect.any(String),
+    });
+
+    vi.spyOn(fake.paymentIntents, "create").mockResolvedValueOnce({
+      id: "pi_nosecret",
+      client_secret: null,
+    } as never);
+    await expect(
+      adapter.createEmbeddedPayment({
+        invoiceId: INV1,
+        amount: "1.00",
+        currency: "EUR",
+        pspAccountRef,
+        methods: ["card"],
+        idempotencyKey: "pi:emb:nosecret",
+      }),
+    ).rejects.toThrow(/missing client_secret/);
+  });
+
   it("createCheckoutSession honours saveForFutureUse and rejects a missing url", async () => {
     const { pspAccountRef } = await adapter.createConnectedAccount({
       participantId: "part-cs",

@@ -536,6 +536,28 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
       warn.mockRestore();
     });
 
+    it("B1: day-80 PSP refusal counts as blocked", async () => {
+      settings.put(COM, { autoPayout: false });
+      vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+      payments.putPayment({
+        ...payment("pQ", "iQ-old", "3.00", "0.10"),
+        payeeId: "Q",
+        settledAt: "2026-09-05T09:00:00.000Z",
+      });
+      psp.balance = "9.00";
+      psp.next = new PspError("insufficient_balance", "race");
+      expect(await run()).toEqual({
+        requested: 0,
+        blocked: 1,
+        nearHoldingLimit: [],
+      });
+      expect(payouts.listForParticipant("Q")[0]).toMatchObject({
+        period: "_holding_limit",
+        status: "failed",
+        failureCategory: "insufficient_balance",
+      });
+    });
+
     it("does not flag funds younger than 70 days or without a settlement date", async () => {
       settings.put(COM, { autoPayout: true });
       payments.putPayment({

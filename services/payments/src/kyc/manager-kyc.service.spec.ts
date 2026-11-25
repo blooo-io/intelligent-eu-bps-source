@@ -69,6 +69,20 @@ describe("ManagerKycService (REQ-051)", () => {
     });
   });
 
+  it("A7-bis: embedded surface returns clientSecret from Identity session", async () => {
+    const result = await service.start(
+      MANAGER,
+      COMMUNITY,
+      "https://ui.example/return",
+      "embedded",
+    );
+    expect(result).toMatchObject({
+      surface: "embedded",
+      status: "pending",
+      clientSecret: expect.stringMatching(/_secret_test$/),
+    });
+  });
+
   it("REQ-051: verified identity event sets kycVerified and emits KycStatusChanged{subjectType:'manager', method:'identity_document'}", async () => {
     const started = await service.start(
       MANAGER,

@@ -15,6 +15,7 @@ import {
   type BillingModeResolver,
   type RecordingTransaction,
 } from "@intelligent/module-template";
+import { sumMoney } from "../domain/money.js";
 import { InvoiceStore, type InvoiceWrite } from "../domain/store.js";
 import type {
   InvoiceRecord,
@@ -28,6 +29,11 @@ import {
   renderInvoicePdf,
   type InvoiceRenderer,
 } from "../pdf/invoice-pdf.renderer.js";
+import {
+  INVOICE_PARTY_PORT,
+  StubInvoiceParty,
+  type InvoicePartyPort,
+} from "../ports/invoice-party.port.js";
 import {
   PARTICIPANTS_RESOLVER,
   type ParticipantsResolverPort,
@@ -90,7 +96,14 @@ export class InvoicingService {
     @Optional()
     @Inject(INVOICE_RENDERER)
     private readonly renderer: InvoiceRenderer | null = null,
+    @Optional()
+    @Inject(INVOICE_PARTY_PORT)
+    private readonly parties: InvoicePartyPort | null = null,
   ) {}
+
+  private partyPort(): InvoicePartyPort {
+    return this.parties ?? new StubInvoiceParty();
+  }
 
   private renderPdf(invoice: InvoiceRecord): Promise<Uint8Array> {
     return (this.renderer ?? renderInvoicePdf)(invoice);
@@ -329,8 +342,11 @@ export class InvoicingService {
       return existing;
     }
 
-    // Skip zero-amount carry-forward rows (BR-05) — nothing to invoice.
-    if (Number(settlement.energyAmount) === 0) {
+    const gridFee = settlement.gridFeeAmount ?? "0.00";
+    const levy = settlement.levyAmount ?? "0.00";
+    const tax = settlement.taxAmount ?? "0.00";
+    // Skip zero-amount carry-forward rows (BR-05) — energy + tariff lines only.
+    if (sumMoney(settlement.energyAmount, gridFee, levy, tax) === "0.00") {
       return null;
     }
 
@@ -342,21 +358,48 @@ export class InvoicingService {
       );
     }
 
+    // REQ-039 / REQ-054 — issuer and addressee from AC-03 (retryable when missing).
+    const parties = this.partyPort();
+    const producerParty = await parties.getInvoiceParty(settlement.producerId);
+    if (!producerParty) {
+      throw new BadRequestException(
+        "producer not ready: self-billing mandate missing",
+      );
+    }
+    if (!producerParty.selfBillingMandate) {
+      throw new BadRequestException(
+        "producer not ready: self-billing mandate missing",
+      );
+    }
+    const consumerParty = await parties.getInvoiceParty(settlement.consumerId);
+    if (!consumerParty) {
+      throw new BadRequestException(
+        "producer not ready: consumer billing profile missing",
+      );
+    }
+
     const issuedAt = new Date().toISOString();
     const dueDate = new Date(issuedAt);
     dueDate.setUTCDate(dueDate.getUTCDate() + 14);
     const due = dueDate.toISOString().slice(0, 10);
 
-    const gridFee = settlement.gridFeeAmount ?? "0.00";
-    const levy = settlement.levyAmount ?? "0.00";
-    const tax = settlement.taxAmount ?? "0.00";
-    const total = (
-      Number(settlement.energyAmount) +
-      Number(gridFee) +
-      Number(levy) +
-      Number(tax) +
-      Number(settlement.vat)
-    ).toFixed(2);
+    // BR-08 — total from energy + tariff lines + VAT.
+    const total = sumMoney(
+      settlement.energyAmount,
+      gridFee,
+      levy,
+      tax,
+      settlement.vat,
+    );
+    const amounts = {
+      energy: settlement.energyAmount,
+      gridFee,
+      levy,
+      tax,
+      vat: settlement.vat,
+      total,
+    };
+    const tariffApplied = Boolean(settlement.tariffId);
 
     // BR-10 / REQ-042 — assign inside the issue transaction (A6).
     // Put only after a successful render so a failed render leaves no gap.
@@ -368,7 +411,6 @@ export class InvoicingService {
         ? null
         : { rate: settlement.rate, rateDate: settlement.rateDate };
 
-    // Stub parties until InvoicePartyPort (Task 2.9 / 2.11) supplies profiles.
     const record: InvoiceRecord = {
       invoiceId,
       settlementId: settlement.settlementId,
@@ -393,23 +435,16 @@ export class InvoicingService {
       issuedAt,
       issuer: {
         participantId: settlement.producerId,
-        name: "Producer",
-        address: "",
+        name: producerParty.name || "Producer",
+        address: producerParty.address,
       },
       addressee: {
         participantId: settlement.consumerId,
-        name: "Consumer",
-        address: "",
+        name: consumerParty.name || "Consumer",
+        address: consumerParty.address,
       },
-      mandate: { termsVersion: "v1", acceptedAt: null },
-      amounts: {
-        energy: settlement.energyAmount,
-        gridFee,
-        levy,
-        tax,
-        vat: settlement.vat,
-        total,
-      },
+      mandate: producerParty.selfBillingMandate,
+      amounts,
       vatRate: settlement.vatRate ?? 0,
       exchangeRate,
       tariffId: settlement.tariffId ?? null,
@@ -437,11 +472,9 @@ export class InvoicingService {
         invoiceId,
         issuerId: settlement.producerId,
         recipientId: settlement.consumerId,
-        amounts: {
-          energy: settlement.energyAmount,
-          vat: settlement.vat,
-          total,
-        },
+        // Task 2.2 / REQ-004 — full amount split; NFR-015 — no legalNumber, no names.
+        amounts,
+        tariffApplied,
         currency: settlement.currency,
         tradeIds: settlement.tradeIds,
         settlementId: settlement.settlementId,
@@ -798,6 +831,7 @@ export class InvoicingService {
   }
 
   private async toPublicInvoice(row: InvoiceRecord): Promise<Record<string, unknown>> {
+    // REQ-007 / REQ-004 — six contract amount fields on the public Invoice.
     const amounts = row.amounts ?? {
       energy: row.energyAmount ?? row.total,
       gridFee: "0.00",
@@ -818,6 +852,7 @@ export class InvoicingService {
       tradeIds: row.tradeIds,
       lines: row.lines ?? [],
       amounts,
+      tariffApplied: Boolean(row.tariffId),
       billingMode: await this.modeOf(row.communityId),
     };
   }

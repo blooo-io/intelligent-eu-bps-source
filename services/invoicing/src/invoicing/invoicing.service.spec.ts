@@ -1,33 +1,44 @@
 /**
- * INT-106 / INT-128 / INT-428 — TD-2 mapping, BR-09, BR-10 (billing-owned).
+ * INT-106 / INT-128 / INT-428 / INT-440 — TD-2 mapping, BR-09, BR-10 (billing-owned).
  */
 import "reflect-metadata";
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   InMemoryOutboxStore,
   OutboxService,
+  RecordingTransaction,
   StaticBillingModeResolver,
 } from "@intelligent/module-template";
 import { StatementStore } from "../domain/statement-store.js";
-import { InvoiceStore } from "../domain/store.js";
+import { InvoiceStore, type InvoiceWrite } from "../domain/store.js";
 import type {
   InvoiceRecord,
   InvoiceStatus,
   PairSettlementInput,
 } from "../domain/types.js";
+import { isNonRetryableInvoiceError } from "../events/settlement-completed.listener.js";
+import {
+  MapInvoiceParty,
+  type InvoicePartyDetails,
+} from "../ports/invoice-party.port.js";
 import type { ParticipantsResolverPort } from "../ports/participants-resolver.port.js";
 import { NoopParticipantsResolver } from "../ports/participants-resolver.port.js";
 import { MapReadiness } from "../ports/readiness.port.js";
 import { InvoicingService } from "./invoicing.service.js";
 import { StatementsService } from "./statements.service.js";
 
+const PRODUCER_A = "66666666-7777-4888-9999-aaaaaaaaaaaa";
+const PRODUCER_B = "77777777-7777-4888-9999-bbbbbbbbbbbb";
+const CONSUMER = "11111111-2222-4333-8444-555555555555";
+
 const settlement = (
   over: Partial<PairSettlementInput> = {},
 ): PairSettlementInput => ({
   settlementId: "s1111111-1111-4111-8111-111111111111",
   runId: "r1111111-1111-4111-8111-111111111111",
-  consumerId: "11111111-2222-4333-8444-555555555555",
-  producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+  consumerId: CONSUMER,
+  producerId: PRODUCER_A,
   tradeIds: ["0xabc"],
   kWh: "10.000",
   energyAmount: "2.00",
@@ -45,6 +56,45 @@ const settlement = (
   ...over,
 });
 
+const party = (
+  participantId: string,
+  name: string,
+  address: string,
+  mandate: InvoicePartyDetails["selfBillingMandate"],
+): InvoicePartyDetails => ({
+  participantId,
+  name,
+  address,
+  selfBillingMandate: mandate,
+});
+
+const fixtureParties = (
+  over: Map<string, InvoicePartyDetails> = new Map(),
+): MapInvoiceParty => {
+  const map = new Map<string, InvoicePartyDetails>([
+    [
+      PRODUCER_A,
+      party(PRODUCER_A, "Paul Nguyen", "1 Fixture Lane", {
+        termsVersion: "v1",
+        acceptedAt: null,
+      }),
+    ],
+    [
+      PRODUCER_B,
+      party(PRODUCER_B, "Other Producer", "3 Fixture Lane", {
+        termsVersion: "v1",
+        acceptedAt: null,
+      }),
+    ],
+    [
+      CONSUMER,
+      party(CONSUMER, "Hugo Petit", "2 Fixture Lane", null),
+    ],
+  ]);
+  for (const [id, details] of over) map.set(id, details);
+  return new MapInvoiceParty(map);
+};
+
 describe("InvoicingService", () => {
   let store: InvoiceStore;
   let outboxStore: InMemoryOutboxStore;
@@ -58,38 +108,39 @@ describe("InvoicingService", () => {
       new NoopParticipantsResolver(),
     );
 
+  const buildService = (
+    over: {
+      readiness?: MapReadiness;
+      parties?: MapInvoiceParty;
+      renderer?: (invoice: InvoiceRecord) => Promise<Uint8Array>;
+      outbox?: OutboxService;
+      billingMode?: StaticBillingModeResolver;
+    } = {},
+  ) =>
+    new InvoicingService(
+      store,
+      over.outbox ?? new OutboxService(outboxStore),
+      over.readiness ??
+        new MapReadiness(new Map([[PRODUCER_A, true], [PRODUCER_B, true]])),
+      new NoopParticipantsResolver(),
+      statementsFor(),
+      over.billingMode,
+      over.renderer,
+      over.parties ?? fixtureParties(),
+    );
+
   beforeEach(() => {
     store = new InvoiceStore();
     outboxStore = new InMemoryOutboxStore();
-    service = new InvoicingService(
-      store,
-      new OutboxService(outboxStore),
-      new MapReadiness(
-        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
-      ),
-      new NoopParticipantsResolver(),
-      statementsFor(),
-    );
+    service = buildService();
   });
 
   it("REQ-043: InvoiceIssued carries community mode", async () => {
     const liveOutbox = new InMemoryOutboxStore();
-    const liveService = new InvoicingService(
-      store,
-      new OutboxService(liveOutbox),
-      new MapReadiness(
-        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
-      ),
-      new NoopParticipantsResolver(),
-      new StatementsService(
-        store,
-        new StatementStore(),
-        new OutboxService(liveOutbox),
-        new NoopParticipantsResolver(),
-        new StaticBillingModeResolver("live"),
-      ),
-      new StaticBillingModeResolver("live"),
-    );
+    const liveService = buildService({
+      outbox: new OutboxService(liveOutbox),
+      billingMode: new StaticBillingModeResolver("live"),
+    });
     await liveService.createFromSettlement(settlement());
     const events = await liveOutbox.list();
     const issued = events.find((e) => e.event.type === "InvoiceIssued");
@@ -136,23 +187,139 @@ describe("InvoicingService", () => {
     expect(JSON.stringify(issued?.event.data)).not.toMatch(/legalNumber/);
   });
 
-  it("UAT-053 two invoices of one producer get consecutive numbers", async () => {
+  it("UAT-053 two invoices of one producer get consecutive numbers, another producer starts at 1", async () => {
     const first = await service.createFromSettlement(settlement());
     const second = await service.createFromSettlement(
       settlement({ settlementId: "s2222222-2222-4222-8222-222222222222" }),
     );
+    const third = await service.createFromSettlement(
+      settlement({
+        settlementId: "s3333333-3333-4333-8333-333333333333",
+        producerId: PRODUCER_B,
+      }),
+    );
     expect(first!.legalNumber).toBe("SB-66666666-000001");
     expect(second!.legalNumber).toBe("SB-66666666-000002");
+    expect(third!.legalNumber).toBe("SB-77777777-000001");
+  });
+
+  it("REQ-042 a failed render leaves no gap", async () => {
+    let failOnce = true;
+    const { renderInvoicePdf } = await import("../pdf/invoice-pdf.renderer.js");
+    const outbox = new OutboxService(outboxStore);
+    const failing = buildService({
+      outbox,
+      renderer: async (invoice) => {
+        if (failOnce) {
+          failOnce = false;
+          throw new Error("renderer failed");
+        }
+        return renderInvoicePdf(invoice);
+      },
+    });
+    // Fake pool so RecordingTransaction restores the in-memory snapshot on throw.
+    const tx = new RecordingTransaction<InvoiceWrite>(
+      store,
+      outbox,
+      async () => ({
+        query: async () => ({ rows: [] }),
+        release: () => undefined,
+      }),
+      async () => undefined,
+    );
+    failing.useTransaction(tx);
+
+    await expect(failing.createFromSettlement(settlement())).rejects.toThrow(
+      /renderer failed/,
+    );
+    expect(store.findBySettlement(settlement().settlementId)).toBeUndefined();
+
+    const issued = await failing.createFromSettlement(settlement());
+    expect(issued!.legalNumber).toBe("SB-66666666-000001");
+  });
+
+  it("UAT-050 stores the PDF and its sha256 at issue", async () => {
+    const invoice = (await service.createFromSettlement(settlement()))!;
+    const doc = store.getDocument(invoice.invoiceId);
+    expect(doc).toBeDefined();
+    expect(doc!.subarray(0, 4).toString("utf8")).toBe("%PDF");
+    expect(invoice.document?.sha256).toBe(
+      createHash("sha256").update(doc!).digest("hex"),
+    );
+  });
+
+  it("REQ-004 UAT-004 issues amounts with tariff and flags tariffApplied", async () => {
+    const invoice = await service.createFromSettlement(
+      settlement({
+        energyAmount: "2.00",
+        gridFeeAmount: "0.45",
+        levyAmount: "0.10",
+        taxAmount: "0.05",
+        vat: "0.26",
+        tariffId: "tariff-uat004-2026",
+      }),
+    );
+    expect(invoice!.amounts?.total).toBe("2.86");
+    const events = await outboxStore.list();
+    const issued = events.find((e) => e.event.type === "InvoiceIssued");
+    expect(issued?.event.data).toMatchObject({
+      amounts: {
+        energy: "2.00",
+        gridFee: "0.45",
+        levy: "0.10",
+        tax: "0.05",
+        vat: "0.26",
+        total: "2.86",
+      },
+      tariffApplied: true,
+    });
+    expect(JSON.stringify(issued?.event.data)).not.toMatch(/legalNumber/);
+    const publicView = await service.getPublicInvoiceForParticipant(
+      invoice!.invoiceId,
+      CONSUMER,
+    );
+    expect(publicView.amounts).toEqual({
+      energy: "2.00",
+      gridFee: "0.45",
+      levy: "0.10",
+      tax: "0.05",
+      vat: "0.26",
+      total: "2.86",
+    });
+    expect(publicView.tariffApplied).toBe(true);
+  });
+
+  it("NFR-015 InvoiceIssued carries no names", async () => {
+    await service.createFromSettlement(settlement());
+    const events = await outboxStore.list();
+    const issued = events.find((e) => e.event.type === "InvoiceIssued");
+    expect(JSON.stringify(issued?.event)).not.toContain("Paul Nguyen");
+    expect(JSON.stringify(issued?.event)).not.toContain("Hugo Petit");
+  });
+
+  it("BR-09 REQ-050 holds the invoice until the producer mandate exists", async () => {
+    service = buildService({
+      parties: fixtureParties(
+        new Map([
+          [
+            PRODUCER_A,
+            party(PRODUCER_A, "Paul Nguyen", "1 Fixture Lane", null),
+          ],
+        ]),
+      ),
+    });
+    await expect(service.createFromSettlement(settlement())).rejects.toThrow(
+      /producer not ready/,
+    );
+    try {
+      await service.createFromSettlement(settlement());
+    } catch (err) {
+      expect(isNonRetryableInvoiceError(err as Error)).toBe(false);
+    }
   });
 
   it("holds invoicing until producer is ready (BR-09)", async () => {
-    service = new InvoicingService(
-      store,
-      new OutboxService(outboxStore),
-      new MapReadiness(new Map()),
-      new NoopParticipantsResolver(),
-      statementsFor(),
-    );
+    service = buildService({ readiness: new MapReadiness(new Map()) });
     await expect(service.createFromSettlement(settlement())).rejects.toThrow(
       /not[_ ]ready/,
     );
@@ -315,11 +482,12 @@ describe("InvoicingService", () => {
     const withIdp = new InvoicingService(
       store,
       new OutboxService(outboxStore),
-      new MapReadiness(
-        new Map([["66666666-7777-4888-9999-aaaaaaaaaaaa", true]]),
-      ),
+      new MapReadiness(new Map([[PRODUCER_A, true]])),
       idp,
       statementsFor(),
+      undefined,
+      undefined,
+      fixtureParties(),
     );
     const listed = await withIdp.listInvoicesForParticipant(
       "c1a55e01-0001-4000-8000-000000000001",

@@ -7,14 +7,24 @@ import { randomUUID } from "node:crypto";
 import { PublicationStore } from "../domain/store.js";
 import type {
   InvoiceProjection,
+  KycProjection,
   OutboundMessage,
   PaymentProjection,
+  PayoutProjection,
+  StatementProjection,
 } from "../domain/types.js";
+import type { DataSpaceTopic } from "../domain/types.js";
 import {
   DATASPACE_PORT,
   type DataSpacePort,
 } from "../dataspace/dataspace.port.js";
-import { toBillingInvoice, toBillingPayment } from "./mapper.js";
+import {
+  toBillingInvoice,
+  toBillingKycStatus,
+  toBillingPayment,
+  toBillingPayout,
+  toBillingStatement,
+} from "./mapper.js";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -72,7 +82,12 @@ export class PublicationService {
   }
 
   async onPaymentStatusChanged(payment: PaymentProjection): Promise<void> {
-    this.store.putPayment(payment);
+    // Ontology Payment.createdAt is immutable — keep the first seen value.
+    const existing = this.store.getPayment(payment.paymentId);
+    const nextPayment: PaymentProjection = existing
+      ? { ...payment, createdAt: existing.createdAt }
+      : payment;
+    this.store.putPayment(nextPayment);
     const invoice = this.store.getInvoice(payment.invoiceId);
     if (invoice) {
       const paymentIds = invoice.paymentIds.includes(payment.paymentId)
@@ -96,12 +111,39 @@ export class PublicationService {
     await this.publishPayment(payment.paymentId);
   }
 
+  /** REQ-059 — StatementIssued → billingStatement. */
+  async onStatementIssued(statement: StatementProjection): Promise<void> {
+    await this.publishOrQueue(
+      "billingStatement",
+      statement.billingId,
+      toBillingStatement(statement),
+    );
+  }
+
+  /** REQ-060 — PayoutStatusChanged → billingPayout. */
+  async onPayoutStatusChanged(payout: PayoutProjection): Promise<void> {
+    await this.publishOrQueue(
+      "billingPayout",
+      payout.payoutId,
+      toBillingPayout(payout),
+    );
+  }
+
+  /** A5 — KycStatusChanged → billingKycStatus. */
+  async onKycStatusChanged(kyc: KycProjection): Promise<void> {
+    await this.publishOrQueue(
+      "billingKycStatus",
+      `${kyc.actorId}:${kyc.verificationKind}`,
+      toBillingKycStatus(kyc),
+    );
+  }
+
   /** RetryPending — AC-14 (REQ-048). */
   async retryPending(): Promise<{ accepted: true; retried: number }> {
     const rows = this.store.listPendingOrFailed();
     let retried = 0;
     for (const row of rows) {
-      const result = this.dataspace.publish(row.topic, row.payload);
+      const result = await this.dataspace.publish(row.topic, row.payload);
       const now = new Date().toISOString();
       if (result.ok) {
         this.store.putOutbound({
@@ -140,7 +182,7 @@ export class PublicationService {
     const cutoff = new Date(
       Math.min(requested, maxRetention),
     ).toISOString();
-    const purgedGateway = this.dataspace.purgeCache(cutoff);
+    const purgedGateway = await this.dataspace.purgeCache(cutoff);
     const purgedLocal = this.store.purgeLocalBefore(cutoff);
     return { accepted: true, purgedGateway, purgedLocal };
   }
@@ -164,14 +206,14 @@ export class PublicationService {
   }
 
   private async publishOrQueue(
-    topic: "billingInvoice" | "billingPayment",
+    topic: DataSpaceTopic,
     aggregateId: string,
     payload: Record<string, unknown>,
   ): Promise<void> {
     const now = new Date().toISOString();
     const existing = this.store.findOutboundByAggregate(topic, aggregateId);
     const messageId = existing?.messageId ?? randomUUID();
-    const result = this.dataspace.publish(topic, payload);
+    const result = await this.dataspace.publish(topic, payload);
     if (result.ok) {
       this.store.putOutbound({
         messageId,

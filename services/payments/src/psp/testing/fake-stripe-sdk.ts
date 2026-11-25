@@ -466,6 +466,7 @@ export function createFakeStripe(webhookSecret = "whsec_fake_test") {
           payment_method?: string;
           confirm?: boolean;
           off_session?: boolean;
+          allowed_payment_method_types?: string[];
           metadata?: Record<string, string>;
         },
         opts?: FakeRequestOptions,
@@ -476,6 +477,35 @@ export function createFakeStripe(webhookSecret = "whsec_fake_test") {
             ? paymentMethods.get(params.payment_method)
             : undefined;
           const id = shortId("pi");
+
+          // A7-bis — unconfirmed PI for the embedded Payment Element.
+          if (params.confirm === false) {
+            const record: PaymentIntentRecord = {
+              id,
+              amount: params.amount,
+              currency: params.currency,
+              status: "requires_payment_method",
+              customer: params.customer,
+              payment_method: params.payment_method,
+              metadata: { ...(params.metadata ?? {}) },
+              latest_charge: null,
+              payment_method_types:
+                params.allowed_payment_method_types ?? ["card", "sepa_debit"],
+              stripeAccount: opts?.stripeAccount,
+            };
+            paymentIntents.set(id, record);
+            return {
+              id,
+              amount: record.amount,
+              currency: record.currency,
+              status: record.status,
+              customer: record.customer,
+              payment_method: record.payment_method,
+              metadata: { ...record.metadata },
+              client_secret: `${id}_secret_test`,
+              payment_method_types: record.payment_method_types,
+            };
+          }
 
           if (pm?.decline || params.payment_method?.includes("decline")) {
             const err = Object.assign(new Error("Your card was declined."), {

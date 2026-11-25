@@ -11,6 +11,10 @@ const row: PairSettlementRecord = {
   lines: [],
   kWh: "5.000",
   energyAmount: "1.00",
+  gridFeeAmount: "0.00",
+  levyAmount: "0.00",
+  taxAmount: "0.00",
+  tariffId: null,
   vat: "0.00",
   currency: "CHF",
   rate: "0.941200",
@@ -40,6 +44,10 @@ describe("toPairSettlementBody (INT-376, NFR-004)", () => {
       periodFrom: "2026-11-01T00:00:00.000Z",
       periodUntil: "2026-12-01T00:00:00.000Z",
       vatRate: 0.081,
+      gridFeeAmount: "0.00",
+      levyAmount: "0.00",
+      taxAmount: "0.00",
+      tariffId: null,
     });
   });
 

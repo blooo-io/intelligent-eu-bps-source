@@ -30,7 +30,8 @@ env:
   KEYCLOAK_SERVICE_CLIENT_ID: module-service
   # INT-314 — require Bearer JWT on /internal/* (forgeable headers alone rejected).
   SERVICE_JWT_REQUIRED: "true"
-  INTAKE_BOOTSTRAP_S1: "true"
+  # B-03 — S1 fixture bootstrap is local/Tilt only; cluster uses MARKET_ADAPTER.
+  INTAKE_BOOTSTRAP_S1: "false"
   PARTICIPANTS_INTERNAL_URL: http://participants:8080
   CGW_BASE_URL: http://ddhub-client-gateway.ddhub.svc.cluster.local
   MARKET_ADAPTER: mock

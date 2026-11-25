@@ -13,7 +13,13 @@ env:
   ACTOR_SOURCE_ADAPTER: ewds
   ERASURE_SOURCE_ADAPTER: ewds
   TARIFF_ADAPTER: ewds
+  # INT-440 / REQ-013 — IdP + PSP erasure over HTTP (no in-process mocks in cluster).
+  ERASURE_ADAPTERS: http
+  # INT-440 / A7 — hosted KYC returnUrl origins (comma-separated).
+  KYC_RETURN_URL_ALLOWLIST: "https://app.demo.intelligent-eu-bp.blooo.dev"
   # INT-439 — command poller refuses to boot without reply-channel encryption (NFR-017).
   COMMAND_CHANNEL_ENABLED: "true"
   EWDS_REPLY_ENCRYPTED: "true"
   INTAKE_BOOTSTRAP_S1: "false"
+  # INT-440 — empty allow-list rejects all commands until R2M provides the gateway DID.
+  # EWDS_COMMAND_ALLOWED_DIDS left unset / empty on purpose (externally blocked).

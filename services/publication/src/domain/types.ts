@@ -1,6 +1,12 @@
 /** AC-10 domain — OutboundMessage / PublicationStatus (02 §6 LB-08). */
 
-export type DataSpaceTopic = "billingInvoice" | "billingPayment";
+/** REQ-048 — five billing record topics (Task 4.8 / INT-440). */
+export type DataSpaceTopic =
+  | "billingStatement"
+  | "billingInvoice"
+  | "billingPayment"
+  | "billingPayout"
+  | "billingKycStatus";
 
 export type OutboundStatus = "pending" | "published" | "failed";
 
@@ -76,5 +82,60 @@ export type PaymentProjection = {
   paymentStatus: string;
   failureCategory: string | null;
   createdAt: string;
+  updatedAt: string;
+};
+
+/** REQ-059 — consumer/producer statement published as billingStatement. */
+export type StatementProjection = {
+  billingId: string;
+  communityId: string;
+  actorId: string;
+  siteId: string | null;
+  billingMode: "virtual" | "live";
+  billingPeriodFrom: string;
+  billingPeriodUntil: string;
+  billingStatus: string;
+  overdueDate: string | null;
+  totalBought: number;
+  totalSold: number;
+  netBalance: number;
+  balanceDirection: "pay" | "receive" | "settled";
+  totalEnergyAmount: number;
+  totalGridFeeAmount: number;
+  totalTaxAmount: number;
+  totalAmountDue: number;
+  totalAmountPaid: number;
+  outstandingAmount: number;
+  currency: string;
+  invoiceIds: string[];
+  payoutIds: string[] | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** REQ-060 — producer payout published as billingPayout (no IBAN). */
+export type PayoutProjection = {
+  payoutId: string;
+  actorId: string;
+  communityId: string;
+  billingMode: "virtual" | "live";
+  amount: number;
+  currency: string;
+  payoutStatus: string;
+  trigger: "manual" | "auto";
+  statementIds: string[];
+  arrivalDate: string | null;
+  failureCategory: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** A5 / REQ-015 — KYC status published as billingKycStatus (no PII). */
+export type KycProjection = {
+  actorId: string;
+  communityId: string;
+  kycVerified: boolean;
+  accountStatus: string;
+  verificationKind: string;
   updatedAt: string;
 };

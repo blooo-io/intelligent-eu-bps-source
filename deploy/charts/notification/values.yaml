@@ -34,5 +34,7 @@ env:
   NATS_SUBJECT_PREFIX: intelligent.dev
   NATS_STREAM: DebeziumStream
   PARTICIPANTS_INTERNAL_URL: http://participants:8080
+  # INT-428 / INT-440 — invoice PDF fetch for notices (HttpInvoiceDocument).
+  INVOICING_INTERNAL_URL: http://invoicing:8080
   OPERATOR_ALERT_TO: uat-operator@example.invalid
   SMTP_URL: smtp://mailpit.mailpit.svc.cluster.local:1025

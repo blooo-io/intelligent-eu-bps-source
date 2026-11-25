@@ -17,11 +17,14 @@
  *   PAYMENTS_URL=http://127.0.0.1:18087 \
  *   SETTLEMENT_URL=http://127.0.0.1:18085 \
  *   INVOICING_URL=http://127.0.0.1:18086 \
+ *   TRADE_INTAKE_URL=http://127.0.0.1:18084 \
  *   KEYCLOAK_BASE_URL=http://127.0.0.1:18081 \
  *   node scripts/stripe-fresh-billing-run.mjs
  *
  * Does **not** invent acct_test_* — every producer Connect id comes from Stripe.
  * Does **not** POST the operator invoice bridge — NATS is the primary path (INT-238).
+ * INT-440 — calls AC-04 intake:refresh (S1 window) after fixture-billed:reset so
+ * StartRun has unbilled trades when the intake store was empty.
  */
 import assert from "node:assert/strict";
 import { appendFileSync } from "node:fs";
@@ -36,6 +39,10 @@ const SETTLEMENT_URL = (
 const INVOICING_URL = (
   process.env.INVOICING_URL ?? "http://127.0.0.1:18086"
 ).replace(/\/$/, "");
+/** INT-440 — AC-04 must hold unbilled S1 trades before StartRun (MARKET mock / refresh). */
+const TRADE_INTAKE_URL = (
+  process.env.TRADE_INTAKE_URL ?? "http://127.0.0.1:18084"
+).replace(/\/$/, "");
 
 const COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
 /** S1 fixture producers (AC-15) — rebound to fresh Stripe Connect accounts each run. */
@@ -43,6 +50,11 @@ const PRODUCERS = [
   "66666666-7777-4888-9999-aaaaaaaaaaaa",
   "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
 ];
+/** S1 mock window (AC-15) — must match mocks/scenarios/registry.ts period. */
+const S1_INTAKE_WINDOW = {
+  from: "2026-11-01T00:00:00Z",
+  to: "2026-11-02T00:00:00Z",
+};
 
 const POLL_MS = Number(process.env.NATS_INVOICE_POLL_MS ?? 2000);
 const POLL_ATTEMPTS = Number(process.env.NATS_INVOICE_POLL_ATTEMPTS ?? 30);
@@ -230,6 +242,26 @@ async function main() {
   const resetBody = await reset.json();
   assert.equal(reset.status, 200, JSON.stringify(resetBody));
   console.log(JSON.stringify({ step: "resetFixtureBilled", resetBody }, null, 2));
+
+  // INT-440 — after INTAKE_BOOTSTRAP_S1=false / empty AC-04 store, StartRun needs trades.
+  const refresh = await fetch(`${TRADE_INTAKE_URL}/internal/v1/intake:refresh`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(S1_INTAKE_WINDOW),
+  });
+  const refreshBody = await refresh.json();
+  assert.equal(refresh.status, 202, JSON.stringify(refreshBody));
+  console.log(
+    JSON.stringify(
+      {
+        step: "intakeRefresh",
+        ingested: refreshBody.ingested,
+        window: S1_INTAKE_WINDOW,
+      },
+      null,
+      2,
+    ),
+  );
 
   const start = await fetch(`${SETTLEMENT_URL}/internal/v1/billing-runs`, {
     method: "POST",

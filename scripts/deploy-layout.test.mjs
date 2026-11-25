@@ -158,24 +158,54 @@ test("docs-portal disables ExternalSecret (INT-249)", async () => {
 });
 
 test("A8-live: every deployed environment runs the EWDS adapters live", async () => {
-  const adapters = [
-    "MARKET_ADAPTER",
+  // A8 — mock remains for local/tests; cluster envs go live except MARKET on
+  // dev (INT-440 — GSY topics externally blocked; S1 bootstrap for e2e).
+  const liveAdapters = [
     "DATASPACE_ADAPTER",
     "ACTOR_SOURCE_ADAPTER",
     "ERASURE_SOURCE_ADAPTER",
     "TARIFF_ADAPTER",
   ];
-  // A8 — mock remains for local/tests; only cluster envs (dev/demo) go live.
   for (const envName of ["dev", "demo"]) {
     const text = await readFile(`deploy/envs/${envName}/values.yaml`, "utf8");
-    for (const key of adapters) {
+    for (const key of liveAdapters) {
       assert.match(text, new RegExp(`${key}:\\s*ewds`), `${envName} ${key}`);
     }
     assert.match(text, /COMMAND_CHANNEL_ENABLED:\s*"true"/);
     // INT-439 — publication command poller requires reply encryption when enabled.
     assert.match(text, /EWDS_REPLY_ENCRYPTED:\s*"true"/);
-    assert.match(text, /INTAKE_BOOTSTRAP_S1:\s*"false"/);
+    // INT-440 — erasure + KYC return allow-list required in deployed envs.
+    assert.match(text, /ERASURE_ADAPTERS:\s*http/);
+    assert.match(text, /KYC_RETURN_URL_ALLOWLIST:/);
   }
+  const demo = await readFile("deploy/envs/demo/values.yaml", "utf8");
+  assert.match(demo, /MARKET_ADAPTER:\s*ewds/);
+  assert.match(demo, /INTAKE_BOOTSTRAP_S1:\s*"false"/);
+  const destinDev = await readFile("deploy/envs/dev/values.yaml", "utf8");
+  assert.match(destinDev, /MARKET_ADAPTER:\s*mock/);
+  assert.match(destinDev, /INTAKE_BOOTSTRAP_S1:\s*"true"/);
+});
+
+test("INT-440: internal peer URLs present where compliance/participants/settlement/invoicing need them", async () => {
+  const compliance = await readFile("deploy/charts/compliance/values.yaml", "utf8");
+  assert.match(compliance, /PAYMENTS_INTERNAL_URL:\s*http:\/\/payments:8080/);
+  assert.match(compliance, /INVOICING_INTERNAL_URL:\s*http:\/\/invoicing:8080/);
+  assert.match(compliance, /egressModules:[\s\S]*- payments/);
+  assert.match(compliance, /egressModules:[\s\S]*- invoicing/);
+
+  const participants = await readFile(
+    "deploy/charts/participants/values.yaml",
+    "utf8",
+  );
+  assert.match(participants, /PAYMENTS_INTERNAL_URL:\s*http:\/\/payments:8080/);
+  assert.match(participants, /SETTLEMENT_INTERNAL_URL:\s*http:\/\/settlement:8080/);
+
+  const settlement = await readFile("deploy/charts/settlement/values.yaml", "utf8");
+  assert.match(settlement, /PAYMENTS_INTERNAL_URL:\s*http:\/\/payments:8080/);
+
+  const invoicing = await readFile("deploy/charts/invoicing/values.yaml", "utf8");
+  assert.match(invoicing, /PAYMENTS_INTERNAL_URL:\s*http:\/\/payments:8080/);
+  assert.match(invoicing, /SETTLEMENT_INTERNAL_URL:\s*http:\/\/settlement:8080/);
 });
 
 async function yamlFiles(directory) {

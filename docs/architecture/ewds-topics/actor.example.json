@@ -1,0 +1,35 @@
+{
+  "actorId": "11111111-2222-4333-8444-555555555555",
+  "name": "Ana Consumer",
+  "type": "NaturalPerson",
+  "legalEntity": null,
+  "communityId": "c0ffee00-1234-4abc-8def-0123456789ab",
+  "role": "Consumer",
+  "isActive": true,
+  "validFrom": "2026-01-01T00:00:00+01:00",
+  "validUntil": null,
+  "residentialAddressId": "aaaa1111-2222-4333-8444-555555555555",
+  "billingAddressId": "aaaa1111-2222-4333-8444-555555555555",
+  "businessAddressId": null,
+  "contactDetailIds": ["bbbb1111-2222-4333-8444-555555555555"],
+  "residentialAddress": {
+    "addressId": "aaaa1111-2222-4333-8444-555555555555",
+    "actorId": "11111111-2222-4333-8444-555555555555",
+    "line1": "Rua da Energia 12",
+    "line2": null,
+    "city": "Lisboa",
+    "postalCode": "1000-001",
+    "country": "PT",
+    "state": null
+  },
+  "contacts": [
+    {
+      "contactDetailsId": "bbbb1111-2222-4333-8444-555555555555",
+      "actorId": "11111111-2222-4333-8444-555555555555",
+      "email": "ana.consumer@example.com",
+      "phoneNumber": null,
+      "mobileNumber": "+351912345678",
+      "contactType": "Primary"
+    }
+  ]
+}

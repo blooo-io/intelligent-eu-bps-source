@@ -1,0 +1,14 @@
+{
+  "tariffId": "a2000000-0000-4000-8000-0000000000aa",
+  "communityId": "a2000000-0000-4000-8000-000000000004",
+  "gridId": null,
+  "currency": "EUR",
+  "validFrom": "2026-01-01T00:00:00+01:00",
+  "validUntil": null,
+  "energyPrice": 0,
+  "networkTariff": 0.045,
+  "levies": 0.01,
+  "taxes": 0.005,
+  "incentives": 0,
+  "structure": "flat"
+}

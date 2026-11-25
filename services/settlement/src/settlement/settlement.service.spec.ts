@@ -244,6 +244,9 @@ describe("SettlementService", () => {
       async getRate() {
         return 1;
       },
+      async getTariff() {
+        return null;
+      },
     };
     service = new SettlementService(
       store,
@@ -275,6 +278,9 @@ describe("SettlementService", () => {
           throw new Error("missing");
         }
         return 0.94;
+      },
+      async getTariff() {
+        return null;
       },
     };
     const settings = {
@@ -316,6 +322,9 @@ describe("SettlementService", () => {
       async getRate(): Promise<number> {
         throw new Error("no rate");
       },
+      async getTariff() {
+        return null;
+      },
     };
     service = new SettlementService(store, new OutboxService(outboxStore), trades, null, referenceData);
     service.useFixtureScenario("S8");
@@ -356,6 +365,9 @@ describe("SettlementService", () => {
         async getRate(_currency: "EUR" | "CHF", date: string) {
           rateDates.push(date);
           return 0.9412;
+        },
+        async getTariff() {
+          return null;
         },
       };
       service = new SettlementService(store, new OutboxService(outboxStore), source, settings, referenceData);
@@ -634,7 +646,7 @@ describe("SettlementService", () => {
     });
   });
 
-  it("INT-272: rejects live billingMode from settings (BR-12)", async () => {
+  it("INT-440: allows live billingMode from settings (REQ-043)", async () => {
     service = new SettlementService(
       store,
       new OutboxService(outboxStore),
@@ -652,12 +664,140 @@ describe("SettlementService", () => {
       },
       null,
     );
-    await expect(
-      service.startRun({
-        communityId,
+    // INT-440 — live mode is allowed; BR-12 is a product default, not a hard reject.
+    const result = await service.startRun({
+      communityId,
+      type: "periodic",
+      period: "2026-11",
+    });
+    expect(result.runId).toBeTruthy();
+  });
+
+  describe("REQ-004 — tariff charges on the pair (UAT-004, BR-05)", () => {
+    const COM = "a2000000-0000-4000-8000-000000000004";
+    const A = "00000000-0000-4000-8000-00000000000a";
+    const B = "00000000-0000-4000-8000-00000000000b";
+    const UAT004_TARIFF = {
+      tariffId: "tariff-uat004-2026",
+      currency: "EUR" as const,
+      gridFeePerKWh: "0.0450",
+      levyPerKWh: "0.0100",
+      taxPerKWh: "0.0050",
+    };
+
+    const build = (opts: {
+      kWh: number;
+      price: number;
+      threshold: number;
+      vatRate: number;
+      tariffBilling?: boolean;
+    }) => {
+      const source: TradeSourcePort = {
+        async getUnbilled() {
+          return [
+            {
+              tradeId: "t-uat004",
+              consumerId: A,
+              producerId: B,
+              communityId: COM,
+              kWh: opts.kWh,
+              pricePerKWhEur: opts.price,
+            },
+          ];
+        },
+        async markBilled() {},
+      };
+      const settings = {
+        async get() {
+          return {
+            currency: "EUR" as const,
+            threshold: opts.threshold,
+            vatRate: opts.vatRate,
+            billingMode: "virtual" as const,
+            billingPeriod: "monthly" as const,
+            tariffBilling: opts.tariffBilling ?? true,
+          };
+        },
+      };
+      const referenceData = {
+        async getVatRate() {
+          return opts.vatRate;
+        },
+        async getRate() {
+          return 1;
+        },
+        async getTariff() {
+          return UAT004_TARIFF;
+        },
+      };
+      service = new SettlementService(
+        store,
+        new OutboxService(outboxStore),
+        source,
+        settings,
+        referenceData,
+      );
+    };
+
+    it("UAT-004 invoiced pair carries charges, energy excludes them, VAT on the total", async () => {
+      build({ kWh: 10, price: 0.2, threshold: 0.01, vatRate: 0.1 });
+      const { runId } = await service.startRun({
+        communityId: COM,
         type: "periodic",
         period: "2026-11",
-      }),
-    ).rejects.toThrow(/virtual/);
+      });
+      const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]!);
+      // Energy 2.00 + charges 0.60 = 2.60 invoiced; VAT 0.26 on the total.
+      expect(s).toMatchObject({
+        energyAmount: "2.00",
+        gridFeeAmount: "0.45",
+        levyAmount: "0.10",
+        taxAmount: "0.05",
+        vat: "0.26",
+        tariffId: "tariff-uat004-2026",
+      });
+    });
+
+    it("BR-05 a carried pair carries its charges", async () => {
+      // 1 kWh × 0.20 + roundCent(0.045/0.010/0.005) = 0.20+0.05+0.01+0.01 = 0.27
+      // (BR-08 half-away). Below threshold 5 → carry; charge lines stay zero.
+      build({ kWh: 1, price: 0.2, threshold: 5, vatRate: 0.1 });
+      const { runId } = await service.startRun({
+        communityId: COM,
+        type: "periodic",
+        period: "2026-11",
+      });
+      const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]!);
+      expect(s.carriedForwardOut).toBe("0.27");
+      expect(s.gridFeeAmount).toBe("0.00");
+      expect(s.levyAmount).toBe("0.00");
+      expect(s.taxAmount).toBe("0.00");
+      expect(s.tariffId).toBeNull();
+      expect(s.energyAmount).toBe("0.00");
+    });
+
+    it("REQ-004 a tariff is applied only when the community enables tariffBilling", async () => {
+      build({
+        kWh: 10,
+        price: 0.2,
+        threshold: 0.01,
+        vatRate: 0.1,
+        tariffBilling: false,
+      });
+      const { runId } = await service.startRun({
+        communityId: COM,
+        type: "periodic",
+        period: "2026-11",
+      });
+      const s = service.getPairSettlement(store.getRun(runId)!.settlementIds[0]!);
+      expect(s).toMatchObject({
+        energyAmount: "2.00",
+        gridFeeAmount: "0.00",
+        levyAmount: "0.00",
+        taxAmount: "0.00",
+        tariffId: null,
+        vat: "0.20",
+      });
+    });
   });
 });

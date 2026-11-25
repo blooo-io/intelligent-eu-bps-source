@@ -116,6 +116,37 @@ paths:
                       $ref: '../components/schemas.yaml#/components/schemas/Uuid'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /communities/{communityId}/open-periods:
+    get:
+      operationId: listOpenPeriods
+      tags: [Settlement]
+      summary: Periods with unbilled activity or open carry
+      description: >
+        REQ-043 / INT-440 — periods that still have unbilled trades or a
+        non-zero carried balance. AC-03 refuses virtual→live while this list
+        is non-empty (409 open_period).
+      parameters:
+        - name: communityId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Open billing periods (YYYY-MM or YYYY-Qn).
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [communityId, periods]
+                properties:
+                  communityId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  periods:
+                    type: array
+                    items:
+                      $ref: '../components/schemas.yaml#/components/schemas/BillingPeriod'
   /fixture-billed:reset:
     post:
       operationId: resetFixtureBilled

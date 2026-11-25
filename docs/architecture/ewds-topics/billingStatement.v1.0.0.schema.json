@@ -2,17 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://intelligent-project.eu/schema/v1.0.0/billing/billingStatement",
   "title": "billingStatement",
-  "description": "EWDS topic: monthly participant statement (ontology Billing). Informative aggregate over pair invoices; never payable. No PII. DRAFT v0.2 proposed by Blooo (INT-423).",
+  "description": "EWDS topic: ontology Billing (monthly participant statement). Informative aggregate over pair invoices; never payable. Field names match ontology Billing (billingId, billingStatus). No PII. DRAFT proposed by Blooo to EWAG (INT-440).",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "statementId",
+    "billingId",
     "communityId",
     "actorId",
     "billingMode",
     "billingPeriodFrom",
     "billingPeriodUntil",
-    "statementStatus",
+    "billingStatus",
+    "overdueDate",
     "totalBought",
     "totalSold",
     "netBalance",
@@ -29,10 +30,10 @@
     "updatedAt"
   ],
   "properties": {
-    "statementId": {
+    "billingId": {
       "type": "string",
       "format": "uuid",
-      "description": "Primary identifier. IRI: int:billingId."
+      "description": "Primary identifier (ontology Billing.billingId). IRI: int:billingId."
     },
     "communityId": {
       "type": "string",
@@ -41,7 +42,13 @@
     "actorId": {
       "type": "string",
       "format": "uuid",
-      "description": "Participant Actor this statement belongs to."
+      "description": "Participant Actor this Billing record belongs to (ontology memberId / actorId)."
+    },
+    "siteId": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "default": null,
+      "description": "Optional Site / UsagePoint this Billing applies to. Null when community-level."
     },
     "billingMode": {
       "type": "string",
@@ -56,7 +63,7 @@
       "type": "string",
       "format": "date-time"
     },
-    "statementStatus": {
+    "billingStatus": {
       "type": "string",
       "enum": [
         "Open",
@@ -65,7 +72,13 @@
         "Overdue",
         "Void",
         "Disputed"
-      ]
+      ],
+      "description": "Ontology billingStatus."
+    },
+    "overdueDate": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Date the Billing became overdue (YYYY-MM-DD). Null while not overdue."
     },
     "totalBought": {
       "type": "number",

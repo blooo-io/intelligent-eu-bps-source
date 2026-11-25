@@ -21,6 +21,11 @@ export function toPairSettlementBody(
     lines: row.lines,
     kWh: row.kWh,
     energyAmount: row.energyAmount,
+    // REQ-004 — grid fee / levy / tax and tariff id (zeros / null when none).
+    gridFeeAmount: row.gridFeeAmount,
+    levyAmount: row.levyAmount,
+    taxAmount: row.taxAmount,
+    tariffId: row.tariffId,
     vat: row.vat,
     currency: row.currency,
     rate: row.rate,

@@ -15,6 +15,10 @@ ingressFrom:
   - invoicing
   # REQ-015 — AC-14 RunAutoPayouts.
   - scheduler-worker
+  # INT-440 — KYC status / erasure / PSP capabilities / DSAR personal-data.
+  - settlement
+  - participants
+  - compliance
 keycloakEgress: true
 stripeEgress: true
 # INT-189 — select Stripe test adapter when OpenBao secrets are present;

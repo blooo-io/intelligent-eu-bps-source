@@ -122,6 +122,46 @@ Pinned Phase 1 values (API auth later — INT-309):
 | Retention | Purge after ingest; hard max 7 days |
 | Hosting | Helm chart `1.3.0-ewc` on Scaleway `nl-ams`; OpenBao; GitOps only |
 
+## Command channel — hosted or embedded (D4 / A7-bis)
+
+Project-UI actions never hit billing `/v1`. Commands travel EWDS request/reply; replies carry a Stripe handoff (`url` for hosted, or `clientSecret` + `publishableKey` for embedded). Card/IBAN/identity stay in the user's browser ↔ Stripe.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Member
+  participant UI as Project UI (R2M)
+  participant CU as UI Client Gateway
+  participant EW as EWDS
+  participant CB as Billing Client Gateway
+  participant PUB as AC-10 Publication (command poller)
+  participant PA as AC-07 Payments
+  participant S as Stripe
+  U->>UI: Pay invoice
+  UI->>CU: startPayment {invoiceId, surface}
+  CU->>EW: request (actorId, requestId)
+  EW->>CB: request
+  PUB->>CB: poll request
+  PUB->>PUB: authorize: sender gateway DID allow-list + actor role
+  PUB->>PA: startPayment(invoiceId, actorId, surface)
+  PA->>S: Checkout Session (hosted) or PaymentIntent (embedded) on the producer account
+  S-->>PA: url or clientSecret
+  PA-->>PUB: {paymentId, status, handoff}
+  PUB->>CB: reply (requestId)
+  CB->>EW: reply
+  EW->>CU: reply
+  CU-->>UI: handoff
+  alt surface = hosted
+    UI->>U: redirect to checkout.stripe.com
+  else surface = embedded
+    UI->>U: Stripe Payment Element in the UI (publishableKey, clientSecret, connectedAccountRef)
+  end
+  U->>S: card or IBAN, 3-D Secure, SEPA mandate
+  S-->>PA: webhook payment_intent.succeeded
+  PA->>PUB: PaymentStatusChanged
+  PUB->>CB: billingPayment record
+```
+
 ## Traceability
 
 | Spec | Role |

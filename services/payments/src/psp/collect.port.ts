@@ -43,6 +43,23 @@ export type CheckoutSession = {
   expiresAt: string;
 };
 
+/** A7-bis / WS5 Task 5.7 — embedded Payment Element on the producer account. */
+export type EmbeddedPaymentInput = {
+  invoiceId: string;
+  amount: string;
+  currency: string;
+  pspAccountRef: string;
+  pspCustomerRef?: string;
+  methods: PspPaymentMethodType[];
+  idempotencyKey: string;
+};
+
+export type EmbeddedPaymentSession = {
+  pspPaymentRef: string;
+  clientSecret: string;
+  expiresAt: string;
+};
+
 export type ChargeSettlement = {
   method: PspPaymentMethodType;
   feeAmount: string;
@@ -67,6 +84,13 @@ export interface CollectPort {
    */
   createDirectCharge(input: DirectChargeInput): Promise<CollectResult>;
   createCheckoutSession(input: CheckoutInput): Promise<CheckoutSession>;
+  /**
+   * A7-bis — PaymentIntent on the producer account for the embedded Payment
+   * Element (`clientSecret` + publishableKey). Idempotent on `idempotencyKey`.
+   */
+  createEmbeddedPayment(
+    input: EmbeddedPaymentInput,
+  ): Promise<EmbeddedPaymentSession>;
   getChargeSettlement(input: {
     pspPaymentRef: string;
     pspAccountRef: string;

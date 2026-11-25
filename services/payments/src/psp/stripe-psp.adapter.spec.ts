@@ -181,18 +181,31 @@ describe("StripePspAdapter mapping (INT-424)", () => {
   it("A2 / REQ-015 every connected account creation path sets a manual payout schedule", async () => {
     const create = vi.spyOn(fake.accounts, "create");
     await adapter.createConnectedAccount({ participantId: "part-a", country: "FR" });
-    await adapter.createEmbeddedProducerAccount({ participantId: "part-b", country: "FR" });
     await adapter.createProducerAccount({
       participantId: "part-c",
       accountToken: "ct_test_1",
       country: "FR",
     });
-    expect(create).toHaveBeenCalledTimes(3);
+    expect(create).toHaveBeenCalledTimes(2);
     for (const [params] of create.mock.calls) {
       expect(params).toMatchObject({
         settings: { payouts: { schedule: { interval: "manual" } } },
       });
     }
+  });
+
+  it("A5 / INT-440: createConnectedAccount requests sepa_debit_payments", async () => {
+    const create = vi.spyOn(fake.accounts, "create");
+    await adapter.createConnectedAccount({ participantId: "part-sepa", country: "FR" });
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        capabilities: expect.objectContaining({
+          card_payments: { requested: true },
+          sepa_debit_payments: { requested: true },
+          transfers: { requested: true },
+        }),
+      }),
+    );
   });
 
   it("REQ-015 setManualSchedule sets interval manual on the connected account", async () => {
@@ -617,6 +630,44 @@ describe("StripePspAdapter mapping (INT-424)", () => {
     await expect(
       adapter.createPayout(pspAccountRef, "1.00", "EUR", "po:err"),
     ).rejects.toThrow(/boom/);
+  });
+
+  it("createEmbeddedPayment returns clientSecret and refuses a missing one", async () => {
+    const { pspAccountRef } = await adapter.createConnectedAccount({
+      participantId: "part-emb",
+      country: "FR",
+    });
+    fake.completeKyc(pspAccountRef);
+    await expect(
+      adapter.createEmbeddedPayment({
+        invoiceId: INV1,
+        amount: "12.50",
+        currency: "EUR",
+        pspAccountRef,
+        methods: ["card", "sepa_debit"],
+        idempotencyKey: "pi:emb:ok",
+        pspCustomerRef: "cus_test_1",
+      }),
+    ).resolves.toMatchObject({
+      pspPaymentRef: expect.stringMatching(/^pi_/),
+      clientSecret: expect.stringMatching(/_secret_/),
+      expiresAt: expect.any(String),
+    });
+
+    vi.spyOn(fake.paymentIntents, "create").mockResolvedValueOnce({
+      id: "pi_nosecret",
+      client_secret: null,
+    } as never);
+    await expect(
+      adapter.createEmbeddedPayment({
+        invoiceId: INV1,
+        amount: "1.00",
+        currency: "EUR",
+        pspAccountRef,
+        methods: ["card"],
+        idempotencyKey: "pi:emb:nosecret",
+      }),
+    ).rejects.toThrow(/missing client_secret/);
   });
 
   it("createCheckoutSession honours saveForFutureUse and rejects a missing url", async () => {

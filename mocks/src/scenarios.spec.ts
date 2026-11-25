@@ -51,9 +51,9 @@ describe("market / FX / data-space ports against scenarios", () => {
     // each test creates its own suite
   });
 
-  it("S1: consumer buys from 2 producers → market returns trades with 2 sellers (REQ-054)", () => {
+  it("S1: consumer buys from 2 producers → market returns trades with 2 sellers (REQ-054)", async () => {
     const suite = createMockSuite("S1");
-    const trades = suite.market.queryTrades({
+    const trades = await suite.market.queryTrades({
       from: "2026-11-01T00:00:00Z",
       until: "2026-11-02T00:00:00Z",
     });
@@ -64,9 +64,9 @@ describe("market / FX / data-space ports against scenarios", () => {
     expect(buyers.size).toBe(1);
   });
 
-  it("S2: prosumers trade both ways → both directions present (REQ-055)", () => {
+  it("S2: prosumers trade both ways → both directions present (REQ-055)", async () => {
     const suite = createMockSuite("S2");
-    const trades = suite.market.queryTrades({
+    const trades = await suite.market.queryTrades({
       from: "2026-11-01T00:00:00Z",
       until: "2026-11-02T00:00:00Z",
     });
@@ -80,9 +80,9 @@ describe("market / FX / data-space ports against scenarios", () => {
     );
   });
 
-  it("S3: pair below threshold carries energyAmount under 5 (REQ-056)", () => {
+  it("S3: pair below threshold carries energyAmount under 5 (REQ-056)", async () => {
     const suite = createMockSuite("S3");
-    const trades = suite.market.queryTrades({
+    const trades = await suite.market.queryTrades({
       from: "2026-11-01T00:00:00Z",
       until: "2026-11-02T00:00:00Z",
     });
@@ -93,42 +93,42 @@ describe("market / FX / data-space ports against scenarios", () => {
     expect(total).toBeLessThan(5);
   });
 
-  it("S4: unknown party flag on at least one trade (REQ-058)", () => {
+  it("S4: unknown party flag on at least one trade (REQ-058)", async () => {
     const suite = createMockSuite("S4");
-    const trades = suite.market.queryTrades({
+    const trades = await suite.market.queryTrades({
       from: "2026-11-01T00:00:00Z",
       until: "2026-11-02T00:00:00Z",
     });
     expect(trades.some((t) => t.unknownParty === true)).toBe(true);
   });
 
-  it("S5: clearing result disagrees with trade count (REQ-041)", () => {
+  it("S5: clearing result disagrees with trade count (REQ-041)", async () => {
     const suite = createMockSuite("S5");
-    const markets = suite.market.queryMarkets({
+    const markets = await suite.market.queryMarkets({
       from: "2026-11-01T00:00:00Z",
       until: "2026-11-02T00:00:00Z",
     });
     expect(markets.length).toBeGreaterThan(0);
-    const clearing = suite.market.queryClearingResults(markets[0]!.marketId);
-    const trades = suite.market.queryTrades({
+    const clearing = await suite.market.queryClearingResults(markets[0]!.marketId);
+    const trades = await suite.market.queryTrades({
       from: "2026-11-01T00:00:00Z",
       until: "2026-11-02T00:00:00Z",
     });
     expect(clearing.numTrades).not.toBe(trades.length);
   });
 
-  it("S6: late trade has lateArrival flag (REQ-001)", () => {
+  it("S6: late trade has lateArrival flag (REQ-001)", async () => {
     const suite = createMockSuite("S6");
-    const trades = suite.market.queryTrades({
+    const trades = await suite.market.queryTrades({
       from: "2026-11-01T00:00:00Z",
       until: "2026-11-02T00:00:00Z",
     });
     expect(trades.some((t) => t.lateArrival === true)).toBe(true);
   });
 
-  it("S7: duplicate tradeId appears twice in raw feed; unique by id is one (REQ-001)", () => {
+  it("S7: duplicate tradeId appears twice in raw feed; unique by id is one (REQ-001)", async () => {
     const suite = createMockSuite("S7");
-    const trades = suite.market.queryTrades({
+    const trades = await suite.market.queryTrades({
       from: "2026-11-01T00:00:00Z",
       until: "2026-11-02T00:00:00Z",
     });
@@ -172,7 +172,7 @@ describe("market / FX / data-space ports against scenarios", () => {
     const good = JSON.parse(
       await readFile(path.join(root, "billingInvoice.example.json"), "utf8"),
     );
-    const published = suite.dataSpace.publish("billingInvoice", good);
+    const published = await suite.dataSpace.publish("billingInvoice", good);
     expect(published.ok).toBe(true);
 
     const bad = JSON.parse(
@@ -181,7 +181,7 @@ describe("market / FX / data-space ports against scenarios", () => {
         "utf8",
       ),
     );
-    const rejected = suite.dataSpace.publish("billingInvoice", bad);
+    const rejected = await suite.dataSpace.publish("billingInvoice", bad);
     expect(rejected.ok).toBe(false);
     expect(suite.dataSpace.recorded().length).toBe(1);
   });

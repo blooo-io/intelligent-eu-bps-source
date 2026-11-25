@@ -26,6 +26,8 @@ export type HostedKycLink = {
 export type IdentityVerificationSession = {
   verificationId: string;
   url: string;
+  /** A7-bis embedded — Stripe.js verifyIdentity client secret. */
+  clientSecret?: string;
 };
 
 export type IdentityVerificationStatus = {

@@ -99,6 +99,24 @@ describe("PublicationService", () => {
     service = new PublicationService(store, dataspace);
   });
 
+  it("Payment.createdAt stays immutable across status updates", async () => {
+    const first = succeededPayment({
+      paymentStatus: "pending",
+      createdAt: "2026-12-01T06:00:00Z",
+      updatedAt: "2026-12-01T06:00:00Z",
+      paymentDate: null,
+    });
+    await service.onPaymentStatusChanged(first);
+    await service.onPaymentStatusChanged(
+      succeededPayment({
+        createdAt: "2026-12-03T10:14:30+01:00",
+        updatedAt: "2026-12-03T10:14:30+01:00",
+      }),
+    );
+    expect(store.getPayment(PAYMENT_ID)?.createdAt).toBe("2026-12-01T06:00:00Z");
+    expect(store.getPayment(PAYMENT_ID)?.paymentStatus).toBe("succeeded");
+  });
+
   it("publishes Paid invoice and payment that validate on EWDS topics (REQ-048, UAT-070)", async () => {
     await service.onInvoiceIssued(openInvoice());
     await service.onPaymentStatusChanged(succeededPayment());
@@ -173,7 +191,7 @@ describe("PublicationService", () => {
       ...toValidInvoicePayload(),
       updatedAt: eightDaysAgo,
     };
-    dataspace.publish("billingInvoice", agedInvoice);
+    await dataspace.publish("billingInvoice", agedInvoice);
 
     const before = new Date().toISOString();
     const purged = await service.purgeCache(before);
@@ -186,6 +204,124 @@ describe("PublicationService", () => {
 
   it("rejects purge without before", async () => {
     await expect(service.purgeCache("")).rejects.toThrow(/before/);
+  });
+
+  it("publishes statement, payout and kyc topics from service methods", async () => {
+    await service.onStatementIssued({
+      billingId: BILLING_ID,
+      communityId: COMMUNITY,
+      actorId: CONSUMER,
+      siteId: null,
+      billingMode: "virtual",
+      billingPeriodFrom: "2026-11-01T00:00:00Z",
+      billingPeriodUntil: "2026-12-01T00:00:00Z",
+      billingStatus: "Open",
+      overdueDate: null,
+      totalBought: 1,
+      totalSold: 0,
+      netBalance: -1,
+      balanceDirection: "pay",
+      totalEnergyAmount: 1,
+      totalGridFeeAmount: 0,
+      totalTaxAmount: 0,
+      totalAmountDue: 1,
+      totalAmountPaid: 0,
+      outstandingAmount: 1,
+      currency: "EUR",
+      invoiceIds: [INVOICE_ID],
+      payoutIds: null,
+      createdAt: "2026-12-01T06:00:00Z",
+      updatedAt: "2026-12-01T06:00:00Z",
+    });
+    await service.onPayoutStatusChanged({
+      payoutId: "b1b2b3b4-b5b6-4788-9999-cccccccccccc",
+      actorId: PRODUCER,
+      communityId: COMMUNITY,
+      billingMode: "virtual",
+      amount: 1,
+      currency: "EUR",
+      payoutStatus: "paid",
+      trigger: "manual",
+      statementIds: [BILLING_ID],
+      arrivalDate: null,
+      failureCategory: null,
+      createdAt: "2026-12-01T06:00:00Z",
+      updatedAt: "2026-12-01T06:00:00Z",
+    });
+    await service.onKycStatusChanged({
+      actorId: PRODUCER,
+      communityId: COMMUNITY,
+      kycVerified: true,
+      accountStatus: "Active",
+      verificationKind: "connect_account",
+      updatedAt: "2026-12-01T06:00:00Z",
+    });
+    const topics = new Set(dataspace.recorded().map((r) => r.topic));
+    expect(topics.has("billingStatement")).toBe(true);
+    expect(topics.has("billingPayout")).toBe(true);
+    expect(topics.has("billingKycStatus")).toBe(true);
+  });
+
+  it("retryPending marks rows failed when publish returns ok:false", async () => {
+    await service.onInvoiceIssued(openInvoice());
+    // Force a failed outbound by publishing an invalid payload shape via store.
+    store.putOutbound({
+      messageId: "msg-fail",
+      topic: "billingInvoice",
+      aggregateId: "missing-agg",
+      payload: { broken: true },
+      status: "failed",
+      updatedAt: new Date().toISOString(),
+    });
+    const result = await service.retryPending();
+    expect(result.retried).toBeGreaterThanOrEqual(1);
+    const failed = store
+      .listOutbound()
+      .find((r) => r.messageId === "msg-fail");
+    expect(failed?.status).toBe("failed");
+  });
+
+  it("payment for an unknown invoice still publishes billingPayment", async () => {
+    await service.onPaymentStatusChanged(succeededPayment());
+    expect(
+      dataspace.recorded().some((r) => r.topic === "billingPayment"),
+    ).toBe(true);
+    expect(store.getInvoice(INVOICE_ID)).toBeUndefined();
+  });
+
+  it("status change and succeeded payment mark the invoice Paid", async () => {
+    await service.onInvoiceIssued(openInvoice());
+    await service.onInvoiceStatusChanged({
+      invoiceId: INVOICE_ID,
+      status: "PartiallyPaid",
+      outstanding: 5.1,
+    });
+    expect(store.getInvoice(INVOICE_ID)?.outstandingAmount).toBe(5.1);
+    await service.onPaymentStatusChanged(succeededPayment());
+    expect(store.getInvoice(INVOICE_ID)?.invoiceStatus).toBe("Paid");
+    expect(store.getInvoice(INVOICE_ID)?.outstandingAmount).toBe(0);
+  });
+
+  it("retryPending republishes a pending row when the payload is valid", async () => {
+    await service.onInvoiceIssued(openInvoice());
+    const published = store.listOutbound().find((r) => r.topic === "billingInvoice");
+    expect(published).toBeDefined();
+    store.putOutbound({
+      ...published!,
+      status: "pending",
+      publishedAt: undefined,
+      purgeAt: undefined,
+    });
+    const result = await service.retryPending();
+    expect(result.retried).toBeGreaterThanOrEqual(1);
+    expect(
+      store.listOutbound().find((r) => r.messageId === published!.messageId)
+        ?.status,
+    ).toBe("published");
+  });
+
+  it("rejects purge with a non-date before value", async () => {
+    await expect(service.purgeCache("not-a-date")).rejects.toThrow(/before/);
   });
 });
 

@@ -49,16 +49,20 @@ export class PublicInvoicingController {
   }
 
   @Get("invoices/:id/document")
-  @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
+  @UseGuards(new ModuleAuthGuard({ roles: ["member", "manager"] }))
   async getDocument(
     @Param("id") invoiceId: string,
     @Req() req: AuthenticatedRequest,
     @Res() res: Response,
   ) {
-    // REQ-039 / A6 — PDF generated and stored by billing (no Stripe fetch).
+    // REQ-039 / A6 / UAT-050 — PDF generated and stored by billing.
     const { legalNumber, content } = await this.invoicing.getDocumentForCaller(
       invoiceId,
-      req.user!.sub,
+      {
+        sub: req.user!.sub,
+        roles: req.user!.roles,
+        communityId: req.user!.communityId || undefined,
+      },
     );
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(

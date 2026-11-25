@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://intelligent-project.eu/schema/v1.0.0/billing/billingInvoice",
   "title": "billingInvoice",
-  "description": "EWDS topic published by the Billing & Payment Service (Blooo, T5.6) for every issued or updated invoice. One invoice covers the settled trades between one consumer and one producer for a billing period; it is issued by the platform in the name of the producer (self-billing). Derived from int:Invoice (schemas/v1.0.0/billing/Invoice.json) with billing extensions. Contains no personal data: parties are Actor UUIDs only; the legal invoice number, PSP data and grid fees are not published. DRAFT proposed by Blooo to EWAG.",
+  "description": "EWDS topic published by the Billing & Payment Service (Blooo, T5.6) for every issued or updated invoice. One invoice covers the settled trades between one consumer and one producer for a billing period; it is issued by the platform in the name of the producer (self-billing). Derived from int:Invoice with billing extensions. Contains no personal data: parties are Actor UUIDs only; the legal invoice number and PSP ids are not published. Energy, grid fee, levy and tax amounts are published (REQ-004). DRAFT proposed by Blooo to EWAG (INT-440).",
   "type": "object",
   "properties": {
     "invoiceId": {
@@ -11,7 +11,7 @@
       "format": "uuid"
     },
     "billingId": {
-      "description": "FK to the Billing record of the consumer for the period. IRI: int:billingId. UUID v4.",
+      "description": "Consumer Billing/statement id for the period (ontology Billing.billingId). Not the pair-settlement id. IRI: int:billingId. UUID v4.",
       "type": "string",
       "format": "uuid"
     },
@@ -21,7 +21,7 @@
       "format": "uuid"
     },
     "issuerStatementId": {
-      "description": "[Extension] statementId of the producer (issuer) for this period. Pair invoices appear on consumer billingId and producer issuerStatementId.",
+      "description": "[Extension] Producer (issuer) Billing/statement id for this period. Pair invoices appear on consumer billingId and producer issuerStatementId.",
       "type": "string",
       "format": "uuid"
     },
@@ -70,12 +70,12 @@
       "format": "date-time"
     },
     "invoiceIssuedTo": {
-      "description": "FK to the consumer Actor (payer). IRI: int:invoiceIssuedTo. UUID v4.",
+      "description": "FK to the consumer Actor (payer / addressee). IRI: int:invoiceIssuedTo. UUID v4.",
       "type": "string",
       "format": "uuid"
     },
     "invoiceIssuedBy": {
-      "description": "FK to the producer Actor (seller). The invoice is issued by the platform in the producer's name (self-billing). IRI: int:invoiceIssuedBy. UUID v4.",
+      "description": "FK to the producer Actor (seller / issuer). The invoice is issued by the platform in the producer's name (self-billing). IRI: int:invoiceIssuedBy. UUID v4.",
       "type": "string",
       "format": "uuid"
     },
@@ -109,17 +109,17 @@
       "minimum": 0
     },
     "gridFeeAmount": {
-      "description": "IRI: int:gridFeeAmount. May be 0 when tariffBilling is off (A10.2); never on P2P legal invoices when not published.",
+      "description": "Grid fee / network tariff component for the period (REQ-004). 0 when tariffBilling is off or no DSO tariff is available (A10.2). Published on EWDS. IRI: int:gridFeeAmount.",
       "type": "number",
       "minimum": 0
     },
     "gridFeeStatus": {
-      "description": "[Extension] Whether a non-zero grid fee was applied on this EWDS record (REQ-004).",
+      "description": "[Extension] Whether a non-zero grid fee was applied on this EWDS record (REQ-004). applied = charges computed from Tariff; not_published = no tariff / tariffBilling off (amount 0).",
       "type": "string",
       "enum": ["applied", "not_published"]
     },
     "taxAmount": {
-      "description": "VAT on the energy amount (rate per community, 0 by default). IRI: int:taxAmount.",
+      "description": "Tax + VAT component for the period (R6). IRI: int:taxAmount.",
       "type": "number",
       "minimum": 0
     },

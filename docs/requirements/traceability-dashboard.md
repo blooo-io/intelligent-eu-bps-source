@@ -4,24 +4,10 @@
 
 - Editable matrix views: [[traceability.base]] (Obsidian Bases, Obsidian ≥ 1.9).
 - The checks below need the **Dataview** community plugin.
-- On GitHub (where Bases and Dataview do not render), read the static tables in `requirements.md`, `user-stories.md` and `uat-test-cases.md`, regenerated from the item notes, plus the **INT-81 snapshot** below.
-- Full validation narrative: [`../testing/v1-validation-summary.md`](../testing/v1-validation-summary.md).
+- On GitHub (where Bases and Dataview do not render), read the static tables in `requirements.md`, `user-stories.md` and `uat-test-cases.md`, regenerated from the item notes.
 - `traceability-matrix.xlsx` is an export, not the source of truth.
 
 ![[traceability.base]]
-
-## INT-81 snapshot (GitHub-readable)
-
-**As of 2026-10-18** (INT-204): **62** in-scope UATs (`scope_d55: in`).
-
-| UAT status | Count |
-|---|---|
-| Pass | 62 |
-| Blocked | 0 |
-| Fail | 0 |
-| Not Run | 0 |
-
-No in-scope Blocked rows. Partner optimisations deferred (not Blocked): NFR-008 SLA number, NFR-016 step-count. REQ-034 / REQ-037 and UAT-044 / UAT-047 remain **out of D5.5 scope** (INT-192). See [`../testing/v1-validation-summary.md`](../testing/v1-validation-summary.md).
 
 ## Counts
 

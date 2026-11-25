@@ -39,11 +39,23 @@ export type CommunitySettings = {
   billingMode: BillingMode;
   /** REQ-015 — AC-07 pays out producers automatically when true. */
   autoPayout: boolean;
+  /**
+   * B2 / REQ-004 — when false (default), grid fee / levy / tax stay 0 + mention
+   * until legal clears charging DSO amounts onto the producer Connect account.
+   */
+  tariffBilling: boolean;
+  /** REQ-061 — manager inbox for payment alerts (AC-11). */
+  managerContactEmail?: string;
 };
 
-/** PUT body: `autoPayout` is optional and defaults to false (REQ-015). */
-export type CommunitySettingsWrite = Omit<CommunitySettings, "communityId" | "autoPayout"> & {
+/** PUT body: optional flags default to false (REQ-015 / B2). */
+export type CommunitySettingsWrite = Omit<
+  CommunitySettings,
+  "communityId" | "autoPayout" | "tariffBilling" | "managerContactEmail"
+> & {
   autoPayout?: boolean;
+  tariffBilling?: boolean;
+  managerContactEmail?: string;
 };
 
 export type ParticipantRecord = {

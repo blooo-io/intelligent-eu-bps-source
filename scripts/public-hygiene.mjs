@@ -36,11 +36,9 @@ function scansHygieneText(filePath) {
 }
 
 function scansBrainQuestionIds(filePath) {
+  // INT-440 / A10.7 — every docs/ path is public; no superpowers exemption.
   const normalized = filePath.replace(/\\/g, "/");
-  return (
-    normalized.startsWith("docs/") &&
-    !normalized.startsWith("docs/superpowers/")
-  );
+  return normalized.startsWith("docs/");
 }
 
 /**

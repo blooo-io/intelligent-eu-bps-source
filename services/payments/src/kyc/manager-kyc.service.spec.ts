@@ -49,16 +49,14 @@ describe("ManagerKycService (REQ-051)", () => {
   });
 
   it("REQ-051 / UAT-063: manager gets a hosted identity URL and no Connect account", async () => {
-    const createConnect = vi.spyOn(psp, "createEmbeddedProducerAccount");
     const createConnected = vi.spyOn(psp, "createConnectedAccount");
     const result = await service.start(
       MANAGER,
       COMMUNITY,
       "https://ui.example/return",
     );
-    expect(result.url).toMatch(/^https:\/\/mock-psp\.local\/identity\//);
+    expect(result.url).toMatch(/^https:\/\/verify\.stripe\.com\//);
     expect(result.status).toBe("pending");
-    expect(createConnect).not.toHaveBeenCalled();
     expect(createConnected).not.toHaveBeenCalled();
     const row = await store.get(MANAGER);
     expect(row).toMatchObject({
@@ -66,6 +64,20 @@ describe("ManagerKycService (REQ-051)", () => {
       kycStatus: "pending",
       kycVerified: false,
       verificationId: result.verificationId,
+    });
+  });
+
+  it("A7-bis: embedded surface returns clientSecret from Identity session", async () => {
+    const result = await service.start(
+      MANAGER,
+      COMMUNITY,
+      "https://ui.example/return",
+      "embedded",
+    );
+    expect(result).toMatchObject({
+      surface: "embedded",
+      status: "pending",
+      clientSecret: expect.stringMatching(/_secret_test$/),
     });
   });
 

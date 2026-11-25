@@ -84,4 +84,27 @@ describe("reference-data HTTP (INT-102)", () => {
     });
     expect(res.status).toBe(202);
   });
+
+  it("REQ-004 GET /internal/v1/communities/:id/tariff returns the UAT-004 mock", async () => {
+    const communityId = "a2000000-0000-4000-8000-000000000004";
+    const denied = await fetch(
+      `${base}/internal/v1/communities/${communityId}/tariff?date=2026-11-30`,
+    );
+    expect(denied.status).toBe(401);
+
+    const res = await fetch(
+      `${base}/internal/v1/communities/${communityId}/tariff?date=2026-11-30`,
+      { headers: { "x-intelligent-roles": "service" } },
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      communityId: string;
+      date: string;
+      tariff: { tariffId: string; gridFeePerKWh: string } | null;
+    };
+    expect(body.communityId).toBe(communityId);
+    expect(body.date).toBe("2026-11-30");
+    expect(body.tariff?.tariffId).toBe("tariff-uat004-2026");
+    expect(body.tariff?.gridFeePerKWh).toBe("0.0450");
+  });
 });

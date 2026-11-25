@@ -49,7 +49,7 @@ export type KycTestFixtureAccount = {
  * Distinct from {@link OnboardingSession} on KycOnboardingPort.
  */
 export type KycTestFixtureSession = {
-  /** Includes `hosted` so intersection with LegacyOnboardingSession (A7 Account Link) type-checks. */
+  /** Includes `hosted` so intersection with onboarding session (A7 Account Link) type-checks. */
   mode: "embedded" | "hosted" | "requirements" | "link" | "elements";
   status: "requirements_due" | "pending_verification" | "complete";
   pspAccountRef?: string;
@@ -58,6 +58,9 @@ export type KycTestFixtureSession = {
   url?: string;
   /** Short-lived client secret; never logged. */
   clientSecret?: string;
+  expiresAt?: string;
+  payoutsEnabled?: boolean;
+  disabledReason?: string;
 };
 
 export type CreateKycTestFixtureAccountInput = {

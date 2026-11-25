@@ -136,7 +136,7 @@ Merge order constraints: 5.2-5.6 before 1.12-1.18, 3.3-3.7 and 5.7; 1.14 and 5.7
 - Two invoices for the same producer issued concurrently: consecutive numbers, no gap, no duplicate — tests in WS2 Task 2.8 (`REQ-042 UAT-053 next number is per producer and gapless`, `REQ-042 unique index rejects a duplicate issuer/number`).
 
 ## Spec coverage (v6.1 → tasks)
-REQ-002 → 1.6, 2.6 · REQ-004/007 → 2.4, 2.7, 2.18 · REQ-008/058 → 3.11, 4.13 · REQ-013 → 3.18-3.22, 4.18 · REQ-014 → 5.7, 4.16 · REQ-015 → 1.15-1.18 · REQ-039/042 → 2.8-2.12, 2.15 · REQ-043 → 3.13-3.17 · REQ-045/051 → 3.2-3.9 · REQ-046/047 → 5.8-5.12 · REQ-048 → 4.1, 4.12 · REQ-050 → 3.10 · REQ-052 → 4.2-4.3, 4.14-4.17 · REQ-053 → 4.6 · REQ-054..056 → 1.2 (kept) · REQ-057 (removal) → 1.1-1.4 · REQ-059 → 1.5-1.9 · REQ-060 → 1.19-1.20 · REQ-061 → 2.16-2.17 · D5.5 report → 6.17-6.19.
+REQ-002 → 1.6, 2.6 · REQ-004/007 → 2.4, 2.7, 2.18 · REQ-008/058 → 3.11, 4.13 · REQ-013 → 3.18-3.22, 4.18 · REQ-014 → 5.7, 4.16 · REQ-015 → 1.15-1.18 · REDEV-06/042 → 2.8-2.12, 2.15 · REQ-043 → 3.13-3.17 · REQ-045/051 → 3.2-3.9 · REQ-046/047 → 5.8-5.12 · REQ-048 → 4.1, 4.12 · REQ-050 → 3.10 · REQ-052 → 4.2-4.3, 4.14-4.17 · REQ-053 → 4.6 · REQ-054..056 → 1.2 (kept) · REQ-057 (removal) → 1.1-1.4 · REQ-059 → 1.5-1.9 · REQ-060 → 1.19-1.20 · REQ-061 → 2.16-2.17 · D5.5 report → 6.17-6.19.
 
 ---
 ## Workstream 1 — Billing model: monthly participant statement, pair invoices kept, early settlement removed, payouts
@@ -1147,7 +1147,7 @@ Replace Stripe Invoicing in AC-06 with an invoice issued by billing: a legal num
 Add the calculation inputs the invoice must show: a `TariffPort` in AC-13 (mock adapter, plus the EWDS source port that WS4 implements), grid fee, levy and tax computed in AC-05 or 0 with a mention (A10.2, REQ-004), and an optional `adjustedPrice` per trade (A10.3). Also fix the FX rate precision bug (2 decimals instead of 4 to 6) and publish real `gridFeeAmount`/`taxAmount`.
 Add payment reminders: a manager action plus a scheduled reminder after Overdue, and a missing-payment alert to the community manager (REQ-061). Fix the latent bug where the scheduled `MarkOverdue` call never sends `asOf`.
 
-Repo paths are relative to `repo/` (develop @6a24cc3). Line ranges refer to that snapshot. Spec ids follow v6.1: REQ-039 and REQ-042 cover the in-house PDF with per-producer numbering; REQ-054 is the pair invoice in the producer's name, reactivated under REQ-059; REQ-050 is the T&C including the self-billing mandate.
+Repo paths are relative to `repo/` (develop @6a24cc3). Line ranges refer to that snapshot. Spec ids follow v6.1: REDEV-06 and REQ-042 cover the in-house PDF with per-producer numbering; REQ-054 is the pair invoice in the producer's name, reactivated under REQ-059; REQ-050 is the T&C including the self-billing mandate.
 
 **Calculation rules fixed by this workstream (reviewers check against these):**
 - R1. The effective price of a trade is `adjustedPrice ?? price` (EUR/kWh). The line shows both values when `adjustedPrice` is present. REQ-003 still holds: billing never computes an adjustment, it only uses the one GSY sends.
@@ -1227,7 +1227,7 @@ Repo paths are relative to `repo/` (develop @6a24cc3). Line ranges refer to that
 - Public:
   - `InvoiceAmounts` requires `energy, gridFee, levy, tax, vat, total`.
   - `Invoice` adds `legalNumber` (required), `issueDate`, `periodFrom`, `periodUntil`, `vatRate: Rate`, `exchangeRate {rate: FxRate, rateDate}|null`, `tariffApplied: boolean`, `carriedForwardIn: Money`. The description "Provider invoice number" becomes "Billing-assigned legal number, sequential per producer (REQ-042)".
-  - `GET /invoices/{id}/document` gains `security` roles member+manager. The description changes to "PDF generated and stored by billing (REQ-039)".
+  - `GET /invoices/{id}/document` gains `security` roles member+manager. The description changes to "PDF generated and stored by billing (REDEV-06)".
   - New `POST /invoices/{id}/reminders`: manager only, no body, returns 202 `{invoiceId, reminderCount}`, or 409 when the invoice is Paid, Void or Draft.
   - `CommunitySettings.managerContactEmail?: email` and `CommunitySettings.tariffBilling?: boolean` (default false; see Review focus 2). Both are mirrored in participants' internal `/communities/{id}/settings`, which AC-05 reads.
 - AsyncAPI:
@@ -1236,10 +1236,10 @@ Repo paths are relative to `repo/` (develop @6a24cc3). Line ranges refer to that
   - `InvoiceStatusChanged.data.dueDate?` is added.
   - `notification.v1.yaml` receives `InvoiceIssued`, `InvoiceStatusChanged` and `PaymentReminderRequested`. The line "Invoice PDF e-mail remains Stripe-owned" is removed.
 
-**Covers:** REQ-039, REQ-042, REQ-061, REQ-044, REQ-007, UAT-050, UAT-053, UAT-078
+**Covers:** REDEV-06, REQ-042, REQ-061, REQ-044, REQ-007, UAT-050, UAT-053, UAT-078
 - [ ] Write the failing test `scripts/invoice-contracts.test.mjs`:
   ```js
-  test("REQ-039/REQ-042 invoicing contracts carry no Stripe invoice fields", async () => {
+  test("REDEV-06/REQ-042 invoicing contracts carry no Stripe invoice fields", async () => {
     const text = await readFile("contracts/openapi/internal/invoicing.v1.yaml", "utf8");
     assert.equal(/stripeInvoiceId|hostedInvoiceUrl|producerStripeAccountId/.test(text), false);
   });
@@ -1409,7 +1409,7 @@ getDocument(invoiceId: string): Buffer | undefined;
   - `"REQ-042 legal number is immutable"`: `store.put({...row, legalNumber:"SB-66666666-000009"})` on an existing row throws `"legalNumber is immutable"`.
   - `"BR-08 sumMoney is exact"`: `sumMoney("0.10","0.20") === "0.30"` and `sumMoney("2.00","-2.00") === "0.00"`.
   - In the journal spec, `"REQ-042 applyInvoiceWrites refuses a changed legal number"`: the fake SQL returns `rowCount 0` on the guarded upsert, and the call rejects with `"legal number is immutable"`.
-  - In the journal spec, `"REQ-039 document rows are insert-only"`: the SQL text contains `ON CONFLICT (invoice_id) DO NOTHING`.
+  - In the journal spec, `"REDEV-06 document rows are insert-only"`: the SQL text contains `ON CONFLICT (invoice_id) DO NOTHING`.
   - `"restore drops documents of rolled-back invoices"`.
 - [ ] Run `pnpm --filter @intelligent/invoicing exec vitest run src/domain src/persistence`. Expected FAIL.
 - [ ] Implement:
@@ -1438,9 +1438,9 @@ ParticipantsService.getManagerContact(communityId: string): { communityId: strin
 ```
 - `selfBillingMandate` is `{termsVersion: termsVersionAccepted, acceptedAt}` when `selfBillingMandate === true`, `null` otherwise. `acceptedAt` stays `null` until the T&C workstream stores it.
 
-**Covers:** REQ-054 (v6.1), REQ-050 (v6.1, mandate), REQ-039, REQ-061
+**Covers:** REQ-054 (v6.1), REQ-050 (v6.1, mandate), REDEV-06, REQ-061
 - [ ] Write the failing tests:
-  - Participants: `"REQ-039 invoice-party returns name, address and mandate for a producer"`: a seeded producer with profile `{name:"Paul Nguyen", address:"1 Fixture Lane"}`, mandate true and terms `"v1"` gives `selfBillingMandate {termsVersion:"v1", acceptedAt:null}`.
+  - Participants: `"REDEV-06 invoice-party returns name, address and mandate for a producer"`: a seeded producer with profile `{name:"Paul Nguyen", address:"1 Fixture Lane"}`, mandate true and terms `"v1"` gives `selfBillingMandate {termsVersion:"v1", acceptedAt:null}`.
   - Participants: `"REQ-061 manager-contact 404 when unset, 200 after settings write"`.
   - Invoicing: `"HttpInvoiceParty maps 404 to null"` and `"…sends service auth to /internal/v1/participants/{id}/invoice-party"`.
 - [ ] Run `pnpm --filter @intelligent/participants exec vitest run src/participants && pnpm --filter @intelligent/invoicing exec vitest run src/ports/invoice-party.port.spec.ts`. Expected FAIL.
@@ -1460,14 +1460,14 @@ export function toWinAnsi(text: string): string;                     // NFD-stri
 ```
 Licence check, done 2026-11-24 on the npm registry: `pdf-lib@1.17.1` is MIT. Its dependencies: `@pdf-lib/standard-fonts@1.0.0` MIT, `@pdf-lib/upng@1.0.1` MIT, `tslib@1.14.1` 0BSD (already in the lockfile), and `pako@1.0.11` "(MIT AND Zlib)". Zlib is permissive and not on the `trivy.yaml` forbidden list. Record `pako` in `NOTICE` and in the PR licence section.
 
-**Covers:** REQ-039, REQ-042, REQ-007, REQ-004, REQ-002, UAT-050, UAT-007
+**Covers:** REDEV-06, REQ-042, REQ-007, REQ-004, REQ-002, UAT-050, UAT-007
 - [ ] Write the failing tests, using fixture `invoice()` (EUR, no tariff, one buyer line 10.000 kWh at 0.20, total 2.00, issuer "Paul Nguyen", mandate v1):
-  - `"REQ-039 REQ-054 shows the self-billing issuer, mandate and addressee"`: expect `invoiceContent(inv)` to contain `"SELF-BILLING INVOICE"`, `"Invoice number: SB-66666666-000001"`, `"Issuer (supplier): Paul Nguyen, 1 Fixture Lane"`, `"Issued by the INTELLIGENT billing service in the name and on behalf of the supplier under the self-billing mandate accepted in the Terms & Conditions version v1."` and `"Addressee (customer): Hugo Petit, 2 Fixture Lane"`.
+  - `"REDEV-06 REQ-054 shows the self-billing issuer, mandate and addressee"`: expect `invoiceContent(inv)` to contain `"SELF-BILLING INVOICE"`, `"Invoice number: SB-66666666-000001"`, `"Issuer (supplier): Paul Nguyen, 1 Fixture Lane"`, `"Issued by the INTELLIGENT billing service in the name and on behalf of the supplier under the self-billing mandate accepted in the Terms & Conditions version v1."` and `"Addressee (customer): Hugo Petit, 2 Fixture Lane"`.
   - `"REQ-007 lists each trade with delivery period, role, kWh, prices and amount"`: contains `"2026-11-01 00:00-01:00 UTC | buyer | 10.000 kWh | 0.20 | - | 2.00 EUR"`.
   - `"REQ-007 REQ-004 shows the amount split and the no-tariff mention"`: contains `"Energy: 2.00 EUR"`, `"Grid fee: 0.00 EUR"`, `"Levies: 0.00 EUR"`, `"Taxes (excl. VAT): 0.00 EUR"`, `"VAT (0.00 %): 0.00 EUR"`, `"Total: 2.00 EUR"` and `"Grid fees, levies and taxes are billed by your supplier or DSO: no DSO tariff is published for this community."`.
   - `"REQ-002 shows the ECB rate on a CHF invoice"`: contains `"Trade prices in EUR converted at the ECB reference rate 0.9412 of 2026-11-30."`.
   - `"A10.3 shows the adjusted price"`: the line contains `"| 0.20 | 0.18 |"`.
-  - `"REQ-039 renders a valid, deterministic PDF"`: bytes start with `%PDF-`; `(await PDFDocument.load(bytes)).getTitle() === "SB-66666666-000001"`; two renders have equal sha256.
+  - `"REDEV-06 renders a valid, deterministic PDF"`: bytes start with `%PDF-`; `(await PDFDocument.load(bytes)).getTitle() === "SB-66666666-000001"`; two renders have equal sha256.
   - `"paginates 200 lines"`: page count is greater than 1.
   - `"toWinAnsi keeps the PDF renderable for non-Latin-1 names"`: `toWinAnsi("Łukasz Żółć") === "Lukasz Zolc"`, and the render does not throw.
 - [ ] Run `pnpm --filter @intelligent/invoicing exec vitest run src/pdf`. Expected FAIL.
@@ -1483,7 +1483,7 @@ Licence check, done 2026-11-24 on the npm registry: `pdf-lib@1.17.1` is MIT. Its
 - Produces `createFromSettlement(s: PairSettlementInput): Promise<InvoiceRecord | null>`. It stays idempotent on `settlementId`, and skips when `sumMoney(energy, gridFee, levy, tax) === "0.00"`.
 - Outbox `InvoiceIssued` data follows Task 2.2. `billingMode` comes from the settlement or community rather than the literal `"virtual"`; that is WS-live-mode's field, and `"virtual"` stays the default until it lands.
 
-**Covers:** REQ-039, REQ-042, REQ-007, REQ-004, REQ-054, UAT-050, UAT-053, UAT-007, BR-09
+**Covers:** REDEV-06, REQ-042, REQ-007, REQ-004, REQ-054, UAT-050, UAT-053, UAT-007, BR-09
 - [ ] Write the failing tests:
   - `"UAT-053 two invoices of one producer get consecutive numbers, another producer starts at 1"`: settlements s1 and s2 (producer A) and s3 (producer B) give `"SB-66666666-000001"`, `"SB-66666666-000002"` and `"SB-77777777-000001"`.
   - `"REQ-042 a failed render leaves no gap"`: the renderer throws once and `createFromSettlement(s1)` rejects; on retry, s1 gets `"SB-66666666-000001"`. Uses the `RecordingTransaction` with a fake pool.
@@ -1519,7 +1519,7 @@ getDocument(invoiceId: string): { legalNumber: string; content: Buffer };   // i
 - `GET /v1/invoices/:id/document` (member and manager roles) returns 200 with `Content-Type: application/pdf`, `Content-Disposition: inline; filename="<legalNumber>.pdf"` and `Cache-Control: private, no-store`.
 - `GET /internal/v1/invoices/:id/document` sets the same headers plus `X-Legal-Number`.
 
-**Covers:** REQ-039, UAT-050, REQ-049
+**Covers:** REDEV-06, UAT-050, REQ-049
 - [ ] Write the failing tests (HTTP):
   - `"UAT-050 consumer downloads the stored PDF"`: 200, the body starts with `%PDF`, and the filename is `SB-66666666-000001.pdf`.
   - `"UAT-050 manager of the community downloads it"`: headers `x-intelligent-roles: manager` and `x-intelligent-community: <communityId>` give 200.
@@ -1539,7 +1539,7 @@ getDocument(invoiceId: string): { legalNumber: string; content: Buffer };   // i
 - Modify `docs/architecture/04-technical-architecture.md` (TP-7, TD-2/TD-6), `01-functional-architecture.md` (BR-10) and `03-application-architecture.md` (AC-06, P-MAIL).
 
 **Interfaces:** Removes `StripeInvoicePort`, `STRIPE_INVOICE_PORT`, `StripeInvoiceAdapter`, `MockStripeInvoiceAdapter`, `isLiveStripeInvoiceProvider`, `PAYMENTS_CLIENT` (invoicing) and env `STRIPE_INVOICE_PROVIDER`.
-**Covers:** REQ-039, REQ-042, A6
+**Covers:** REDEV-06, REQ-042, A6
 - [ ] Write the failing test in `app.http.spec.ts`, `"A6 invoicing has no Stripe dependency"`: `readFileSync("package.json")` has no `"stripe"`, and `existsSync("src/stripe")` is false.
 - [ ] Run `pnpm --filter @intelligent/invoicing exec vitest run src/app.http.spec.ts`. Expected FAIL.
 - [ ] Implement the deletions. Chart changes:
@@ -1568,7 +1568,7 @@ export function createMailPort(env?: NodeJS.ProcessEnv): MailPort;   // SMTP_URL
 - `nodemailer` is MIT-0 (npm registry, 2026-11-24), a permissive MIT variant without the attribution clause. List it in the PR licence section.
 - The SMTP adapter also records captured metadata so `captured()` keeps working.
 
-**Covers:** REQ-039, UAT-050, REQ-017
+**Covers:** REDEV-06, UAT-050, REQ-017
 - [ ] Write the failing tests:
   - `"UAT-050 catcher records attachment metadata, not bytes"`: one PDF of 9 bytes gives `captured()[0].attachments[0]` with `byteLength 9` and no `content` key.
   - `"SmtpMailAdapter passes attachments to the transport"`: a fake transport receives `attachments[0].filename === "SB-66666666-000001.pdf"`.
@@ -1593,7 +1593,7 @@ NotificationService.onInvoiceIssued(e: { eventId: string; invoiceId: string; iss
 - Missing e-mail: skip with a redacted log (existing pattern).
 - Missing document: throw, so the event is redelivered.
 
-**Covers:** REQ-039, UAT-050, REQ-054, NFR-015
+**Covers:** REDEV-06, UAT-050, REQ-054, NFR-015
 - [ ] Write the failing tests:
   - `"UAT-050 e-mails the PDF to the consumer and a copy to the producer"`: `captured()` has 2 mails, `template "invoice-issued"`, attachment filename `SB-66666666-000001.pdf`, and recipients `["consumer@example.invalid","producer@example.invalid"]`.
   - `"is idempotent on eventId"`: a second delivery gives 2 mails, not 4.
@@ -1690,7 +1690,7 @@ NotificationService.onInvoiceOverdue(e: { eventId; invoiceId; communityId; outst
 1. **Two replicas would break gapless numbering.** The in-memory `nextLegalNumber` assumes one writer (the chart sets `replicaCount: 1`). Added to Task 2.8: `"REQ-042 unique index rejects a duplicate issuer/number"`. The fake SQL raises `23505`, `applyInvoiceWrites` rejects, the store is restored, and a retry takes the next free number. Add a chart guard in `scripts/deploy-layout.test.mjs` asserting `invoicing.replicaCount === 1`.
 2. **Grid fee collected on the producer's Connect account.** With a real tariff, DSO money would be paid to the producer, so it is a flow-of-funds and legal question (A1). Added to Task 2.7: `"REQ-004 a tariff is applied only when the community enables tariffBilling"`. UAT-004 community with `tariffBilling: false` gives zero charges and `tariffId null`. The UAT-004 fixture community sets it to true. Raise this with legal before UAT-004 is marked live.
 3. **Negative net kWh with positive energy.** Price differences between the two directions can make the netted kWh negative while the energy amount is positive, which produces negative charges. Added to Task 2.7: `"REQ-004 charges are never negative on an invoiced pair"`. Each component is clamped at 0 after orientation, and a `DiscrepancyDetected` outbox event is emitted.
-4. **PDF and record drift.** The stored PDF must match the record served by the API. Added to Task 2.12: `"REQ-039 the document is never re-rendered after issue"`. A status change to Paid leaves `document.sha256` and the stored bytes byte-identical.
+4. **PDF and record drift.** The stored PDF must match the record served by the API. Added to Task 2.12: `"REDEV-06 the document is never re-rendered after issue"`. A status change to Paid leaves `document.sha256` and the stored bytes byte-identical.
 5. **E-mail before commit.** AC-11 can consume `InvoiceIssued` only after the outbox commit, but the document fetch could race a replica that has not hydrated yet. Added to Task 2.15: `"redelivers when the document is not yet readable"`. The test exists; the listener must throw, not ack.
 
 #### Dependencies
@@ -2776,7 +2776,7 @@ export function loadCgwConfig(env: NodeJS.ProcessEnv, service: string): CgwConfi
 - Consumes `RequestReplyClient` with channels `gsy.intelligent.requests.pub` and `gsy.intelligent.responses.sub`.
 - Produces `class EwdsMarketAdapter implements MarketPort { constructor(rr: RequestReplyClient, opts?: { acceptedStatuses?: string[]; valueScale?: number }) }`.
 
-**Covers:** REQ-001, UAT-001, REQ-003, REQ-041, BR-01, BR-02
+**Covers:** REQ-001, UAT-001, REQ-003, REDEV-08, BR-01, BR-02
 - [ ] **Write failing test** (fake `RequestReplyClient` returning the fixture `data[]`):
   ```ts
   it("REQ-001 UAT-001: splits a 30 h window into tradesQuery calls of at most 86400 s", async () => {
@@ -3864,7 +3864,7 @@ Rules: `jira-account-id` = 24 lowercase hex chars not part of a longer hex run, 
   ```
 - [ ] **Run** `node --test scripts/public-hygiene.test.mjs` → FAIL (`Cannot find module './public-hygiene.mjs'`).
 - [ ] **Implement** the two functions (line-by-line regex scan; path filter by extension and `docs/` prefix).
-- [ ] **Run** → the "HEAD is clean" case FAILS on `REQ-003.md:13,20` (`Q-031`) until Task 6.6 syncs a vault REQ-003 without the id; the other 4 PASS. Do not merge before Task 6.6. After 6.6: `# pass 5  # fail 0`.
+- [ ] **Run** → the "HEAD is clean" case FAILS on `REQ-003.md:13,20` (`vault-REQ-003`) until Task 6.6 syncs a vault REQ-003 without the id; the other 4 PASS. Do not merge before Task 6.6. After 6.6: `# pass 5  # fail 0`.
 - [ ] **Wire** `await run(process.execPath, ["--test", path.join(root, "scripts/public-hygiene.test.mjs")]);` after l.60 of `scripts/run-tests.mjs`; `pnpm test` → exit 0.
 - [ ] **Commit.** `test: guard public files against Jira account ids and personal e-mails (INT-TBD)`
 
@@ -3889,7 +3889,7 @@ Recommendation (to record in `docs/maintainers/README.md`):
 
 **Files:** `AGENTS.md` l.5-15, l.19-25, l.34-39, l.53-59; `.cursor/rules/00-project.mdc` l.8-9; `10-contract-first.mdc` l.11; `20-modules-and-events.mdc` (block "Stripe (TP-7)"); `30-security-privacy.mdc` l.12-17; `60-deploy.mdc` (line "Both cloud environments are virtual mode with Stripe test only").
 **Interfaces:** Consumes the record names (A7) `billingStatement`, `billingInvoice`, `billingPayment`, `billingPayout`, `billingKycStatus` and command names `startPayment`, `requestWithdrawal`, `setInvoiceStatus`, `startKyc`, `sendReminder`, `triggerBillingRun` from the EWDS-integration workstream; the adapter environment variable names from the adapters workstream (read them from code, step 3). Produces BR range `BR-01..BR-15` (Task 6.7).
-**Covers:** REQ-014, REQ-015, REQ-039, REQ-042, REQ-045, REQ-050, REQ-052, REQ-054..056 (under REQ-059), REQ-057 (deprecated), REQ-059.
+**Covers:** REQ-014, REQ-015, REDEV-06, REQ-042, REQ-045, REQ-050, REQ-052, REQ-054..056 (under REQ-059), REQ-057 (deprecated), REQ-059.
 
 - [ ] **Verify current state.**
   `grep -nE "producer is the bank|early settlement|Stripe is master|only Stripe test mode|every adapter except Stripe|virtual mode with Stripe test only|A1–A33|BR-01\.\.BR-13" AGENTS.md .cursor/rules/*.mdc` → hits at AGENTS.md l.7, 11, 13, 24, 25, 35, 39 and `00-project.mdc` l.8-9, `60-deploy.mdc`.
@@ -3958,7 +3958,7 @@ Merge rules (one line each): spec fields and the Given/When/Then body come from 
     assert.equal(mergeUatNote(repo.replace("UAT-001", "UAT-076"), null, "2026-11-25").rerun, true);
   });
   test("A10.7 confidential markers block the copy", () => {
-    assert.deepEqual(findConfidentialMarkers("open → Q-" + "034; see docs/project-" + "context/"), ["Q-034", "project-context"]);
+    assert.deepEqual(findConfidentialMarkers("open → DEV-" + "01; see docs/project-" + "context/"), ["DEV-01", "project-context"]);
   });
   ```
 - [ ] **Run** `node --test scripts/sync-spec.test.mjs` → FAIL (`Cannot find module`).
@@ -3974,7 +3974,7 @@ Merge rules (one line each): spec fields and the Given/When/Then body come from 
 
 Copy procedure (the vault is the source; never edit `docs/requirements/` by hand):
 1. Gate: `grep -c "draft v6.1" "$VAULT/requirements.md"` → `1` (today the vault says `draft v6`; wait for the spec owner).
-2. Clean the source in the vault, not in the repo: remove brain question ids and the `docs/project-context/` path from published notes (`REQ-003` l.13/20 `(Q-031)`, `REQ-008` l.15/23 `See Q-003.`, `REQ-052` l.17/27 `→ Q-034`, `requirements.md` l.3 "the documents in `docs/project-context/`" → "the project source documents (GA, D2.5, D3.1, D5.5 scope, D6.1)"). Check: `grep -rnoP "(?<![A-Z])Q-\d{3}|project-context|brain/" "$VAULT"` → no output.
+2. Clean the source in the vault, not in the repo: remove brain question ids and the `docs/project-context/` path from published notes (`REQ-003` l.13/20 `(vault-REQ-003)`, `REQ-008` l.15/23 `See vault-REQ-003.`, `REQ-052` l.17/27 `→ DEV-01`, `requirements.md` l.3 "the documents in `docs/project-context/`" → "the project source documents (GA, D2.5, D3.1, D5.5 scope, D6.1)"). Check: `grep -rnoP "(?<![A-Z])Q-\d{3}|project-context|brain/" "$VAULT"` → no output.
 3. Dry run: `node scripts/sync-spec.mjs --from "$VAULT" --dry-run > /tmp/sync.json; echo $?` → `0`; `jq '.blocked' /tmp/sync.json` → `[]`.
 4. Real run: `node scripts/sync-spec.mjs --from "$VAULT"`; then `git status --short docs/requirements | wc -l` (expect ≈ 110: 23 REQ, 79 UAT, 3 new US, narratives) and `git diff --stat`.
 5. Write `jq -r '.rerun[]' /tmp/sync.json` into `docs/testing/v6.1-rerun.md` (table: UAT, requirement, reason `spec text changed | new | scope changed`).
@@ -4000,7 +4000,7 @@ Copy procedure (the vault is the source; never edit `docs/requirements/` by hand
 | §1 l.23 | in-scope row: "Fiat payment through Stripe; virtual (test) or live per community (REQ-043, A10.1)". Out-of-scope l.22: grid fees → "Grid-fee/levy/tax amounts only when a DSO tariff is published (tariff port; else 0 + mention)". Add "EV charging (A10.4)" to out of scope. |
 | §1 principles l.29-33 | P1 "The producer is the bank (A19)" → "Two levels: a monthly statement per participant, legal invoices per producer→consumer pair in the producer's name" (REQ-059, REQ-054); P3 keep "Money never transits" + "payouts come from the producer's connected account" (REQ-015); P4 "Identity proofing is done by the payment provider for every participant (REQ-051)". |
 | §2 l.39-49 | Consumer: drop "can settle early"; Producer: "receives payouts by withdrawal"; every participant has a Stripe Connect account + KYC; Community manager: Stripe Identity check, payout overview, reminders (REQ-060, REQ-061); Payment provider row: "KYC of every participant, payments, payouts"; l.49 Project UI: "reads records and sends commands through the EWDS only (REQ-052)". Context diagram: `EXT` edge label "records + command channel via EWDS". |
-| §3 | F4.3 → "**F4.3 Early settlement — withdrawn (REQ-057 deprecated)**"; add **F4.5 Monthly statement** (REQ-059), **F5.5 Payout / withdrawal** (REQ-015, manual schedule, `autoPayout`), **F6.5 Manager payout overview and reminders** (REQ-060, REQ-061); F5.1 → every participant (REQ-051, REQ-045); F4.2 → in-house PDF, number per producer kept by billing (REQ-039, REQ-042); F3.4 adds tariff components (REQ-004); l.134 → "Billing results reach the project UI only through the EWDS (REQ-052); the REST API serves the reference client." Mermaid F4/F5/F6 subgraphs updated. |
+| §3 | F4.3 → "**F4.3 Early settlement — withdrawn (REQ-057 deprecated)**"; add **F4.5 Monthly statement** (REQ-059), **F5.5 Payout / withdrawal** (REQ-015, manual schedule, `autoPayout`), **F6.5 Manager payout overview and reminders** (REQ-060, REQ-061); F5.1 → every participant (REQ-051, REQ-045); F4.2 → in-house PDF, number per producer kept by billing (REDEV-06, REQ-042); F3.4 adds tariff components (REQ-004); l.134 → "Billing results reach the project UI only through the EWDS (REQ-052); the REST API serves the reference client." Mermaid F4/F5/F6 subgraphs updated. |
 | §4 | P1: KYC branch for every participant + managers (Stripe-hosted onboarding / Identity). P2: after "Issue invoice…" add "Issue monthly statement per participant (Level 1)"; threshold node stays per pair. **P3** → "Withdrawn in v6 (REQ-057). See P6." P4: payment = direct charge on the producer's connected account via a Stripe-hosted Checkout URL; remove "Payout to bank (by provider)". New **P6 Payout (withdrawal)** sequence: participant (or `autoPayout`) → billing checks period invoices where participant is producer are Paid → Stripe payout from the connected account → `payout.*` webhook → publish `billingPayout`. |
 | §5 | "Billing account" → "**Monthly statement** (`int:Billing`): totals bought/sold, net balance, invoiceIds, status; not payable"; Invoice "one period or early settlement" → "one period (or forced final)"; add "**Payout**" (owner Billing/payment provider, `billingPayout`); Payment account status → "every participant". ER diagram: `PARTICIPANT ||--o{ STATEMENT`, `STATEMENT }o--o{ INVOICE : lists`, `PARTICIPANT ||--o{ PAYOUT`. |
 | §6 BR | BR-03 → "Amount = kWh × price, where price = `adjustedPrice` when GSY provides it, else `tradePrice` (A10.3, REQ-003)". BR-04 source → "REQ-055 (under REQ-059)". BR-05 → drop "Early settlement ignores the threshold"; source "REQ-056". BR-06 → drop "(or the settlement date for an early settlement)". BR-07 → "VAT at the community rate (0 default); grid fee, levy and tax from the tariff port; 0 and a mention when no DSO tariff is published (REQ-004, REQ-007)". BR-09 → "No statement, invoice, payment or payout for a participant whose `kycVerified` is false; no invoice in a producer's name before T&C incl. self-billing mandate (REQ-045, REQ-050)". BR-10 → "…per producer, owned by billing (not the PSP)". BR-12 → "Virtual communities use the PSP test environment; live communities need the operator role and live keys (REQ-043, A10.1)". **New BR-14**: "A payout of a period's amount is allowed only when the invoices of that period where the participant is producer are Paid (REQ-015)". **New BR-15**: "The monthly statement is informative and never payable; payments target invoices only (REQ-059)". |
@@ -4019,7 +4019,7 @@ Copy procedure (the vault is the source; never edit `docs/requirements/` by hand
 | Section | Change |
 |---|---|
 | LP-7 | "Single entry point for clients" → "Two entry points: the project UI uses only the EWDS (records published by LB-08, commands on P-CMD); the reference client uses LB-12. Both reach the same commands." |
-| §2 LB-04 | drop "and early settlements"; REQ list drop 057; add "builds the monthly statement (Level 1)" + REQ-059. LB-05: PDF in-house, number per producer; REQ-039, 042, 054. LB-06: "accounts + KYC for every participant; direct charges; payouts (withdrawal, `autoPayout`, BR-14)"; REQ add 015, 051. LB-08: "publishes `billingStatement`, `billingInvoice`, `billingPayment`, `billingPayout`, `billingKycStatus`; receives commands on P-CMD and forwards them to LB-12 commands". LB-12: drop "early settlement"; add "withdrawal, statements". LB-14: add payout overview (REQ-060). LB-09: reminders (REQ-061). Diagrams l.91: `UI[Reference client] --> API`, new `PUI[Project UI] -.EWDS.-> P_CMD((P-CMD))`. |
+| §2 LB-04 | drop "and early settlements"; REQ list drop 057; add "builds the monthly statement (Level 1)" + REQ-059. LB-05: PDF in-house, number per producer; REDEV-06, 042, 054. LB-06: "accounts + KYC for every participant; direct charges; payouts (withdrawal, `autoPayout`, BR-14)"; REQ add 015, 051. LB-08: "publishes `billingStatement`, `billingInvoice`, `billingPayment`, `billingPayout`, `billingKycStatus`; receives commands on P-CMD and forwards them to LB-12 commands". LB-12: drop "early settlement"; add "withdrawal, statements". LB-14: add payout overview (REQ-060). LB-09: reminders (REQ-061). Diagrams l.91: `UI[Reference client] --> API`, new `PUI[Project UI] -.EWDS.-> P_CMD((P-CMD))`. |
 | §3 ports | P-MKT V1 column → "EWDS Client Gateway adapter; mock default until EWAG grants roles (A8)"; GSY REST backfill → "test fixture only". P-DS → add Actor intake and erasure intake. New **P-CMD** (in, request/reply on the billing command channel). New **P-TARIFF** (out, DSO tariff records; none published yet → 0). P-PSP → "Stripe test or live per community; Connect accounts, Identity, PaymentIntents (direct charge), payouts, webhooks incl. `payout.*`". Client API row → "reference client only". |
 | §4.1 events | ParticipantReadinessChanged meaning → "participant is or is no longer KYC-verified"; BillingRunCompleted drop "(or of an early settlement)"; add StatementIssued (LB-04→LB-08, LB-09), PayoutStatusChanged (LB-06→LB-08, LB-09, LB-14), KycStatusChanged (LB-06→LB-02, LB-08). Use the exact AsyncAPI names from the billing/payments workstreams. |
 | §4.2 commands | delete RequestEarlySettlement row → replace by "RequestWithdrawal(participantId, period) LB-12/P-CMD → LB-06"; add StartPayment, StartKyc, SendReminder, TriggerBillingRun mapped to A7 command names. |
@@ -4059,7 +4059,7 @@ Copy procedure (the vault is the source; never edit `docs/requirements/` by hand
 ### Task 6.11: 04 technical architecture rewrite points
 
 **Files:** `docs/architecture/04-technical-architecture.md` (TP l.25-28; reuse map l.36, 41, 42, 46; TD l.63-74; §3.1 l.83, 86; §3.2 l.89-97; §3.3 l.102-104; §4 licence table; §6.1 l.232; §6.2 l.262-270; §7 l.315-317; §8 l.331-333).
-**Covers:** REQ-039, 042, 052, NFR-002, NFR-012.
+**Covers:** REDEV-06, 042, 052, NFR-002, NFR-012.
 
 | Id | Change |
 |---|---|
@@ -4203,20 +4203,20 @@ Outline (template headings; "feeds" = repo source to summarise, never paste whol
 
 ### Task 6.18: D5.5 report — §11 Deviations and open consortium dependencies
 
-**Files:** same .docx, §11. **Covers:** INT-90; topics of brain questions Q-034…Q-041 plus open assumptions A4, A6/A24, A11, A12, A22, A25, A26, A32.
+**Files:** same .docx, §11. **Covers:** INT-90; topics of brain questions DEV-01…DEV-08 plus open assumptions A4, A6/A24, A11, A12, A22, A25, A26, A32.
 
 Rules: neutral ids **DEV-01…** (no brain ids, no e-mail content, no partner quotes); each row = topic · what the source documents expect · what D5.5 V1 delivers · rationale · dependency (organisation) · target (V1.x / D5.10 / M30).
 
 | Id | Topic (brain origin, internal only) | V1 position to state |
 |---|---|---|
-| DEV-01 | Project-UI actions over the EWDS (Q-034) | Records + billing command channel; Stripe-hosted URLs for card/KYC; depends on EWAG topic creation and R2M UI integration |
-| DEV-02 | Written record of the identity-provider decision (Q-035) | Billing is an OIDC relying party; reference Keycloak; DID/VC (REQ-062) targeted D5.10; depends on a consortium written decision |
-| DEV-03 | GA wallets, AMM interface, i-Euro (Q-036) | Not in D5.5; crypto/MiCA to D5.10; AMM after D5.3; i-Euro needs a justification or amendment via the coordinator |
-| DEV-04 | Billing portal ownership (Q-037) | No separate Blooo portal in the project path; `apps/web` is a reference client; depends on R2M/AIT confirmation |
-| DEV-05 | EV charging billing (Q-038) | Out of scope (A10.4); candidate for D5.10 if a message format is defined |
-| DEV-06 | KYC for consumers and community managers (Q-039) | Connect account + Stripe-hosted onboarding for every participant, Stripe Identity for managers; DPO review pending; UX cost tracked under NFR-016 |
-| DEV-07 | Payment-method comparison ER1.4 / TE-2 (Q-040) | Card + SEPA Direct Debit, time and fee logged per method (REQ-046); WP6 to define the base case per pilot |
-| DEV-08 | Funds flow (Q-041) | Two-level model; direct charge to the producer's account; payouts from the producer's account; platform never holds funds; self-billing mandate legal check per country pending |
+| DEV-01 | Project-UI actions over the EWDS (DEV-01) | Records + billing command channel; Stripe-hosted URLs for card/KYC; depends on EWAG topic creation and R2M UI integration |
+| DEV-02 | Written record of the identity-provider decision (DEV-02) | Billing is an OIDC relying party; reference Keycloak; DID/VC (REQ-062) targeted D5.10; depends on a consortium written decision |
+| DEV-03 | GA wallets, AMM interface, i-Euro (DEV-03) | Not in D5.5; crypto/MiCA to D5.10; AMM after D5.3; i-Euro needs a justification or amendment via the coordinator |
+| DEV-04 | Billing portal ownership (DEV-04) | No separate Blooo portal in the project path; `apps/web` is a reference client; depends on R2M/AIT confirmation |
+| DEV-05 | EV charging billing (DEV-05) | Out of scope (A10.4); candidate for D5.10 if a message format is defined |
+| DEV-06 | KYC for consumers and community managers (DEV-06) | Connect account + Stripe-hosted onboarding for every participant, Stripe Identity for managers; DPO review pending; UX cost tracked under NFR-016 |
+| DEV-07 | Payment-method comparison ER1.4 / TE-2 (DEV-07) | Card + SEPA Direct Debit, time and fee logged per method (REQ-046); WP6 to define the base case per pilot |
+| DEV-08 | Funds flow (DEV-08) | Two-level model; direct charge to the producer's account; payouts from the producer's account; platform never holds funds; self-billing mandate legal check per country pending |
 | DEV-09 | Actor/admin data via EWDS (A4) and erasure from EWDS (A6/A24) | Intake adapters ready; manager import kept as fallback; depends on EWAG/pilots publishing |
 | DEV-10 | GSY topic schemas and roles (A12), CG cache ≤ 7 days (A26) | CG deployed with mTLS; adapters real, mock default; UATs on mock path labelled |
 | DEV-11 | Live vs virtual (A22) | Live per community, Greenvolt first; others virtual |

@@ -39,6 +39,11 @@ describe("KycStatusChangedListener (REQ-051)", () => {
           };
         },
       },
+      {
+        async list(communityId: string) {
+          return { communityId, periods: [] as string[] };
+        },
+      },
     );
     listener = new KycStatusChangedListener(
       bus,

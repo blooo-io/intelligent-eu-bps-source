@@ -90,6 +90,12 @@ export function createKycStatusClient(
   if (base) {
     return new HttpKycStatusClient(base, fetchImpl);
   }
+  // INT-440 / REQ-045 — AllowAll is test-only; cluster images set NODE_ENV=production.
+  if (env.NODE_ENV === "production") {
+    throw new Error(
+      "PAYMENTS_INTERNAL_URL is required when NODE_ENV=production (AllowAllKycStatusClient refused)",
+    );
+  }
   return new AllowAllKycStatusClient();
 }
 

@@ -1,0 +1,93 @@
+{{- /*
+  A10.6 / INT-440 Task 1.21 — optional PostSync Job that truncates V1 journals.
+  Off by default. Enable with resetV1Journals.enabled=true and a fresh nonce;
+  disable again in a follow-up PR after pods rehydrate empty journals.
+*/ -}}
+{{- if .Values.resetV1Journals.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reset-v1-journals-sql
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+    app.kubernetes.io/component: reset-v1-journals
+    reset.nonce: {{ .Values.resetV1Journals.nonce | quote }}
+data:
+  reset-v1-journals.sql: |
+{{ .Files.Get "sql/reset-v1-journals.sql" | indent 4 }}
+  modules.txt: |
+    settlement settlement
+    invoicing invoicing
+    payments payments
+    reporting reporting
+    publication publication
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: reset-v1-journals-{{ .Values.resetV1Journals.nonce | trunc 40 }}
+  labels:
+    app.kubernetes.io/name: cnpg-int-data
+    app.kubernetes.io/component: reset-v1-journals
+    reset.nonce: {{ .Values.resetV1Journals.nonce | quote }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: reset-v1-journals
+        reset.nonce: {{ .Values.resetV1Journals.nonce | quote }}
+    spec:
+      serviceAccountName: outbox-bootstrap
+      restartPolicy: Never
+      containers:
+        - name: reset
+          image: alpine/k8s:1.32.2
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          env:
+            - name: PGHOST
+              value: {{ .Values.clusterName }}-rw.{{ .Release.Namespace }}.svc.cluster.local
+            - name: PGPORT
+              value: "5432"
+            - name: DATA_NS
+              value: {{ .Release.Namespace | quote }}
+          volumeMounts:
+            - name: sql
+              mountPath: /sql
+              readOnly: true
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              set -eu
+              apk add --no-cache postgresql-client >/dev/null
+              # Apply the matching TRUNCATE block per module DB (A10.6).
+              # Settlement / invoicing / payments / reporting / publication only.
+              while read -r secret db; do
+                [ -z "${secret:-}" ] && continue
+                echo "=== reset-v1-journals module=${secret} db=${db} ==="
+                user="$(kubectl -n "$DATA_NS" get secret "$secret" -o jsonpath='{.data.username}' | base64 -d)"
+                pass="$(kubectl -n "$DATA_NS" get secret "$secret" -o jsonpath='{.data.password}' | base64 -d)"
+                export PGPASSWORD="$pass" PGUSER="$user"
+                # Filter the shared SQL file to the section for this module.
+                awk -v mod="$db" '
+                  BEGIN { keep=0 }
+                  /^-- / {
+                    keep = (index($0, mod) > 0)
+                    next
+                  }
+                  keep && NF { print }
+                ' /sql/reset-v1-journals.sql | psql -h "$PGHOST" -p "$PGPORT" -U "$user" -d "$db" -v ON_ERROR_STOP=1
+              done < /sql/modules.txt
+              echo "reset-v1-journals complete nonce={{ .Values.resetV1Journals.nonce }}"
+      volumes:
+        - name: sql
+          configMap:
+            name: reset-v1-journals-sql
+{{- end }}

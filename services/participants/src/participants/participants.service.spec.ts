@@ -49,6 +49,7 @@ describe("ParticipantsService", () => {
       new OutboxService(outboxStore),
       idp,
       pspCapabilities,
+      { async list(communityId: string) { return { communityId, periods: [] as string[] }; } },
     );
     communityId = service.seedCommunityId();
   });
@@ -160,6 +161,32 @@ describe("ParticipantsService", () => {
             "community.billing-mode.live",
       ),
     ).toBe(true);
+  });
+
+  it("REQ-043: switch to live refused while settlement has an unbilled or open period", async () => {
+    const settings = service.getCommunitySettings(communityId);
+    pspCapabilities.liveConfigured = true;
+    // Rebuild with a stub that reports an open period (Task 3.14).
+    service = new ParticipantsService(
+      store,
+      new OutboxService(outboxStore),
+      idp,
+      pspCapabilities,
+      {
+        async list(id: string) {
+          return { communityId: id, periods: ["2026-11"] };
+        },
+      },
+    );
+    await expect(
+      service.updateCommunitySettings(
+        communityId,
+        { ...settings, billingMode: "live" },
+        ["operator"],
+      ),
+    ).rejects.toMatchObject({
+      response: { code: "open_period", periods: ["2026-11"] },
+    });
   });
 
   it("REQ-043: live to virtual is refused (409)", async () => {
@@ -603,6 +630,81 @@ describe("ParticipantsService", () => {
       ["manager"],
     );
     expect(reset.autoPayout).toBe(false);
+  });
+
+  it("B2 / REQ-004: tariffBilling defaults to false and round-trips", async () => {
+    const current = service.getCommunitySettings(communityId);
+    expect(current.tariffBilling).toBe(false);
+    const enabled = await service.updateCommunitySettings(
+      communityId,
+      { ...current, tariffBilling: true },
+      ["manager"],
+    );
+    expect(enabled.tariffBilling).toBe(true);
+    const { tariffBilling: _omitted, ...without } = enabled;
+    const reset = await service.updateCommunitySettings(
+      communityId,
+      without,
+      ["manager"],
+    );
+    expect(reset.tariffBilling).toBe(false);
+  });
+
+  it("REQ-039: invoice-party returns name, address and mandate for a producer", () => {
+    // S1 producer A — profile + self-billing mandate from seed.
+    const party = service.getInvoiceParty(
+      "66666666-7777-4888-9999-aaaaaaaaaaaa",
+    );
+    expect(party).toMatchObject({
+      participantId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      name: "Thomas Bernard",
+      address: "1 Fixture Lane",
+      selfBillingMandate: {
+        termsVersion: "v1.0.0",
+        acceptedAt: null,
+      },
+    });
+  });
+
+  it("REQ-039: invoice-party 404 when the billing profile is missing", () => {
+    const id = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0001";
+    store.putParticipant({
+      participantId: id,
+      communityId,
+      role: "consumer",
+      status: "Invited",
+      marketActorId: id,
+      meterId: "m-none",
+      idpUserId: null,
+      profile: null,
+      termsVersionAccepted: null,
+      selfBillingMandate: false,
+      paymentAccountReady: false,
+      paymentBlockReason: null,
+      source: "import",
+      postalAddress: null,
+      phone: null,
+      actorVersion: null,
+    });
+    expect(() => service.getInvoiceParty(id)).toThrow(/No invoice party profile/);
+  });
+
+  it("REQ-061: manager-contact 404 when unset, 200 after settings write", async () => {
+    expect(() => service.getManagerContact(communityId)).toThrow(
+      /No manager contact/,
+    );
+    await service.updateCommunitySettings(
+      communityId,
+      {
+        ...service.getCommunitySettings(communityId),
+        managerContactEmail: "manager@example.invalid",
+      },
+      ["manager"],
+    );
+    expect(service.getManagerContact(communityId)).toEqual({
+      communityId,
+      email: "manager@example.invalid",
+    });
   });
 
   it("REQ-013 / INT-275 — erasure anonymizes profile and emits ErasureCompleted", async () => {

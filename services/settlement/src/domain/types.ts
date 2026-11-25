@@ -27,6 +27,11 @@ export type CommunityBillingContext = {
   billingMode: "live" | "virtual";
   /** REQ-006 — community calendar, monthly by default. */
   billingPeriod: Cadence;
+  /**
+   * B2 / REQ-004 — when false (default), grid fee / levy / tax stay zero
+   * even if AC-13 has a tariff.
+   */
+  tariffBilling?: boolean;
 };
 
 export type PairSettlementRecord = {
@@ -38,7 +43,14 @@ export type PairSettlementRecord = {
   /** REQ-007 — per-trade lines. Empty for a carried-only settlement. */
   lines: InvoiceTradeLine[];
   kWh: string;
+  /** Energy line only — excludes grid fee / levy / tax (REQ-004 R3). */
   energyAmount: string;
+  /** REQ-004 — oriented charges; zeros when the pair is carried (BR-05). */
+  gridFeeAmount: string;
+  levyAmount: string;
+  taxAmount: string;
+  /** REQ-004 — DSO tariff id when charges apply; else null. */
+  tariffId: string | null;
   vat: string;
   currency: string;
   rate: string;

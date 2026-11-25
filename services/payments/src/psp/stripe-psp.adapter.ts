@@ -6,6 +6,8 @@ import type {
   CollectPort,
   CollectResult,
   DirectChargeInput,
+  EmbeddedPaymentInput,
+  EmbeddedPaymentSession,
   PaymentMethodDetails as CollectPaymentMethodDetails,
 } from "./collect.port.js";
 import type {
@@ -19,14 +21,13 @@ import type {
 import type { PayoutPort, PayoutResult } from "./payout.port.js";
 import type { PspEventsPort, PspEventVerification } from "./psp-events.port.js";
 import type {
-  CreateEmbeddedProducerAccountInput,
-  CreateProducerAccountInput,
+  CreateKycTestFixtureAccountInput,
+  KycTestFixtureSubmission,
+} from "./kyc-test-fixture.port.js";
+import type {
   LegacyOnboardingSession,
-  OnboardingRequirementsSubmission,
-  PaymentMethodDetails,
-  PaymentMethodRef,
   ProducerAccount,
-} from "./psp.legacy.js";
+} from "./onboarding.types.js";
 import {
   PspError,
   type PspEvent,
@@ -89,7 +90,8 @@ export class StripePspAdapter
     participantId: string;
     country: string;
   }): Promise<{ pspAccountRef: string }> {
-    // INT-362 controller — fees/disputes on the producer; Stripe collects KYC.
+    // A5 / INT-362 — fees/disputes on the producer; Stripe collects KYC.
+    // sepa_debit_payments requested so Direct Charge can use SEPA (REQ-014).
     const account = await this.stripe.accounts.create({
       country: (input.country ?? "FR").toUpperCase(),
       controller: {
@@ -201,6 +203,9 @@ export class StripePspAdapter
     return {
       verificationId: session.id,
       url: session.url ?? `https://verify.stripe.com/start/${session.id}`,
+      ...(typeof session.client_secret === "string" && session.client_secret.length > 0
+        ? { clientSecret: session.client_secret }
+        : {}),
     };
   }
 
@@ -228,7 +233,7 @@ export class StripePspAdapter
   async attachPaymentMethod(
     participantId: string,
     paymentMethodId: string,
-  ): Promise<PaymentMethodRef & { pspPaymentMethodRef: string }> {
+  ): Promise<{ pspPaymentMethodRef: string }> {
     const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
     const customerId =
       typeof pm.customer === "string" ? pm.customer : pm.customer?.id;
@@ -247,7 +252,7 @@ export class StripePspAdapter
 
   async getPaymentMethodDetails(
     paymentMethodId: string,
-  ): Promise<PaymentMethodDetails & CollectPaymentMethodDetails> {
+  ): Promise<CollectPaymentMethodDetails> {
     const pm = await this.stripe.paymentMethods.retrieve(paymentMethodId);
     const type = pm.type ?? "card";
     if (type === "sepa_debit") {
@@ -405,6 +410,39 @@ export class StripePspAdapter
     };
   }
 
+  /**
+   * A7-bis / REQ-014 — unconfirmed PaymentIntent on the producer account for
+   * the embedded Payment Element (card + SEPA). Idempotent via Stripe key.
+   */
+  async createEmbeddedPayment(
+    input: EmbeddedPaymentInput,
+  ): Promise<EmbeddedPaymentSession> {
+    const intent = await this.stripe.paymentIntents.create(
+      {
+        amount: toMinorUnits(input.amount),
+        currency: input.currency.toLowerCase(),
+        // Payment Element collects the method in the UI; we do not confirm here.
+        confirm: false,
+        // Stripe SDK 23 — allowed_payment_method_types on PI create.
+        allowed_payment_method_types: input.methods,
+        metadata: { invoiceId: input.invoiceId },
+        ...(input.pspCustomerRef ? { customer: input.pspCustomerRef } : {}),
+      },
+      {
+        stripeAccount: input.pspAccountRef,
+        idempotencyKey: input.idempotencyKey,
+      },
+    );
+    if (!intent.client_secret) {
+      throw new Error("PaymentIntent missing client_secret");
+    }
+    return {
+      pspPaymentRef: intent.id,
+      clientSecret: intent.client_secret,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    };
+  }
+
   async getChargeSettlement(input: {
     pspPaymentRef: string;
     pspAccountRef: string;
@@ -520,13 +558,13 @@ export class StripePspAdapter
     return { ok: true, event: normalizeStripeEvent(event) };
   }
 
-  // ── Legacy PspPort (kept until Tasks 5.6–5.7 rewire the service) ────────
+  // ── KYC test-fixture + Account Session helpers ─────────────────────────
   // Dual-impl transitional surface: MockPspAdapter + payments.service specs
   // already cover behaviour. Neutral ports above are the Day-2 coverage gate.
   /* v8 ignore start */
 
   async createAccountToken(
-    submission: OnboardingRequirementsSubmission,
+    submission: KycTestFixtureSubmission,
   ): Promise<string> {
     const account: Stripe.TokenCreateParams.Account = {
       tos_shown_and_accepted: Boolean(submission.tosAccepted),
@@ -576,7 +614,7 @@ export class StripePspAdapter
   }
 
   async createProducerAccount(
-    input: CreateProducerAccountInput,
+    input: CreateKycTestFixtureAccountInput,
   ): Promise<ProducerAccount> {
     // INT-191 — Custom Connect with controller properties + account_token (FR PSD2).
     const account = await this.stripe.accounts.create({
@@ -587,30 +625,6 @@ export class StripePspAdapter
         fees: { payer: "application" },
         losses: { payments: "application" },
         requirement_collection: "application",
-      },
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
-      settings: MANUAL_PAYOUTS,
-      metadata: { participantId: input.participantId },
-    });
-    return { pspAccountRef: account.id };
-  }
-
-  async createEmbeddedProducerAccount(
-    input: CreateEmbeddedProducerAccountInput,
-  ): Promise<ProducerAccount> {
-    // INT-362 — fees and disputes on the producer; Stripe collects KYC and the
-    // terms of service, and covers losses the producer cannot repay.
-    // card_payments needs transfers (Stripe capability rule).
-    const account = await this.stripe.accounts.create({
-      country: (input.country ?? "FR").toUpperCase(),
-      controller: {
-        stripe_dashboard: { type: "none" },
-        fees: { payer: "account" },
-        losses: { payments: "stripe" },
-        requirement_collection: "stripe",
       },
       capabilities: {
         card_payments: { requested: true },
@@ -639,7 +653,7 @@ export class StripePspAdapter
 
   async submitAccountRequirements(
     pspAccountRef: string,
-    submission: OnboardingRequirementsSubmission,
+    submission: KycTestFixtureSubmission,
     _clientIp: string,
   ): Promise<LegacyOnboardingSession> {
     const params: Stripe.AccountUpdateParams = {};
@@ -967,8 +981,8 @@ function stripeId(
   return typeof ref === "string" ? ref : ref.id;
 }
 
-/* v8 ignore start — legacy onboarding session helpers */
-function hasTokenizableKyc(submission: OnboardingRequirementsSubmission): boolean {
+/* v8 ignore start — fixture onboarding session helpers */
+function hasTokenizableKyc(submission: KycTestFixtureSubmission): boolean {
   return Boolean(
     submission.tosAccepted ||
       submission.businessType ||

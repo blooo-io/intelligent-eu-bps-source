@@ -37,6 +37,10 @@ import {
   createPspCapabilities,
   PSP_CAPABILITIES_PORT,
 } from "./ports/psp-capabilities.port.js";
+import {
+  createOpenPeriods,
+  OPEN_PERIODS_PORT,
+} from "./ports/open-periods.port.js";
 
 @Module({
   imports: [
@@ -61,6 +65,8 @@ import {
     ActorAuthorizationService,
     // REQ-043 / UAT-054 — live mode needs AC-07 liveConfigured.
     { provide: PSP_CAPABILITIES_PORT, useFactory: () => createPspCapabilities() },
+    // REQ-043 — AC-05 open-periods probe before virtual→live.
+    { provide: OPEN_PERIODS_PORT, useFactory: () => createOpenPeriods() },
   ],
 })
 export class AppModule implements NestModule {

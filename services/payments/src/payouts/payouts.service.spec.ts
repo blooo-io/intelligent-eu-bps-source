@@ -147,7 +147,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
       pspPayoutRef: "po_1",
       invoiceIds: ["iA", "iB"],
     });
-    expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "payout:P:2026-10:1");
+    expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "po:P:2026-10");
     expect(payouts.get(p.payoutId)).toEqual(p);
     const emitted = await events();
     expect(emitted).toHaveLength(1);
@@ -183,7 +183,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
     const second = await svc.requestWithdrawal(req);
     expect(second.attempt).toBe(2);
     expect(second.payoutId).not.toBe(first.payoutId);
-    expect(psp.createPayout).toHaveBeenLastCalledWith("acct_P", "19.70", "EUR", "payout:P:2026-10:2");
+    expect(psp.createPayout).toHaveBeenLastCalledWith("acct_P", "19.70", "EUR", "po:P:2026-10");
   });
 
   it("409 funds_pending when the PSP available balance is below the amount", async () => {
@@ -224,7 +224,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
 
     const resumed = await svc.requestWithdrawal(req);
     expect(resumed).toMatchObject({ payoutId: stuck!.payoutId, status: "in_transit", attempt: 1 });
-    expect(psp.createPayout).toHaveBeenLastCalledWith("acct_P", "19.70", "EUR", "payout:P:2026-10:1");
+    expect(psp.createPayout).toHaveBeenLastCalledWith("acct_P", "19.70", "EUR", "po:P:2026-10");
   });
 
   it("a PSP refusal records a failed attempt and emits it", async () => {
@@ -289,7 +289,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
     psp.balance = "25.00";
     const p = await svc.requestWithdrawal({ ...req, participantId: "idp-sub-of-P", communityId: "other" });
     expect(p).toMatchObject({ participantId: "P", communityId: COM });
-    expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "payout:P:2026-10:1");
+    expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "po:P:2026-10");
   });
 
   it("REQ-060: lists own payouts and the periods still withdrawable", async () => {
@@ -436,7 +436,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
       expect(await run()).toEqual({ requested: 1, blocked: 1, nearHoldingLimit: [] });
       const [p] = payouts.listForParticipant("P");
       expect(p).toMatchObject({ trigger: "auto", period: "2026-10", amount: "19.70", status: "in_transit" });
-      expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "payout:P:2026-10:1");
+      expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "po:P:2026-10");
       expect(payouts.listForParticipant("Q")).toEqual([]);
     });
 
@@ -488,22 +488,83 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
       expect(await run()).toEqual({ requested: 1, blocked: 0, nearHoldingLimit: [] });
     });
 
-    it("flags funds approaching Stripe's 90-day manual-payout limit", async () => {
+    it("B1: day-70 alert when funds approach Stripe's holding limit", async () => {
       settings.put(COM, { autoPayout: true });
       const warn = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
-      // P's 80-day-old payment is paid out by this run; Q's 76-day-old one is held by the A2 gate.
+      // P's eligible period is paid out normally; Q (~76d) is blocked by A2 → day-70 alert.
       payments.putPayment({ ...payment("pA", "iA", "12.00", "0.43"), settledAt: "2026-09-05T09:00:00.000Z" });
-      payments.putPayment({ ...payment("pQ", "iQ-old", "3.00", "0.10"), payeeId: "Q", settledAt: "2026-09-09T09:00:00.000Z" });
-      payments.putPayment({ ...payment("pQ2", "iQ-new", "3.00", "0.10"), payeeId: "Q", initiatedAt: "2026-09-11T09:00:00.000Z" });
+      payments.putPayment({
+        ...payment("pQ", "iQ-old", "3.00", "0.10"),
+        payeeId: "Q",
+        settledAt: "2026-09-15T09:00:00.000Z",
+      });
+      payments.putPayment({
+        ...payment("pQ2", "iQ-new", "3.00", "0.10"),
+        payeeId: "Q",
+        initiatedAt: "2026-09-20T09:00:00.000Z",
+      });
       const r = await run();
       expect(r.nearHoldingLimit).toEqual(["Q"]);
-      expect(warn).toHaveBeenCalledWith(`payout.near_holding_limit communityId=${COM} participantIds=Q`);
+      expect(warn).toHaveBeenCalledWith(
+        `payout.holding_limit_alert_day70 communityId=${COM} participantIds=Q`,
+      );
       warn.mockRestore();
     });
 
-    it("does not flag funds younger than 75 days or without a settlement date", async () => {
+    it("B1: day-80 forces available-balance payout even when autoPayout is off", async () => {
+      settings.put(COM, { autoPayout: false });
+      const warn = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+      // ~80 days before FixedClock (2026-11-24); A2 would block Q, but B1 forces.
+      payments.putPayment({
+        ...payment("pQ", "iQ-old", "3.00", "0.10"),
+        payeeId: "Q",
+        settledAt: "2026-09-05T09:00:00.000Z",
+      });
+      psp.balance = "9.00";
+      const r = await run();
+      expect(r.requested).toBe(1);
+      expect(r.nearHoldingLimit).toEqual([]);
+      expect(psp.createPayout).toHaveBeenCalledWith(
+        "acct_Q",
+        "9.00",
+        "EUR",
+        "po:Q:_holding_limit",
+      );
+      expect(warn).toHaveBeenCalledWith(
+        `payout.holding_limit_force_day80 communityId=${COM} participantId=Q`,
+      );
+      warn.mockRestore();
+    });
+
+    it("B1: day-80 PSP refusal counts as blocked", async () => {
+      settings.put(COM, { autoPayout: false });
+      vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+      payments.putPayment({
+        ...payment("pQ", "iQ-old", "3.00", "0.10"),
+        payeeId: "Q",
+        settledAt: "2026-09-05T09:00:00.000Z",
+      });
+      psp.balance = "9.00";
+      psp.next = new PspError("insufficient_balance", "race");
+      expect(await run()).toEqual({
+        requested: 0,
+        blocked: 1,
+        nearHoldingLimit: [],
+      });
+      expect(payouts.listForParticipant("Q")[0]).toMatchObject({
+        period: "_holding_limit",
+        status: "failed",
+        failureCategory: "insufficient_balance",
+      });
+    });
+
+    it("does not flag funds younger than 70 days or without a settlement date", async () => {
       settings.put(COM, { autoPayout: true });
-      payments.putPayment({ ...payment("pQ", "iQ", "3.00", "0.10"), payeeId: "Q", initiatedAt: "2026-09-11T09:00:00.000Z" });
+      payments.putPayment({
+        ...payment("pQ", "iQ", "3.00", "0.10"),
+        payeeId: "Q",
+        initiatedAt: "2026-09-20T09:00:00.000Z",
+      });
       payments.putPayment({ ...payment("pQ3", "iQ3", "3.00", "0.10"), payeeId: "Q" });
       payments.putPayment({
         ...payment("pQ4", "iQ4", "3.00", "0.10"),

@@ -242,6 +242,7 @@ export class HttpPersonalDataSources implements PersonalDataSources {
 /**
  * Prefer HTTP when all three internal bases are set; otherwise the Lisboa fixture
  * (unit tests / local without peer services).
+ * INT-440 — NODE_ENV=production refuses the Ana Silva fixture (cluster must wire peers).
  */
 export function createPersonalDataSources(
   env: NodeJS.ProcessEnv = process.env,
@@ -255,6 +256,11 @@ export function createPersonalDataSources(
       payments,
       invoicing,
     });
+  }
+  if (env.NODE_ENV === "production") {
+    throw new Error(
+      "PARTICIPANTS_INTERNAL_URL, PAYMENTS_INTERNAL_URL and INVOICING_INTERNAL_URL are required when NODE_ENV=production (FixturePersonalDataSources / Ana Silva refused)",
+    );
   }
   return new FixturePersonalDataSources();
 }

@@ -102,9 +102,10 @@ export async function hydrateParticipants(
   store.restore(
     JSON.stringify({
       terms: current.terms,
-      // REQ-015 — rows persisted before autoPayout existed read as manual payouts.
+      // REQ-015 / B2 — older rows default autoPayout and tariffBilling to false.
       communities: communities.rows.map((row) => ({
         autoPayout: false,
+        tariffBilling: false,
         ...(parse(row.payload) as Partial<CommunitySettings>),
       })),
       participants: participants.rows.map((row) => parse(row.payload)),

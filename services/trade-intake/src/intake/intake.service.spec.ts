@@ -34,6 +34,7 @@ describe("IntakeService", () => {
       store,
       new OutboxService(outboxStore),
       new FixturePartyResolver(suite.scenario.communityId, actors),
+      suite.market,
     );
     service.useSuite(suite);
   });
@@ -48,6 +49,7 @@ describe("IntakeService", () => {
       new TradeStore(),
       new OutboxService(liveOutbox),
       new FixturePartyResolver(suite.scenario.communityId, actors),
+      suite.market,
       new StaticBillingModeResolver("live"),
     );
     liveService.useSuite(suite);
@@ -122,6 +124,7 @@ describe("IntakeService", () => {
       store,
       new OutboxService(outboxStore),
       new FixturePartyResolver(suite.scenario.communityId, actors),
+      suite.market,
     );
     service.useSuite(suite);
     const result = await service.refreshIntake(WINDOW);
@@ -141,6 +144,7 @@ describe("IntakeService", () => {
       store,
       new OutboxService(outboxStore),
       new FixturePartyResolver(suite.scenario.communityId, known),
+      suite.market,
     );
     service.useSuite(suite);
     await service.refreshIntake(WINDOW);
@@ -195,6 +199,24 @@ describe("IntakeService", () => {
     });
     const result = await service.refreshIntake(WINDOW);
     expect(result.ingested).toBe(0);
+  });
+
+  it("REQ-003: stores adjustedPrice when the market publishes one (Task 2.5)", async () => {
+    const suite = createMockSuite("S1");
+    const trade = suite.scenario.trades[0];
+    service.useSuite({
+      ...suite,
+      market: {
+        ...suite.market,
+        queryTrades: async () => [
+          { ...trade, pricePerKWhEur: 0.2, adjustedPricePerKWhEur: 0.18 },
+        ],
+        queryMarkets: async () => suite.scenario.markets,
+      },
+    });
+    await service.refreshIntake(WINDOW);
+    // formatMoney keeps two decimal places (BR-08 money string).
+    expect(store.get(trade.tradeId)!.price).toBe("0.18");
   });
 
   it("uses trade delivery when market row is absent (BR-02 fallback)", async () => {

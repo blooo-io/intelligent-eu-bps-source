@@ -3,10 +3,14 @@ import {
   CgwClient,
   EwdsTopicConsumer,
   InMemoryInboundStore,
+  PgInboundStore,
   loadCgwConfig,
   type InboundMessageStore,
 } from "@intelligent/ewds-client";
-import type { OutboxService } from "@intelligent/module-template";
+import {
+  createPgPoolExecutor,
+  type OutboxService,
+} from "@intelligent/module-template";
 import { parseAllowedCommandDids } from "./command-authorizer.js";
 import { CommandAuthorizer } from "./command-authorizer.js";
 import {
@@ -276,7 +280,12 @@ export function createCommandPoller(
 
   let consumer = deps?.consumer;
   if (!consumer) {
-    const store = deps?.inboundStore ?? new InMemoryInboundStore();
+    // INT-440 / REQ-053 — durable inbound when DATABASE_URL is set (CNPG).
+    const store =
+      deps?.inboundStore ??
+      (env.DATABASE_URL?.trim()
+        ? new PgInboundStore(createPgPoolExecutor(env.DATABASE_URL.trim()))
+        : new InMemoryInboundStore());
     consumer = new EwdsTopicConsumer<BillingCommandRequest>(
       cgw instanceof CgwClient ? cgw : new CgwClient(loadCgwConfig(env, "ac-10-publication")),
       store,

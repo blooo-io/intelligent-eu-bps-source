@@ -1,0 +1,9 @@
+[
+  {
+    "market_id": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "community_id": "c0ffee00-1234-4abc-8def-0123456789ab",
+    "start_time": "2026-11-01T00:00:00Z",
+    "end_time": "2026-11-01T01:00:00Z",
+    "mechanism": "p2p"
+  }
+]

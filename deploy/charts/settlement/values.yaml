@@ -12,9 +12,13 @@ egressModules:
   - trade-intake
   - participants
   - reference-data
+  # INT-440 / REQ-045 — manager KYC gate via AC-07 (no AllowAll in cluster).
+  - payments
 ingressFrom:
   - invoicing
   - scheduler-worker
+  # INT-440 — AC-03 open-periods probe for virtual→live.
+  - participants
 keycloakEgress: true
 stripeEgress: false
 # INT-232 — HttpTradeSource → AC-04 GetUnbilledTrades + mark-billed.
@@ -34,6 +38,8 @@ env:
   TRADE_INTAKE_INTERNAL_URL: http://trade-intake:8080
   PARTICIPANTS_INTERNAL_URL: http://participants:8080
   REFERENCE_DATA_INTERNAL_URL: http://reference-data:8080
+  # INT-440 / REQ-045 — HttpKycStatusClient (AllowAll refused when NODE_ENV=production).
+  PAYMENTS_INTERNAL_URL: http://payments:8080
   NATS_URL: nats://nats.nats.svc.cluster.local:4222
   NATS_SUBJECT_PREFIX: intelligent.dev
   NATS_STREAM: DebeziumStream

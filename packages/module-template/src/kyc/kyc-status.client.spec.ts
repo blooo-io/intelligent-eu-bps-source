@@ -81,6 +81,20 @@ describe("RequireVerifiedKycGuard / KycStatusClient (REQ-045)", () => {
     expect(client).toBeInstanceOf(AllowAllKycStatusClient);
   });
 
+  it("REQ-045: AllowAll client refused when NODE_ENV=production", () => {
+    expect(() =>
+      createKycStatusClient({ NODE_ENV: "production" }),
+    ).toThrow(/PAYMENTS_INTERNAL_URL is required when NODE_ENV=production/);
+  });
+
+  it("createKycStatusClient uses HTTP in production when URL is set", () => {
+    const client = createKycStatusClient({
+      NODE_ENV: "production",
+      PAYMENTS_INTERNAL_URL: "http://payments:8080",
+    });
+    expect(client).toBeInstanceOf(HttpKycStatusClient);
+  });
+
   it("verified manager is allowed", async () => {
     const guard = new RequireVerifiedKycGuard({
       statusOf: async () => ({ kycVerified: true, kycStatus: "verified" }),

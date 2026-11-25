@@ -26,6 +26,10 @@ import {
 import { StatementsService } from "./invoicing/statements.service.js";
 import { createInvoiceTransaction } from "./persistence/invoice-journal.js";
 import {
+  createInvoiceParty,
+  INVOICE_PARTY_PORT,
+} from "./ports/invoice-party.port.js";
+import {
   createParticipantsResolver,
   PARTICIPANTS_RESOLVER,
 } from "./ports/participants-resolver.port.js";
@@ -37,6 +41,10 @@ import {
   createSettlementClient,
   SETTLEMENT_CLIENT,
 } from "./ports/settlement-client.port.js";
+import {
+  INVOICE_RENDERER,
+  renderInvoicePdf,
+} from "./pdf/invoice-pdf.renderer.js";
 
 /** INT-356 / REQ-059 — load invoices and statements at boot and commit them with the outbox. */
 @Injectable()
@@ -98,6 +106,16 @@ class InvoicePersistence implements OnModuleInit {
       provide: PARTICIPANTS_RESOLVER,
       // INT-236 — IdP sub → participantId for public invoice list/detail.
       useFactory: () => createParticipantsResolver(),
+    },
+    {
+      provide: INVOICE_PARTY_PORT,
+      // INT-440 / Task 2.9 — HttpInvoiceParty when PARTICIPANTS_INTERNAL_URL is set.
+      useFactory: () => createInvoiceParty(),
+    },
+    {
+      provide: INVOICE_RENDERER,
+      // A6 / REQ-039 — in-house pdf-lib renderer (INT-440).
+      useValue: renderInvoicePdf,
     },
     SettlementCompletedListener,
     // INT-270 — PaymentStatusChanged → invoice Paid.

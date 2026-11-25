@@ -3,9 +3,11 @@ import {
   CgwClient,
   EwdsTopicConsumer,
   InMemoryInboundStore,
+  PgInboundStore,
   loadCgwConfig,
   type InboundMessageStore,
 } from "@intelligent/ewds-client";
+import { createPgPoolExecutor } from "@intelligent/module-template";
 import type { ParticipantRole, PostalAddress } from "../domain/types.js";
 import type { ActorRecord, ActorSourcePort } from "./actor-source.port.js";
 
@@ -144,7 +146,12 @@ export function createEwdsActorSource(
   const cgw =
     deps?.cgw ??
     new CgwClient(loadCgwConfig(env, "ac-03-participants"));
-  const store = deps?.store ?? new InMemoryInboundStore();
+  // INT-440 / REQ-053 — durable inbound when DATABASE_URL is set (CNPG).
+  const store =
+    deps?.store ??
+    (env.DATABASE_URL?.trim()
+      ? new PgInboundStore(createPgPoolExecutor(env.DATABASE_URL.trim()))
+      : new InMemoryInboundStore());
   const allowedSenders = parseAllowedDids(env.EWDS_ACTOR_ALLOWED_DIDS);
   const consumer = new EwdsTopicConsumer<ActorIntake>(
     cgw,

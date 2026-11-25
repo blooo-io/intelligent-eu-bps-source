@@ -1,5 +1,5 @@
 /**
- * P-DS mock — validates billingInvoice / billingPayment against draft EWDS schemas (REQ-048).
+ * P-DS mock — validates the five billing topics against draft EWDS schemas (REQ-048).
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -13,7 +13,9 @@ const Ajv2020 = require("ajv/dist/2020.js") as new (opts?: object) => {
     errors?: Array<{ instancePath?: string; message?: string }>;
   };
 };
-const addFormats = require("ajv-formats") as (ajv: unknown) => unknown;import type {
+const addFormats = require("ajv-formats") as (ajv: unknown) => unknown;
+
+import type {
   DataSpacePort,
   DataSpaceTopic,
   PublishResult,
@@ -25,6 +27,14 @@ const topicsRoot = path.resolve(
   "../../schemas",
 );
 
+const TOPIC_SCHEMAS: Record<DataSpaceTopic, string> = {
+  billingStatement: "billingStatement.v1.0.0.schema.json",
+  billingInvoice: "billingInvoice.v1.0.0.schema.json",
+  billingPayment: "billingPayment.v1.0.0.schema.json",
+  billingPayout: "billingPayout.v1.0.0.schema.json",
+  billingKycStatus: "billingKycStatus.v1.0.0.schema.json",
+};
+
 function loadSchema(name: string): object {
   return JSON.parse(
     readFileSync(path.join(topicsRoot, name), "utf8"),
@@ -34,18 +44,21 @@ function loadSchema(name: string): object {
 export function createMockDataSpace(): DataSpacePort {
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   addFormats(ajv);
-  const validators = {
-    billingInvoice: ajv.compile(
-      loadSchema("billingInvoice.v1.0.0.schema.json"),
-    ),
-    billingPayment: ajv.compile(
-      loadSchema("billingPayment.v1.0.0.schema.json"),
-    ),
-  };
+  const validators = Object.fromEntries(
+    (Object.keys(TOPIC_SCHEMAS) as DataSpaceTopic[]).map((topic) => [
+      topic,
+      ajv.compile(loadSchema(TOPIC_SCHEMAS[topic])),
+    ]),
+  ) as Record<
+    DataSpaceTopic,
+    ((data: unknown) => boolean) & {
+      errors?: Array<{ instancePath?: string; message?: string }>;
+    }
+  >;
   const log: Array<{ topic: DataSpaceTopic; message: unknown }> = [];
 
   return {
-    publish(topic: DataSpaceTopic, message: unknown): PublishResult {
+    async publish(topic: DataSpaceTopic, message: unknown): Promise<PublishResult> {
       const validate = validators[topic];
       if (!validate) {
         return { ok: false, errors: [`Unknown topic ${topic}`] };
@@ -62,7 +75,7 @@ export function createMockDataSpace(): DataSpacePort {
       log.push({ topic, message });
       return { ok: true };
     },
-    purgeCache(before: string): number {
+    async purgeCache(before: string): Promise<number> {
       const beforeMs = Date.parse(before);
       const remaining = log.filter((entry) => {
         const msg = entry.message as { updatedAt?: string };

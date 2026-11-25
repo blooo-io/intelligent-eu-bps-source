@@ -34,7 +34,19 @@
 | WS4 EWDS transport catch-up | INT-432 | Done | [#200](https://github.com/blooo-io/intelligent-eu-bps-source/pull/200) squash-merged `dd5b3dc` | 4.13–4.18 |
 | Release train unblockers | INT-433…436 | Done | [#202](https://github.com/blooo-io/intelligent-eu-bps-source/pull/202)–[#205](https://github.com/blooo-io/intelligent-eu-bps-source/pull/205) | nodemailer · trivyignore · ewds-client Docker · participants mocks |
 | Remaining closeout | INT-437 | Done | [#207](https://github.com/blooo-io/intelligent-eu-bps-source/pull/207) | 4.4 live CGW · 6.4–6.6 · 6.8–6.15 · UAT-074 deprecated |
-| Dev evidence + crashloop | INT-438 | In progress | `cursor/fix-int-438-dev-crashloop-evidence-5f1c` | ewds-client dist build · StripePspErase Nest DI · evidence matrix |
+| Dev evidence + crashloop | INT-438 | Done | [#210](https://github.com/blooo-io/intelligent-eu-bps-source/pull/210) | Probe all-green; OpenBao CGW seeded |
+| INT-439 CGW clientId/poll + reply encrypt | INT-439 | Done | [#209](https://github.com/blooo-io/intelligent-eu-bps-source/pull/209)/[#211](https://github.com/blooo-io/intelligent-eu-bps-source/pull/211)/[#212](https://github.com/blooo-io/intelligent-eu-bps-source/pull/212) | CrashLoops cleared; channels empty → TOPIC bind needs EWAG |
+| **Remediation v1.2.1 (audit ebed7e4)** | INT-440 | In progress | [#213](https://github.com/blooo-io/intelligent-eu-bps-source/pull/213) | Blockers 1–7 + majors (tariff charges, createConnectedAccount/SEPA, journal reset, Payment.createdAt, po: idempotency); remaining e2e-dev green + tag v1.2.1 |
+
+## Honesty downgrade (INT-440 / audit V1–V4)
+| Claimed Done | Reality | Action |
+|---|---|---|
+| WS2 PDF / UAT-050 Pass | Was stub; now pdf-lib renderer + stored docs | UAT-050 stays Not Run until re-run |
+| UAT-053 Pass numbering | Numbering exists; PDF path real | UAT-053 stays Not Run until re-run |
+| 4.12 five topics | Now statement/payout/kyc + invoice/payment | Done on branch |
+| 4.8–4.11 A8-live adapters | MARKET/DATASPACE factories + EWDS adapters | Done on branch |
+| Live mode | Throw removed; open-periods 409 guard | Done on branch |
+| OpenBao CGW blocked | Stale — secrets Ready on probe | Cleared in Externally blocked |
 
 ## Decisions / deviations
 | When | What | Why |
@@ -46,14 +58,17 @@
 | 2026-11-24 | CGW OpenAPI snapshot was a stub (superseded INT-437) | Secret was `KUBECONFIG_INTELLIGENT_EU_DEV` (not `KUBECONFIG`); kubectl was missing in the agent image |
 | 2026-11-25 | Live CGW `/docs-json` captured into `packages/ewds-client/test/cgw-openapi.snapshot.json` | Port-forward `svc/ddhub-client-gateway` (ns `ddhub`), image tag `intelligent-canary` |
 | 2026-11-24 | Keep `docs/superpowers/plans/` (defer full 6.3 folder removal) | Kickoff stores plan+progress there; 6.3 only drops superseded specs |
-| 2026-11-24 | Scrubbed `Q-031` from REQ-003 for hygiene HEAD-clean | Unblocks 6.2 before vault sync 6.6 |
+| 2026-11-24 | Scrubbed vault REQ-003 brain markers for hygiene HEAD-clean | Unblocks 6.2 before vault sync 6.6 |
+| 2026-11-25 | Removed `docs/superpowers/` hygiene exemption; scrubbed remaining brain ids in plan | INT-440 §4 |
+| 2026-11-25 | Seed calls AC-04 `intake:refresh` before StartRun; adjustedPrice preferred on ingest | INT-440 e2e + Task 2.5 |
 
 ## Externally blocked
 | Item | Impact | Next |
 |---|---|---|
-| OpenBao `secret/ddhub/api-key` missing (`*-cgw` ExternalSecret SecretSyncedError) | No live-cg Pass until key exists; adapters stay labelled mock-path / Blocked | Operator seeds OpenBao per `scripts/openbao-seed-ddhub-cg.mjs` (GitOps: no live KV write from agents) |
-| EWAG topics/roles for live CGW UAT re-run | Even with API key, publish/subscribe may 403 | Coordinate with EWAG; then flip `run_path` to `live-cg` with message ids |
-| Spec vault sync (Task 6.7) | `scripts/sync-spec.mjs` ready; vault path / `draft v6.1` gate not available in this agent | Spec owner publishes vault v6.1 then run sync |
+| EWAG topiccreator / topic registration | Channels exist; `POST /topics` 403; messages `TOPIC::NOT_RELATED_TO_CHANNEL` | Send ontology-aligned schemas to Digital Spine (after INT-440 schema fix); they configure topics |
+| GSY market topics (A12) | `deploy/envs/dev` keeps `MARKET_ADAPTER=mock` + `INTAKE_BOOTSTRAP_S1=true` so e2e-dev StartRun has trades | Flip to `ewds` when EWAG registers GSY topics |
+| R2M gateway DID allow-list unknown | Empty `EWDS_COMMAND_ALLOWED_DIDS` rejects all commands (fail-closed; DID not invented). Chart/env leave the list empty on purpose. | Set when R2M provides the project-UI gateway DID |
+| Live Stripe keys | Never in repo; live mode with test keys + mode guard | Keep test keys only |
 
 ## UAT re-runs
 | When | What | Result |

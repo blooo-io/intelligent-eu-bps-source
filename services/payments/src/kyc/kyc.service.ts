@@ -26,7 +26,7 @@ import {
   PAYMENT_ACCOUNTS_STORE,
   type PaymentAccountsStore,
 } from "../ports/payment-accounts.store.js";
-import type { LegacyOnboardingSession } from "../psp/psp.legacy.js";
+import type { LegacyOnboardingSession } from "../psp/onboarding.types.js";
 
 const PRODUCER = "AC-07";
 

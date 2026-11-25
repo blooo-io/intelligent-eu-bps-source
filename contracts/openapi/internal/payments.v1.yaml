@@ -295,6 +295,50 @@ paths:
                 $ref: '../components/schemas.yaml#/components/schemas/PspHandoff'
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /payment-methods:setup:
+    post:
+      operationId: setupPaymentMethod
+      tags: [Payments]
+      summary: Start saving a card or SEPA mandate (EWDS setupPaymentMethod)
+      description: >
+        REQ-014 / A7-bis — returns a PspHandoff for SetupIntent (embedded) or
+        hosted Checkout in setup mode so the project UI can collect a payment
+        method without a Blooo URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [actorId, surface]
+              properties:
+                actorId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                surface:
+                  type: string
+                  enum: [hosted, embedded]
+                  default: hosted
+                returnUrl:
+                  type: string
+                  format: uri
+                  description: Required when surface is hosted.
+      responses:
+        '200':
+          description: Setup session created.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [handoff]
+                properties:
+                  handoff:
+                    $ref: '../components/schemas.yaml#/components/schemas/PspHandoff'
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /kyc-status/{subjectId}:
     get:
       operationId: getKycStatus

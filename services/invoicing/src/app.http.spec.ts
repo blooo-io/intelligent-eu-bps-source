@@ -584,8 +584,9 @@ describe("invoicing HTTP (INT-106)", () => {
     expect(service.getInvoice(created!.invoiceId).status).toBe("Open");
   });
 
-  it("GET invoice document returns PDF bytes (REQ-039 / A6)", async () => {
+  it("UAT-050 consumer downloads the stored PDF", async () => {
     const consumerId = "11111111-2222-4333-8444-555555555555";
+    const communityId = "c0ffee00-1234-4abc-8def-0123456789ab";
     const created = await service.createFromSettlement({
       settlementId: "s7777777-7777-4777-8777-777777777777",
       runId: "r7777777-7777-4777-8777-777777777777",
@@ -597,7 +598,7 @@ describe("invoicing HTTP (INT-106)", () => {
       vat: "0.00",
       currency: "EUR",
       rate: "1.0000",
-      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+      communityId,
     });
     const res = await fetch(
       `${base}/v1/invoices/${created!.invoiceId}/document`,
@@ -611,6 +612,120 @@ describe("invoicing HTTP (INT-106)", () => {
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("application/pdf");
+    expect(res.headers.get("content-disposition")).toContain(
+      `${created!.legalNumber}.pdf`,
+    );
+    const body = Buffer.from(await res.arrayBuffer());
+    expect(body.subarray(0, 5).toString("utf8")).toBe("%PDF-");
+    // Stored at issue — sha256 on the record matches the served bytes.
+    expect(created!.document?.sha256).toBeTruthy();
+    expect(created!.document?.byteLength).toBe(body.byteLength);
+  });
+
+  it("UAT-050 manager of the community downloads it", async () => {
+    const communityId = "c0ffee00-1234-4abc-8def-0123456789ab";
+    const created = await service.createFromSettlement({
+      settlementId: "s8888888-8888-4888-8888-888888888888",
+      runId: "r8888888-8888-4888-8888-888888888888",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0xpdf-mgr"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId,
+    });
+    const res = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/document`,
+      {
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-sub": "manager-sub",
+          "x-intelligent-community": communityId,
+        },
+      },
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-disposition")).toContain(
+      "SB-66666666-000001.pdf",
+    );
+  });
+
+  it("REQ-049 manager of another community gets 404", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s9999999-9999-4999-8999-999999999999",
+      runId: "r9999999-9999-4999-8999-999999999999",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0xpdf-other"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    const res = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/document`,
+      {
+        headers: {
+          "x-intelligent-roles": "manager",
+          "x-intelligent-sub": "manager-other",
+          "x-intelligent-community": "d1ffee00-1234-4abc-8def-0123456789ab",
+        },
+      },
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("stranger member gets 404", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "saaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      runId: "raaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0xpdf-stranger"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    const res = await fetch(
+      `${base}/v1/invoices/${created!.invoiceId}/document`,
+      {
+        headers: {
+          "x-intelligent-roles": "member",
+          "x-intelligent-sub": "99999999-9999-4999-8999-999999999999",
+        },
+      },
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("internal document carries X-Legal-Number", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "sbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      runId: "rbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0xpdf-int"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    const res = await fetch(
+      `${base}/internal/v1/invoices/${created!.invoiceId}/document`,
+      { headers: serviceHeaders },
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("x-legal-number")).toBe(created!.legalNumber);
     expect(res.headers.get("content-disposition")).toContain(
       `${created!.legalNumber}.pdf`,
     );

@@ -266,10 +266,15 @@ describe("PaymentsService", () => {
   });
 
   it("creates a Stripe-collected account and returns an embedded Account Session (INT-362 / REQ-051)", async () => {
+    const createConnected = vi.spyOn(psp, "createConnectedAccount");
     const session = await service.startOnboarding({
       participantId: PRODUCER,
       communityId: COMMUNITY,
       role: "producer",
+    });
+    expect(createConnected).toHaveBeenCalledWith({
+      participantId: PRODUCER,
+      country: "FR",
     });
     expect(session.mode).toBe("embedded");
     expect(session.status).toBe("requirements_due");
@@ -286,6 +291,7 @@ describe("PaymentsService", () => {
     });
     expect(again.pspAccountRef).toBe(session.pspAccountRef);
     expect(again.clientSecret).toBeTruthy();
+    expect(createConnected).toHaveBeenCalledTimes(1);
   });
 
   it("Start after the embedded component completes verifies KYC without a session (INT-362)", async () => {
@@ -1074,7 +1080,7 @@ describe("PaymentsService", () => {
         returnUrl: "https://ui.example/return",
       });
       expect(session.mode).toBe("hosted");
-      expect(session.url).toMatch(/^https:\/\/mock-psp\.local\//);
+      expect(session.url).toMatch(/^https:\/\/connect\.stripe\.com\//);
       expect(session.url).not.toMatch(/blooo/i);
     } finally {
       if (prev === undefined) delete process.env.KYC_RETURN_URL_ALLOWLIST;

@@ -27,6 +27,25 @@ export class InvoicingController {
   }
 
   /**
+   * REQ-039 / UAT-050 — GetInvoiceDocument for AC-11 (and AC-07).
+   */
+  @Get("invoices/:invoiceId/document")
+  getDocument(
+    @Param("invoiceId") invoiceId: string,
+    @Res() res: Response,
+  ) {
+    const { legalNumber, content } = this.invoicing.getDocument(invoiceId);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${legalNumber}.pdf"`,
+    );
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Legal-Number", legalNumber);
+    return res.status(200).send(content);
+  }
+
+  /**
    * REQ-013 / Task 3.19 — DSAR export: invoices where the participant is
    * issuer (producer) or addressee (consumer).
    */

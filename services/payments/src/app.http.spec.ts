@@ -1,4 +1,7 @@
 import "reflect-metadata";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
@@ -17,6 +20,58 @@ const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
 const CONSUMER = "11111111-2222-4333-8444-555555555555";
 const PRODUCER = "66666666-7777-4888-9999-aaaaaaaaaaaa";
 const INVOICE = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+const MANAGER = "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff";
+const DUMMY_UUID = "00000000-0000-4000-8000-000000000001";
+
+const SERVICE_HEADERS = {
+  "content-type": "application/json",
+  "x-intelligent-roles": "service",
+} as const;
+
+/** Paths under `paths:` in contracts/openapi/internal/payments.v1.yaml. */
+function listInternalPaymentsOpenApiPaths(): string[] {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+  const text = readFileSync(
+    join(root, "contracts/openapi/internal/payments.v1.yaml"),
+    "utf8",
+  );
+  const paths: string[] = [];
+  let inPaths = false;
+  for (const line of text.split("\n")) {
+    if (/^paths:\s*$/.test(line)) {
+      inPaths = true;
+      continue;
+    }
+    if (inPaths && /^[A-Za-z]/.test(line)) break;
+    if (!inPaths) continue;
+    const match = line.match(/^  (\/.*?):\s*$/);
+    if (match?.[1]) paths.push(match[1]);
+  }
+  return paths;
+}
+
+function openApiPathToUrl(path: string): string {
+  return `/internal/v1${path.replace(/\{[^}]+\}/g, DUMMY_UUID)}`;
+}
+
+function openApiPathMethods(path: string): string[] {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+  const text = readFileSync(
+    join(root, "contracts/openapi/internal/payments.v1.yaml"),
+    "utf8",
+  );
+  const lines = text.split("\n");
+  const start = lines.findIndex((l) => l === `  ${path}:`);
+  if (start < 0) return [];
+  const methods: string[] = [];
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    if (/^  \//.test(line) || /^[A-Za-z]/.test(line)) break;
+    const m = line.match(/^    (get|post|put|patch|delete):\s*$/i);
+    if (m) methods.push(m[1]!.toUpperCase());
+  }
+  return methods;
+}
 
 describe("payments HTTP (INT-107)", () => {
   let app: INestApplication;
@@ -611,6 +666,282 @@ describe("payments HTTP (INT-107)", () => {
       expect((await withdraw(undefined)).status).toBe(400);
       const anonymous = await fetch(`${base}/v1/me/payouts`);
       expect(anonymous.status).toBe(401);
+    });
+
+    it("INT-440: POST /internal/v1/payouts:request withdraws the earliest open period", async () => {
+      const res = await fetch(`${base}/internal/v1/payouts:request`, {
+        method: "POST",
+        headers: SERVICE_HEADERS,
+        body: JSON.stringify({ actorId: PRODUCER, currency: "EUR" }),
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        payoutStatus: "in_transit",
+        amount: "19.70",
+        currency: "EUR",
+        payoutId: expect.any(String),
+      });
+    });
+  });
+
+  describe("EWDS command targets (INT-440 / A7-bis)", () => {
+    const prevAllow = process.env.KYC_RETURN_URL_ALLOWLIST;
+
+    beforeAll(() => {
+      process.env.KYC_RETURN_URL_ALLOWLIST = "https://ui.example";
+    });
+
+    afterAll(() => {
+      if (prevAllow === undefined) delete process.env.KYC_RETURN_URL_ALLOWLIST;
+      else process.env.KYC_RETURN_URL_ALLOWLIST = prevAllow;
+    });
+
+    beforeEach(async () => {
+      await service.ensureParticipant({
+        participantId: CONSUMER,
+        communityId: COMMUNITY,
+        role: "consumer",
+      });
+      await service.ensureParticipant({
+        participantId: PRODUCER,
+        communityId: COMMUNITY,
+        role: "producer",
+      });
+      await verifyKyc(CONSUMER);
+      await verifyKyc(PRODUCER);
+    });
+
+    it("POST /internal/v1/payments:start returns paymentId/status (off-session card)", async () => {
+      await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
+      invoices.put({
+        invoiceId: INVOICE,
+        producerId: PRODUCER,
+        consumerId: CONSUMER,
+        currency: "EUR",
+        status: "Open",
+        total: "3.00",
+        producerPspAccountRef: "acct_test_cmd_pay",
+      });
+      const res = await fetch(`${base}/internal/v1/payments:start`, {
+        method: "POST",
+        headers: SERVICE_HEADERS,
+        body: JSON.stringify({
+          invoiceId: INVOICE,
+          actorId: CONSUMER,
+          surface: "hosted",
+          returnUrl: "https://ui.example/return",
+        }),
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        paymentId: expect.any(String),
+        status: "succeeded",
+      });
+    });
+
+    it("POST /internal/v1/payments:start returns hosted checkout handoff for SEPA", async () => {
+      await service.attachPaymentMethod(CONSUMER, "pm_sepa_debit");
+      invoices.put({
+        invoiceId: INVOICE,
+        producerId: PRODUCER,
+        consumerId: CONSUMER,
+        currency: "EUR",
+        status: "Open",
+        total: "4.50",
+        producerPspAccountRef: "acct_test_cmd_sepa",
+      });
+      const res = await fetch(`${base}/internal/v1/payments:start`, {
+        method: "POST",
+        headers: SERVICE_HEADERS,
+        body: JSON.stringify({
+          invoiceId: INVOICE,
+          actorId: CONSUMER,
+          surface: "hosted",
+          returnUrl: "https://ui.example/return",
+        }),
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        paymentId: expect.any(String),
+        status: "requires_action",
+        handoff: {
+          surface: "hosted",
+          provider: "stripe",
+          purpose: "checkout",
+          url: expect.stringMatching(/^https:\/\/checkout\.stripe\.com\//),
+        },
+      });
+    });
+
+    it("INT-440: onboarding/requirements returns 404 when NODE_ENV=production", async () => {
+      const prevNode = process.env.NODE_ENV;
+      const prevAllow = process.env.ALLOW_KYC_TEST_FIXTURE;
+      process.env.NODE_ENV = "production";
+      delete process.env.ALLOW_KYC_TEST_FIXTURE;
+      try {
+        const res = await fetch(
+          `${base}/v1/me/payment-account/onboarding/requirements`,
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-intelligent-roles": "member,producer",
+              "x-intelligent-sub": PRODUCER,
+              "x-intelligent-community": COMMUNITY,
+            },
+            body: JSON.stringify({ accountToken: "ct_blocked" }),
+          },
+        );
+        expect(res.status).toBe(404);
+      } finally {
+        if (prevNode === undefined) delete process.env.NODE_ENV;
+        else process.env.NODE_ENV = prevNode;
+        if (prevAllow === undefined) delete process.env.ALLOW_KYC_TEST_FIXTURE;
+        else process.env.ALLOW_KYC_TEST_FIXTURE = prevAllow;
+      }
+    });
+
+    it("POST /internal/v1/payments:start returns embedded PaymentIntent handoff (A7-bis)", async () => {
+      invoices.put({
+        invoiceId: INVOICE,
+        producerId: PRODUCER,
+        consumerId: CONSUMER,
+        currency: "EUR",
+        status: "Open",
+        total: "5.25",
+        producerPspAccountRef: "acct_test_cmd_emb",
+      });
+      const res = await fetch(`${base}/internal/v1/payments:start`, {
+        method: "POST",
+        headers: SERVICE_HEADERS,
+        body: JSON.stringify({
+          invoiceId: INVOICE,
+          actorId: CONSUMER,
+          surface: "embedded",
+        }),
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        paymentId: expect.any(String),
+        status: "requires_action",
+        handoff: {
+          surface: "embedded",
+          provider: "stripe",
+          purpose: "payment",
+          clientSecret: expect.stringMatching(/_secret/),
+          connectedAccountRef: "acct_test_cmd_emb",
+          publishableKey: expect.stringMatching(/^pk_test_/),
+        },
+      });
+    });
+
+    it("POST /internal/v1/kyc:start connect_account returns hosted Connect handoff", async () => {
+      const fresh = "cccccccc-dddd-4eee-8fff-000000000001";
+      await service.ensureParticipant({
+        participantId: fresh,
+        communityId: COMMUNITY,
+        role: "producer",
+      });
+      const res = await fetch(`${base}/internal/v1/kyc:start`, {
+        method: "POST",
+        headers: SERVICE_HEADERS,
+        body: JSON.stringify({
+          actorId: fresh,
+          kind: "connect_account",
+          surface: "hosted",
+          returnUrl: "https://ui.example/kyc",
+        }),
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        surface: "hosted",
+        provider: "stripe",
+        purpose: "connect_onboarding",
+        url: expect.stringMatching(/^https:\/\/connect\.stripe\.com\//),
+      });
+    });
+
+    it("POST /internal/v1/kyc:start identity returns hosted Identity handoff", async () => {
+      await service.ensureParticipant({
+        participantId: MANAGER,
+        communityId: COMMUNITY,
+        role: "consumer",
+      });
+      const res = await fetch(`${base}/internal/v1/kyc:start`, {
+        method: "POST",
+        headers: SERVICE_HEADERS,
+        body: JSON.stringify({
+          actorId: MANAGER,
+          kind: "identity",
+          surface: "hosted",
+          returnUrl: "https://ui.example/kyc",
+        }),
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        surface: "hosted",
+        provider: "stripe",
+        purpose: "identity",
+        url: expect.stringMatching(/^https:\/\/verify\.stripe\.com\//),
+      });
+    });
+
+    it("POST /internal/v1/payment-methods:setup returns embedded setup handoff", async () => {
+      const res = await fetch(`${base}/internal/v1/payment-methods:setup`, {
+        method: "POST",
+        headers: SERVICE_HEADERS,
+        body: JSON.stringify({
+          actorId: CONSUMER,
+          surface: "embedded",
+        }),
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        handoff: {
+          surface: "embedded",
+          provider: "stripe",
+          purpose: "setup",
+          publishableKey: expect.stringMatching(/^pk_test_/),
+          clientSecret: expect.stringMatching(/^seti_test_/),
+        },
+      });
+    });
+
+    it("every path in the internal payments OpenAPI has a controller route", async () => {
+      const paths = listInternalPaymentsOpenApiPaths();
+      expect(paths.length).toBeGreaterThanOrEqual(10);
+      expect(paths).toEqual(
+        expect.arrayContaining([
+          "/payments:start",
+          "/payouts:request",
+          "/kyc:start",
+          "/payment-methods:setup",
+        ]),
+      );
+
+      for (const path of paths) {
+        const methods = openApiPathMethods(path);
+        expect(methods.length, path).toBeGreaterThan(0);
+        const url = `${base}${openApiPathToUrl(path)}`;
+        for (const method of methods) {
+          const res = await fetch(url, {
+            method,
+            headers: SERVICE_HEADERS,
+            body: method === "GET" || method === "HEAD" ? undefined : "{}",
+          });
+          // Handler 404 (unknown id) is fine; Express "Cannot METHOD …" means no route.
+          if (res.status === 404) {
+            const body = (await res.json()) as { message?: string | string[] };
+            const message = Array.isArray(body.message)
+              ? body.message.join(" ")
+              : String(body.message ?? "");
+            expect(
+              message,
+              `${method} ${path} missing controller route`,
+            ).not.toMatch(/^Cannot (GET|POST|PUT|PATCH|DELETE) /i);
+          }
+        }
+      }
     });
   });
 });

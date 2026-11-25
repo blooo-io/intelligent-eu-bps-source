@@ -14,9 +14,10 @@ import {
 
 const topics = path.resolve("docs/architecture/ewds-topics");
 
-test("REQ-048 UAT-068: all 7 EWDS topic examples validate", async () => {
+test("REQ-048 UAT-068: all EWDS topic examples validate", async () => {
   const r = await validateEwdsSchemas();
   assert.deepEqual(r.map((x) => x.name).sort(), [
+    "actor",
     "billingCommandReply",
     "billingCommandRequest",
     "billingInvoice",
@@ -24,6 +25,7 @@ test("REQ-048 UAT-068: all 7 EWDS topic examples validate", async () => {
     "billingPayment",
     "billingPayout",
     "billingStatement",
+    "tariff",
   ]);
   for (const x of r) {
     assert.equal(x.ok, true, `${x.name}: ${x.errors.join("; ")}`);

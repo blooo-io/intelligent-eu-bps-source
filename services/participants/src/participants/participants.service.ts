@@ -31,6 +31,10 @@ import {
   PSP_CAPABILITIES_PORT,
   type PspCapabilitiesPort,
 } from "../ports/psp-capabilities.port.js";
+import {
+  OPEN_PERIODS_PORT,
+  type OpenPeriodsPort,
+} from "../ports/open-periods.port.js";
 import { deriveReadiness, isInvoiceReady } from "./readiness.js";
 
 const PRODUCER = "AC-03";
@@ -128,6 +132,8 @@ export class ParticipantsService {
     @Inject(IDP_ADMIN_PORT) private readonly idp: IdpAdminPort,
     @Inject(PSP_CAPABILITIES_PORT)
     private readonly pspCapabilities: PspCapabilitiesPort,
+    @Inject(OPEN_PERIODS_PORT)
+    private readonly openPeriods: OpenPeriodsPort,
   ) {}
 
   /** Test seam — wipe fixture state between cases. */
@@ -189,12 +195,25 @@ export class ParticipantsService {
         if (!caps.liveConfigured) {
           throw new ConflictException({ code: "live_keys_missing" });
         }
+        // REQ-043 — refuse while settlement still has unbilled/open periods.
+        const open = await this.openPeriods.list(communityId);
+        if (open.periods.length > 0) {
+          throw new ConflictException({
+            code: "open_period",
+            periods: open.periods,
+          });
+        }
       }
     }
+    const { managerContactEmail: rawManagerEmail, ...rest } = write;
+    const managerContactEmail = normalizeManagerEmail(rawManagerEmail);
     const next: CommunitySettings = {
       communityId,
-      ...write,
+      ...rest,
       autoPayout: write.autoPayout ?? false,
+      // B2 / REQ-004 — omit or undefined keeps tariff billing off.
+      tariffBilling: write.tariffBilling ?? false,
+      ...(managerContactEmail ? { managerContactEmail } : {}),
     };
     this.store.putCommunity(next);
     if (modeChanging && next.billingMode === "live") {
@@ -232,6 +251,52 @@ export class ParticipantsService {
       );
     }
     return { participantId, email };
+  }
+
+  /**
+   * REQ-039 / Task 2.9 — issuer or addressee for the self-billing PDF.
+   * 404 when the billing profile is missing (AC-06 holds and retries).
+   */
+  getInvoiceParty(participantId: string): {
+    participantId: string;
+    name: string;
+    address: string;
+    selfBillingMandate: { termsVersion: string; acceptedAt: string | null } | null;
+  } {
+    const row = this.requireParticipant(participantId);
+    const name = row.profile?.name?.trim() ?? "";
+    const address = row.profile?.address?.trim() ?? "";
+    if (!name || !address) {
+      throw new NotFoundException(
+        `No invoice party profile for participant ${participantId}`,
+      );
+    }
+    const selfBillingMandate =
+      row.selfBillingMandate && row.termsVersionAccepted
+        ? {
+            termsVersion: row.termsVersionAccepted,
+            // acceptedAt stays null until the T&C workstream stores a timestamp.
+            acceptedAt: null as string | null,
+          }
+        : null;
+    return { participantId, name, address, selfBillingMandate };
+  }
+
+  /**
+   * REQ-061 / Task 2.9 — manager inbox for missing-payment alerts (AC-11).
+   */
+  getManagerContact(communityId: string): {
+    communityId: string;
+    email: string;
+  } {
+    const settings = this.requireCommunity(communityId);
+    const email = settings.managerContactEmail?.trim() ?? "";
+    if (!email) {
+      throw new NotFoundException(
+        `No manager contact for community ${communityId}`,
+      );
+    }
+    return { communityId, email };
   }
 
   /** REQ-013 / REQ-049 — community of a participant for AC-12 DSR bind. */
@@ -930,6 +995,20 @@ export class ParticipantsService {
       },
     });
   }
+}
+
+/** REQ-061 — optional manager inbox; empty/undefined clears the field. */
+function normalizeManagerEmail(
+  value: string | undefined,
+): string | undefined {
+  if (value === undefined) return undefined;
+  const email = value.trim();
+  if (email === "") return undefined;
+  // Practical e-mail shape (OpenAPI format: email); reject obvious junk.
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new BadRequestException("managerContactEmail must be a valid e-mail");
+  }
+  return email;
 }
 
 /** REQ-013 — Keycloak (and stubs) may surface missing users as 404-like errors. */

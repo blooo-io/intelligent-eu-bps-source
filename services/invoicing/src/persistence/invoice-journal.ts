@@ -30,6 +30,12 @@ CREATE TABLE IF NOT EXISTS statements (
   period TEXT NOT NULL,
   payload JSONB NOT NULL
 );
+CREATE TABLE IF NOT EXISTS invoice_documents (
+  invoice_id TEXT PRIMARY KEY,
+  sha256 TEXT NOT NULL,
+  content BYTEA NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 `;
 
 /** INT-356 — upsert the invoice and statement cache rows (TP-7, rebuildable, but kept across restarts). */
@@ -47,6 +53,16 @@ export async function applyInvoiceWrites(
            period = EXCLUDED.period,
            payload = EXCLUDED.payload`,
         [write.row.statementId, write.row.participantId, write.row.period, JSON.stringify(write.row)],
+      );
+      continue;
+    }
+    if (write.kind === "document") {
+      // REQ-039 — document rows are insert-only.
+      await sql.query(
+        `INSERT INTO invoice_documents (invoice_id, sha256, content)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (invoice_id) DO NOTHING`,
+        [write.invoiceId, write.sha256, write.content],
       );
       continue;
     }
@@ -82,11 +98,35 @@ export async function hydrateInvoices(
     // First boot keeps the in-memory seed (UAT fixtures) by writing it once.
     const seed = store.list();
     if (seed.length > 0) {
-      await applyInvoiceWrites(sql, seed.map((row) => ({ kind: "invoice", row })));
+      const writes: InvoiceWrite[] = seed.map((row) => ({ kind: "invoice", row }));
+      for (const row of seed) {
+        const content = store.getDocument(row.invoiceId);
+        if (content && row.document) {
+          writes.push({
+            kind: "document",
+            invoiceId: row.invoiceId,
+            sha256: row.document.sha256,
+            content,
+          });
+        }
+      }
+      await applyInvoiceWrites(sql, writes);
     }
     return;
   }
   store.restore(JSON.stringify(payloads<InvoiceRecord>(loaded.rows)));
+  const docs = await sql.query(
+    "SELECT invoice_id, sha256, content FROM invoice_documents",
+  );
+  for (const row of docs.rows) {
+    const invoiceId = String(row.invoice_id);
+    const sha256 = String(row.sha256);
+    const raw = row.content;
+    const content = Buffer.isBuffer(raw)
+      ? raw
+      : Buffer.from(raw as ArrayBuffer);
+    store.putDocument(invoiceId, sha256, content);
+  }
 }
 
 /** REQ-059 — invoices and statements recorded and rolled back as one unit with the outbox. */

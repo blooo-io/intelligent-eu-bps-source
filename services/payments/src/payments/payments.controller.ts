@@ -6,6 +6,7 @@ import {
   Headers,
   HttpCode,
   Inject,
+  NotFoundException,
   Param,
   Post,
   Req,
@@ -58,6 +59,11 @@ export class PaymentsController {
     });
   }
 
+  /**
+   * INT-440 — raw KYC PII fixture path. Gated off in production; tests set
+   * ALLOW_KYC_TEST_FIXTURE=true (or leave NODE_ENV unset). Prefer Stripe-hosted
+   * / embedded Connect (A7-bis) for real onboarding.
+   */
   @Post("v1/me/payment-account/onboarding/requirements")
   @HttpCode(200)
   @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
@@ -66,6 +72,12 @@ export class PaymentsController {
     @Body() body: KycTestFixtureSubmission,
     @Headers("x-forwarded-for") forwardedFor: string | undefined,
   ) {
+    const allow =
+      process.env.ALLOW_KYC_TEST_FIXTURE === "true" ||
+      process.env.NODE_ENV !== "production";
+    if (!allow) {
+      throw new NotFoundException();
+    }
     const user = req.user!;
     const clientIp =
       forwardedFor?.split(",")[0]?.trim() ||

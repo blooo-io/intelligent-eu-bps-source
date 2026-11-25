@@ -4,6 +4,7 @@ import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.
 import { RatesController } from "./rates/rates.controller.js";
 import { RatesService } from "./rates/rates.service.js";
 import { createTariffPort } from "./tariff/tariff.factory.js";
+import { TariffController } from "./tariff/tariff.controller.js";
 import { TARIFF_PORT } from "./tariff/tariff.port.js";
 import { VatController } from "./vat/vat.controller.js";
 import { VatService } from "./vat/vat.service.js";
@@ -12,7 +13,7 @@ import { VatService } from "./vat/vat.service.js";
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "reference-data" }),
   ],
-  controllers: [RatesController, VatController],
+  controllers: [RatesController, VatController, TariffController],
   providers: [
     RatesService,
     VatService,

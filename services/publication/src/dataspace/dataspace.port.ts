@@ -1,3 +1,3 @@
 export type { DataSpacePort } from "@intelligent/mocks";
-
-export const DATASPACE_PORT = Symbol("DATASPACE_PORT");
+/** Re-export the Nest injection token from the factory (Task 4.11). */
+export { DATASPACE_PORT } from "./dataspace.factory.js";

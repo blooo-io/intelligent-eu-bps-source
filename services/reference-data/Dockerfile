@@ -7,11 +7,13 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/module-template/package.json packages/module-template/
+COPY packages/ewds-client/package.json packages/ewds-client/
 COPY mocks/package.json mocks/
 COPY services/reference-data/package.json services/reference-data/
 COPY config ./config
 RUN pnpm install --frozen-lockfile --filter @intelligent/reference-data...
 COPY packages/module-template packages/module-template
+COPY packages/ewds-client packages/ewds-client
 COPY mocks mocks
 COPY services/reference-data services/reference-data
 RUN pnpm --filter @intelligent/module-template build \

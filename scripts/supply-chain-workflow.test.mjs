@@ -46,6 +46,10 @@ test("INT-383/INT-402/INT-411 every .trivyignore advisory expires and known entr
   assert.ok(entries.some((l) => l.startsWith("CVE-2026-107493 ")));
   assert.ok(entries.some((l) => l.startsWith("CVE-2026-124709 ")));
   assert.ok(entries.some((l) => l.startsWith("CVE-2026-35190 ")));
+  // INT-434 — libssl3t64 HIGH + UNKNOWN + libzstd1 UNKNOWN (no Fixed Version).
+  assert.ok(entries.some((l) => l.startsWith("CVE-2026-107494 ")));
+  assert.ok(entries.some((l) => l.startsWith("CVE-2026-84785 ")));
+  assert.ok(entries.some((l) => l.startsWith("CVE-2026-124851 ")));
   // INT-411 — libc6 charset UNKNOWN blocking image scan.
   assert.ok(entries.some((l) => l.startsWith("CVE-2026-121757 ")));
   assert.ok(entries.some((l) => l.startsWith("CVE-2026-121758 ")));

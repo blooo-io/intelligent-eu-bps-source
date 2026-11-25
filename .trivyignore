@@ -18,6 +18,13 @@ CVE-2026-95690 exp:2026-12-19
 # INT-416 — blocks release images for v1.1.4 (services-publication scan).
 CVE-2026-84786 exp:2026-12-19
 
+# INT-434 — libssl3t64 3.5.9-1~deb13u1 + libzstd1 in distroless nodejs22-debian13.
+# HIGH/UNKNOWN, no Fixed Version yet. Blocks supply-chain image scan after INT-433
+# (nodemailer cleared) so v1.2.0 cannot cut. Remove when distroless / Debian ship fixes.
+CVE-2026-107494 exp:2026-12-31
+CVE-2026-84785 exp:2026-12-31
+CVE-2026-124851 exp:2026-12-31
+
 # INT-411 — libc6 2.41-12+deb13u4 charset conversion CVEs (UNKNOWN, no Fixed
 # Version). Blocking apps-docs-portal image scan on supply-chain.
 # Remove when distroless / Debian ship a fixed glibc.

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://intelligent-project.eu/schema/v1.0.0/tariff/tariff",
+  "title": "tariff",
+  "description": "EWDS topic: ontology Tariff (Blooo owns the class). Per-community / per-UsagePoint network charges for grid fee, levies, taxes and incentives. Energy trade price remains on Trade (REQ-003); energyPrice here is the tariff catalogue rate when published. DRAFT — to submit to EWAG (INT-440).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tariffId",
+    "communityId",
+    "gridId",
+    "currency",
+    "validFrom",
+    "validUntil",
+    "energyPrice",
+    "networkTariff",
+    "levies",
+    "taxes",
+    "incentives",
+    "structure"
+  ],
+  "properties": {
+    "tariffId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Primary identifier. UUID v4. IRI: int:tariffId."
+    },
+    "communityId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "FK to the Community this tariff applies to."
+    },
+    "gridId": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "FK to Grid / UsagePoint (ontology hasTariff). Null when the tariff is community-wide."
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217. IRI: int:currency."
+    },
+    "validFrom": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Inclusive start of validity."
+    },
+    "validUntil": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Exclusive end of validity; null = open-ended."
+    },
+    "energyPrice": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Catalogue energy price per kWh when published on the tariff sheet. Trade prices remain authoritative for billing (REQ-003)."
+    },
+    "networkTariff": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Network / grid fee per kWh (ontology gridFee / networkTariff)."
+    },
+    "levies": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Levies per kWh (Blooo extension to submit to EWAG)."
+    },
+    "taxes": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Taxes per kWh (ontology taxes)."
+    },
+    "incentives": {
+      "type": "number",
+      "description": "Incentives per kWh (ontology incentives). Negative = credit to the participant."
+    },
+    "structure": {
+      "type": "string",
+      "enum": ["flat", "TOU"],
+      "description": "Tariff structure: flat per-kWh or time-of-use."
+    }
+  }
+}

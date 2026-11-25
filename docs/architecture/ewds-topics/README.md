@@ -1,7 +1,7 @@
 # Billing EWDS topics: draft proposal from Blooo to EWAG
 
-Status: **DRAFT v0.2 (2026-11-24, INT-423)**, proposed by Blooo (T5.6 / D5.5) for review by EWAG.
-Agreement: EWAG creates the topics; Blooo proposes the JSON schemas.
+Status: **DRAFT v0.3 (2026-11-25, INT-440)**, proposed by Blooo (T5.6 / D5.5) for review by EWAG.
+Agreement: EWAG creates the topics; Blooo proposes the JSON schemas. Actor and Tariff schemas are **to submit to EWAG**.
 
 ## Topics
 
@@ -14,6 +14,8 @@ Agreement: EWAG creates the topics; Blooo proposes the JSON schemas.
 | `billingKycStatus` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Billing & Payment Service (Blooo gateway) | project UI (R2M) | `billingKycStatus.v1.0.0.schema.json` |
 | `billingCommandRequest` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | project UI gateway (subscriber) | Billing & Payment Service (poller) | `billingCommandRequest.v1.0.0.schema.json` |
 | `billingCommandReply` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Billing & Payment Service (Blooo gateway) | project UI gateway (correlated reply) | `billingCommandReply.v1.0.0.schema.json` |
+| `actor` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Consortium actor source / Blooo gateway (intake) | Billing & Payment Service (`ActorSourcePort`) | `actor.v1.0.0.schema.json` |
+| `tariff` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Blooo (Tariff class owner) | Billing & Payment Service (`TariffPort`) | `tariff.v1.0.0.schema.json` |
 
 Proposed channels (Blooo gateway DID `did:web:blooo.intelligent` — confirm with EWAG):
 
@@ -42,16 +44,21 @@ Subscribe channels are restricted by role to the consortium application.
 Subscribers should treat primary ids as idempotency keys and keep the latest `updatedAt`.
 
 ## Billing model reflected in the schemas
-- **Two levels:** monthly participant **statement** (`billingStatement`) and legal **pair invoice** (`billingInvoice`) per consumer→producer period.
-- `billingInvoice.billingId` is the consumer's statement id; `issuerStatementId` is the producer's statement id for the same period.
+- **Two levels:** monthly participant **Billing** (`billingStatement`, ontology fields `billingId` / `billingStatus`) and legal **pair invoice** (`billingInvoice`) per consumer→producer period.
+- `billingInvoice.billingId` is the consumer's Billing/statement id (not the pair-settlement id); `issuerStatementId` is the producer's Billing/statement id for the same period.
+- `invoiceIssuedBy` = producer Actor; `invoiceIssuedTo` = consumer Actor (self-billing).
 - Early settlement is removed (`settlementType` = `periodic` | `final` only). **`billingMode`** is per community (virtual test or live Stripe keys).
 - The invoice is issued by the platform **in the name of the producer** (self-billing).
 - Payment goes directly from the consumer to the producer's Connect account (direct charge, REQ-014).
 - **Command handoffs (A7-bis):** `startPayment`, `startKyc` and `setupPaymentMethod` accept `surface: hosted | embedded`. Replies carry a **PspHandoff** — either a Stripe-hosted URL (`checkout.stripe.com`, `connect.stripe.com`, `verify.stripe.com`) or embedded `clientSecret` + `publishableKey` (+ optional `connectedAccountRef`). Never a Blooo URL.
 - **Trade status is not changed by billing.** `settled` keeps the GSY DEX meaning.
 
+## Actor and Tariff (to submit to EWAG)
+- **`actor`:** ontology Actor / Address / ContactDetails. KYC fields (`taxId`, `dateOfBirth`, `ownershipPercentage`, `nationality`, `isBeneficialOwner`, `isControlPerson`) never travel on EWDS (ADR-013) — omitted from the schema. Address uses `line1` (not `street`).
+- **`tariff`:** ontology Tariff owned by Blooo (`tariffId`, `communityId`, `gridId`, currency, validity, energyPrice, networkTariff, levies, taxes, incentives, structure `flat`|`TOU`). Proposed for EWAG registration.
+
 ## Personal data
-No topic carries personal data (names, e-mail, IBAN, card data, Stripe ids). Parties are Actor UUIDs only.
+Billing topics carry no personal data (names, e-mail, IBAN, card data, Stripe ids) — parties are Actor UUIDs only. The `actor` topic may carry contact and address needed for operations; KYC-sensitive fields stay PSP-side (ADR-013).
 
 ## Validation done by Blooo
 - JSON Schema 2020-12; `additionalProperties: false` on every topic.
@@ -64,4 +71,4 @@ No topic carries personal data (names, e-mail, IBAN, card data, Stripe ids). Par
 3. Should ontology `Invoice.json` / `Payment.json` be extended the same way (minor version), or should these topics stay billing-specific?
 4. Trade id format: should `Trade.tradeId` (`format: uuid`) be aligned with the GSY DEX v2 bytes16 ids?
 5. **Command channel role restriction:** which VC roles may subscribe to `commands.sub` and receive on `replies.pub`?
-6. **Actor, erasure and tariff topics** are owned by other gateways; billing only consumes them via adapters (documented separately).
+6. Confirm registration of Blooo-owned **`actor`** and **`tariff`** topics (schemas in this folder — to submit to EWAG). Erasure remains adapter-only.

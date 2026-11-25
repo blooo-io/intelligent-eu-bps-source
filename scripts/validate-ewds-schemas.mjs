@@ -24,6 +24,8 @@ export const names = [
   "billingKycStatus",
   "billingCommandRequest",
   "billingCommandReply",
+  "actor",
+  "tariff",
 ];
 
 function compileAjv() {

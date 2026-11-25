@@ -23,6 +23,19 @@ export function adapterMode(
   throw new Error(`${key} must be mock or ewds`);
 }
 
+/**
+ * DDHub CGW rejects clientId values with non-alphanumeric characters
+ * (`clientId contains invalid characters`). Keep a stable per-pod id by
+ * stripping separators from `${prefix}-${HOSTNAME}` (INT-439 / NFR-017).
+ */
+export function sanitizeCgwClientId(raw: string): string {
+  const cleaned = raw.replace(/[^a-zA-Z0-9]/g, "");
+  if (!cleaned) {
+    throw new Error("CGW clientId must contain at least one alphanumeric character");
+  }
+  return cleaned;
+}
+
 export function loadCgwConfig(env: NodeJS.ProcessEnv, service: string): CgwConfig {
   const baseUrl = env.CGW_BASE_URL?.trim();
   if (!baseUrl) {
@@ -37,6 +50,7 @@ export function loadCgwConfig(env: NodeJS.ProcessEnv, service: string): CgwConfi
   return {
     baseUrl,
     apiKey,
-    clientId: `${prefix}-${host}`,
+    // INT-439 — CGW charset is [A-Za-z0-9] only; hyphens from k8s hostnames fail validation.
+    clientId: sanitizeCgwClientId(`${prefix}-${host}`),
   };
 }

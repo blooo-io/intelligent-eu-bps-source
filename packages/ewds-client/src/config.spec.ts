@@ -43,10 +43,10 @@ describe("loadCgwConfig (NFR-017)", () => {
         },
         "ignored",
       ).clientId,
-    ).toBe("custom-p0");
+    ).toBe("customp0");
   });
 
-  it("clientId is per pod", () => {
+  it("clientId is per pod and alphanumeric only (INT-439)", () => {
     expect(
       loadCgwConfig(
         {
@@ -56,6 +56,19 @@ describe("loadCgwConfig (NFR-017)", () => {
         },
         "trade-intake",
       ).clientId,
-    ).toBe("trade-intake-trade-intake-7f");
+    ).toBe("tradeintaketradeintake7f");
+  });
+
+  it("INT-439: strips hyphens that CGW rejects", () => {
+    expect(
+      loadCgwConfig(
+        {
+          CGW_BASE_URL: "http://c",
+          CGW_API_KEY: "k",
+          HOSTNAME: "compliance-bcf8bdb4-hcnxt",
+        },
+        "ac-12-compliance",
+      ).clientId,
+    ).toBe("ac12compliancecompliancebcf8bdb4hcnxt");
   });
 });

@@ -114,6 +114,11 @@ export class EwdsErasureRequestAdapter implements ErasureRequestPort {
         );
         await this.handler(inbound);
       }
+    } catch (err) {
+      // INT-439 — CGW 400 (charset / CHANNEL::NOT_FOUND) must not CrashLoop the pod.
+      this.logger.warn(
+        `erasure poll failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       this.ticking = false;
     }

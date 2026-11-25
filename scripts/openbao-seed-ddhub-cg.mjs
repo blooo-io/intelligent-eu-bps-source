@@ -58,9 +58,20 @@ function rootToken() {
 }
 
 function bao(token, script) {
+  // BAO_ADDR is required inside the pod — without it some bao CLI paths
+  // (sys/mounts) return permission denied even with a root token (INT-439).
   const result = spawnSync(
     "kubectl",
-    ["-n", NS, "exec", POD, "--", "sh", "-c", `BAO_TOKEN='${token}' ${script}`],
+    [
+      "-n",
+      NS,
+      "exec",
+      POD,
+      "--",
+      "sh",
+      "-c",
+      `BAO_ADDR=http://127.0.0.1:8200 BAO_TOKEN='${token}' ${script}`,
+    ],
     { encoding: "utf8", env: operatorEnv(), maxBuffer: 10 * 1024 * 1024 },
   );
   if (result.status !== 0) {
@@ -87,10 +98,10 @@ export function applyDdhubCgOpenbao() {
     throw new Error("KUBECONFIG is required for --apply");
   }
   const token = rootToken();
-  // Enable KV v1 at ddhub/ (ignore if already present).
+  // Enable KV v1 at ddhub/ only when missing (idempotent; INT-439).
   bao(
     token,
-    'bao secrets enable -path=ddhub -version=1 kv 2>/dev/null || bao secrets list | grep -q "^ddhub/" || bao secrets enable -path=ddhub kv',
+    'bao secrets list -format=json 2>/dev/null | grep -q \'"ddhub/"\' || bao secrets enable -path=ddhub -version=1 kv',
   );
   const policyB64 = Buffer.from(POLICY).toString("base64");
   bao(

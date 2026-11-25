@@ -44,7 +44,7 @@ Subscribers should treat primary ids as idempotency keys and keep the latest `up
 ## Billing model reflected in the schemas
 - **Two levels:** monthly participant **statement** (`billingStatement`) and legal **pair invoice** (`billingInvoice`) per consumer→producer period.
 - `billingInvoice.billingId` is the consumer's statement id; `issuerStatementId` is the producer's statement id for the same period.
-- Early settlement is removed (`settlementType` = `periodic` | `final` only).
+- Early settlement is removed (`settlementType` = `periodic` | `final` only). **`billingMode`** is per community (virtual test or live Stripe keys).
 - The invoice is issued by the platform **in the name of the producer** (self-billing).
 - Payment goes directly from the consumer to the producer's Connect account (direct charge, REQ-014).
 - **Command handoffs (A7-bis):** `startPayment`, `startKyc` and `setupPaymentMethod` accept `surface: hosted | embedded`. Replies carry a **PspHandoff** — either a Stripe-hosted URL (`checkout.stripe.com`, `connect.stripe.com`, `verify.stripe.com`) or embedded `clientSecret` + `publishableKey` (+ optional `connectedAccountRef`). Never a Blooo URL.

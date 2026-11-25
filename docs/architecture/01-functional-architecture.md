@@ -2,16 +2,16 @@
 title: "Billing & Payment Service — Functional architecture"
 view: functional
 iteration: 1
-status: validated
-version: 1.0
-date: 2026-10-07
-spec_baseline: "requirements v5 (75 REQ/NFR, 47 US, 75 UAT), assumptions A1–A32"
+status: revised
+version: 2.0
+date: 2026-11-25
+spec_baseline: "requirements v6.1, assumptions A1–A33 (v6.1)"
 ---
 # Billing & Payment Service: functional architecture
 
 > **View 1 of 5** in the iterative architecture approach: functional → logical → application → technical → physical (see [README](README.md)).
 > This view describes **what** the service does, for **whom**, and with **which business objects and processes**. It deliberately says nothing about components, technologies or deployment. Those belong to the next views.
-> Baseline: requirements v5 and assumptions A13–A32. Status: **validated (2026-10-07)**.
+> Baseline: requirements v6.1 and assumptions A1–A33. Status: **revised (2026-11-25), revalidation pending**.
 
 ## 1. Purpose and scope
 
@@ -19,34 +19,35 @@ The Billing & Payment Service (T5.6, deliverable D5.5) turns the energy trades s
 
 | In scope for D5.5 V1 | Out of scope for D5.5 |
 |---|---|
-| Peer-to-peer invoices between consumers and producers for energy traded on the local market | Grid fees, taxes and levies of suppliers and DSOs: they stay on the existing supplier/DSO bill (A20) |
-| Fiat payment through a payment service provider; **live or virtual (test) mode per community** (REQ-043; A22 withdrawn) | Imbalance penalties (A18); community bonus and incentives (A30) |
-| Participant onboarding, payment KYC for **all roles**, terms and self-billing mandate | KPI computation EC-1/EC-2 and comparison with a baseline bill (A23) |
-| Publication of invoices and payments for the project (KPIs, trade payment status) | Crypto payments, AMM interface, i-Euro stablecoin (D5.10) |
-| GDPR obligations of the billing data | — |
+| Fiat payment through Stripe; virtual (test) or live per community (REQ-043, A10.1) | Grid-fee, levy and tax amounts only when a DSO tariff is published (tariff port; else 0 + mention) (A20 revised) |
+| Participant onboarding, payment KYC for **all roles**, terms and self-billing mandate | Imbalance penalties (A18); community bonus and incentives (A30) |
+| **Two-level billing:** monthly participant statement (Level 1) + legal pair invoices (Level 2) | KPI computation EC-1/EC-2 and comparison with a baseline bill (A23) |
+| Publication of statements, invoices, payments, payouts and KYC status for the project | Crypto payments, AMM interface, i-Euro stablecoin (D5.10) |
+| GDPR obligations of the billing data | EV charging (A10.4) |
+| Payout / withdrawal from the producer's connected account (REQ-015) | — |
 
 **Functional principles**
-1. **The producer is the bank** (A19). Each producer is paid by each consumer who bought energy from them. Invoices are issued per consumer→producer pair, in the producer's name, through self-billing.
-2. **The market price is final.** The price of each settled trade is used as is (REQ-003). Billing never recomputes market results and never changes the status of a trade.
-3. **Money never transits through the platform.** The consumer pays the producer directly through the payment provider (REQ-014, REQ-015).
-4. **Minimum personal data.** The service only holds what invoicing and payment need. Identity proofing is done by the payment provider (REQ-051), and nothing personal is published to the project data space.
+1. **Two levels** (REQ-059, REQ-054): a monthly **statement** per participant (informative, not payable) and legal **invoices** per consumer→producer pair issued in the producer's name (self-billing mandate in the T&C).
+2. **The market price is final.** Amount = kWh × price, where price = `adjustedPrice` when GSY provides it, else `tradePrice` (A10.3, REQ-003). Billing never recomputes market results and never changes the status of a trade.
+3. **Money never transits through the platform.** The consumer pays the producer directly through the payment provider; **payouts come from the producer's connected account** (REQ-014, REQ-015).
+4. **Minimum personal data.** The service only holds what invoicing and payment need. **Identity proofing is done by the payment provider for every participant** (REQ-051), and nothing personal is published to the project data space.
 5. **Everything is traceable.** Every amount can be traced back to its trades and to the run that computed it, and nothing is overwritten (REQ-005, REQ-028, NFR-003).
 
 ## 2. Actors
 
 | Actor | Kind | Role towards billing | Persona |
 |---|---|---|---|
-| Consumer | Human | Receives one invoice per producer, pays, can settle early | P2 (and P1 when buying) |
-| Producer | Human / organisation | Gets invoices issued in their name and receives payments; must complete payment KYC | P1 |
-| Community manager | Human | Onboards participants, configures the community (period, threshold, VAT, mode), follows billing and payments, handles disputes | P4 |
+| Consumer | Human | Receives one invoice per producer, pays, may request payout when a producer | P2 (and P1 when buying) |
+| Producer | Human / organisation | Gets invoices issued in their name, receives payments and **payouts by withdrawal**; Connect account + KYC | P1 |
+| Community manager | Human | Onboards participants, configures the community (period, threshold, VAT, mode), **Stripe Identity check**, **payout overview**, **payment reminders** (REQ-060, REQ-061) | P4 |
 | Platform operator | Human | Runs billing, monitors data intake, reconciles, handles incidents | P6 |
 | Compliance stakeholder (DPO) | Human | Handles data-subject requests, checks retention and audit | P7 |
 | Local market | External system (GSY DEX) | Source of settled trades, clearing results and markets | — |
-| Project data space | External system (EWDS) | Channel used to obtain trades and publish invoices and payments | — |
-| Payment service provider | External system (Stripe) | KYC of producers, payment collection, payout to producers | — |
+| Project data space | External system (EWDS) | Channel used to obtain trades and publish billing records; **command channel for the project UI** | — |
+| Payment service provider | External system (Stripe) | **KYC of every participant**, payments, payouts | — |
 | Identity provider | External system (project IdP) | Authenticates users and provides their roles | — |
 | Exchange-rate source | External system (ECB reference rates) | EUR→CHF rate for CHF communities (A16) | — |
-| Project UI and evaluation | External consumers (R2M UI, WP6 / GSY Analytics) | Use the billing APIs, invoices, payments and KPI exports | — |
+| Project UI and evaluation | External consumers (R2M UI, WP6 / GSY Analytics) | **Reads records and sends commands through the EWDS only** (REQ-052) | — |
 
 ### Context diagram
 
@@ -60,11 +61,12 @@ flowchart LR
   DPO([Compliance / DPO]) --- B
   B[[Billing & Payment Service]]
   B -- "settled trades, clearing results, markets" --- MKT[(Local market<br/>GSY DEX)]
-  B -- "invoices & payments published" --- DS[(Project data space<br/>EWDS)]
+  B -- "records + command channel via EWDS" --- DS[(Project data space<br/>EWDS)]
   B -- "KYC, payments, payouts" --- PSP[(Payment provider<br/>Stripe)]
   B -- "authentication, roles" --- IDP[(Identity provider)]
   B -- "EUR→CHF rates" --- FX[(ECB rates)]
-  B -- "APIs, KPI exports" --- EXT[(Project UI · WP6 / Analytics)]
+  EXT[(Project UI · WP6 / Analytics)]
+  EXT -. "records + commands (EWDS)" .-> DS
 ```
 
 ## 3. Functional map
@@ -82,16 +84,16 @@ flowchart TB
     F21[Retrieve settled trades] --- F22[Attribute trades] --- F23[Check completeness] --- F24[Monitor intake]
   end
   subgraph F3[F3 Settlement calculation]
-    F31[Run billing period] --- F32[Compute pair amounts] --- F33[Net & threshold] --- F34[Currency & VAT]
+    F31[Run billing period] --- F32[Compute pair amounts] --- F33[Net & threshold] --- F34[Currency VAT & tariff]
   end
-  subgraph F4[F4 Invoicing]
-    F41[Issue invoices] --- F42[Number & document] --- F43[Early settlement] --- F44[Invoice lifecycle]
+  subgraph F4[F4 Invoicing & statements]
+    F41[Issue invoices] --- F42[Number & document] --- F43[Early settlement withdrawn] --- F44[Invoice lifecycle] --- F45[Monthly statement]
   end
   subgraph F5[F5 Payment]
-    F51[PSP onboarding & KYC] --- F52[Collect payment] --- F53[Handle failures] --- F54[Reconcile]
+    F51[PSP onboarding & KYC] --- F52[Collect payment] --- F53[Handle failures] --- F54[Reconcile] --- F55[Payout withdrawal]
   end
   subgraph F6[F6 Publication & reporting]
-    F61[Publish invoices & payments] --- F62[KPI export & logs] --- F63[Manager views & reports] --- F64[Trace & audit trail]
+    F61[Publish billing records] --- F62[KPI export & logs] --- F63[Manager views & reports] --- F64[Trace & audit trail] --- F65[Payout overview & reminders]
   end
   subgraph F7[F7 Compliance]
     F71[Access audit] --- F72[Retention & purge] --- F73[Data-subject requests]
@@ -112,26 +114,29 @@ flowchart TB
 | **F2.3 Check completeness** | Per market, compares the trades received with the clearing result (quantity, count) | Platform operator | REQ-041 |
 | **F2.4 Monitor intake** | Alerts when expected data stops arriving or when the data-space connection degrades | Platform operator | REQ-029, US-028 |
 | **F3.1 Run billing period** | A billing run for a community over a configurable period (monthly by default). Each run is a versioned record that is never overwritten | Community manager, operator | REQ-006, REQ-005, NFR-003 |
-| **F3.2 Compute pair amounts** | For each consumer→producer pair: Σ(kWh × trade price) over the settled, not yet invoiced trades | — | REQ-002, REQ-003 |
+| **F3.2 Compute pair amounts** | For each consumer→producer pair: Σ(kWh × price) over the settled, not yet invoiced trades | — | REQ-002, REQ-003 |
 | **F3.3 Net & threshold** | Nets purchases and sales between the same two participants. A pair below the threshold (5 €/CHF by default) is carried forward, with a final invoice forced at year end or exit | — | REQ-055, REQ-056 |
-| **F3.4 Currency & VAT** | Converts EUR prices into the community currency at the ECB reference rate, then applies the community VAT rate (0 by default) | — | REQ-002, REQ-007 |
+| **F3.4 Currency, VAT & tariff** | Converts EUR prices into the community currency at the ECB reference rate, applies the community VAT rate (0 by default), and adds grid fee, levy and tax from the tariff port (0 and a mention when no DSO tariff is published) | — | REQ-002, REQ-004, REQ-007 |
 | **F4.1 Issue invoices** | One invoice per pair and per period, issued in the producer's name. Issuing is blocked while the producer's KYC is incomplete | — | REQ-054, REQ-045 |
-| **F4.2 Number & document** | Gives the invoice a legal sequential number per producer, then produces the PDF (trades, amounts, self-billing mention) and e-mails it to both parties | — | REQ-042, REQ-039, REQ-007 |
-| **F4.3 Early settlement** | The consumer settles the not yet invoiced trades with one producer at any time | Consumer | REQ-057, US-047 |
+| **F4.2 Number & document** | Gives the invoice a legal sequential number per producer (owned by billing), produces the PDF in-house (pdf-lib) and e-mails it to both parties via notification | — | REQ-042, REQ-039, REQ-007 |
+| **F4.3 Early settlement — withdrawn** | Removed in v6.1 (REQ-057 deprecated). Pair netting uses only periodic and forced-final runs. | — | REQ-057 (deprecated) |
 | **F4.4 Invoice lifecycle** | Statuses Draft → Open → PartiallyPaid / Paid / Overdue / Void / Disputed, with a manual change by the community manager (reason + audit) | Community manager | REQ-044, US-041 |
-| **F5.1 PSP onboarding & KYC** | The producer gets a verified payment-provider account (identity, bank account). The consumer registers a payment method | Producer, consumer | REQ-051, REQ-040, REQ-045 |
-| **F5.2 Collect payment** | The consumer pays the invoice (card or SEPA debit) directly to the producer's account, and the provider pays out to the producer's bank | Consumer, producer | REQ-014, REQ-015 |
+| **F4.5 Monthly statement** | After each billing run, one informative statement per participant: totals bought/sold, net balance, list of invoice ids, status — **not payable** (Level 1) | — | REQ-059 |
+| **F5.1 PSP onboarding & KYC** | **Every participant** gets a verified payment-provider account (Connect + Identity where required) and consumers register a payment method | All participants | REQ-051, REQ-040, REQ-045 |
+| **F5.2 Collect payment** | The consumer pays the invoice (card or SEPA debit) via a **direct charge** on the producer's connected account (Stripe-hosted Checkout when needed) | Consumer | REQ-014 |
 | **F5.3 Handle failures** | Detects failed payments from provider events, records the cause and notifies the participant | Platform operator | REQ-016, REQ-017, REQ-046 |
 | **F5.4 Reconcile** | Matches invoices with payments and flags discrepancies | Platform operator | REQ-041 |
-| **F6.1 Publish invoices & payments** | Publishes every invoice and payment change to the data space (no personal data). This lets other services see which trades are paid | — | REQ-048 |
+| **F5.5 Payout / withdrawal** | Participant (or `autoPayout` schedule) withdraws funds from their connected account once period invoices where they are producer are Paid (REQ-015, BR-14) | Producer, consumer (prosumer) | REQ-015 |
+| **F6.1 Publish billing records** | Publishes statement, invoice, payment, payout and KYC status to the data space (no personal data). Five record types (REQ-048) | — | REQ-048 |
 | **F6.2 KPI export & logs** | Exports amounts, kWh and components per participant and period, and logs failures and payment times | Platform operator | REQ-047, REQ-046 |
 | **F6.3 Manager views & reports** | Payment status overview, member history for disputes, periodic summary | Community manager | REQ-018, REQ-031, REQ-032 |
 | **F6.4 Trace & audit trail** | Links every payment back to its invoice, run and trades | Platform operator | REQ-028 |
+| **F6.5 Manager payout overview and reminders** | Community-manager payout overview (REQ-060) and payment reminders / missing-payment alerts (REQ-061) | Community manager | REQ-060, REQ-061 |
 | **F7.1 Access audit** | Logs every access to or change of personal and payment data | DPO | REQ-030 |
 | **F7.2 Retention & purge** | Retention periods for personal data; data-space messages purged within 7 days | DPO | REQ-011, REQ-053 |
 | **F7.3 Data-subject requests** | Access and erasure requests received through the portal or the community manager, propagated to the payment provider and the IdP. Invoices are kept for the legal retention period | DPO | REQ-013 |
 
-The billing functions are exposed through **documented APIs** (REQ-052). Blooo's reference screens and the project UI both use them.
+Billing results reach the **project UI only through the EWDS** (REQ-052); the REST API serves the reference client.
 
 ## 4. Main business processes
 
@@ -149,12 +154,9 @@ sequenceDiagram
   B->>IDP: Create accounts
   B-->>M: Invitation
   M->>B: Log in, complete profile, accept terms (+ self-billing mandate if producer)
-  alt Producer
-    M->>PSP: Payment-provider onboarding (identity, bank account)
-    PSP-->>B: KYC verified
-  else Consumer
-    M->>PSP: Register payment method
-  end
+  M->>PSP: Stripe-hosted Connect onboarding / Identity (every participant; manager Identity)
+  PSP-->>B: KYC verified
+  M->>PSP: Register payment method when consumer
   B-->>CM: Participant ready for billing
 ```
 
@@ -169,19 +171,20 @@ flowchart TD
   C -- yes --> D[Attribute buyer/seller via registry]
   D --> D1[Unknown party: flag, do not invoice]
   D --> E[Group by consumer→producer pair, net both directions]
-  E --> F[Convert to community currency, apply VAT]
+  E --> F[Convert to community currency, VAT, tariff components]
   F --> G{Net amount ≥ threshold?}
   G -- no --> G1[Carry forward to next period]
-  G -- yes --> H{Producer KYC & terms OK?}
+  G -- yes --> H{Every party KYC & terms OK?}
   H -- no --> H1[Hold, notify producer and manager]
   H -- yes --> I[Issue invoice in producer's name, number, PDF, e-mail both parties]
-  I --> J[Publish invoice to data space]
+  I --> S[Issue monthly statement per participant Level 1]
+  S --> J[Publish statement and invoice to data space]
   J --> K[Consumer pays: see P4]
 ```
 
 ### P3 Early settlement
 
-The consumer chooses a producer in the portal and asks to "settle now". The service computes the not yet invoiced trades with that producer, nets them and issues an invoice (`settlementType = early`), which the consumer pays immediately. The next periodic invoice only covers the trades after that point. The threshold does not apply to an early settlement the consumer requested.
+**Withdrawn in v6.1 (REQ-057 deprecated).** See **P6** for payout (withdrawal).
 
 ### P4 Payment, failure and reconciliation
 
@@ -192,12 +195,11 @@ sequenceDiagram
   participant PSP as Payment provider
   actor P as Producer
   participant DS as Project data space
-  C->>B: Pay invoice
-  B->>PSP: Payment to producer's account (card / SEPA)
+  C->>B: Pay invoice (command or reference client)
+  B->>PSP: Direct charge on producer's connected account (card / SEPA via hosted Checkout)
   alt Success
     PSP-->>B: Payment succeeded
     B->>B: Invoice → Paid, record payment
-    PSP-->>P: Payout to bank (by provider)
     B-->>C: Confirmation
   else Failure
     PSP-->>B: Payment failed (cause)
@@ -212,20 +214,38 @@ sequenceDiagram
 
 A request comes in through the portal or the community manager. The DPO validates it. The service then exports or erases the participant's personal data, asks the payment provider and the IdP to erase their copies, keeps the invoices and accounting records for the legal period, and confirms the outcome.
 
+### P6 Payout (withdrawal)
+
+```mermaid
+sequenceDiagram
+  actor M as Participant
+  participant B as Billing service
+  participant PSP as Payment provider
+  participant DS as Project data space
+  M->>B: Request withdrawal (period) or autoPayout fires
+  B->>B: BR-14: producer invoices for period are Paid
+  B->>PSP: Create payout from connected account
+  PSP-->>B: payout.* webhook
+  B->>B: Record payout status
+  B->>DS: Publish billingPayout
+  PSP-->>M: Funds to bank account
+```
+
 ## 5. Business objects
 
 | Business object | Description | Owner | Ontology mapping | Personal data |
 |---|---|---|---|---|
-| Community | Billing settings: currency, period, threshold, VAT rate, mode live/virtual | Community manager | `int:Community` (+ billing settings) | No |
+| Community | Billing settings: currency, period, threshold, VAT rate, mode live/virtual, `autoPayout` | Community manager | `int:Community` (+ billing settings) | No |
 | Participant | Member of a community, with role consumer / producer / prosumer and billing profile | Participant / manager | `int:Actor`, `Address`, `ContactDetails`, `UserAccount` | **Yes** |
 | Registry entry | Link participant ↔ market identifier ↔ community ↔ meter | Community manager | `int:Actor` + GSY actor id | Pseudonymous |
 | Terms acceptance | Version and date accepted, including the self-billing mandate | Participant | (extension) | Yes (link) |
-| Payment account status | KYC and onboarding status at the payment provider; payment method present | Payment provider | `UserAccount.kycVerified` | Status only |
+| Payment account status | KYC and onboarding status at the payment provider; payment method present — **every participant** | Payment provider | `UserAccount.kycVerified` | Status only |
 | Trade (read only) | Settled trade: buyer, seller, kWh, price, market | Local market | `int:EnergyTrade` | Pseudonymous |
-| Billing run | One computation for a community and period, versioned and immutable | Billing | (extension) | No |
-| Billing account | A consumer's account for a period, grouping their invoices | Billing | `int:Billing` | Pseudonymous |
-| Invoice | Consumer→producer, one period or early settlement; trades, amounts, legal number, PDF | Billing (in the producer's name) | `int:Invoice` | Yes (PDF) |
+| Billing run | One computation for a community and period, versioned and immutable (`periodic` or `final`) | Billing | (extension) | No |
+| **Monthly statement** | Totals bought/sold, net balance, invoiceIds, status; **not payable** | Billing | `int:Billing` | Pseudonymous |
+| Invoice | Consumer→producer, one period (or forced final); trades, amounts, legal number, PDF | Billing (in the producer's name) | `int:Invoice` | Yes (PDF) |
 | Payment | One payment of one invoice, with status and failure category | Billing / payment provider | `int:Payment` (`StripePayment` kept internal) | No (published), yes (internal provider ids) |
+| **Payout** | Withdrawal from a participant's connected account for a period | Billing / payment provider | (extension) | No (published) |
 | Carry-forward balance | Net amount of a pair that stayed below the threshold | Billing | (extension) | No |
 | Exchange rate | EUR→community-currency rate and date used | Billing | (extension) | No |
 | Audit event | Who accessed or changed what, and when | Billing | — | Yes (actor) |
@@ -237,12 +257,13 @@ erDiagram
   PARTICIPANT ||--|| REGISTRY_ENTRY : "identified by"
   PARTICIPANT ||--o{ TERMS_ACCEPTANCE : accepts
   COMMUNITY ||--o{ BILLING_RUN : "billed by"
-  BILLING_RUN ||--o{ BILLING_ACCOUNT : produces
-  BILLING_ACCOUNT ||--o{ INVOICE : groups
+  BILLING_RUN ||--o{ STATEMENT : produces
+  STATEMENT }o--o{ INVOICE : lists
   INVOICE }o--|| PARTICIPANT : "issued to (consumer)"
   INVOICE }o--|| PARTICIPANT : "issued in name of (producer)"
   INVOICE }o--o{ TRADE : covers
   INVOICE ||--o{ PAYMENT : "settled by"
+  PARTICIPANT ||--o{ PAYOUT : receives
   PARTICIPANT ||--o{ CARRY_FORWARD : "pair balance"
 ```
 
@@ -252,47 +273,48 @@ erDiagram
 |---|---|---|
 | BR-01 | Only trades whose status is `settled` are billed. Each trade is billed once (idempotent on the trade id). | REQ-001 |
 | BR-02 | The delivery period of a trade comes from its market, not from the trade timestamp. | REQ-001 |
-| BR-03 | Amount of a trade = kWh × trade price. The price is never adjusted. | REQ-002, REQ-003 |
-| BR-04 | Purchases and sales between the same two participants in the same period are netted. The invoice goes in the direction of the net amount. | REQ-055 |
-| BR-05 | A pair whose net amount is below the community threshold (5 €/CHF by default) is carried forward. A final invoice is forced at year end and when a participant leaves. Early settlement ignores the threshold. | REQ-056, REQ-057 |
-| BR-06 | Each invoice has one currency, the community currency. EUR prices are converted at the ECB reference rate of the last business day of the period (or the settlement date for an early settlement), and the rate is shown on the invoice. | REQ-002 |
-| BR-07 | VAT is applied at the community rate (0 by default). There are no grid-fee, tax or levy lines from suppliers or DSOs. | REQ-007 |
+| BR-03 | Amount of a trade = kWh × price, where price = `adjustedPrice` when GSY provides it, else `tradePrice` (A10.3). | REQ-003 |
+| BR-04 | Purchases and sales between the same two participants in the same period are netted. The invoice goes in the direction of the net amount. | REQ-055 (under REQ-059) |
+| BR-05 | A pair whose net amount is below the community threshold (5 €/CHF by default) is carried forward. A final invoice is forced at year end and when a participant leaves. | REQ-056 |
+| BR-06 | Each invoice has one currency, the community currency. EUR prices are converted at the ECB reference rate of the last business day of the period, and the rate is shown on the invoice. | REQ-002 |
+| BR-07 | VAT at the community rate (0 default); grid fee, levy and tax from the tariff port; 0 and a mention when no DSO tariff is published. | REQ-004, REQ-007 |
 | BR-08 | Amounts are computed in exact decimals and rounded to the cent per invoice line. The total is the sum of the lines. | A17 |
-| BR-09 | Nothing is invoiced until **both parties** have accepted the terms (self-billing mandate for producers) and completed KYC. Connect onboarding applies to every participant role; Stripe Identity is used only for community managers. Until then, their trades stay unbilled. | REQ-045, REQ-050, REQ-051 |
-| BR-10 | Legal invoice numbers are sequential, without gaps, per producer, and never change. Billing owns the series (numbering, PDF, e-mail); Stripe is master of accounts, KYC and payments. | REQ-042 |
+| BR-09 | No statement, invoice, payment or payout for a participant whose `kycVerified` is false; no invoice in a producer's name before T&C incl. self-billing mandate. | REQ-045, REQ-050 |
+| BR-10 | Legal invoice numbers are sequential, without gaps, **per producer, owned by billing (not the PSP)**. | REQ-042 |
 | BR-11 | Billing never changes a trade's status. "Paid" is read from the published invoices and payments. | REQ-048 |
-| BR-12 | In virtual mode no real money moves. Payments run in the payment provider's test environment. In live mode, the community uses the live Stripe keys and real charges/payouts. Mode is per community (REQ-043); A22 ("all virtual in V1") is withdrawn. | REQ-043 |
+| BR-12 | Virtual communities use the PSP test environment; live communities need the operator role and live keys (REQ-043, A10.1). | REQ-043 |
 | BR-13 | A computed result is never overwritten. A correction creates a new version. | REQ-005 |
+| BR-14 | A payout of a period's amount is allowed only when the invoices of that period where the participant is producer are Paid. | REQ-015 |
+| BR-15 | The monthly statement is informative and never payable; payments target invoices only. | REQ-059 |
 
 ## 7. V1 functional coverage (iteration 1)
 
-Only the payment provider (test mode) is integrated for real. Every other external system is simulated behind the same functional interface (A32).
+Adapters for every external system; **Stripe test or live per community**; EWDS Client Gateway adapters are real with **mock as the default** until grants land (A8).
 
 | Domain | V1 status | Note |
 |---|---|---|
 | F1 Participants & community | Implemented | Identity provider = local development instance |
-| F2 Trade acquisition | Implemented on **mocked** market and data-space data | Datasets cover netting, threshold, unknown party and incomplete markets |
-| F3 Settlement calculation | Implemented | ECB rates from a fixture |
-| F4 Invoicing | Implemented | E-mail to a local mail catcher |
-| F5 Payment | **Implemented with Stripe test mode** | KYC, payments and failure scenarios with Stripe test data |
-| F6 Publication & reporting | Implemented; data-space publication **mocked** | Messages validated against the draft `billingInvoice` / `billingPayment` schemas |
-| F7 Compliance | Implemented | Propagation to the payment provider (test) and the IdP (local) |
+| F2 Trade acquisition | Implemented | **EWDS Client Gateway adapters real, mock default (A8)** |
+| F3 Settlement calculation | Implemented | ECB rates from a fixture; tariff port returns 0 + mention when no DSO tariff |
+| F4 Invoicing | Implemented | **In-house PDF (pdf-lib), e-mail by notification** |
+| F5 Payment | **Implemented** | **Stripe test or live per community; payouts** |
+| F6 Publication & reporting | Implemented | **Publishes 5 record types** (`billingStatement`, `billingInvoice`, `billingPayment`, `billingPayout`, `billingKycStatus`) |
+| F7 Compliance | Implemented | **Real IdP/PSP erasure adapters** (with mock path in local dev) |
 
 ## 8. Assumptions and open points carried by this view
-- Working assumptions A13–A32 (`requirements.md`, mirror of the Blooo register WA-01…WA-20) still need partner validation. The ones with the strongest impact on this view are:
-  - **A19:** pair model and self-billing (legal check);
-  - **A20:** fees off-platform;
+- Working assumptions A13–A33 (`requirements.md`, mirror of the Blooo register WA-01…WA-20) still need partner validation. The ones with the strongest impact on this view are:
+  - **A19:** invalidated v6, replaced by the two-level model (v6.1);
+  - **A20:** fees off-platform (revised: tariff port for grid/levy/tax when published);
   - **A21:** onboarding by import.
 - Still to be decided for the logical view:
-  - which reference screens are in V1 scope;
-  - the notification channels (e-mail only in V1?).
+  - which reference screens are in V1 scope.
 
 ## 9. Validation checklist
 - [ ] Actors and external systems complete
 - [ ] Functional map F1–F7 and requirement traceability correct
-- [ ] Processes P1–P5 reflect the target operation
+- [ ] Processes P1–P6 reflect the target operation (P3 withdrawn)
 - [ ] Business objects and ontology mapping acceptable
-- [ ] Business rules BR-01…BR-13 correct
-- [ ] V1 coverage (Stripe test + mocks) correct
+- [ ] Business rules BR-01…BR-15 correct
+- [ ] V1 coverage (adapters env-selected, Stripe per community) correct
 
 Once this view is validated, iteration 2 produces the **logical architecture**: logical blocks, responsibilities, the interfaces between blocks and with external systems, and the data flows.

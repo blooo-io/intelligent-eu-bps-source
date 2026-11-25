@@ -2,18 +2,18 @@
 title: Billing & Payment Service — Application architecture
 view: application
 iteration: 3
-status: validated
-version: "1.0"
-date: 2026-10-07
-baseline: 02-logical-architecture.md v1.0 (validated 2026-10-07); 01-functional
-  v1.0; requirements v5; assumptions A1–A32
+status: revised
+version: "2.0"
+date: 2026-11-25
+baseline: 02-logical-architecture.md v2.0 (revised 2026-11-25); 01-functional
+  v2.0; requirements v6.1; assumptions A1–A33
 ---
 # Billing & Payment Service: application architecture
 
 > **View 3 of 5** (functional → logical → **application** → technical → physical, see [README](README.md)).
 > This view answers: **which application components implement the logical blocks, what they expose (APIs, events, screens) and how they connect to external systems through adapters.**
 > No technology is chosen here. Languages, frameworks, database, event transport and Kubernetes specifics will be decided together in the technical view.
-> Status: **validated (2026-10-07)**. v0.2 introduced one deployable module per logical block.
+> Status: **revised (2026-11-25), revalidation pending**. v2.0 aligns with the two-level billing model and EWDS command channel.
 
 ## 1. Decisions framing this view
 
@@ -37,13 +37,13 @@ Each logical block becomes its own deployable module. The only exception is LB-0
 | **AC-02 API gateway** | Edge | LB-12 + LB-01 | Single public entry point: routing, OIDC token validation, role and community checks, rate limiting, public OpenAPI | None (config) |
 | **AC-03 Participants** | Domain | LB-02 | Communities, registry, profiles, terms and mandate, readiness, offboarding; account provisioning in the IdP | Community, Participant, RegistryEntry, BillingProfile, TermsAcceptance |
 | **AC-04 Trade intake** | Domain | LB-03 | Market queries per window, deduplication, attribution, completeness, intake health | Trade, MarketInfo, ClearingResult, IntakeWindow, IntakeAnomaly |
-| **AC-05 Settlement** | Domain | LB-04 | Billing runs and early settlements, pair settlement, netting, threshold and carry-forward, currency and VAT, ledger | BillingRun, PairSettlement, CarryForward, LedgerEntry, BillingAccount |
+| **AC-05 Settlement** | Domain | LB-04 | Billing runs, **monthly statements**, pair settlement, netting, threshold and carry-forward, currency, VAT and tariff, ledger | BillingRun, PairSettlement, Statement, CarryForward, LedgerEntry |
 | **AC-06 Invoicing** | Domain | LB-05 | Billing-owned invoices in the producer's name: legal numbering per producer, PDF stored in the invoicing DB, lifecycle and manual status; e-mail via AC-11 (A6) | Invoice, InvoiceLine, NumberSeries, InvoiceDocument, StatusHistory |
-| **AC-07 Payments** | Domain | LB-06 | Payment-provider onboarding (producer accounts, KYC, consumer payment methods), payments, provider webhooks, failures | PaymentAccount, Payment, ProviderEvent, FailureRecord |
+| **AC-07 Payments** | Domain | LB-06 | **Every participant:** Connect/KYC, direct charges, **payouts/withdrawal**, provider webhooks incl. `payout.*`, failures | PaymentAccount, Payment, Payout, ProviderEvent, FailureRecord |
 | **AC-08 Reconciliation** | Control | LB-07 | Invoice ↔ payment and market ↔ clearing checks, discrepancies and alerts | ReconciliationResult, Discrepancy |
 | **AC-09 Reporting & exports** | Read side | LB-14 | Manager views, history, summaries, KPI export, end-to-end trace (read models built from events) | Read models, KpiExport |
-| **AC-10 Publication** | Support | LB-08 | Mapping to `billingInvoice` / `billingPayment`, publication to the data space, retry, cache purge | OutboundMessage, PublicationStatus |
-| **AC-11 Notification** | Support | LB-09 | Invitations, invoice e-mails with PDF, payment confirmations and failure notices | NotificationLog |
+| **AC-10 Publication** | Support | LB-08 | **Five EWDS records** + **command channel consumer**; publication to the data space, retry, cache purge | OutboundMessage, PublicationStatus |
+| **AC-11 Notification** | Support | LB-09 | Invitations, **invoice e-mail with PDF sent by billing**, payment confirmations, **reminders**, failure notices | NotificationLog |
 | **AC-12 Compliance** | Support | LB-10 | Audit log, retention, data-subject requests (export, erasure orchestration) | AuditEvent, RetentionPolicy, DataSubjectRequest |
 | **AC-13 Reference data** | Support | LB-11 | Exchange rates by date, VAT rates per community | ExchangeRate |
 | **AC-14 Scheduler** | Support | LB-13 | Time-based jobs: decides *when* and sends the command to the owning module | JobDefinition, JobExecution |
@@ -58,7 +58,7 @@ That makes 13 back-end modules, the web app and the mock suite. Every component 
 flowchart TB
   subgraph Clients
     WEB[AC-01 Web app]
-    RM[Project UI - R2M]
+    RM[Project UI - EWDS]
   end
   subgraph Edge
     GW[AC-02 API gateway]
@@ -135,7 +135,7 @@ This diagram shows every dependency in one picture and is readable only with the
 flowchart LR
   subgraph Clients
     WEB[AC-01 Web app]
-    RM[Project UI - R2M]
+    RM[Project UI - EWDS]
   end
   GW[AC-02 API gateway]
   subgraph Domain[Domain modules]
@@ -167,7 +167,7 @@ flowchart LR
   end
 
   WEB --> GW
-  RM --> GW
+  RM -. EWDS records + commands .-> PUB
   GW --> PART
   GW --> SET
   GW --> INV
@@ -237,11 +237,12 @@ Consumed by the reference client **AC-01 (`apps/web`) only** (A7 / REQ-052). The
 | `GET /me` (profile, roles, community, readiness) | all | AC-03 | REQ-049, REQ-009 | Portal home |
 | `PUT /me/profile` | member | AC-03 | REQ-009 | Profile |
 | `GET /terms/current`, `POST /me/terms-acceptance` | member, manager | AC-03 | REQ-050 | Terms |
-| `POST /me/payment-account/onboarding` (producer embedded Stripe Connect onboarding / consumer payment method) | member | AC-07 | REQ-051, REQ-040 | Payment setup |
-| `GET /me/balances` (unbilled amounts per counterpart) | member | AC-05 | REQ-002, REQ-057 | Balances |
-| `GET /me/invoices`, `GET /invoices/{id}`, `GET /invoices/{id}/document` | member | AC-06 | REQ-007, REQ-039 | Invoices |
+| `POST /me/payment-account/onboarding` (returns Stripe-hosted Account Link / Identity URL) | member | AC-07 | REQ-051, REQ-040 | Payment setup |
+| `GET /me/balances` (unbilled amounts per counterpart) | member | AC-05 | REQ-002, REQ-056 | Balances |
+| `GET /me/statements`, `GET /me/invoices`, `GET /invoices/{id}`, `GET /invoices/{id}/document` | member | AC-05 / AC-06 | REQ-059, REQ-007, REQ-039 | Statements / invoices |
+| `GET /me/payouts`, `POST /me/payouts` {period} | member | AC-07 | REQ-015, REQ-060 | Payouts |
 | `POST /invoices/{id}/payments` | consumer | AC-07 | REQ-014 | Pay |
-| `POST /early-settlements` {producerId} | consumer | AC-05 | REQ-057 | Settle now |
+| `POST /invoices/{id}/reminders` | manager | AC-11 | REQ-061 | Reminders |
 | `GET/PUT /communities/{id}/settings` (currency, period, threshold, VAT, mode) | manager | AC-03 | REQ-006, REQ-043, REQ-056 | Community settings |
 | `POST /communities/{id}/participants:import`, `GET /communities/{id}/participants`, `PATCH /participants/{id}`, `POST /participants/{id}:offboard` | manager | AC-03 | REQ-008, REQ-058, REQ-012 | Participants |
 | `POST /communities/{id}/billing-runs`, `GET /billing-runs/{id}` | manager, operator | AC-05 | REQ-006 | Billing runs |
@@ -255,6 +256,8 @@ Consumed by the reference client **AC-01 (`apps/web`) only** (A7 / REQ-052). The
 
 Inbound integration endpoint, not part of the public API: `POST /webhooks/payment-provider` (AC-07), with the signature verified (NFR-015).
 
+Removed REQ-057 settle-now operations on `/v1` follow the contract workstream versioning decision (oasdiff).
+
 ### 3.2 Internal APIs (module to module, never exposed to clients)
 
 | Command | Provider | Callers |
@@ -265,7 +268,7 @@ Inbound integration endpoint, not part of the public API: `POST /webhooks/paymen
 | GetUnbilledTrades(community or pair, until) | AC-04 | AC-05 |
 | GetRate(currency, date), GetVatRate(communityId) | AC-13 | AC-05 |
 | GetPairSettlement(settlementId) | AC-05 | AC-06 |
-| GetInvoice(invoiceId) (amounts, legalNumber; no Stripe invoice id) | AC-06 | AC-07 |
+| GetInvoice(invoiceId) (amounts, legalNumber; producer Connect account id) | AC-06 | AC-07 |
 | GetKycStatus(subjectId) | AC-07 | AC-03, AC-06, guards |
 | ApplyRetention / GetRetentionPolicy | AC-12 | AC-14; operators / peers |
 | erase-identity / erase-at-psp | AC-03 / AC-07 | AC-12 (DSAR erasure) |
@@ -288,9 +291,11 @@ Inbound integration endpoint, not part of the public API: `POST /webhooks/paymen
 | PaymentAccountStatusChanged | AC-07 | AC-03 | participantId, kycStatus, paymentMethodPresent |
 | TradesIngested | AC-04 | AC-05, AC-09 | window, tradeIds, communityIds |
 | IntakeAnomalyDetected | AC-04 | AC-08, AC-09, AC-11 (operator alert) | type, marketId, details |
-| SettlementCompleted | AC-05 | AC-06, AC-09 | runId or earlySettlementId, pair settlements |
+| SettlementCompleted | AC-05 | AC-06, AC-09 | runId, pair settlements |
+| StatementIssued | AC-05 | AC-10, AC-09 | statementId, participantId, period |
 | BillingRunCompleted | AC-05 | AC-08, AC-09 | runId, period, version, counts |
-| InvoiceIssued | AC-06 | AC-07, AC-08, AC-09, AC-10, AC-11 | invoiceId, issuer, recipient, settlementId, period bounds, settlement type, amounts, energy, VAT rate, currency, tradeIds |
+| InvoiceIssued | AC-06 | AC-07, AC-08, AC-09, AC-10, AC-11 | invoiceId, issuer, recipient, settlementId, period bounds, amounts, energy, VAT rate, currency, tradeIds |
+| PayoutStatusChanged | AC-07 | AC-10, AC-09, AC-11 | payoutId, participantId, period, status |
 | InvoiceStatusChanged | AC-06 | AC-08, AC-09, AC-10 | invoiceId, status, reason, outstanding |
 | PaymentStatusChanged | AC-07 | AC-06, AC-08, AC-09, AC-10, AC-11 | paymentId, invoiceId, payerId, payeeId, status, failureCategory |
 | KycStatusChanged | AC-07 | AC-03, AC-10 (billingKycStatus), AC-09 | subjectId, subjectType, kycStatus, kycVerified, method, payoutAccountVerified |
@@ -300,7 +305,7 @@ Inbound integration endpoint, not part of the public API: `POST /webhooks/paymen
 | AuditableActionPerformed | all modules handling personal or payment data | AC-12 | actor, action, target, timestamp |
 | JobFailed | AC-14 | AC-11 (operator alert) | jobId, error |
 
-The external messages `billingInvoice` / `billingPayment` (`ewds-topics/`) are produced by AC-10 from InvoiceIssued, InvoiceStatusChanged and PaymentStatusChanged.
+AC-10 produces the five EWDS record types (`ewds-topics/`) from domain events (statement, invoice, payment, payout, KYC).
 
 ## 5. Main interactions
 
@@ -345,15 +350,35 @@ sequenceDiagram
   BUS-->>INV: update outstanding and status
 ```
 
-Payment rules (INT-355, REQ-014, TD-6 / A6):
-- The payment is a **direct charge** on the producer's Stripe Connect account via `CollectPort` (PaymentIntent or hosted Checkout). There is no Stripe invoice and no `invoices.pay`. The platform never holds the funds; no `transfer_data` / destination charge is used.
-- The consumer saves one PaymentMethod on the platform (SetupIntent). At payment time AC-07 charges a card off-session on the producer account, or opens a PSP-hosted Checkout for SEPA / when no saved card exists (A7-bis).
+Payment rules (INT-355, REQ-014, TD-6 / A6, A10.5):
+- The payment is a **direct charge** on the producer's Stripe Connect account via **Stripe-hosted Checkout URL** (or off-session card when a saved method exists). There is no Stripe invoice. The platform never holds the funds.
+- **Card and SEPA Direct Debit** are supported (A10.5).
+- Onboarding uses **Stripe-hosted Account Link** (and Identity URL for managers); AC-07 returns only PSP-hosted handoff URLs on the command channel (A7-bis).
 - A repeated Pay on a settled invoice returns the existing payment.
-- **Fees and disputes are on the producer; the platform absorbs nothing (INT-362).** Producer Connect accounts are created with `controller.fees.payer = account`, `controller.losses.payments = stripe` and `controller.requirement_collection = stripe`: Stripe takes its processing fees and any dispute amount from the producer's balance, and covers losses a producer cannot repay. The platform charges no application fee. No fee is added for the consumer: card surcharges are banned for EEA consumer cards (PSD2 art. 62(4)), and P2P invoices carry no extra lines (A20).
-- Because Stripe collects the requirements, producer onboarding (identity, bank account, terms of service) runs in Stripe's **embedded Account onboarding component** inside the portal's Payout account step. AC-07 returns an Account Session client secret (`mode: embedded`) and re-reads the account from Stripe on `account.updated` and on every Start; KYC is complete only when Stripe reports nothing due. Operator test fixtures (`payment-accounts:provision`, test mode only) still use Account Tokens on platform-collected accounts, because Stripe does not let a platform accept the terms of service of accounts it does not collect requirements for.
-- The webhook endpoint accepts both the platform and the Connect endpoint signing secrets (`stripe_webhook_secret`, `stripe_connect_webhook_secret`) and deduplicates on the Stripe event id.
+- **Fees and disputes are on the producer; the platform absorbs nothing (INT-362).**
+- Webhooks include `payment_intent.*` and **`payout.*`**; deduplicate on the Stripe event id.
 
-## 6. Reference screens (AC-01, V1)
+### 5.3 Payout
+
+```mermaid
+sequenceDiagram
+  participant WEB as AC-01 or EWDS command
+  participant PAY as AC-07 Payments
+  participant INV as AC-06 Invoicing
+  participant STR as Stripe
+  participant PUB as AC-10 Publication
+  WEB->>PAY: RequestWithdrawal(period)
+  PAY->>INV: Producer invoices for period all Paid (BR-14)
+  PAY->>STR: Create payout on connected account
+  STR-->>PAY: payout.paid / failed webhook
+  PAY->>PUB: billingPayout
+```
+
+### 5.4 EWDS command request/reply
+
+The project UI sends `billingCommandRequest` messages (startPayment, requestWithdrawal, startKyc, sendReminder, triggerBillingRun, …). AC-10 authorizes the three layers (channel role, sender DID, actor role), dispatches to the owning module, and publishes `billingCommandReply` with **Stripe-hosted URLs only** in the payload (A7-bis).
+
+## 6. Reference screens (AC-01 — reference client, V1)
 
 | Area | Screen | Main API | Requirements |
 |---|---|---|---|
@@ -361,7 +386,7 @@ Payment rules (INT-355, REQ-014, TD-6 / A6):
 | Participant | Profile | `/me/profile` | REQ-009 |
 | Participant | Terms (+ self-billing mandate for producers) | `/terms`, `/me/terms-acceptance` | REQ-050 |
 | Participant | Payment setup (Stripe onboarding or payment method) | `/me/payment-account/onboarding` | REQ-051 |
-| Participant | Balances per counterpart + "settle now" | `/me/balances`, `/early-settlements` | REQ-057 |
+| Participant | Statements, balances, invoices, payouts | `/me/statements`, `/me/balances`, `/me/invoices`, `/me/payouts` | REQ-059, REQ-015 |
 | Participant | Invoices (list, detail, PDF) + pay | `/me/invoices`, `/invoices/{id}/payments` | REQ-007, REQ-014, REQ-039 |
 | Participant | Privacy (export / erasure request) | `/data-subject-requests` | REQ-013 |
 | Manager | Community settings | `/communities/{id}/settings` | REQ-006, REQ-043, REQ-056 |
@@ -378,7 +403,7 @@ Every adapter implements one logical port behind a stable interface. Switching f
 | Adapter (module) | Port | Interface (operations) | V1 / selection | Notes |
 |---|---|---|---|---|
 | Market adapter (AC-04) | P-MKT | queryTrades(window), queryClearingResults(marketId), queryMarkets(window) | `MARKET_ADAPTER=mock\|ewds` (mock default) | EWDS request/reply on GSY channels; GSY off-chain REST is a **test fixture only** (A8) |
-| Data-space adapter (AC-10) | P-DS | publish(topic, message), purgeCache(before) | `DATASPACE_ADAPTER=mock\|ewds` (mock default) | Blooo EWDS Client Gateway |
+| Data-space adapter (AC-10) | P-DS | publish(topic, message), purgeCache(before) | `DATASPACE_ADAPTER=mock\|ewds` (mock default) | EWDS CG adapter (env-selected), mock default |
 | Command channel (AC-10) | P-CMD | poll commands, authorize, dispatch, reply | `COMMAND_CHANNEL_ENABLED=true\|false` (default false) | Three-layer auth: CGW channel role → sender DID allowlist + signature → actor role |
 | Actor intake (AC-03) | P-ACTOR-SRC | receive Actor records | `ACTOR_SOURCE=mock\|ewds` (mock default; `ewds` in deployed envs) | EWDS subscriber (`ActorSourcePort`) |
 | Erasure intake (AC-12) | P-ERASURE-REQ | receive erasure requests; reportOutcome | `ERASURE_REQUEST_SOURCE=mock\|ewds\|none` (default none; mock in tests; `ewds` in WS4) | EWDS subscriber (`ErasureRequestPort`) |
@@ -401,7 +426,7 @@ Every adapter implements one logical port behind a stable interface. Switching f
 | S6 | Late trade arriving after the run → next run | REQ-001 |
 | S7 | Duplicate trade delivery → billed once | REQ-001 |
 | S8 | CHF community → ECB fixture rate on invoice | REQ-002 |
-| S9 | Early settlement mid-period | REQ-057 |
+| S9 | *(retired, REQ-057 deprecated)* | — |
 | S10 | Payment failures (Stripe test cards: declined, insufficient funds, authentication) | REQ-016, REQ-046 |
 | S11 | Producer without KYC → invoices held | REQ-045 |
 | S12 | Erasure request → propagation to Stripe test and IdP | REQ-013 |
@@ -461,3 +486,8 @@ Every adapter implements one logical port behind a stable interface. Switching f
 ## 12. Changes in v0.2 (2026-10-07)
 - To favour more separately deployed modules, v0.1's grouped modules (Billing = LB-04/05/11, Control & reporting = LB-07/14, Platform = LB-08/09/10/13) are split. There is now **one module per logical block**: AC-05 Settlement, AC-06 Invoicing, AC-08 Reconciliation, AC-09 Reporting, AC-10 Publication, AC-11 Notification, AC-12 Compliance, AC-13 Reference data, AC-14 Scheduler. The mock suite becomes AC-15.
 - New events SettlementCompleted, DiscrepancyDetected, AuditableActionPerformed and JobFailed, needed now that these blocks are separate deployables.
+
+## 13. Changes in v2.0 (2026-11-25)
+- Two-level billing: monthly statements (AC-05) plus pair invoices (AC-06); early settlement removed (REQ-057 deprecated).
+- Project UI path: five EWDS records + command channel (AC-10); `/v1` is reference-client only.
+- Payouts, KYC for every participant, hosted Checkout / Account Link onboarding, in-house PDF invoices (TP-7).

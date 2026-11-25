@@ -345,7 +345,8 @@ export class PayoutsService implements PayoutEventsHandler {
   }
 
   private async submit(record: PayoutRecord, accountRef: string): Promise<PayoutRecord> {
-    const idempotencyKey = `payout:${record.participantId}:${record.period}:${record.attempt}`;
+    // Remediation §2 / Task 1.16 — canonical key po:<participantId>:<period>.
+    const idempotencyKey = `po:${record.participantId}:${record.period}`;
     let next: PayoutRecord;
     try {
       const result = await this.psp.createPayout(accountRef, record.amount, record.currency, idempotencyKey);

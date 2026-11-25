@@ -147,7 +147,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
       pspPayoutRef: "po_1",
       invoiceIds: ["iA", "iB"],
     });
-    expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "payout:P:2026-10:1");
+    expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "po:P:2026-10");
     expect(payouts.get(p.payoutId)).toEqual(p);
     const emitted = await events();
     expect(emitted).toHaveLength(1);
@@ -183,7 +183,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
     const second = await svc.requestWithdrawal(req);
     expect(second.attempt).toBe(2);
     expect(second.payoutId).not.toBe(first.payoutId);
-    expect(psp.createPayout).toHaveBeenLastCalledWith("acct_P", "19.70", "EUR", "payout:P:2026-10:2");
+    expect(psp.createPayout).toHaveBeenLastCalledWith("acct_P", "19.70", "EUR", "po:P:2026-10");
   });
 
   it("409 funds_pending when the PSP available balance is below the amount", async () => {
@@ -224,7 +224,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
 
     const resumed = await svc.requestWithdrawal(req);
     expect(resumed).toMatchObject({ payoutId: stuck!.payoutId, status: "in_transit", attempt: 1 });
-    expect(psp.createPayout).toHaveBeenLastCalledWith("acct_P", "19.70", "EUR", "payout:P:2026-10:1");
+    expect(psp.createPayout).toHaveBeenLastCalledWith("acct_P", "19.70", "EUR", "po:P:2026-10");
   });
 
   it("a PSP refusal records a failed attempt and emits it", async () => {
@@ -289,7 +289,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
     psp.balance = "25.00";
     const p = await svc.requestWithdrawal({ ...req, participantId: "idp-sub-of-P", communityId: "other" });
     expect(p).toMatchObject({ participantId: "P", communityId: COM });
-    expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "payout:P:2026-10:1");
+    expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "po:P:2026-10");
   });
 
   it("REQ-060: lists own payouts and the periods still withdrawable", async () => {
@@ -436,7 +436,7 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
       expect(await run()).toEqual({ requested: 1, blocked: 1, nearHoldingLimit: [] });
       const [p] = payouts.listForParticipant("P");
       expect(p).toMatchObject({ trigger: "auto", period: "2026-10", amount: "19.70", status: "in_transit" });
-      expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "payout:P:2026-10:1");
+      expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "po:P:2026-10");
       expect(payouts.listForParticipant("Q")).toEqual([]);
     });
 

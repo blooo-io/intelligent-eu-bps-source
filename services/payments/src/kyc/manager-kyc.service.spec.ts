@@ -49,7 +49,6 @@ describe("ManagerKycService (REQ-051)", () => {
   });
 
   it("REQ-051 / UAT-063: manager gets a hosted identity URL and no Connect account", async () => {
-    const createConnect = vi.spyOn(psp, "createEmbeddedProducerAccount");
     const createConnected = vi.spyOn(psp, "createConnectedAccount");
     const result = await service.start(
       MANAGER,
@@ -58,7 +57,6 @@ describe("ManagerKycService (REQ-051)", () => {
     );
     expect(result.url).toMatch(/^https:\/\/verify\.stripe\.com\//);
     expect(result.status).toBe("pending");
-    expect(createConnect).not.toHaveBeenCalled();
     expect(createConnected).not.toHaveBeenCalled();
     const row = await store.get(MANAGER);
     expect(row).toMatchObject({

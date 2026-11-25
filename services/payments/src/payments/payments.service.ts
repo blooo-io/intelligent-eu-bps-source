@@ -55,10 +55,8 @@ import {
   PSP_ERASE_PORT,
   type PspErasePort,
 } from "../psp/psp-erase.port.js";
-import type {
-  LegacyOnboardingSession,
-  OnboardingRequirementsSubmission,
-} from "../psp/psp.legacy.js";
+import type { LegacyOnboardingSession } from "../psp/onboarding.types.js";
+import type { KycTestFixtureSubmission as OnboardingRequirementsSubmission } from "../psp/kyc-test-fixture.port.js";
 import {
   PAYOUT_EVENTS_HANDLER,
   PSP_ADAPTER,
@@ -579,8 +577,8 @@ export class PaymentsService {
     }
     let pspAccountRef = account.pspAccountRef;
     if (!pspAccountRef) {
-      // createEmbeddedProducerAccount — payments workstream may rename to createKycAccount.
-      const created = await this.psp.createEmbeddedProducerAccount({
+      // A5 / A7 — neutral Connect account (card + sepa_debit_payments + transfers).
+      const created = await this.psp.createConnectedAccount({
         participantId: account.participantId,
         country: "FR",
       });

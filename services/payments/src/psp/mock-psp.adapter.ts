@@ -20,22 +20,17 @@ import type {
 } from "./kyc-onboarding.port.js";
 import type {
   CreateKycTestFixtureAccountInput,
+  KycTestFixtureAccount,
   KycTestFixturePort,
   KycTestFixtureSession,
   KycTestFixtureSubmission,
 } from "./kyc-test-fixture.port.js";
+import type {
+  LegacyOnboardingSession,
+  ProducerAccount,
+} from "./onboarding.types.js";
 import type { PayoutPort, PayoutResult } from "./payout.port.js";
 import type { PspEventsPort, PspEventVerification } from "./psp-events.port.js";
-import {
-  PRODUCER_ONBOARDING_DUE,
-  type CreateEmbeddedProducerAccountInput,
-  type CreateProducerAccountInput,
-  type LegacyOnboardingSession,
-  type OnboardingRequirementsSubmission,
-  type PaymentMethodDetails,
-  type PaymentMethodRef,
-  type ProducerAccount,
-} from "./psp.legacy.js";
 import { PspError, type PspEvent, type PspPaymentMethodType } from "./psp.types.js";
 
 const TEST_SECRET = "whsec_test_intelligent";
@@ -82,8 +77,7 @@ function shortId(): string {
 
 /**
  * Stripe test-mode stand-in (BR-12). No network; signatures use a local HMAC.
- * Implements neutral PSP ports (WS5 Task 5.3 / INT-424) and keeps legacy
- * Temporary legacy helpers remain until Tasks 5.7 / 5.8 rewrite pay + webhook.
+ * Implements neutral PSP ports (WS5 Task 5.3 / INT-424).
  * S10-style card failure can be forced via paymentMethodId prefix `pm_fail_`.
  */
 export class MockPspAdapter
@@ -116,11 +110,15 @@ export class MockPspAdapter
     participantId: string;
     country: string;
   }): Promise<{ pspAccountRef: string }> {
-    const pspAccountRef = `mock_acct_${shortId()}`;
+    // Same id shape as the fixture path so onboarding tests stay stable.
+    this.accountSeq += 1;
+    const pspAccountRef = `acct_test_${input.participantId.replaceAll("-", "").slice(0, 12)}${this.accountSeq}`;
+    this.accounts.set(input.participantId, pspAccountRef);
+    const currentlyDue = ["business_profile.url", "external_account"];
     this.connected.set(pspAccountRef, {
       participantId: input.participantId,
       country: input.country,
-      currentlyDue: ["business_profile.url", "external_account"],
+      currentlyDue: [...currentlyDue],
       chargesEnabled: false,
       payoutsEnabled: false,
       status: "requirements_due",
@@ -128,10 +126,7 @@ export class MockPspAdapter
       manualSchedule: true,
       balances: new Map(),
     });
-    this.dueByAccount.set(pspAccountRef, [
-      "business_profile.url",
-      "external_account",
-    ]);
+    this.dueByAccount.set(pspAccountRef, [...currentlyDue]);
     return { pspAccountRef };
   }
 
@@ -234,7 +229,7 @@ export class MockPspAdapter
   async attachPaymentMethod(
     participantId: string,
     paymentMethodId: string,
-  ): Promise<PaymentMethodRef & { pspPaymentMethodRef: string }> {
+  ): Promise<{ pspPaymentMethodRef: string }> {
     const owner = this.methodOwners.get(paymentMethodId);
     if (owner && owner !== participantId) {
       throw new Error("payment_method_owned_by_other");
@@ -246,7 +241,7 @@ export class MockPspAdapter
 
   async getPaymentMethodDetails(
     paymentMethodId: string,
-  ): Promise<PaymentMethodDetails & CollectPaymentMethodDetails> {
+  ): Promise<CollectPaymentMethodDetails> {
     const base = await this.resolvePaymentMethodDetails(paymentMethodId);
     return {
       pspPaymentMethodRef: paymentMethodId,
@@ -460,7 +455,7 @@ export class MockPspAdapter
   // ── Neutral: KycTestFixturePort ─────────────────────────────────────────
 
   async createAccountToken(
-    _submission: OnboardingRequirementsSubmission | KycTestFixtureSubmission,
+    _submission: KycTestFixtureSubmission,
   ): Promise<string> {
     const id = `ct_test_${shortId()}`;
     this.tokens.push(id);
@@ -468,8 +463,8 @@ export class MockPspAdapter
   }
 
   async createProducerAccount(
-    input: CreateProducerAccountInput | CreateKycTestFixtureAccountInput,
-  ): Promise<ProducerAccount & { pspAccountRef: string }> {
+    input: CreateKycTestFixtureAccountInput,
+  ): Promise<ProducerAccount & KycTestFixtureAccount> {
     if (!input.accountToken) {
       throw new Error("accountToken required for Custom Connect create (INT-191)");
     }
@@ -488,7 +483,7 @@ export class MockPspAdapter
 
   async submitAccountRequirements(
     pspAccountRef: string,
-    submission: OnboardingRequirementsSubmission | KycTestFixtureSubmission,
+    submission: KycTestFixtureSubmission,
     _clientIp: string,
   ): Promise<LegacyOnboardingSession & KycTestFixtureSession> {
     const remaining = new Set(this.dueByAccount.get(pspAccountRef) ?? []);
@@ -519,6 +514,15 @@ export class MockPspAdapter
       remaining.delete("external_account");
     }
     this.dueByAccount.set(pspAccountRef, [...remaining]);
+    const state = this.connected.get(pspAccountRef);
+    if (state) {
+      state.currentlyDue = [...remaining];
+      if (remaining.size === 0) {
+        state.chargesEnabled = true;
+        state.payoutsEnabled = true;
+        state.status = "complete";
+      }
+    }
     const session = await this.getAccountSession(pspAccountRef);
     return {
       ...session,
@@ -526,17 +530,7 @@ export class MockPspAdapter
     };
   }
 
-  // ── Temporary helpers until Tasks 5.7 / 5.8 ─────────────────────────────
-
-  async createEmbeddedProducerAccount(
-    input: CreateEmbeddedProducerAccountInput,
-  ): Promise<ProducerAccount> {
-    this.accountSeq += 1;
-    const pspAccountRef = `acct_test_${input.participantId.replaceAll("-", "").slice(0, 12)}${this.accountSeq}`;
-    this.accounts.set(input.participantId, pspAccountRef);
-    this.dueByAccount.set(pspAccountRef, [...PRODUCER_ONBOARDING_DUE]);
-    return { pspAccountRef };
-  }
+  // ── Account Session / SetupIntent helpers (beside KycOnboardingPort) ────
 
   async createAccountOnboardingSession(
     pspAccountRef: string,

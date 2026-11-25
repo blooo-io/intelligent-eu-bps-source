@@ -245,6 +245,30 @@ describe("CommandPoller (REQ-052 / A7 / REQ-053)", () => {
     ).toThrow(/OutboxService/);
   });
 
+  it("createCommandPoller builds a default consumer when none is injected", async () => {
+    const outbox = new OutboxService(new InMemoryOutboxStore());
+    const cgw: CommandReplySender = {
+      send: vi.fn(async () => ({ messageId: "r", sent: 1, failed: 0 })),
+    };
+    const poller = createCommandPoller(
+      {
+        COMMAND_CHANNEL_ENABLED: "true",
+        EWDS_REPLY_ENCRYPTED: "true",
+        CGW_BASE_URL: "http://cgw",
+        CGW_API_KEY: "k",
+        EWDS_COMMAND_ALLOWED_DIDS: ALLOWED,
+        EWDS_COMMAND_RETURN_URL_PREFIXES: RETURN_PREFIX,
+        PARTICIPANTS_INTERNAL_URL: "http://participants",
+        PAYMENTS_INTERNAL_URL: "http://payments",
+        INVOICING_INTERNAL_URL: "http://invoicing",
+      },
+      { outbox, cgw },
+    );
+    // Default consumer + empty CGW queue — tick should not throw.
+    await expect(poller.tick()).resolves.toBeUndefined();
+    poller.onModuleDestroy();
+  });
+
   it("re-entry guard skips overlapping ticks", async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => {

@@ -223,9 +223,16 @@ describe("CgwClient", () => {
   it("snapshot declares every path CgwClient calls", () => {
     const snap = JSON.parse(
       readFileSync(path.join(pkgRoot, "test/cgw-openapi.snapshot.json"), "utf8"),
-    ) as { paths: Record<string, unknown> };
+    ) as {
+      info?: { "x-captured-from"?: string };
+      paths: Record<string, unknown>;
+    };
     for (const p of ["/api/v2/messages", "/api/v2/messages/ack", "/api/v2/identity"]) {
       expect(snap.paths[p], p).toBeDefined();
     }
+    // Task 4.4 / INT-437: refuse the old stub marker once live /docs-json is pinned.
+    const captured = snap.info?.["x-captured-from"] ?? "";
+    expect(captured).toMatch(/live \/docs-json/);
+    expect(captured).not.toMatch(/stub\+/);
   });
 });

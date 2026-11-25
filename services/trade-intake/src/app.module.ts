@@ -19,10 +19,12 @@ import { IntakeService } from "./intake/intake.service.js";
 import { PublicIntakeController } from "./intake/public.controller.js";
 import { FixturePartyResolver } from "./party/fixture-party-resolver.js";
 import { HttpPartyResolver } from "./party/http-party-resolver.js";
+import { MARKET_PORT, createMarketPort } from "./market/market.factory.js";
 import {
   PARTY_RESOLVER,
   type PartyResolverPort,
 } from "./party/party-resolver.port.js";
+import { adapterMode } from "@intelligent/ewds-client";
 
 const s1 = createMockSuite("S1");
 const knownActors = new Set(
@@ -52,6 +54,11 @@ function createPartyResolver(
       provide: PARTY_RESOLVER,
       useFactory: () => createPartyResolver(),
     },
+    // A8 / Task 4.10 — MARKET_ADAPTER selects mock vs EWDS GSY adapter.
+    {
+      provide: MARKET_PORT,
+      useFactory: () => createMarketPort(process.env),
+    },
     // REQ-043 / A10.1 — per-community billing mode from AC-03.
     {
       provide: BILLING_MODE_RESOLVER,
@@ -69,12 +76,16 @@ export class AppModule implements NestModule, OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
+    // B-03 / A8-live — never bootstrap S1 fixtures against a live EWDS market.
+    if (adapterMode(process.env, "MARKET_ADAPTER") === "ewds") {
+      return;
+    }
     // INT-232 — populate S1 unbilled trades so AC-05 HttpTradeSource has data
-    // before the first scheduler RefreshIntake (cluster default).
+    // before the first scheduler RefreshIntake. Default off outside local Tilt.
     const flag = (
       process.env.INTAKE_BOOTSTRAP_S1 ??
       process.env.intake_bootstrap_s1 ??
-      "true"
+      "false"
     ).toLowerCase();
     if (flag === "0" || flag === "false" || flag === "no") {
       return;

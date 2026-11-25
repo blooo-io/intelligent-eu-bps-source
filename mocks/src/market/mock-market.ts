@@ -14,19 +14,20 @@ function overlaps(window: TimeWindow, start: string, end: string): boolean {
 
 export function createMockMarket(scenario: ScenarioDataset): MarketPort {
   return {
-    queryTrades(window: TimeWindow): TradeFixture[] {
+    // Task 4.8 — Promise wrappers keep the mock API identical to EwdsMarketAdapter.
+    async queryTrades(window: TimeWindow): Promise<TradeFixture[]> {
       return scenario.trades.filter(
         (t) =>
           t.status === "settled" &&
           overlaps(window, t.deliveryStart, t.deliveryEnd),
       );
     },
-    queryMarkets(window: TimeWindow): MarketInfo[] {
+    async queryMarkets(window: TimeWindow): Promise<MarketInfo[]> {
       return scenario.markets.filter((m) =>
         overlaps(window, m.deliveryStart, m.deliveryEnd),
       );
     },
-    queryClearingResults(marketId: string): ClearingResult {
+    async queryClearingResults(marketId: string): Promise<ClearingResult> {
       const found = scenario.clearingResults.find((c) => c.marketId === marketId);
       if (!found) {
         throw new Error(`No clearing result for market ${marketId}`);

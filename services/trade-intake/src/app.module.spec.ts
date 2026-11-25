@@ -57,7 +57,9 @@ describe("AppModule (INT-232 / INT-237)", () => {
   });
 
   it("logs bootstrap failures without crashing boot", async () => {
-    delete process.env.INTAKE_BOOTSTRAP_S1;
+    // B-03 — bootstrap is opt-in; force it on so the failure path is exercised.
+    process.env.INTAKE_BOOTSTRAP_S1 = "true";
+    delete process.env.MARKET_ADAPTER;
     const nest = await NestFactory.create(AppModule, { logger: false });
     const intake = nest.get(IntakeService);
     vi.spyOn(intake, "bootstrapS1Window").mockRejectedValue("bootstrap failed");
@@ -71,6 +73,19 @@ describe("AppModule (INT-232 / INT-237)", () => {
       ),
     ).toBe(true);
     logSpy.mockRestore();
+    await nest.close();
+  });
+
+  it("B-03: bootstrap is skipped when MARKET_ADAPTER=ewds even if INTAKE_BOOTSTRAP_S1=true", async () => {
+    process.env.INTAKE_BOOTSTRAP_S1 = "true";
+    process.env.MARKET_ADAPTER = "ewds";
+    process.env.CGW_BASE_URL = "http://c";
+    process.env.CGW_API_KEY = "k";
+    const nest = await NestFactory.create(AppModule, { logger: false });
+    const intake = nest.get(IntakeService);
+    const spy = vi.spyOn(intake, "bootstrapS1Window");
+    await nest.init();
+    expect(spy).not.toHaveBeenCalled();
     await nest.close();
   });
 });

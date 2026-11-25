@@ -101,7 +101,7 @@ export class PublicationService {
     const rows = this.store.listPendingOrFailed();
     let retried = 0;
     for (const row of rows) {
-      const result = this.dataspace.publish(row.topic, row.payload);
+      const result = await this.dataspace.publish(row.topic, row.payload);
       const now = new Date().toISOString();
       if (result.ok) {
         this.store.putOutbound({
@@ -140,7 +140,7 @@ export class PublicationService {
     const cutoff = new Date(
       Math.min(requested, maxRetention),
     ).toISOString();
-    const purgedGateway = this.dataspace.purgeCache(cutoff);
+    const purgedGateway = await this.dataspace.purgeCache(cutoff);
     const purgedLocal = this.store.purgeLocalBefore(cutoff);
     return { accepted: true, purgedGateway, purgedLocal };
   }
@@ -171,7 +171,7 @@ export class PublicationService {
     const now = new Date().toISOString();
     const existing = this.store.findOutboundByAggregate(topic, aggregateId);
     const messageId = existing?.messageId ?? randomUUID();
-    const result = this.dataspace.publish(topic, payload);
+    const result = await this.dataspace.publish(topic, payload);
     if (result.ok) {
       this.store.putOutbound({
         messageId,

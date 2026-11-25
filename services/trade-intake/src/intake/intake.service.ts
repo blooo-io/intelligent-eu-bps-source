@@ -17,6 +17,7 @@ import {
 } from "@intelligent/module-template";
 import { TradeStore } from "../domain/store.js";
 import type { TradeDto } from "../domain/types.js";
+import { MARKET_PORT } from "../market/market.factory.js";
 import { formatKWh, formatMoney } from "../money.js";
 import {
   PARTY_RESOLVER,
@@ -32,16 +33,20 @@ const PRODUCER = "AC-04";
 @Injectable()
 export class IntakeService {
   private suite: MockSuite = createMockSuite("S1");
-  private market: MarketPort = this.suite.market;
+  private market: MarketPort;
 
   constructor(
     @Inject(TradeStore) private readonly store: TradeStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
     @Inject(PARTY_RESOLVER) private readonly parties: PartyResolverPort,
+    @Inject(MARKET_PORT) market: MarketPort,
     @Optional()
     @Inject(BILLING_MODE_RESOLVER)
     private readonly billingMode: BillingModeResolver | null = null,
-  ) {}
+  ) {
+    // A8 — inject selected MarketPort; useSuite remains the unit-test seam.
+    this.market = market;
+  }
 
   /** REQ-043 — community live|virtual from AC-03 settings. */
   private async modeOf(communityId: string) {
@@ -90,11 +95,11 @@ export class IntakeService {
       throw new BadRequestException("from must be before to");
     }
     // P-MKT returns settled trades only (BR-01) overlapping the window.
-    const trades = this.market.queryTrades({
+    const trades = await this.market.queryTrades({
       from: window.from,
       until: window.to,
     });
-    const markets = this.market.queryMarkets({
+    const markets = await this.market.queryMarkets({
       from: window.from,
       until: window.to,
     });
@@ -184,14 +189,14 @@ export class IntakeService {
 
   async checkIntakeHealth(): Promise<void> {
     // REQ-029 — compare clearing totals to stored settled trades per market.
-    const markets = this.market.queryMarkets({
+    const markets = await this.market.queryMarkets({
       from: "1970-01-01T00:00:00Z",
       until: "9999-12-31T23:59:59Z",
     });
     for (const market of markets) {
       let clearing;
       try {
-        clearing = this.market.queryClearingResults(market.marketId);
+        clearing = await this.market.queryClearingResults(market.marketId);
       } catch {
         this.store.addAnomaly({
           type: "missing_clearing",

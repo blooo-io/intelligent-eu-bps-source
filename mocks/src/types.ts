@@ -29,6 +29,11 @@ export interface TradeFixture {
   energyKWh: number;
   /** Price in EUR per kWh (market clears in EUR; FX applied later for CHF). */
   pricePerKWhEur: number;
+  /**
+   * A10.3 — optional adjusted unit price after tariff/incentive (EUR/kWh).
+   * Consumed by trade-intake when present on the EWDS Trade payload.
+   */
+  adjustedPricePerKWhEur?: number;
   status: TradeStatus;
   deliveryStart: string;
   deliveryEnd: string;
@@ -82,17 +87,24 @@ export interface ScenarioDataset {
   erasureRequest?: { participantId: string };
 }
 
-export type DataSpaceTopic = "billingInvoice" | "billingPayment";
+/** REQ-048 — five billing record topics published on the data space. */
+export type DataSpaceTopic =
+  | "billingStatement"
+  | "billingInvoice"
+  | "billingPayment"
+  | "billingPayout"
+  | "billingKycStatus";
 
 export interface PublishResult {
   ok: boolean;
   errors?: string[];
 }
 
+/** P-MKT — async so the live EWDS adapter can await request/reply (Task 4.8). */
 export interface MarketPort {
-  queryTrades(window: TimeWindow): TradeFixture[];
-  queryMarkets(window: TimeWindow): MarketInfo[];
-  queryClearingResults(marketId: string): ClearingResult;
+  queryTrades(window: TimeWindow): Promise<TradeFixture[]>;
+  queryMarkets(window: TimeWindow): Promise<MarketInfo[]>;
+  queryClearingResults(marketId: string): Promise<ClearingResult>;
 }
 
 export interface FxPort {
@@ -100,8 +112,8 @@ export interface FxPort {
 }
 
 export interface DataSpacePort {
-  publish(topic: DataSpaceTopic, message: unknown): PublishResult;
-  purgeCache(before: string): number;
+  publish(topic: DataSpaceTopic, message: unknown): Promise<PublishResult>;
+  purgeCache(before: string): Promise<number>;
   recorded(): ReadonlyArray<{ topic: DataSpaceTopic; message: unknown }>;
 }
 

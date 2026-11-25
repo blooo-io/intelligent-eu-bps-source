@@ -11,11 +11,12 @@ import {
 export class MockDataspaceAdapter implements DataSpacePort {
   private readonly inner = createMockDataSpace();
 
-  publish(topic: DataSpaceTopic, message: unknown): PublishResult {
+  // Task 4.8 — async surface matches EwdsDataspaceAdapter.
+  publish(topic: DataSpaceTopic, message: unknown): Promise<PublishResult> {
     return this.inner.publish(topic, message);
   }
 
-  purgeCache(before: string): number {
+  purgeCache(before: string): Promise<number> {
     return this.inner.purgeCache(before);
   }
 

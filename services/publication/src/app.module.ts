@@ -5,8 +5,10 @@ import {
 } from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
 import { createCommandPoller, CommandPoller } from "./commands/command-poller.js";
-import { DATASPACE_PORT } from "./dataspace/dataspace.port.js";
-import { MockDataspaceAdapter } from "./dataspace/mock-dataspace.adapter.js";
+import {
+  DATASPACE_PORT,
+  createDataspacePort,
+} from "./dataspace/dataspace.factory.js";
 import { PublicationStore } from "./domain/store.js";
 import { BillingEventsListener } from "./events/billing-events.listener.js";
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
@@ -22,7 +24,11 @@ import { PublicationService } from "./publication/publication.service.js";
   providers: [
     PublicationStore,
     PublicationService,
-    { provide: DATASPACE_PORT, useClass: MockDataspaceAdapter },
+    // A8 / Task 4.11 — DATASPACE_ADAPTER selects mock vs EWDS CG publish.
+    {
+      provide: DATASPACE_PORT,
+      useFactory: () => createDataspacePort(process.env),
+    },
     // INT-271 — NATS when NATS_URL set; in-memory otherwise (CI).
     { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
     BillingEventsListener,

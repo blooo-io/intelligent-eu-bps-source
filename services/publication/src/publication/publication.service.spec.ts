@@ -173,7 +173,7 @@ describe("PublicationService", () => {
       ...toValidInvoicePayload(),
       updatedAt: eightDaysAgo,
     };
-    dataspace.publish("billingInvoice", agedInvoice);
+    await dataspace.publish("billingInvoice", agedInvoice);
 
     const before = new Date().toISOString();
     const purged = await service.purgeCache(before);

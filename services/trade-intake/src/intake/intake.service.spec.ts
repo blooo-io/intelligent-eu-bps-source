@@ -34,6 +34,7 @@ describe("IntakeService", () => {
       store,
       new OutboxService(outboxStore),
       new FixturePartyResolver(suite.scenario.communityId, actors),
+      suite.market,
     );
     service.useSuite(suite);
   });
@@ -48,6 +49,7 @@ describe("IntakeService", () => {
       new TradeStore(),
       new OutboxService(liveOutbox),
       new FixturePartyResolver(suite.scenario.communityId, actors),
+      suite.market,
       new StaticBillingModeResolver("live"),
     );
     liveService.useSuite(suite);
@@ -122,6 +124,7 @@ describe("IntakeService", () => {
       store,
       new OutboxService(outboxStore),
       new FixturePartyResolver(suite.scenario.communityId, actors),
+      suite.market,
     );
     service.useSuite(suite);
     const result = await service.refreshIntake(WINDOW);
@@ -141,6 +144,7 @@ describe("IntakeService", () => {
       store,
       new OutboxService(outboxStore),
       new FixturePartyResolver(suite.scenario.communityId, known),
+      suite.market,
     );
     service.useSuite(suite);
     await service.refreshIntake(WINDOW);

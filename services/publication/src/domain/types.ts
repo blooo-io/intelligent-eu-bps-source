@@ -1,6 +1,12 @@
 /** AC-10 domain — OutboundMessage / PublicationStatus (02 §6 LB-08). */
 
-export type DataSpaceTopic = "billingInvoice" | "billingPayment";
+/** REQ-048 — five billing record topics (Task 4.8 / INT-440). */
+export type DataSpaceTopic =
+  | "billingStatement"
+  | "billingInvoice"
+  | "billingPayment"
+  | "billingPayout"
+  | "billingKycStatus";
 
 export type OutboundStatus = "pending" | "published" | "failed";
 

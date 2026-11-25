@@ -45,10 +45,43 @@ const TRADE_INTAKE_URL = (
 ).replace(/\/$/, "");
 
 const COMMUNITY_ID = "c0ffee00-1234-4abc-8def-0123456789ab";
+/** UAT community (AC-03 seed) — hugo / sofia manager KYC for public e2e. */
+const UAT_COMMUNITY_ID = "a1000000-0000-4000-8000-000000000001";
 /** S1 fixture producers (AC-15) — rebound to fresh Stripe Connect accounts each run. */
 const PRODUCERS = [
   "66666666-7777-4888-9999-aaaaaaaaaaaa",
   "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+];
+/**
+ * INT-440 / REQ-045 — HttpKycStatusClient is live on the cluster (AllowAll refused).
+ * Provision these so money-path / manager financial actions / api-public pay pass.
+ * Léa as prosumer so the fixture path also attaches pm_card_visa (direct charge).
+ */
+const KYC_FIXTURES = [
+  {
+    participantId: "11111111-2222-4333-8444-555555555555",
+    communityId: COMMUNITY_ID,
+    role: "prosumer",
+    label: "s1-consumer-lea",
+  },
+  {
+    participantId: "dddddddd-eeee-4fff-8000-111111111111",
+    communityId: COMMUNITY_ID,
+    role: "prosumer",
+    label: "s1-manager-marie",
+  },
+  {
+    participantId: "2a3a56e5-2e71-4990-bf26-2b4708e4adcd",
+    communityId: UAT_COMMUNITY_ID,
+    role: "prosumer",
+    label: "uat-manager-sofia",
+  },
+  {
+    participantId: "f69e6745-3bfe-49ad-b84e-0853aa86ad05",
+    communityId: UAT_COMMUNITY_ID,
+    role: "consumer",
+    label: "uat-member-hugo",
+  },
 ];
 /** S1 mock window (AC-15) — must match mocks/scenarios/registry.ts period. */
 const S1_INTAKE_WINDOW = {
@@ -146,45 +179,67 @@ async function initServiceHeaders() {
   }
 }
 
+async function provisionAccount(input) {
+  const res = await fetch(
+    `${PAYMENTS_URL}/internal/v1/payment-accounts:provision`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        participantId: input.participantId,
+        communityId: input.communityId,
+        role: input.role,
+        fresh: true,
+      }),
+    },
+  );
+  const body = await res.json();
+  assert.equal(res.status, 201, JSON.stringify({ ...body, label: input.label }));
+  assert.ok(
+    typeof body.pspAccountRef === "string" &&
+      body.pspAccountRef.startsWith("acct_"),
+    JSON.stringify({ ...body, label: input.label }),
+  );
+  assert.ok(
+    !String(body.pspAccountRef).startsWith("acct_test_"),
+    `expected real Stripe Connect id, got ${body.pspAccountRef}`,
+  );
+  return {
+    participantId: input.participantId,
+    label: input.label,
+    role: input.role,
+    pspAccountRef: body.pspAccountRef,
+    chargesEnabled: body.chargesEnabled,
+    kycStatus: body.kycStatus,
+  };
+}
+
 async function provisionProducers() {
   const provisioned = [];
   for (const participantId of PRODUCERS) {
-    const res = await fetch(
-      `${PAYMENTS_URL}/internal/v1/payment-accounts:provision`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          participantId,
-          communityId: COMMUNITY_ID,
-          role: "producer",
-          fresh: true,
-        }),
-      },
+    provisioned.push(
+      await provisionAccount({
+        participantId,
+        communityId: COMMUNITY_ID,
+        role: "producer",
+        label: `s1-producer-${participantId.slice(0, 8)}`,
+      }),
     );
-    const body = await res.json();
-    assert.equal(res.status, 201, JSON.stringify(body));
-    assert.ok(
-      typeof body.pspAccountRef === "string" &&
-        body.pspAccountRef.startsWith("acct_"),
-      JSON.stringify(body),
-    );
-    assert.ok(
-      !String(body.pspAccountRef).startsWith("acct_test_"),
-      `expected real Stripe Connect id, got ${body.pspAccountRef}`,
-    );
-    provisioned.push({
-      participantId,
-      pspAccountRef: body.pspAccountRef,
-      chargesEnabled: body.chargesEnabled,
-      kycStatus: body.kycStatus,
-    });
   }
   return provisioned;
 }
 
-async function waitAllChargesEnabled() {
-  for (const participantId of PRODUCERS) {
+/** INT-440 — payer + manager KYC for e2e after AllowAll refusal on the cluster. */
+async function provisionKycFixtures() {
+  const provisioned = [];
+  for (const fixture of KYC_FIXTURES) {
+    provisioned.push(await provisionAccount(fixture));
+  }
+  return provisioned;
+}
+
+async function waitAllChargesEnabled(participantIds) {
+  for (const participantId of participantIds) {
     const account = await waitForChargesEnabled(participantId);
     console.log(
       JSON.stringify({
@@ -233,7 +288,13 @@ async function main() {
   const provisioned = await provisionProducers();
   console.log(JSON.stringify({ step: "provision", provisioned }, null, 2));
 
-  await waitAllChargesEnabled();
+  const kycFixtures = await provisionKycFixtures();
+  console.log(JSON.stringify({ step: "provisionKycFixtures", kycFixtures }, null, 2));
+
+  await waitAllChargesEnabled([
+    ...PRODUCERS,
+    ...KYC_FIXTURES.map((row) => row.participantId),
+  ]);
 
   const reset = await fetch(
     `${SETTLEMENT_URL}/internal/v1/fixture-billed:reset`,

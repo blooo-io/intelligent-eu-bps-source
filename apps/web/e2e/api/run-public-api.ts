@@ -94,11 +94,21 @@ export async function runPublicApiCoverage(input: {
   });
   await call("getMyPaymentAccount", member, {});
   await call("createPaymentOnboarding", member, {});
+  // INT-423 — manager Identity + shared KYC status (synced into PUBLIC_OPERATIONS).
+  await call("createIdentityVerification", manager, {}, {
+    returnUrl: `${input.baseURL.replace(/\/$/, "")}/`,
+  });
+  await call("getMyKycStatus", member, {});
   const paymentMethodId = await stripeTestPaymentMethod();
   await call("attachMyPaymentMethod", member, {}, { paymentMethodId });
+  // INT-440 — gated 404 in production; 400 for consumers when the fixture is open.
   await call("submitPaymentOnboardingRequirements", member, {}, { country: "FR" });
+  await call("listMyPayouts", member, {});
+  // 409 when nothing withdrawable; still counts as coverage.
+  await call("requestWithdrawal", member, {}, { period: currentPeriod() });
 
   await call("listMyBalances", member, {});
+  await call("listMyStatements", member, {});
   const invoices = asArray(json<unknown>(await call("listMyInvoices", member, {})));
   const invoice = pickInvoice(invoices);
   if (!invoice?.invoiceId) {
@@ -164,8 +174,11 @@ export async function runPublicApiCoverage(input: {
       status: invoice.status,
       reason: "API e2e coverage check",
     });
+    // INT-423 — reminder may 409 when the invoice is not Open / already reminded.
+    await call("sendInvoiceReminder", manager, { id: invoice.invoiceId });
   } else {
     failures.push("setInvoiceStatus skipped: no invoice");
+    failures.push("sendInvoiceReminder skipped: no invoice");
   }
 
   const run = json<Json>(
@@ -178,9 +191,11 @@ export async function runPublicApiCoverage(input: {
     await call("getBillingRun", manager, { id: runId });
   }
   await call("getPaymentsOverview", manager, { id: communityId });
-  await call("getParticipantHistory", member, { id: participantId });
   const period = currentPeriod();
+  await call("getPayoutsOverview", manager, { id: communityId, period });
+  await call("getParticipantHistory", member, { id: participantId });
   await call("getPeriodicSummary", manager, { communityId, period });
+  await call("getPaymentMethodReport", manager, { communityId, period });
   await call("listDiscrepancies", operator, { communityId });
   await call("listIntakeAnomalies", operator, { communityId });
   await call("getKpiExport", operator, { period, communityId });
@@ -193,6 +208,8 @@ export async function runPublicApiCoverage(input: {
     failures.push("getDataSubjectRequest skipped: create returned no requestId");
   } else {
     await call("getDataSubjectRequest", member, { id: requestId });
+    // 410 when the export is not ready yet still counts (ACCEPTED).
+    await call("getDataSubjectExport", member, { id: requestId });
   }
 
   await call("listJobs", operator, { communityId });

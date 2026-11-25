@@ -17,8 +17,9 @@ test.describe("AC-01 member screens and buttons", () => {
   test("Home shows readiness and a single next CTA", async ({ page }) => {
     await page.goto("/");
     await expectPageReady(page, /^home$/i);
+    // INT-440 / REQ-045 — TermsAccepted without KYC shows "Verify identity".
     const continueSetup = page.getByRole("button", {
-      name: /continue setup|finish payment setup|open stripe connect|accept terms|pay open invoices|review open invoices/i,
+      name: /continue setup|verify identity|finish payment setup|finish card setup|open stripe connect|accept terms|pay open invoices|review open invoices|open invoices/i,
     });
     await expect(continueSetup).toBeVisible();
   });
@@ -118,7 +119,10 @@ test.describe("AC-01 member screens and buttons", () => {
     await page.goto("/onboarding");
     await expectPageReady(page, /get ready/i);
     await expect(page.getByText("Billing identity")).toBeVisible();
-    await expect(page.getByText("Accept & self-billing")).toBeVisible();
+    // Consumer → "Accept terms"; seller → "Accept & self-billing" (INT-429).
+    await expect(
+      page.getByText(/Accept terms|Accept & self-billing/),
+    ).toBeVisible();
     await expect(page.getByText(/^(Pay|Payouts)$/i).first()).toBeVisible();
     // The step indicator is not clickable (INT-391 / ANO-003): it must not change the step.
     const heading = page.getByRole("heading", { name: /get ready — step \d of 3/i });

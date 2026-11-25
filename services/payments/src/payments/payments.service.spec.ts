@@ -1074,7 +1074,7 @@ describe("PaymentsService", () => {
         returnUrl: "https://ui.example/return",
       });
       expect(session.mode).toBe("hosted");
-      expect(session.url).toMatch(/^https:\/\/mock-psp\.local\//);
+      expect(session.url).toMatch(/^https:\/\/connect\.stripe\.com\//);
       expect(session.url).not.toMatch(/blooo/i);
     } finally {
       if (prev === undefined) delete process.env.KYC_RETURN_URL_ALLOWLIST;

@@ -17,14 +17,15 @@ describe("MockPspAdapter hosted KYC + Identity (REQ-051)", () => {
       returnUrl: "https://app.example/return",
       refreshUrl: "https://app.example/refresh",
     });
-    expect(link.url).toMatch(/^https:\/\/mock-psp\.local\/kyc\//);
+    expect(link.url).toMatch(/^https:\/\/connect\.stripe\.com\//);
     expect(link.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
 
     const session = await adapter.createIdentityVerification({
       subjectId: "m-1",
       returnUrl: "https://app.example/return",
     });
-    expect(session.url).toMatch(/^https:\/\/mock-psp\.local\/identity\//);
+    expect(session.url).toMatch(/^https:\/\/verify\.stripe\.com\//);
+    expect(session.clientSecret).toMatch(/_secret_test$/);
     expect(session.verificationId).toMatch(/\S+/);
 
     await expect(

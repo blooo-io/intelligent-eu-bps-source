@@ -69,13 +69,21 @@ export class ManagerKycService {
   ) {}
 
   /**
-   * REQ-051 — start hosted Identity verification. Managers get no Connect account.
+   * REQ-051 / A7-bis — start Identity verification (hosted URL or embedded clientSecret).
+   * Managers get no Connect account.
    */
   async start(
     subjectId: string,
     communityId: string,
     returnUrl: string,
-  ): Promise<{ verificationId: string; url: string; status: KycStatus }> {
+    surface: "hosted" | "embedded" = "hosted",
+  ): Promise<{
+    verificationId: string;
+    url: string;
+    status: KycStatus;
+    surface: "hosted" | "embedded";
+    clientSecret?: string;
+  }> {
     const session = await this.kycPort.createIdentityVerification({
       subjectId,
       returnUrl,
@@ -94,6 +102,10 @@ export class ManagerKycService {
       verificationId: session.verificationId,
       url: session.url,
       status: "pending",
+      surface,
+      ...(surface === "embedded" && session.clientSecret
+        ? { clientSecret: session.clientSecret }
+        : {}),
     };
   }
 

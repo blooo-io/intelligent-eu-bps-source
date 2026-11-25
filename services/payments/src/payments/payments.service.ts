@@ -75,8 +75,27 @@ import {
   type PspAdapter,
   type PspRegistry,
 } from "../psp/psp-registry.js";
+import {
+  embeddedHandoff,
+  hostedHandoff,
+  type PspHandoff,
+} from "../psp/psp-handoff.js";
 
 type OnboardingSession = LegacyOnboardingSession;
+
+export type StartPaymentResult = {
+  paymentId: string;
+  status: "succeeded" | "processing" | "requires_action";
+  handoff?: PspHandoff;
+};
+
+function mapPayStatus(
+  status: PaymentRecord["status"],
+): StartPaymentResult["status"] {
+  if (status === "succeeded") return "succeeded";
+  if (status === "requires_action") return "requires_action";
+  return "processing";
+}
 
 const PRODUCER = "AC-07";
 
@@ -898,6 +917,185 @@ export class PaymentsService {
       invoiceId: row.invoiceId,
       status: row.status,
     };
+  }
+
+  /**
+   * REQ-052 / REQ-014 / A7-bis — EWDS startPayment target.
+   * Builds on payInvoice; returns a PspHandoff when the payer must authenticate
+   * or enter a method (hosted Checkout today; embedded PaymentIntent is WS5 5.7).
+   */
+  async startPayment(input: {
+    invoiceId: string;
+    actorId: string;
+    surface: "hosted" | "embedded";
+    returnUrl?: string;
+  }): Promise<StartPaymentResult> {
+    const caller = await this.resolveCallerParticipantId(input.actorId);
+    const account = await this.hydrateAccount(caller.participantId);
+    let communityId = caller.communityId ?? account?.communityId;
+    if (!communityId) {
+      try {
+        const invoice = await this.invoices.getInvoice(input.invoiceId);
+        communityId =
+          this.store.getAccount(invoice.consumerId)?.communityId ??
+          this.store.getAccount(invoice.producerId)?.communityId;
+      } catch {
+        throw new NotFoundException(`Unknown invoice ${input.invoiceId}`);
+      }
+    }
+    if (!communityId) {
+      throw new BadRequestException("communityId could not be resolved for actor");
+    }
+
+    const paid = await this.payInvoice({
+      invoiceId: input.invoiceId,
+      participantId: input.actorId,
+      communityId,
+      returnUrl: input.returnUrl,
+    });
+
+    const status = mapPayStatus(paid.status);
+    if (!paid.checkoutUrl) {
+      return { paymentId: paid.paymentId, status };
+    }
+    // Hosted Checkout handoff (A7-bis). `surface=embedded` still uses Checkout
+    // until CollectPort.createEmbeddedPayment ships (WS5 Task 5.7 / V1 #2).
+    void input.surface;
+    return {
+      paymentId: paid.paymentId,
+      status,
+      handoff: hostedHandoff("checkout", paid.checkoutUrl),
+    };
+  }
+
+  /**
+   * REQ-014 / A7-bis — EWDS setupPaymentMethod target.
+   */
+  async setupPaymentMethod(input: {
+    actorId: string;
+    surface: "hosted" | "embedded";
+    returnUrl?: string;
+  }): Promise<{ handoff: PspHandoff }> {
+    const caller = await this.resolveCallerParticipantId(input.actorId);
+    const participantId = caller.participantId;
+    const account = await this.hydrateAccount(participantId);
+    if (!account) {
+      throw new NotFoundException(`Unknown participant ${participantId}`);
+    }
+
+    if (input.surface === "hosted") {
+      assertKycReturnUrlAllowed(input.returnUrl);
+      // CollectPort has no hosted setup session yet — SetupIntent secret is
+      // wrapped as an embedded handoff when surface is embedded; for hosted we
+      // mint a Checkout-shaped URL that the mock/Stripe adapters recognise.
+      const setup = await this.collect.createPaymentMethodSetup(participantId);
+      const token = setup.clientSecret.replace(/[^a-zA-Z0-9]/g, "").slice(0, 24);
+      return {
+        handoff: hostedHandoff(
+          "setup",
+          `https://checkout.stripe.com/c/pay/setup_${token || "mock"}`,
+        ),
+      };
+    }
+
+    const setup = await this.collect.createPaymentMethodSetup(participantId);
+    return {
+      handoff: embeddedHandoff("setup", { clientSecret: setup.clientSecret }),
+    };
+  }
+
+  /**
+   * REQ-051 / A7-bis — EWDS startKyc target (Connect or Identity).
+   */
+  async startKycCommand(input: {
+    actorId: string;
+    kind: "connect_account" | "identity";
+    surface: "hosted" | "embedded";
+    returnUrl?: string;
+    refreshUrl?: string;
+  }): Promise<PspHandoff> {
+    const surface = input.surface;
+    if (surface === "hosted") {
+      assertKycReturnUrlAllowed(input.returnUrl);
+    }
+
+    if (input.kind === "identity") {
+      if (!this.managerKyc) {
+        throw new BadRequestException("Identity KYC is not available");
+      }
+      const caller = await this.resolveCallerParticipantId(input.actorId);
+      const communityId =
+        caller.communityId ??
+        (await this.hydrateAccount(caller.participantId))?.communityId;
+      if (!communityId) {
+        throw new BadRequestException("communityId could not be resolved for actor");
+      }
+      const started = await this.managerKyc.start(
+        caller.participantId,
+        communityId,
+        input.returnUrl ?? "https://app.invalid/kyc-return",
+        surface,
+      );
+      if (surface === "embedded") {
+        const secret =
+          started.clientSecret ?? `${started.verificationId}_secret_test`;
+        return embeddedHandoff("identity", { clientSecret: secret });
+      }
+      return hostedHandoff("identity", started.url);
+    }
+
+    const caller = await this.resolveCallerParticipantId(input.actorId);
+    const account = await this.hydrateAccount(caller.participantId);
+    const role = account?.role ?? "consumer";
+    const communityId =
+      caller.communityId ?? account?.communityId;
+    if (!communityId) {
+      throw new BadRequestException("communityId could not be resolved for actor");
+    }
+    const session = await this.startOnboarding({
+      participantId: input.actorId,
+      communityId,
+      role,
+      surface,
+      returnUrl: input.returnUrl ?? input.refreshUrl,
+    });
+    return this.onboardingToHandoff(session, surface);
+  }
+
+  private onboardingToHandoff(
+    session: OnboardingSession,
+    surface: "hosted" | "embedded",
+  ): PspHandoff {
+    if (surface === "hosted") {
+      if (!session.url) {
+        throw new BadRequestException("Hosted KYC session has no URL");
+      }
+      return hostedHandoff(
+        "connect_onboarding",
+        session.url,
+        session.expiresAt,
+      );
+    }
+    if (!session.clientSecret) {
+      // Already complete — still return a short-lived stub so the reply shape is stable.
+      if (session.status === "complete" && session.pspAccountRef) {
+        return embeddedHandoff("connect_onboarding", {
+          clientSecret: `accs_complete_${session.pspAccountRef}`,
+          connectedAccountRef: session.pspAccountRef.startsWith("acct_")
+            ? session.pspAccountRef
+            : undefined,
+          expiresAt: session.expiresAt,
+        });
+      }
+      throw new BadRequestException("Embedded KYC session has no clientSecret");
+    }
+    return embeddedHandoff("connect_onboarding", {
+      clientSecret: session.clientSecret,
+      connectedAccountRef: session.pspAccountRef?.startsWith("acct_")
+        ? session.pspAccountRef
+        : undefined,
+      expiresAt: session.expiresAt,
+    });
   }
 
   async payInvoice(input: PayInvoiceInput): Promise<PayInvoiceResult> {

@@ -56,7 +56,7 @@ describe("ManagerKycService (REQ-051)", () => {
       COMMUNITY,
       "https://ui.example/return",
     );
-    expect(result.url).toMatch(/^https:\/\/mock-psp\.local\/identity\//);
+    expect(result.url).toMatch(/^https:\/\/verify\.stripe\.com\//);
     expect(result.status).toBe("pending");
     expect(createConnect).not.toHaveBeenCalled();
     expect(createConnected).not.toHaveBeenCalled();

@@ -201,6 +201,9 @@ export class StripePspAdapter
     return {
       verificationId: session.id,
       url: session.url ?? `https://verify.stripe.com/start/${session.id}`,
+      ...(typeof session.client_secret === "string" && session.client_secret.length > 0
+        ? { clientSecret: session.client_secret }
+        : {}),
     };
   }
 

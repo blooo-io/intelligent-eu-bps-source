@@ -16,6 +16,19 @@ import { PayoutsService } from "../payouts/payouts.service.js";
 import { PaymentsService } from "./payments.service.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CURRENCY = /^[A-Z]{3}$/;
+
+function requireUuid(value: unknown, field: string): string {
+  if (typeof value !== "string" || !UUID.test(value)) {
+    throw new BadRequestException(`${field} must be a UUID`);
+  }
+  return value;
+}
+
+function requireSurface(value: unknown): "hosted" | "embedded" {
+  if (value === "hosted" || value === "embedded") return value;
+  throw new BadRequestException("surface must be hosted or embedded");
+}
 
 @Controller("internal/v1")
 @UseGuards(new ModuleAuthGuard({ roles: ["service", "operator"] }))
@@ -110,6 +123,113 @@ export class InternalPaymentsController {
       communityId: body.communityId,
       role: body.role,
       fresh: body.fresh,
+    });
+  }
+
+  /**
+   * REQ-052 / REQ-014 / A7-bis — EWDS startPayment (INT-440).
+   */
+  @Post(String.raw`payments\:start`)
+  @HttpCode(200)
+  @UseGuards(new ModuleAuthGuard({ roles: ["service"] }))
+  startPayment(
+    @Body()
+    body:
+      | {
+          invoiceId?: unknown;
+          actorId?: unknown;
+          surface?: unknown;
+          returnUrl?: unknown;
+        }
+      | undefined,
+  ) {
+    return this.payments.startPayment({
+      invoiceId: requireUuid(body?.invoiceId, "invoiceId"),
+      actorId: requireUuid(body?.actorId, "actorId"),
+      surface: requireSurface(body?.surface),
+      returnUrl:
+        typeof body?.returnUrl === "string" ? body.returnUrl : undefined,
+    });
+  }
+
+  /**
+   * REQ-015 — EWDS requestWithdrawal (INT-440).
+   */
+  @Post(String.raw`payouts\:request`)
+  @HttpCode(200)
+  @UseGuards(new ModuleAuthGuard({ roles: ["service"] }))
+  async requestWithdrawal(
+    @Body() body: { actorId?: unknown; currency?: unknown } | undefined,
+  ) {
+    const actorId = requireUuid(body?.actorId, "actorId");
+    const currency = body?.currency;
+    if (typeof currency !== "string" || !CURRENCY.test(currency)) {
+      throw new BadRequestException("currency must be an ISO 4217 code");
+    }
+    const row = await this.payouts.requestWithdrawalForActor({
+      actorId,
+      currency,
+    });
+    return {
+      payoutId: row.payoutId,
+      payoutStatus: row.status,
+      amount: row.amount,
+      currency: row.currency,
+    };
+  }
+
+  /**
+   * REQ-051 / A7-bis — EWDS startKyc (INT-440).
+   */
+  @Post(String.raw`kyc\:start`)
+  @HttpCode(200)
+  @UseGuards(new ModuleAuthGuard({ roles: ["service"] }))
+  startKyc(
+    @Body()
+    body:
+      | {
+          actorId?: unknown;
+          kind?: unknown;
+          surface?: unknown;
+          returnUrl?: unknown;
+          refreshUrl?: unknown;
+        }
+      | undefined,
+  ) {
+    const kind = body?.kind;
+    if (kind !== "connect_account" && kind !== "identity") {
+      throw new BadRequestException(
+        "kind must be connect_account or identity",
+      );
+    }
+    return this.payments.startKycCommand({
+      actorId: requireUuid(body?.actorId, "actorId"),
+      kind,
+      surface: requireSurface(body?.surface),
+      returnUrl:
+        typeof body?.returnUrl === "string" ? body.returnUrl : undefined,
+      refreshUrl:
+        typeof body?.refreshUrl === "string" ? body.refreshUrl : undefined,
+    });
+  }
+
+  /**
+   * REQ-014 / A7-bis — EWDS setupPaymentMethod (INT-440).
+   */
+  @Post(String.raw`payment-methods\:setup`)
+  @HttpCode(200)
+  @UseGuards(new ModuleAuthGuard({ roles: ["service"] }))
+  setupPaymentMethod(
+    @Body()
+    body:
+      | { actorId?: unknown; surface?: unknown; returnUrl?: unknown }
+      | undefined,
+  ) {
+    return this.payments.setupPaymentMethod({
+      actorId: requireUuid(body?.actorId, "actorId"),
+      surface: requireSurface(body?.surface),
+      returnUrl:
+        typeof body?.returnUrl === "string" ? body.returnUrl : undefined,
     });
   }
 }

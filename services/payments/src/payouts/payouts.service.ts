@@ -137,6 +137,40 @@ export class PayoutsService implements PayoutEventsHandler {
     return this.tx.run(() => this.performRequestWithdrawal(input));
   }
 
+  /**
+   * REQ-015 / A7 — EWDS requestWithdrawal target (actorId + currency only).
+   * Picks the earliest withdrawable period matching the currency.
+   */
+  async requestWithdrawalForActor(input: {
+    actorId: string;
+    currency: string;
+  }): Promise<PayoutRecord> {
+    const { participantId, communityId, withdrawable } =
+      await this.listForParticipant(input.actorId).then(async (listed) => {
+        const caller = await this.resolveCaller(input.actorId);
+        const account = await this.accountOf(caller.participantId);
+        return {
+          participantId: caller.participantId,
+          communityId: caller.communityId ?? account?.communityId,
+          withdrawable: listed.withdrawable,
+        };
+      });
+    if (!communityId) {
+      throw refuse("kyc_required");
+    }
+    const currency = input.currency.toUpperCase();
+    const match = withdrawable.find((w) => w.currency === currency);
+    if (!match) {
+      throw refuse("nothing_to_pay_out");
+    }
+    return this.requestWithdrawal({
+      participantId,
+      communityId,
+      period: match.period,
+      trigger: "participant",
+    });
+  }
+
   /** PAYOUT_EVENTS_HANDLER — runs inside the webhook transaction, after event-id dedupe (04 §7). */
   async onPayoutEvent(event: PspEvent): Promise<void> {
     const status = WEBHOOK_STATUS[event.kind];

@@ -184,7 +184,8 @@ export class MockPspAdapter
     _urls: { returnUrl: string; refreshUrl: string },
   ): Promise<HostedKycLink> {
     return {
-      url: `https://mock-psp.local/kyc/${accountRef}`,
+      // A7-bis — PspHandoff hosted URLs must be on a Stripe domain.
+      url: `https://connect.stripe.com/setup/e/${accountRef}/mock_link`,
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     };
   }
@@ -198,7 +199,8 @@ export class MockPspAdapter
     const verificationId = `vs_mock_${input.subjectId.replaceAll("-", "").slice(0, 12)}`;
     return {
       verificationId,
-      url: `https://mock-psp.local/identity/${verificationId}`,
+      url: `https://verify.stripe.com/start/${verificationId}`,
+      clientSecret: `${verificationId}_secret_test`,
     };
   }
 
@@ -324,7 +326,8 @@ export class MockPspAdapter
     const pspCheckoutRef = `mock_co_${shortId()}`;
     const session: CheckoutSession = {
       pspCheckoutRef,
-      checkoutUrl: `https://checkout.mock.invalid/${pspCheckoutRef}`,
+      // A7-bis — PspHandoff hosted URLs must be on a Stripe domain.
+      checkoutUrl: `https://checkout.stripe.com/c/pay/${pspCheckoutRef}`,
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     };
     this.checkoutsByKey.set(input.idempotencyKey, session);

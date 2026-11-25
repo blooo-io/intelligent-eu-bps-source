@@ -36,7 +36,7 @@
 | Remaining closeout | INT-437 | Done | [#207](https://github.com/blooo-io/intelligent-eu-bps-source/pull/207) | 4.4 live CGW · 6.4–6.6 · 6.8–6.15 · UAT-074 deprecated |
 | Dev evidence + crashloop | INT-438 | Done | [#210](https://github.com/blooo-io/intelligent-eu-bps-source/pull/210) | Probe all-green; OpenBao CGW seeded |
 | INT-439 CGW clientId/poll + reply encrypt | INT-439 | Done | [#209](https://github.com/blooo-io/intelligent-eu-bps-source/pull/209)/[#211](https://github.com/blooo-io/intelligent-eu-bps-source/pull/211)/[#212](https://github.com/blooo-io/intelligent-eu-bps-source/pull/212) | CrashLoops cleared; channels empty → TOPIC bind needs EWAG |
-| **Remediation v1.2.1 (audit ebed7e4)** | INT-440 | In progress | [#213](https://github.com/blooo-io/intelligent-eu-bps-source/pull/213) | Blockers 1–5+7 landed; PDF pdf-lib in; majors + D5.5 report + tag v1.2.1 remain |
+| **Remediation v1.2.1 (audit ebed7e4)** | INT-440 | In progress | [#213](https://github.com/blooo-io/intelligent-eu-bps-source/pull/213) | Blockers 1–7 landed (repo D5.5 report + DEV-01..14); majors §2 + e2e + tag v1.2.1 remain |
 
 ## Honesty downgrade (INT-440 / audit V1–V4)
 | Claimed Done | Reality | Action |

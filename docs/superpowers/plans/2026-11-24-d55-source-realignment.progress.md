@@ -67,7 +67,7 @@
 |---|---|---|
 | EWAG topiccreator / topic registration | Channels exist; `POST /topics` 403; messages `TOPIC::NOT_RELATED_TO_CHANNEL` | Send ontology-aligned schemas to Digital Spine (after INT-440 schema fix); they configure topics |
 | GSY market topics (A12) | `deploy/envs/dev` keeps `MARKET_ADAPTER=mock` + `INTAKE_BOOTSTRAP_S1=true` so e2e-dev StartRun has trades | Flip to `ewds` when EWAG registers GSY topics |
-| R2M gateway DID allow-list unknown | Empty `EWDS_COMMAND_ALLOWED_DIDS` rejects all commands | Log; set when R2M provides DID |
+| R2M gateway DID allow-list unknown | Empty `EWDS_COMMAND_ALLOWED_DIDS` rejects all commands (fail-closed; DID not invented). Chart/env leave the list empty on purpose. | Set when R2M provides the project-UI gateway DID |
 | Live Stripe keys | Never in repo; live mode with test keys + mode guard | Keep test keys only |
 
 ## UAT re-runs

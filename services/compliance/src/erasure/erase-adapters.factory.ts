@@ -26,8 +26,15 @@ export function createEraseAdapters(
   const forced = (env.ERASURE_ADAPTERS ?? "").trim().toLowerCase();
   const participants = env.PARTICIPANTS_INTERNAL_URL?.trim();
   const payments = env.PAYMENTS_INTERNAL_URL?.trim();
+  const production = env.NODE_ENV === "production";
 
   if (forced === "mock") {
+    // INT-440 — in-process mocks never boot in cluster images.
+    if (production) {
+      throw new Error(
+        "ERASURE_ADAPTERS=mock refused when NODE_ENV=production",
+      );
+    }
     return {
       idp: new MockIdpAdapter(),
       psp: new MockPspEraseAdapter(),
@@ -54,6 +61,12 @@ export function createEraseAdapters(
       psp: new HttpPspEraseAdapter(payments),
       mode: "http",
     };
+  }
+
+  if (production) {
+    throw new Error(
+      "ERASURE_ADAPTERS=http (or PARTICIPANTS_INTERNAL_URL + PAYMENTS_INTERNAL_URL) required when NODE_ENV=production",
+    );
   }
 
   return {

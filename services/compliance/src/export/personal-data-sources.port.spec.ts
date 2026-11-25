@@ -22,6 +22,12 @@ describe("personal-data-sources.port (REQ-013 / Task 3.20)", () => {
     expect(sources).toBeInstanceOf(HttpPersonalDataSources);
   });
 
+  it("INT-440: Ana Silva fixture refused when NODE_ENV=production", () => {
+    expect(() =>
+      createPersonalDataSources({ NODE_ENV: "production" }),
+    ).toThrow(/Ana Silva refused/);
+  });
+
   it("FixturePersonalDataSources returns the Lisboa sample payload", async () => {
     const sources = new FixturePersonalDataSources();
     const participant = await sources.getParticipantPersonalData(PARTICIPANT);

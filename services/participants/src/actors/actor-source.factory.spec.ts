@@ -36,4 +36,10 @@ describe("createActorSource (REQ-008)", () => {
       createActorSource({ ACTOR_SOURCE: "ewds", CGW_API_KEY: "k" }),
     ).toThrow(/CGW_BASE_URL/);
   });
+
+  it("INT-440: mock ActorSource refused when NODE_ENV=production", () => {
+    expect(() =>
+      createActorSource({ ACTOR_SOURCE: "mock", NODE_ENV: "production" }),
+    ).toThrow(/ACTOR_SOURCE=mock refused when NODE_ENV=production/);
+  });
 });

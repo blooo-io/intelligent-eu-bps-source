@@ -34,6 +34,20 @@ CREATE TABLE IF NOT EXISTS fixture_billed_trades (
   marked_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- INT-440 / REQ-053 — durable EWDS inbound cache (≤ 7 days).
+-- Applied to every module DB; publication + participants (Actor) use it when DATABASE_URL is set.
+CREATE TABLE IF NOT EXISTS ewds_inbound_message (
+  message_id   TEXT PRIMARY KEY,
+  topic_name   TEXT NOT NULL,
+  sender       TEXT NOT NULL,
+  received_at  TIMESTAMPTZ NOT NULL,
+  payload      TEXT NULL,
+  status       TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ewds_inbound_message_received_at_idx
+  ON ewds_inbound_message (received_at);
+
 -- INT-214 — publication for Debezium pgoutput (module role owns the table).
 DO $$
 BEGIN

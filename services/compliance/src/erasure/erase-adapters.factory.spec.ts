@@ -40,6 +40,23 @@ describe("createEraseAdapters (REQ-013)", () => {
     const adapters = createEraseAdapters({});
     expect(adapters.mode).toBe("mock");
   });
+
+  it("INT-440: mock fallback refused when NODE_ENV=production", () => {
+    expect(() => createEraseAdapters({ NODE_ENV: "production" })).toThrow(
+      /NODE_ENV=production/,
+    );
+  });
+
+  it("INT-440: ERASURE_ADAPTERS=mock refused when NODE_ENV=production", () => {
+    expect(() =>
+      createEraseAdapters({
+        NODE_ENV: "production",
+        ERASURE_ADAPTERS: "mock",
+        PARTICIPANTS_INTERNAL_URL: "http://participants:8080",
+        PAYMENTS_INTERNAL_URL: "http://payments:8080",
+      }),
+    ).toThrow(/ERASURE_ADAPTERS=mock refused/);
+  });
 });
 
 describe("HttpIdpEraseAdapter / HttpPspEraseAdapter (REQ-013)", () => {

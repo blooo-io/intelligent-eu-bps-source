@@ -18,8 +18,8 @@ hero:
       text: View on GitHub
       link: https://github.com/blooo-io/intelligent-eu-bps-source
 features:
-  - title: Producer is the bank
-    details: One self-billing invoice per consumer→producer pair, netting, carry-forward threshold, and direct payment to the producer via Stripe Connect.
+  - title: Two-level billing
+    details: A monthly statement per participant and self-billing invoices per producer→consumer pair, netted, with a carry-forward threshold. Consumers pay the producer's Stripe Connect account directly; producers withdraw their balance.
   - title: Full architecture on this site
     details: Functional, logical, application, technical and physical views — with Mermaid diagrams — published from the validated docs, no repository checkout required.
   - title: Contract-first APIs

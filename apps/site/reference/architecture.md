@@ -18,7 +18,8 @@ Start from the [architecture overview](/architecture/).
 
 ```mermaid
 flowchart LR
-  UI[Web or your UI] --> GW[API gateway + OIDC]
+  UI[Reference client] --> GW[API gateway + OIDC]
+  PUI[Project UI] -.EWDS.-> CG[Client Gateway adapters] --> MOD
   GW --> MOD[NestJS modules]
   MOD --> PG[(PostgreSQL per module)]
   MOD --> OB[Outbox] --> CDC[CDC] --> BUS[NATS JetStream]
@@ -32,7 +33,7 @@ flowchart LR
 1. **Contract-first** — change OpenAPI/AsyncAPI before code.
 2. **Module boundaries** — no cross-module database access.
 3. **Idempotent consumers** — deduplicate on `eventId`.
-4. **Single master** — Stripe (or your PSP) owns payment objects.
+4. **Single master (TP-7)** — billing owns invoice PDFs and statements; your PSP owns account/KYC execution data.
 5. **Permissive licences** — MIT / Apache-2.0 dependencies only.
 
 Module directory map: [Modules](/reference/modules). Contributor rules stay in [`AGENTS.md`](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/AGENTS.md) in the repository.

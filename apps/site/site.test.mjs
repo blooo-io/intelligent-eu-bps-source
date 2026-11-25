@@ -200,3 +200,37 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     );
   });
 });
+
+describe("v6.1 wording (INT-437)", () => {
+  const pages = [
+    "index.md",
+    "guide/introduction.md",
+    "guide/deploy.md",
+    "guide/adapters.md",
+    "guide/security.md",
+    "guide/what-you-get.md",
+    "guide/configuration.md",
+    "reference/architecture.md",
+  ];
+  it("drops retired model terms", () => {
+    for (const p of pages) {
+      const t = readFileSync(path.join(root, p), "utf8");
+      assert.doesNotMatch(
+        t,
+        /producer is the bank|early settlement|Stripe Invoicing|Stripe is master|your own UI/i,
+        p,
+      );
+    }
+  });
+  it("explains the EWDS path and the Stripe residency note", () => {
+    assert.match(
+      readFileSync(path.join(root, "guide/introduction.md"), "utf8"),
+      /monthly statement/i,
+    );
+    assert.match(readFileSync(path.join(root, "guide/adapters.md"), "utf8"), /EWDS/);
+    assert.match(
+      readFileSync(path.join(root, "guide/security.md"), "utf8"),
+      /Stripe Payments Europe/,
+    );
+  });
+});

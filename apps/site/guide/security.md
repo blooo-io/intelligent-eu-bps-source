@@ -5,7 +5,8 @@
 - **No secrets in Git.** Use your organisation’s secret manager and inject at runtime.
 - **EU data residency.** Prefer EU/adequate hosting for personal data (NFR-002).
 - **Minimise personal data** in logs, traces and events — use opaque identifiers.
-- **Stripe is master** of Connect accounts, KYC, invoices and payments; store ids and rebuildable caches only (TP-7).
+- **Single master per data item (TP-7).** Billing masters monthly statements, invoices (number, PDF, status), payment and payout records. Stripe masters connected accounts, KYC evidence and the **execution** of charges and payouts; billing stores Stripe ids and a webhook-fed status cache — not invoice PDFs.
+- **Stripe data residency.** For EEA Connect accounts the contracting entity is **Stripe Payments Europe, Ltd.** (Ireland). Stripe's DPA applies; transfers to Stripe, Inc. (US) rely on the EU–US Data Privacy Framework and standard contractual clauses. Residual risk from US group access is mitigated by sending **no invoice or statement content** to Stripe — only payment-instrument and KYC data required for charges, onboarding and payouts. DPO sign-off on processor roles remains pending (see physical architecture §4.1).
 
 ## Recommended secret categories
 

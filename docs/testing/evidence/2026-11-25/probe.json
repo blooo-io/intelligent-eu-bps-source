@@ -1,48 +1,46 @@
 {
-  "collectedAt": "2026-11-25T06:17:35.889Z",
+  "collectedAt": "2026-11-25T06:58:20.586Z",
   "rulesRef": "docs/testing/v6.1-evidence-matrix.md",
   "namespace": "int-apps",
   "pods": {
-    "ready": 17,
-    "total": 22,
+    "ready": 15,
+    "total": 18,
     "crashLoop": [
-      "compliance-686dfd9f45-47qv9",
-      "participants-7956f4745-wj9c4",
-      "payments-69cc956b64-twgmz",
-      "publication-86969cc44c-hxlcw",
-      "reference-data-5d878f8875-d7bst"
+      "compliance-6dd57496c6-8fvhg",
+      "publication-689d8d77dd-v2dkv",
+      "reference-data-6f99599c79-h9vf5"
     ]
   },
   "externalSecretsCgw": [
     {
       "name": "compliance-cgw",
-      "ready": false,
-      "reason": "SecretSyncedError",
-      "message": "could not get secret data from provider"
+      "ready": true,
+      "reason": "SecretSynced",
+      "message": "secret synced"
     },
     {
       "name": "participants-cgw",
-      "ready": false,
-      "reason": "SecretSyncedError",
-      "message": "could not get secret data from provider"
+      "ready": true,
+      "reason": "SecretSynced",
+      "message": "secret synced"
     },
     {
       "name": "publication-cgw",
-      "ready": false,
-      "reason": "SecretSyncedError",
-      "message": "could not get secret data from provider"
+      "ready": true,
+      "reason": "SecretSynced",
+      "message": "secret synced"
     },
     {
       "name": "reference-data-cgw",
-      "ready": false,
-      "reason": "SecretSyncedError",
-      "message": "could not get secret data from provider"
+      "ready": true,
+      "reason": "SecretSynced",
+      "message": "secret synced"
     },
     {
       "name": "trade-intake-cgw",
-      "ready": false,
-      "reason": "SecretSyncedError",
-      "message": "could not get secret data from provider"
+      "ready": true,
+      "reason": "SecretSynced",
+      "message": "secret synced"
     }
   ],
   "stripeTest": {
@@ -61,27 +59,7 @@
   "blockers": [
     {
       "id": "crashloop",
-      "message": "CrashLoopBackOff: compliance-686dfd9f45-47qv9, participants-7956f4745-wj9c4, payments-69cc956b64-twgmz, publication-86969cc44c-hxlcw, reference-data-5d878f8875-d7bst"
-    },
-    {
-      "id": "externalsecret-compliance-cgw",
-      "message": "could not get secret data from provider"
-    },
-    {
-      "id": "externalsecret-participants-cgw",
-      "message": "could not get secret data from provider"
-    },
-    {
-      "id": "externalsecret-publication-cgw",
-      "message": "could not get secret data from provider"
-    },
-    {
-      "id": "externalsecret-reference-data-cgw",
-      "message": "could not get secret data from provider"
-    },
-    {
-      "id": "externalsecret-trade-intake-cgw",
-      "message": "could not get secret data from provider"
+      "message": "CrashLoopBackOff: compliance-6dd57496c6-8fvhg, publication-689d8d77dd-v2dkv, reference-data-6f99599c79-h9vf5"
     },
     {
       "id": "cgw-api-key",

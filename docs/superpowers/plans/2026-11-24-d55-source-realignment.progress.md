@@ -33,7 +33,7 @@
 | WS3 KYC catch-up | INT-431 | Done | [#199](https://github.com/blooo-io/intelligent-eu-bps-source/pull/199) squash-merged `6e8dd7b` | 3.2–3.11, 3.13–3.17 |
 | WS4 EWDS transport catch-up | INT-432 | Done | [#200](https://github.com/blooo-io/intelligent-eu-bps-source/pull/200) squash-merged `dd5b3dc` | 4.13–4.18 |
 | Release train unblockers | INT-433…436 | Done | [#202](https://github.com/blooo-io/intelligent-eu-bps-source/pull/202)–[#205](https://github.com/blooo-io/intelligent-eu-bps-source/pull/205) | nodemailer · trivyignore · ewds-client Docker · participants mocks |
-| Remaining closeout | INT-437 | In progress | branch `cursor/feature-int-437-d55-remaining-closeout-5f1c` | 4.4 live CGW snapshot · 6.14 run_path · 6.15 site |
+| Remaining closeout | INT-437 | In progress | branch `cursor/feature-int-437-d55-remaining-closeout-5f1c` | 4.4 live CGW · 1.13 already done · 6.4–6.6 · 6.8–6.15 · UAT-074 deprecated |
 
 ## Decisions / deviations
 | When | What | Why |
@@ -51,9 +51,10 @@
 | Item | Impact | Next |
 |---|---|---|
 | EWAG topics/roles for live CGW UAT re-run | Adapters stay `ewds` in Helm; UATs stay labelled mock-path until topics granted | Coordinate with EWAG; then flip `run_path` to `live-cg` |
+| Spec vault sync (Task 6.7) | `scripts/sync-spec.mjs` ready; vault path / `draft v6.1` gate not available in this agent | Spec owner publishes vault v6.1 then run sync |
 | D5.5 Word report (Tasks 6.17–6.19) | Outside git — INT-90 / INT-91 | Drive deliverable + partner review |
 
 ## UAT re-runs
 | When | What | Result |
 |---|---|---|
-| 2026-11-25 | Task 6.14 packaging on `v1.2.0` | All in-scope notes have `run_path`; **63 Pass / 0 Blocked** (27 mock-path). Live CGW UAT execution still pending EWAG grants. |
+| 2026-11-25 | Task 6.14 packaging on `v1.2.0` | All in-scope notes have `run_path`; **62 Pass / 0 Blocked** (27 mock-path). Live CGW UAT execution still pending EWAG grants. |

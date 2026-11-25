@@ -23,7 +23,7 @@
 
 **Validation (D5.5 V1)**
 
-[![UAT](https://img.shields.io/badge/UAT-63%2F63%20Pass-brightgreen)](docs/testing/v1-validation-summary.md)
+[![UAT](https://img.shields.io/badge/UAT-62%2F62%20Pass-brightgreen)](docs/testing/v1-validation-summary.md)
 [![Horizon Europe](https://img.shields.io/badge/Horizon%20Europe-GA%20101160678-003399)](https://cordis.europa.eu/project/id/101160678)
 [![Deliverable](https://img.shields.io/badge/D5.5-T5.6-0B5FFF)](docs/release/RELEASE-NOTES.md)
 

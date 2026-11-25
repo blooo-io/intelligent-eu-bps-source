@@ -2,7 +2,7 @@
 
 Traceability / validation snapshot for D5.5. Source of truth remains the UAT item notes and [`traceability-dashboard.md`](../requirements/traceability-dashboard.md).
 
-**As of 2026-11-25 (Europe/Paris), tag v1.2.0 (INT-437 / Task 6.14):** **63** in-scope UATs — **63 Pass** (incl. Pass on mock path), **0 Blocked**, **0 Not Run**, **0 Fail**.
+**As of 2026-11-25 (Europe/Paris), tag v1.2.0 (INT-437 / Task 6.14):** **62** in-scope UATs — **62 Pass** (incl. Pass on mock path), **0 Blocked**, **0 Not Run**, **0 Fail**.
 
 Counts are computed from UAT front matter (see [`v6.1-rerun.md`](v6.1-rerun.md)). Mock-path results use `run_path: mock` or `status: Pass on mock path`. Live CGW cases that were not re-run stay labelled mock-path.
 
@@ -90,7 +90,7 @@ Path wording: where the UAT note carries `run_path: mock` or `status: Pass on mo
 | UAT-071 | REQ-054 | Pass | stripe-test |
 | UAT-072 | REQ-055 | Pass | stripe-test |
 | UAT-073 | REQ-056 | Pass | stripe-test |
-| UAT-074 | REQ-057 | Pass | stripe-test |
+| UAT-074 | REQ-057 | Deprecated (REQ-057) | |
 | UAT-075 | REQ-058 | Pass | stripe-test |
 | UAT-078 | REQ-061 | Pass | mock path |
 

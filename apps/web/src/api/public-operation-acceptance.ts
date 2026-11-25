@@ -15,8 +15,9 @@ export const ACCEPTED_STATUSES: Readonly<Record<string, readonly number[]>> = {
   createIdentityVerification: [200],
   getMyKycStatus: [200],
   attachMyPaymentMethod: [200],
-  // Deprecated KYC submit. A consumer is rejected with the documented 400.
-  submitPaymentOnboardingRequirements: [200, 400],
+  // Deprecated KYC submit. Consumer → 400; INT-440 production gate → 404
+  // unless ALLOW_KYC_TEST_FIXTURE=true (OpenAPI documents 404).
+  submitPaymentOnboardingRequirements: [200, 400, 404],
   listMyPayouts: [200],
   requestWithdrawal: [201, 409],
   listMyBalances: [200],

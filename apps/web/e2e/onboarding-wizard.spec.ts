@@ -20,6 +20,9 @@ test.describe("AC-01 onboarding wizard (authenticated)", () => {
     await expect(page).toHaveURL(/\/onboarding/, { timeout: 15_000 });
     await expectPageReady(page, /get ready/i);
     await expect(page.getByText("Billing identity")).toBeVisible();
-    await expect(page.getByText("Accept & self-billing")).toBeVisible();
+    // Consumer → "Accept terms"; seller → "Accept & self-billing" (INT-429).
+    await expect(
+      page.getByText(/Accept terms|Accept & self-billing/),
+    ).toBeVisible();
   });
 });

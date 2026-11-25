@@ -50,4 +50,12 @@ describe("stripe-fresh-billing-run.mjs (INT-228 / INT-238)", () => {
     assert.match(src, /intakeRefresh/);
     assert.match(src, /2026-11-01T00:00:00Z/);
   });
+
+  it("provisions payer and manager KYC fixtures for e2e (INT-440 / REQ-045)", () => {
+    assert.match(src, /KYC_FIXTURES/);
+    assert.match(src, /provisionKycFixtures/);
+    assert.match(src, /uat-manager-sofia/);
+    assert.match(src, /s1-consumer-lea/);
+    assert.match(src, /uat-member-hugo/);
+  });
 });

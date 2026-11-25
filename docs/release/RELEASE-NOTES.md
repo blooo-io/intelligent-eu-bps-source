@@ -37,6 +37,7 @@ v6.1 source realignment (INT-422 parent; day closeouts INT-423…INT-430):
 - **INT-433** — bump `nodemailer` to 10.x (clear Trivy HIGH CVEs on 8.0.11).
 - **INT-434** — suppress distroless `libssl3t64` / `libzstd1` Trivy findings with no Fixed Version so `supply-chain` can green and `stable-release` can cut `v1.2.0`.
 - **INT-435** — Dockerfiles for compliance / participants / publication / reference-data COPY `@intelligent/ewds-client` (WS4 dep) so image builds succeed.
+- **INT-436** — participants Dockerfile COPY `@intelligent/mocks` (ActorSource fixtures) so image builds succeed.
 
 ## Changes since v1.1.5
 

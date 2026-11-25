@@ -8,13 +8,16 @@ RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/module-template/package.json packages/module-template/
 COPY packages/ewds-client/package.json packages/ewds-client/
+COPY mocks/package.json mocks/
 COPY services/participants/package.json services/participants/
 COPY config ./config
 RUN pnpm install --frozen-lockfile --filter @intelligent/participants...
 COPY packages/module-template packages/module-template
 COPY packages/ewds-client packages/ewds-client
+COPY mocks mocks
 COPY services/participants services/participants
 RUN pnpm --filter @intelligent/module-template build \
+ && pnpm --filter @intelligent/mocks build \
  && pnpm --filter @intelligent/participants build \
  && pnpm --filter @intelligent/participants deploy --prod /out
 

@@ -272,4 +272,165 @@ describe("EWDS topic payload from contract events (INT-376, NFR-004, UAT-070)", 
     expect(payment.failureCategory).toBe("card_declined");
     expect(payment.paymentDate).toBeNull();
   });
+
+  it("REQ-059: StatementIssued -> billingStatement valid, netBalance -3.2, balanceDirection pay", async () => {
+    const dataspace = createMockDataSpace();
+    const store = new PublicationStore();
+    const service = new PublicationService(store, dataspace);
+    const bus = new InMemoryEventBus();
+    const listener = new BillingEventsListener(bus, service);
+    await listener.onModuleInit();
+
+    await bus.publish(
+      "StatementIssued",
+      envelope("StatementIssued", "AC-06", {
+        billingId: SETTLEMENT_ID,
+        actorId: CONSUMER,
+        siteId: null,
+        billingPeriodFrom: "2026-11-01T00:00:00.000Z",
+        billingPeriodUntil: "2026-12-01T00:00:00.000Z",
+        billingStatus: "Open",
+        overdueDate: null,
+        totalBought: 3.2,
+        totalSold: 0,
+        netBalance: -3.2,
+        balanceDirection: "pay",
+        totalEnergyAmount: 3.2,
+        totalGridFeeAmount: 0,
+        totalTaxAmount: 0,
+        totalAmountDue: 3.2,
+        totalAmountPaid: 0,
+        outstandingAmount: 3.2,
+        currency: "EUR",
+        invoiceIds: [INVOICE_ID],
+        payoutIds: null,
+      }),
+    );
+
+    const row = dataspace
+      .recorded()
+      .find((r) => r.topic === "billingStatement")!.message as Record<
+      string,
+      unknown
+    >;
+    expect(row.billingId).toBe(SETTLEMENT_ID);
+    expect(row.netBalance).toBe(-3.2);
+    expect(row.balanceDirection).toBe("pay");
+    expect(store.listOutbound().every((o) => o.status === "published")).toBe(
+      true,
+    );
+  });
+
+  it("REQ-060: PayoutStatusChanged paid -> billingPayout valid, no bank field", async () => {
+    const dataspace = createMockDataSpace();
+    const store = new PublicationStore();
+    const service = new PublicationService(store, dataspace);
+    const bus = new InMemoryEventBus();
+    const listener = new BillingEventsListener(bus, service);
+    await listener.onModuleInit();
+
+    const payoutId = "b1b2b3b4-b5b6-4788-9999-cccccccccccc";
+    await bus.publish(
+      "PayoutStatusChanged",
+      envelope("PayoutStatusChanged", "AC-07", {
+        payoutId,
+        actorId: PRODUCER,
+        amount: 14.25,
+        currency: "CHF",
+        payoutStatus: "paid",
+        trigger: "manual",
+        statementIds: [SETTLEMENT_ID],
+        arrivalDate: "2026-12-05",
+        failureCategory: null,
+      }),
+    );
+
+    const row = dataspace
+      .recorded()
+      .find((r) => r.topic === "billingPayout")!.message as Record<
+      string,
+      unknown
+    >;
+    expect(row.payoutStatus).toBe("paid");
+    expect(JSON.stringify(row)).not.toMatch(/iban|bank/i);
+  });
+
+  it("A5: KycStatusChanged verified -> billingKycStatus kycVerified true, accountStatus Active", async () => {
+    const dataspace = createMockDataSpace();
+    const store = new PublicationStore();
+    const service = new PublicationService(store, dataspace);
+    const bus = new InMemoryEventBus();
+    const listener = new BillingEventsListener(bus, service);
+    await listener.onModuleInit();
+
+    await bus.publish(
+      "KycStatusChanged",
+      envelope("KycStatusChanged", "AC-07", {
+        actorId: PRODUCER,
+        kycVerified: true,
+        accountStatus: "Active",
+        verificationKind: "connect_account",
+      }),
+    );
+
+    const row = dataspace
+      .recorded()
+      .find((r) => r.topic === "billingKycStatus")!.message as Record<
+      string,
+      unknown
+    >;
+    expect(row.kycVerified).toBe(true);
+    expect(row.accountStatus).toBe("Active");
+  });
+
+  it("NFR-004: no published payload contains keys email|name|address|iban|stripe*", async () => {
+    const dataspace = createMockDataSpace();
+    const store = new PublicationStore();
+    const service = new PublicationService(store, dataspace);
+    const bus = new InMemoryEventBus();
+    const listener = new BillingEventsListener(bus, service);
+    await listener.onModuleInit();
+
+    await bus.publish(
+      "StatementIssued",
+      envelope("StatementIssued", "AC-06", {
+        billingId: SETTLEMENT_ID,
+        actorId: CONSUMER,
+        billingPeriodFrom: "2026-11-01T00:00:00.000Z",
+        billingPeriodUntil: "2026-12-01T00:00:00.000Z",
+        billingStatus: "Open",
+        netBalance: -1,
+        balanceDirection: "pay",
+        currency: "EUR",
+        invoiceIds: [],
+      }),
+    );
+    await bus.publish(
+      "PayoutStatusChanged",
+      envelope("PayoutStatusChanged", "AC-07", {
+        payoutId: "b1b2b3b4-b5b6-4788-9999-cccccccccccc",
+        actorId: PRODUCER,
+        amount: 1,
+        currency: "EUR",
+        payoutStatus: "paid",
+        trigger: "manual",
+        statementIds: [SETTLEMENT_ID],
+      }),
+    );
+    await bus.publish(
+      "KycStatusChanged",
+      envelope("KycStatusChanged", "AC-07", {
+        actorId: PRODUCER,
+        kycVerified: true,
+        accountStatus: "Active",
+        verificationKind: "connect_account",
+      }),
+    );
+
+    for (const m of service.recorded()) {
+      expect(JSON.stringify(m.message)).not.toMatch(
+        /"(email|name|address|iban|stripe[A-Za-z]*)"\s*:/,
+      );
+    }
+  });
 });

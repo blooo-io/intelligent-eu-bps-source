@@ -48,7 +48,19 @@ export class BillingEventsListener implements OnModuleInit {
     await this.bus.subscribe("PaymentStatusChanged", (p) =>
       this.dedupe(p, () => this.onPayment(p)),
     );
-    this.logger.log("subscribed to Invoice*/PaymentStatusChanged");
+    // Task 4.12 / INT-440 — three remaining EWDS record topics.
+    await this.bus.subscribe("StatementIssued", (p) =>
+      this.dedupe(p, () => this.onStatement(p)),
+    );
+    await this.bus.subscribe("PayoutStatusChanged", (p) =>
+      this.dedupe(p, () => this.onPayout(p)),
+    );
+    await this.bus.subscribe("KycStatusChanged", (p) =>
+      this.dedupe(p, () => this.onKyc(p)),
+    );
+    this.logger.log(
+      "subscribed to Invoice*/Payment/Statement/Payout/KycStatusChanged",
+    );
   }
 
   async onInvoiceIssued(payload: unknown): Promise<void> {
@@ -157,6 +169,117 @@ export class BillingEventsListener implements OnModuleInit {
       ),
       createdAt: at,
       updatedAt: at,
+    });
+  }
+
+  /** REQ-059 — StatementIssued → billingStatement. */
+  async onStatement(payload: unknown): Promise<void> {
+    const env = asEnvelope(payload);
+    const data = env.data;
+    const billingId = asString(data.billingId ?? data.statementId);
+    const actorId = asString(data.actorId ?? data.memberId ?? data.participantId);
+    if (!billingId || !actorId) return;
+    const at = env.occurredAt || new Date().toISOString();
+    const netBalance = Number(data.netBalance ?? 0);
+    const balanceDirection = asString(data.balanceDirection);
+    await this.publication.onStatementIssued({
+      billingId,
+      communityId: env.communityId,
+      actorId,
+      siteId:
+        data.siteId === null || data.siteId === undefined
+          ? null
+          : asString(data.siteId),
+      billingMode: env.billingMode,
+      billingPeriodFrom: asString(data.billingPeriodFrom ?? data.periodFrom),
+      billingPeriodUntil: asString(data.billingPeriodUntil ?? data.periodUntil),
+      billingStatus: asString(data.billingStatus ?? data.statementStatus, "Open"),
+      overdueDate:
+        data.overdueDate === null || data.overdueDate === undefined
+          ? null
+          : asString(data.overdueDate),
+      totalBought: Number(data.totalBought ?? 0),
+      totalSold: Number(data.totalSold ?? 0),
+      netBalance,
+      balanceDirection:
+        balanceDirection === "pay" ||
+        balanceDirection === "receive" ||
+        balanceDirection === "settled"
+          ? balanceDirection
+          : netBalance < 0
+            ? "pay"
+            : netBalance > 0
+              ? "receive"
+              : "settled",
+      totalEnergyAmount: Number(data.totalEnergyAmount ?? 0),
+      totalGridFeeAmount: Number(data.totalGridFeeAmount ?? 0),
+      totalTaxAmount: Number(data.totalTaxAmount ?? 0),
+      totalAmountDue: Number(data.totalAmountDue ?? Math.abs(netBalance)),
+      totalAmountPaid: Number(data.totalAmountPaid ?? 0),
+      outstandingAmount: Number(
+        data.outstandingAmount ?? Math.abs(netBalance),
+      ),
+      currency: asString(data.currency, "EUR"),
+      invoiceIds: Array.isArray(data.invoiceIds)
+        ? data.invoiceIds.map(String)
+        : [],
+      payoutIds: Array.isArray(data.payoutIds)
+        ? data.payoutIds.map(String)
+        : null,
+      createdAt: at,
+      updatedAt: at,
+    });
+  }
+
+  /** REQ-060 — PayoutStatusChanged → billingPayout. */
+  async onPayout(payload: unknown): Promise<void> {
+    const env = asEnvelope(payload);
+    const data = env.data;
+    const payoutId = asString(data.payoutId);
+    const actorId = asString(data.actorId ?? data.participantId);
+    if (!payoutId || !actorId) return;
+    const at = env.occurredAt || new Date().toISOString();
+    await this.publication.onPayoutStatusChanged({
+      payoutId,
+      actorId,
+      communityId: env.communityId,
+      billingMode: env.billingMode,
+      amount: Number(data.amount ?? 0),
+      currency: asString(data.currency, "EUR"),
+      payoutStatus: asString(data.payoutStatus ?? data.status, "requested"),
+      trigger: asString(data.trigger, "manual") === "auto" ? "auto" : "manual",
+      statementIds: Array.isArray(data.statementIds)
+        ? data.statementIds.map(String)
+        : [],
+      arrivalDate:
+        data.arrivalDate === null || data.arrivalDate === undefined
+          ? null
+          : asString(data.arrivalDate),
+      failureCategory:
+        typeof data.failureCategory === "string" ? data.failureCategory : null,
+      createdAt: at,
+      updatedAt: at,
+    });
+  }
+
+  /** A5 — KycStatusChanged → billingKycStatus. */
+  async onKyc(payload: unknown): Promise<void> {
+    const env = asEnvelope(payload);
+    const data = env.data;
+    const actorId = asString(data.actorId ?? data.participantId);
+    if (!actorId) return;
+    const status = asString(data.accountStatus ?? data.status, "Pending");
+    const verified =
+      data.kycVerified === true ||
+      status.toLowerCase() === "active" ||
+      asString(data.kycStatus).toLowerCase() === "verified";
+    await this.publication.onKycStatusChanged({
+      actorId,
+      communityId: env.communityId,
+      kycVerified: verified,
+      accountStatus: verified && status === "Pending" ? "Active" : status,
+      verificationKind: asString(data.verificationKind, "connect_account"),
+      updatedAt: env.occurredAt || new Date().toISOString(),
     });
   }
 

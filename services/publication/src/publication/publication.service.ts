@@ -7,14 +7,24 @@ import { randomUUID } from "node:crypto";
 import { PublicationStore } from "../domain/store.js";
 import type {
   InvoiceProjection,
+  KycProjection,
   OutboundMessage,
   PaymentProjection,
+  PayoutProjection,
+  StatementProjection,
 } from "../domain/types.js";
+import type { DataSpaceTopic } from "../domain/types.js";
 import {
   DATASPACE_PORT,
   type DataSpacePort,
 } from "../dataspace/dataspace.port.js";
-import { toBillingInvoice, toBillingPayment } from "./mapper.js";
+import {
+  toBillingInvoice,
+  toBillingKycStatus,
+  toBillingPayment,
+  toBillingPayout,
+  toBillingStatement,
+} from "./mapper.js";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -96,6 +106,33 @@ export class PublicationService {
     await this.publishPayment(payment.paymentId);
   }
 
+  /** REQ-059 — StatementIssued → billingStatement. */
+  async onStatementIssued(statement: StatementProjection): Promise<void> {
+    await this.publishOrQueue(
+      "billingStatement",
+      statement.billingId,
+      toBillingStatement(statement),
+    );
+  }
+
+  /** REQ-060 — PayoutStatusChanged → billingPayout. */
+  async onPayoutStatusChanged(payout: PayoutProjection): Promise<void> {
+    await this.publishOrQueue(
+      "billingPayout",
+      payout.payoutId,
+      toBillingPayout(payout),
+    );
+  }
+
+  /** A5 — KycStatusChanged → billingKycStatus. */
+  async onKycStatusChanged(kyc: KycProjection): Promise<void> {
+    await this.publishOrQueue(
+      "billingKycStatus",
+      `${kyc.actorId}:${kyc.verificationKind}`,
+      toBillingKycStatus(kyc),
+    );
+  }
+
   /** RetryPending — AC-14 (REQ-048). */
   async retryPending(): Promise<{ accepted: true; retried: number }> {
     const rows = this.store.listPendingOrFailed();
@@ -164,7 +201,7 @@ export class PublicationService {
   }
 
   private async publishOrQueue(
-    topic: "billingInvoice" | "billingPayment",
+    topic: DataSpaceTopic,
     aggregateId: string,
     payload: Record<string, unknown>,
   ): Promise<void> {

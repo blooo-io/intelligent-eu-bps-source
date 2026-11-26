@@ -531,13 +531,13 @@ sequenceDiagram
 | S2 Profile update | REQ-009 / UAT-009 | `int:Actor` |
 | S3 Terms | REQ-050 / UAT-062 | `int:UserAccount` |
 | S4 KYC / PM | REQ-051 / REQ-040 | `int:UserAccount` |
-| S5 Readiness | REQ-045 | Actor + UserAccount |
+| S5 Readiness | REQ-045 | `int:Actor`, `int:UserAccount` |
 | S6 Trades | REQ-001 | `int:EnergyTrade` |
 | S7 Billing run | REQ-054 / REQ-059 | `int:Billing`, `int:Invoice` |
 | S8 Pay | REQ-014 | `int:Payment`, `int:Invoice` |
 | S9 Failure | REQ-016 / REQ-061 | `int:Payment`, `int:Invoice` |
 | S10 Payout | REQ-015 | `int:Payout` |
 | S11 Invoice status | REQ-044 | `int:Invoice` |
-| S12 Erasure | REQ-013 | Actor PII; keep Invoice ids |
-| S13 Commands | REQ-052 | see table above |
-| S14 Purge | REQ-053 | published wire copies |
+| S12 Erasure | REQ-013 | `int:Actor`, `int:UserAccount`, `int:Invoice` |
+| S13 Commands | REQ-052 | `int:Actor`, `int:UserAccount`, `int:Invoice`, `int:Payment`, `int:Payout`, `int:Billing`, `int:Community` |
+| S14 Purge | REQ-053 | `int:Billing`, `int:Invoice`, `int:Payment`, `int:Payout`, `int:UserAccount` |

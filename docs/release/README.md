@@ -24,6 +24,6 @@ Operator-facing notes for the V1 Billing & Payment Service release package. Arch
 | [RELEASE-NOTES.md](RELEASE-NOTES.md) | INT-95 | What ships, limitations, licence |
 | [PACKAGE-CONSISTENCY.md](PACKAGE-CONSISTENCY.md) | INT-96 | Internal consistency review / approval |
 | [FREEZE.md](FREEZE.md) | INT-97 | Source freeze for partner review |
-| [D5.5-report.md](D5.5-report.md) | INT-83 / INT-87 / INT-90 | Repo-side D5.5 narrative (DEV-01…DEV-14); formal Word/PDF remains INT-90/91 |
+| [D5.5-report.md](D5.5-report.md) | INT-83…91 | Repo-side D5.5 narrative + chapter pointers; index frozen INT-91 |
 | [D5.5-gap-analysis.md](D5.5-gap-analysis.md) | INT-83 | Gaps of the pre-restructure narrative vs `develop` |
 | [sonarqube.md](sonarqube.md) | INT-291 | SonarQube / SonarCloud quality gate in CI |

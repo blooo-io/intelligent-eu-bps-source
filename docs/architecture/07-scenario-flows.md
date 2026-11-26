@@ -187,7 +187,7 @@ sequenceDiagram
 | Stripe | PSP evidence (not published as ontology) |
 | `billingKycStatus` | `int:UserAccount` |
 
-**Trace:** REQ-051, REQ-040, REQ-045, A7-bis.
+**Trace:** REQ-051 / UAT-063, REQ-040 / UAT-051, REQ-045 / UAT-056, A7-bis.
 
 ---
 
@@ -216,6 +216,8 @@ stateDiagram-v2
 
 Ready also requires BR-09 before invoices / statements / payouts.
 
+**Trace:** REQ-045 / UAT-056.
+
 ---
 
 ## S6 — Settled trade intake
@@ -242,7 +244,7 @@ sequenceDiagram
 | Market publish | `int:EnergyTrade` (+ Market / ClearingResult) |
 | Attribution | links to `int:Actor` via registry |
 
-**Trace:** REQ-001, REQ-041, REQ-058, BR-01.
+**Trace:** REQ-001 / UAT-001, REQ-041 / UAT-052, REQ-058 / UAT-075, BR-01.
 
 ---
 
@@ -286,7 +288,7 @@ sequenceDiagram
 | Inputs | `int:EnergyTrade` (+ optional `int:Tariff`) |
 | Outputs | `int:Invoice` (`billingInvoice`), `int:Billing` (`billingStatement`) |
 
-**Trace:** REQ-054, REQ-059, REQ-005, REQ-048.
+**Trace:** REQ-054 / UAT-071, REQ-059 / UAT-076, REQ-005 / UAT-005, REQ-048 / UAT-070.
 
 ---
 
@@ -325,7 +327,7 @@ sequenceDiagram
 | Result | `int:Payment`; invoice status on `int:Invoice` |
 | Trade | **unchanged** (BR-11) |
 
-**Trace:** REQ-014, BR-11.
+**Trace:** REQ-014 / UAT-014, BR-11.
 
 ---
 
@@ -360,7 +362,7 @@ sequenceDiagram
 | Failure publish | `int:Payment` |
 | Reminder | references `int:Invoice` / `int:Actor` |
 
-**Trace:** REQ-016, REQ-017, REQ-046, REQ-061.
+**Trace:** REQ-016 / UAT-016, REQ-017 / UAT-017, REQ-046 / UAT-057, REQ-061 / UAT-078.
 
 ---
 
@@ -395,7 +397,7 @@ sequenceDiagram
 | Gate BR-14 | `int:Invoice` (producer, Paid) |
 | Result | `int:Payout` on `billingPayout` |
 
-**Trace:** REQ-015, REQ-060, BR-14.
+**Trace:** REQ-015 / UAT-015, REQ-060 / UAT-077, BR-14.
 
 ---
 
@@ -425,7 +427,7 @@ sequenceDiagram
 |---|---|
 | Command / publish | `int:Invoice` |
 
-**Trace:** REQ-044, US-041.
+**Trace:** REQ-044 / UAT-055, US-041.
 
 ---
 
@@ -467,7 +469,7 @@ sequenceDiagram
 | Retained | `int:Invoice` identifiers for legal retention |
 | Not erased from history | published billing records already purged by retention (REQ-053) |
 
-**Trace:** REQ-013, NFR-015 (ids only in logs/events).
+**Trace:** REQ-013 / UAT-013, NFR-015 (ids only in logs/events).
 
 ---
 
@@ -499,7 +501,7 @@ flowchart TB
 | `triggerBillingRun` | `int:Community` → produces `int:Billing` + `int:Invoice` |
 | Actor create/update | **not a command** — topic `actor` / `int:Actor` |
 
-**Trace:** REQ-052.
+**Trace:** REQ-052 / UAT-064.
 
 ---
 
@@ -519,25 +521,27 @@ sequenceDiagram
 |---|---|
 | Cached outbound | wire copies of `int:Billing`, `int:Invoice`, `int:Payment`, `int:Payout`, `int:UserAccount` |
 
-**Trace:** REQ-053.
+**Trace:** REQ-053 / UAT-069.
 
 ---
 
 ## Index by requirement / UAT
 
-| Scenario | Primary REQ / UAT | Main ontology |
-|---|---|---|
-| S1 Onboard | REQ-008 / UAT-008 | `int:Actor` |
-| S2 Profile update | REQ-009 / UAT-009 | `int:Actor` |
-| S3 Terms | REQ-050 / UAT-062 | `int:UserAccount` |
-| S4 KYC / PM | REQ-051 / REQ-040 | `int:UserAccount` |
-| S5 Readiness | REQ-045 | Actor + UserAccount |
-| S6 Trades | REQ-001 | `int:EnergyTrade` |
-| S7 Billing run | REQ-054 / REQ-059 | `int:Billing`, `int:Invoice` |
-| S8 Pay | REQ-014 | `int:Payment`, `int:Invoice` |
-| S9 Failure | REQ-016 / REQ-061 | `int:Payment`, `int:Invoice` |
-| S10 Payout | REQ-015 | `int:Payout` |
-| S11 Invoice status | REQ-044 | `int:Invoice` |
-| S12 Erasure | REQ-013 | Actor PII; keep Invoice ids |
-| S13 Commands | REQ-052 | see table above |
-| S14 Purge | REQ-053 | published wire copies |
+Every scenario maps to existing UAT item notes under `docs/requirements/items/uat/` (UAT column aligned with the REQ column, same order).
+
+| Scenario | REQ | UAT | Main ontology |
+|---|---|---|---|
+| S1 Onboard | REQ-008 | UAT-008 | `int:Actor` |
+| S2 Profile update | REQ-009 | UAT-009 | `int:Actor` |
+| S3 Terms | REQ-050 | UAT-062 | `int:UserAccount` |
+| S4 KYC / PM | REQ-051, REQ-040 | UAT-063, UAT-051 | `int:UserAccount` |
+| S5 Readiness | REQ-045 | UAT-056 | `int:Actor`, `int:UserAccount` |
+| S6 Trades | REQ-001, REQ-058 | UAT-001, UAT-075 | `int:EnergyTrade` |
+| S7 Billing run | REQ-054, REQ-059, REQ-048 | UAT-071, UAT-076, UAT-070 | `int:Billing`, `int:Invoice` |
+| S8 Pay | REQ-014 | UAT-014 | `int:Payment`, `int:Invoice` |
+| S9 Failure | REQ-016, REQ-061 | UAT-016, UAT-078 | `int:Payment`, `int:Invoice` |
+| S10 Payout | REQ-015, REQ-060 | UAT-015, UAT-077 | `int:Payout` |
+| S11 Invoice status | REQ-044 | UAT-055 | `int:Invoice` |
+| S12 Erasure | REQ-013 | UAT-013 | `int:Actor`, `int:UserAccount`, `int:Invoice` |
+| S13 Commands | REQ-052 | UAT-064 | `int:Actor`, `int:UserAccount`, `int:Invoice`, `int:Payment`, `int:Payout`, `int:Billing`, `int:Community` |
+| S14 Purge | REQ-053 | UAT-069 | `int:Billing`, `int:Invoice`, `int:Payment`, `int:Payout`, `int:UserAccount` |

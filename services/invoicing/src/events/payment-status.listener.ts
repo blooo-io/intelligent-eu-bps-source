@@ -2,6 +2,8 @@ import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { asString, IdempotentConsumer } from "@intelligent/module-template";
 import { InvoicingService } from "../invoicing/invoicing.service.js";
 import { EVENT_BUS_PORT, type EventBusPort } from "./event-bus.port.js";
+// INT-460 — same Debezium/CloudEvents unwrap as SettlementCompleted.
+import { unwrapEnvelope } from "./settlement-completed.listener.js";
 
 const SUBJECT = "PaymentStatusChanged";
 
@@ -10,6 +12,7 @@ const SUBJECT = "PaymentStatusChanged";
  * become Paid after a succeeded direct charge on the producer account (BR-11).
  * A6 — no AC-07 confirmation call; the event status is authoritative after
  * CollectPort pay (Task 5.7) and invoicing no longer egresses to payments.
+ * INT-460 — unwrap NATS/Debezium envelopes before reading eventId/data.
  */
 @Injectable()
 export class PaymentStatusListener implements OnModuleInit {
@@ -60,15 +63,18 @@ function mapEnvelope(payload: unknown): {
   paymentId: string;
   status: string;
 } {
-  const envelope = payload as {
-    eventId?: string;
-    data?: Record<string, unknown>;
-  };
-  const data = envelope.data ?? {};
+  // INT-460 — Debezium EventRouter wraps AsyncAPI as CloudEvents
+  // `{ id, data: { eventId, data: { invoiceId, … } } }`; naive reads skip forever.
+  const envelope = unwrapEnvelope(payload);
+  const data =
+    envelope.data !== null && typeof envelope.data === "object"
+      ? (envelope.data as Record<string, unknown>)
+      : {};
+  // Some sinks flatten payment fields onto the root.
   return {
-    eventId: asString(envelope.eventId),
-    invoiceId: asString(data.invoiceId),
-    paymentId: asString(data.paymentId),
-    status: asString(data.status),
+    eventId: asString(envelope.eventId ?? envelope.id),
+    invoiceId: asString(data.invoiceId ?? envelope.invoiceId),
+    paymentId: asString(data.paymentId ?? envelope.paymentId),
+    status: asString(data.status ?? envelope.status),
   };
 }

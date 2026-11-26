@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>INTELLIGENT Billing — API portal</title>
+    <title>INTELLIGENT Billing — integrator portal</title>
     <style>
       :root {
         --ink: #0f2a24;
@@ -82,73 +82,89 @@
         border: 1px solid var(--forest);
       }
       code {
-        font-size: 0.88em;
-        background: #d5e4dc;
-        padding: 1px 5px;
-        border-radius: 3px;
+        font-size: 0.9em;
       }
       footer {
-        margin-top: 40px;
-        font-size: 0.8rem;
-        color: #4a635a;
+        color: #5a6b64;
+        font-size: 0.85rem;
+        margin-top: 48px;
       }
     </style>
   </head>
   <body>
     <header>
       <span class="mark" aria-hidden="true">INT</span>
-      <strong>Intelligent Billing & Payment — developer API portal</strong>
+      <strong>Intelligent Billing & Payment — integrator portal</strong>
     </header>
     <main>
-      <h1>Public Billing API</h1>
+      <h1>External surface (INT-455)</h1>
       <p>
-        Contract-first OpenAPI for partners and the project UI (REQ-052). The
-        reference screens in the web app consume the same
-        <code>/v1</code> surface; you can replace them with your own client.
+        The public REST <code>/v1</code> API and reference web client are
+        withdrawn. Partners integrate over the
+        <strong>Energy Web Digital Spine</strong> (EWDS Client Gateway topics +
+        command channel). Stripe test-mode webhooks remain the only HTTP
+        callback into the platform.
       </p>
 
       <div class="card">
-        <a class="button" href="/api.html">Browse OpenAPI (Redocly)</a>
-        <a class="button secondary" href="/public.v1.yaml">Download public.v1.yaml</a>
+        <a class="button" href="/api.html">Browse webhook OpenAPI (Redocly)</a>
+        <a class="button secondary" href="/payment-provider.v1.yaml"
+          >Download payment-provider.v1.yaml</a
+        >
       </div>
+
+      <h2>What to integrate</h2>
+      <ul>
+        <li>
+          EWDS record topics:
+          <code>billingInvoice</code>, <code>billingStatement</code>,
+          <code>billingPayment</code>, <code>billingPayout</code>,
+          <code>billingKycStatus</code>, <code>actor</code>
+        </li>
+        <li>
+          Command channel:
+          <code>billingCommandRequest</code> /
+          <code>billingCommandReply</code>
+        </li>
+        <li>
+          Payment provider webhook:
+          <code>POST /webhooks/payment-provider</code> (signature verified)
+        </li>
+      </ul>
 
       <h2>Base URLs (dev)</h2>
       <ul>
-        <li>API: <code>https://api.dev.intelligent-eu-bp.blooo.dev/v1</code></li>
-        <li>Auth: <code>https://auth.intelligent-eu-bp.blooo.dev/realms/int</code></li>
-        <li>Reference app: <code>https://app.dev.intelligent-eu-bp.blooo.dev</code></li>
+        <li>
+          Webhook ingress:
+          <code>https://api.dev.intelligent-eu-bp.blooo.dev/webhooks/…</code>
+        </li>
+        <li>
+          Auth (internal modules):
+          <code>https://auth.intelligent-eu-bp.blooo.dev/realms/int</code>
+        </li>
+        <li>
+          Architecture site:
+          <code>https://docs…</code> (VitePress / site package)
+        </li>
       </ul>
-
-      <h2>Authentication</h2>
-      <p>
-        OIDC bearer tokens from Keycloak (PKCE for browser apps). Roles
-        <code>member</code>, <code>manager</code>, and <code>operator</code>
-        come from the access token. Unauthenticated calls return
-        <strong>401</strong>. Community scope is enforced server-side (own
-        community only).
-      </p>
-
-      <h2>TypeScript types</h2>
-      <p>
-        Workspace package <code>@intelligent/public-api-client</code> exports
-        path and schema types generated from this contract
-        (<code>openapi-typescript</code>). It does not ship a runtime HTTP
-        client — use <code>fetch</code> with your OIDC access token.
-      </p>
 
       <h2>More</h2>
       <ul>
         <li>
-          Integrator narrative:
-          <code>docs/release/integration-api.md</code> in the repository
+          Decision:
+          <code>docs/architecture/decisions/INT-455-remove-public-v1.md</code>
         </li>
-        <li>Internal OpenAPI and AsyncAPI stay private (not hosted here)</li>
-        <li>Build stamp: {{BUILD_STAMP}}</li>
+        <li>
+          Scenario flows:
+          <code>docs/architecture/07-scenario-flows.md</code>
+        </li>
+        <li>
+          Cluster Mock CGW E2E:
+          <code>docs/testing/ewds-project-path-e2e.md</code> (INT-454)
+        </li>
       </ul>
 
-      <footer>
-        Horizon Europe INTELLIGENT · T5.6 / D5.5 · public contract (PU)
-      </footer>
+      <footer>Build {{BUILD_STAMP}} · Apache-2.0 · GA 101160678</footer>
     </main>
   </body>
 </html>

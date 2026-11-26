@@ -18,6 +18,8 @@ test("INT-461 cluster-money-path-e2e covers S8/S9/S10 Stripe fixtures", async ()
   assert.match(src, /E2E_FRESH_INVOICE_IDS/);
   assert.match(src, /EVIDENCE_DIR/);
   assert.match(src, /buildInternalServiceHeaders/);
+  // INT-465 — S10 tolerates an already-active period payout from prior CI.
+  assert.match(src, /INT-465/);
 });
 
 test("INT-461 money-path-stripe-dev workflow seeds then drives S8–S10", async () => {

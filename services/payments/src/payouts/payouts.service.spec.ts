@@ -301,6 +301,26 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
     expect(view.withdrawable.map((w) => w.period)).toEqual(["2026-10", "2026-11"]);
   });
 
+  it("INT-465 / REQ-015: actor+currency returns the live payout when nothing is newly withdrawable", async () => {
+    psp.balance = "30.00";
+    // Exhaust every eligible period so withdrawable is empty (money-path durable store case).
+    const oct = await svc.requestWithdrawal(req);
+    const nov = await svc.requestWithdrawal({ ...req, period: "2026-11" });
+    expect((await svc.listForParticipant("P")).withdrawable).toEqual([]);
+    const again = await svc.requestWithdrawalForActor({ actorId: "P", currency: "eur" });
+    // Latest active EUR payout (2026-11) is returned; no third Stripe create.
+    expect(again).toMatchObject({ payoutId: nov.payoutId, status: "in_transit", period: "2026-11" });
+    expect(psp.createPayout).toHaveBeenCalledTimes(2);
+    expect(oct.payoutId).not.toBe(nov.payoutId);
+  });
+
+  it("INT-465: actor+currency still 409 nothing_to_pay_out when no withdrawable and no active payout", async () => {
+    await expect(svc.requestWithdrawalForActor({ actorId: "P", currency: "CHF" })).rejects.toMatchObject({
+      status: 409,
+      response: { reason: "nothing_to_pay_out" },
+    });
+  });
+
   describe("payout webhooks (REQ-015, UAT-015)", () => {
     let id: string;
     const statuses = async () => (await events()).map((e) => (e.data as { status: string }).status);

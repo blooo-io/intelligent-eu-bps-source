@@ -248,6 +248,8 @@ async function runS10(paidInvoice) {
     account.pspAccountRef,
   );
 
+  // INT-465 — actor+currency request is idempotent when 2026-11 already has an
+  // active payout from a prior money-path run on the durable payments store.
   const { status: poStatus, body: payout } = await jsonFetch(
     `${PAYMENTS_URL}/internal/v1/payouts:request`,
     {

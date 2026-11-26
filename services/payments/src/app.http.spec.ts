@@ -282,6 +282,28 @@ describe("payments HTTP (INT-107)", () => {
       });
     });
 
+    it("INT-465: POST payouts:request is idempotent once every period is already paid out", async () => {
+      const ask = () =>
+        fetch(`${base}/internal/v1/payouts:request`, {
+          method: "POST",
+          headers: SERVICE_HEADERS,
+          body: JSON.stringify({ actorId: PRODUCER, currency: "EUR" }),
+        });
+      // Two eligible periods in beforeEach — drain both, then replay.
+      expect((await ask()).status).toBe(200);
+      const lastFresh = await ask();
+      expect(lastFresh.status).toBe(200);
+      const last = (await lastFresh.json()) as { payoutId: string; payoutStatus: string; amount: string };
+      const replay = await ask();
+      expect(replay.status).toBe(200);
+      expect(await replay.json()).toMatchObject({
+        payoutId: last.payoutId,
+        payoutStatus: last.payoutStatus,
+        amount: last.amount,
+        currency: "EUR",
+      });
+    });
+
     it("POST /internal/v1/payouts:run-auto pays out when autoPayout is on (202)", async () => {
       const runAuto = (body: unknown, roles = "service") =>
         fetch(`${base}/internal/v1/payouts:run-auto`, {

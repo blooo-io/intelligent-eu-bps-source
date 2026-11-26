@@ -144,33 +144,40 @@ export class PayoutsService implements PayoutEventsHandler {
   /**
    * REQ-015 / A7 — EWDS requestWithdrawal target (actorId + currency only).
    * Picks the earliest withdrawable period matching the currency.
+   * When that currency already has an active payout and nothing new is
+   * withdrawable, return it via the period-scoped path (idempotent) — same as
+   * performRequestWithdrawal returning `current` for in_transit/paid. INT-465.
    */
   async requestWithdrawalForActor(input: {
     actorId: string;
     currency: string;
   }): Promise<PayoutRecord> {
-    const { participantId, communityId, withdrawable } =
-      await this.listForParticipant(input.actorId).then(async (listed) => {
-        const caller = await this.resolveCaller(input.actorId);
-        const account = await this.accountOf(caller.participantId);
-        return {
-          participantId: caller.participantId,
-          communityId: caller.communityId ?? account?.communityId,
-          withdrawable: listed.withdrawable,
-        };
-      });
+    const listed = await this.listForParticipant(input.actorId);
+    const caller = await this.resolveCaller(input.actorId);
+    const account = await this.accountOf(caller.participantId);
+    const participantId = caller.participantId;
+    const communityId = caller.communityId ?? account?.communityId;
     if (!communityId) {
       throw refuse("kyc_required");
     }
     const currency = input.currency.toUpperCase();
-    const match = withdrawable.find((w) => w.currency === currency);
-    if (!match) {
+    const match = listed.withdrawable.find((w) => w.currency === currency);
+    // Prefer a fresh period; else replay the latest active payout for this currency.
+    const period =
+      match?.period ??
+      listed.items
+        .filter((p) => ACTIVE_PAYOUT_STATUSES.includes(p.status) && p.currency === currency)
+        .sort(
+          (a, b) =>
+            b.requestedAt.localeCompare(a.requestedAt) || b.attempt - a.attempt,
+        )[0]?.period;
+    if (!period) {
       throw refuse("nothing_to_pay_out");
     }
     return this.requestWithdrawal({
       participantId,
       communityId,
-      period: match.period,
+      period,
       trigger: "participant",
     });
   }

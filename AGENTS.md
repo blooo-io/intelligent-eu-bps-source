@@ -17,7 +17,9 @@ This file tells an agent **what to read, in which order, and which rules are non
    - `02-logical-architecture.md`: blocks, data ownership, events, lifecycles, scheduled jobs;
    - `03-application-architecture.md`: modules AC-01..AC-15, **public and internal APIs**, event catalogue, adapters, mock scenarios;
    - `04-technical-architecture.md`: technology decisions TD-1..TD-13, principles TP-1..TP-8, security;
-   - `05-physical-architecture.md`: environments, hosts, operations.
+   - `05-physical-architecture.md`: environments, hosts, operations;
+   - `06-datamodel-ontology.md`: Actor vs UserAccount, ontology ER/class maps, EWDS topic mapping (INT-449);
+   - `07-scenario-flows.md`: detailed Mermaid flows S1–S14 for EWDS-only journeys (INT-449).
 3. `docs/requirements/items/requirements/REQ-xxx.md` and `.../uat/UAT-xxx.md` for each item in scope. These item notes are the source of truth; `requirements.md` is the narrative view. Also read the **Assumptions A1 through A33 (v6.1 status column)** at the end of `requirements.md`.
 4. The contracts in `contracts/` for the APIs and events you touch.
 

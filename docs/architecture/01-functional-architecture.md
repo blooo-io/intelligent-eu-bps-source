@@ -4,14 +4,14 @@ view: functional
 iteration: 1
 status: revised
 version: 2.0
-date: 2026-11-25
-spec_baseline: "requirements v6.1, assumptions A1–A33 (v6.1)"
+date: 2026-11-26
+spec_baseline: "requirements v6.1, assumptions A1–A33; INT-447 / INT-448 / INT-449"
 ---
 # Billing & Payment Service: functional architecture
 
-> **View 1 of 5** in the iterative architecture approach: functional → logical → application → technical → physical (see [README](README.md)).
+> **View 1 of 5** in the iterative architecture approach: functional → logical → application → technical → physical (see [README](README.md)). Ontology datamodel and detailed flows: [06](06-datamodel-ontology.md), [07](07-scenario-flows.md).
 > This view describes **what** the service does, for **whom**, and with **which business objects and processes**. It deliberately says nothing about components, technologies or deployment. Those belong to the next views.
-> Baseline: requirements v6.1 and assumptions A1–A33. Status: **revised (2026-11-25), revalidation pending**.
+> Baseline: requirements v6.1 and assumptions A1–A33. Status: **aligned 2026-11-26 (INT-447 Actor EWDS-only; INT-448 UserAccount T&C)**.
 
 ## 1. Purpose and scope
 
@@ -138,9 +138,9 @@ flowchart TB
 
 | Function | Description | Main actor(s) | Requirements |
 |---|---|---|---|
-| **F1.1 Onboard participants** | The community manager imports a minimal list (e-mail, market identifier, meter, role). This creates the participants and their accounts and sends invitations | Community manager | REQ-008, US-007 |
-| **F1.2 Maintain registry** | Links each participant to their market identifier, community and meter. Only the community manager changes these links | Community manager | REQ-058 |
-| **F1.3 Profile & terms** | The participant completes their billing profile and accepts the terms. A producer also accepts the self-billing mandate | Consumer, producer | REQ-009, REQ-050, US-044 |
+| **F1.1 Onboard participants** | The community manager creates Actors in the **project UI (R2M)** (UI form or CSV→N Actor messages). Billing **ingests** the EWDS `actor` topic only and sends invitations | Community manager | REQ-008, US-007, INT-447 |
+| **F1.2 Maintain registry** | Links each participant to their market identifier, community and meter. Changes are published as Actor updates from R2M; billing syncs | Community manager | REQ-058, INT-447 |
+| **F1.3 Profile & terms** | Administrative profile changes republish `actor`. T&C (+ self-billing mandate) are accepted via command `acceptTerms` and stored on **UserAccount** (published on `billingKycStatus`) | Consumer, producer | REQ-009, REQ-050, US-044, INT-448 |
 | **F1.4 Access & roles** | Authentication through the project IdP; roles (member, community manager, operator) restrict access to the participant's own data and community | All humans | REQ-033–037, REQ-049, REQ-010, NFR-011, NFR-013 |
 | **F1.5 Offboard** | Removes a participant from future billing and forces a final settlement, while keeping the history | Community manager | REQ-012, REQ-056 |
 | **F2.1 Retrieve settled trades** | Obtains from the local market the settled trades of a period, plus clearing results and markets (delivery period, mechanism) | Platform operator | REQ-001 |
@@ -161,7 +161,7 @@ flowchart TB
 | **F5.3 Handle failures** | Detects failed payments from provider events, records the cause and notifies the participant | Platform operator | REQ-016, REQ-017, REQ-046 |
 | **F5.4 Reconcile** | Matches invoices with payments and flags discrepancies | Platform operator | REQ-041 |
 | **F5.5 Payout / withdrawal** | Participant (or `autoPayout` schedule) withdraws funds from their connected account once period invoices where they are producer are Paid (REQ-015, BR-14) | Producer, consumer (prosumer) | REQ-015 |
-| **F6.1 Publish billing records** | Publishes statement, invoice, payment, payout and KYC status to the data space (no personal data). Five record types (REQ-048) | — | REQ-048 |
+| **F6.1 Publish billing records** | Publishes statement, invoice, payment, payout and **UserAccount readiness** (`billingKycStatus`: KYC + T&C) to the data space (no personal data). Five record types (REQ-048) | — | REQ-048, INT-448 |
 | **F6.2 KPI export & logs** | Exports amounts, kWh and components per participant and period, and logs failures and payment times | Platform operator | REQ-047, REQ-046 |
 | **F6.3 Manager views & reports** | Payment status overview, member history for disputes, periodic summary | Community manager | REQ-018, REQ-031, REQ-032 |
 | **F6.4 Trace & audit trail** | Links every payment back to its invoice, run and trades | Platform operator | REQ-028 |
@@ -176,21 +176,32 @@ Billing results reach the **project UI only through the EWDS** (REQ-052); the RE
 
 ### P1 Onboarding of a community and its participants
 
+Project path is EWDS-only (detailed sequences in [07-scenario-flows.md](07-scenario-flows.md) S1–S5).
+
 ```mermaid
 sequenceDiagram
   actor CM as Community manager
+  participant R2M as Project UI R2M
+  participant DS as EWDS
   participant B as Billing service
   participant IDP as Identity provider
   actor M as Participant
   participant PSP as Payment provider
   CM->>B: Configure community (currency, period, threshold, VAT, mode)
-  CM->>B: Import participants (e-mail, market id, meter, role)
+  CM->>R2M: Create Actors (UI or CSV→N messages)
+  R2M->>DS: publish actor
+  DS->>B: Actor intake (sync only)
   B->>IDP: Create accounts
   B-->>M: Invitation
-  M->>B: Log in, complete profile, accept terms (+ self-billing mandate if producer)
-  M->>PSP: Stripe-hosted Connect onboarding / Identity (every participant; manager Identity)
-  PSP-->>B: KYC verified
-  M->>PSP: Register payment method when consumer
+  M->>R2M: acceptTerms command (+ self-billing if producer)
+  R2M->>DS: billingCommandRequest acceptTerms
+  DS->>B: dispatch → store UserAccount T&C
+  B->>DS: billingKycStatus (T&C)
+  M->>R2M: startKyc / setupPaymentMethod
+  R2M->>DS: command → PspHandoff
+  M->>PSP: hosted or embedded Stripe
+  PSP-->>B: KYC / payment ready
+  B->>DS: billingKycStatus (kycVerified)
   B-->>CM: Participant ready for billing
 ```
 
@@ -270,10 +281,10 @@ sequenceDiagram
 | Business object | Description | Owner | Ontology mapping | Personal data |
 |---|---|---|---|---|
 | Community | Billing settings: currency, period, threshold, VAT rate, mode live/virtual, `autoPayout` | Community manager | `int:Community` (+ billing settings) | No |
-| Participant | Member of a community, with role consumer / producer / prosumer and billing profile | Participant / manager | `int:Actor`, `Address`, `ContactDetails`, `UserAccount` | **Yes** |
-| Registry entry | Link participant ↔ market identifier ↔ community ↔ meter | Community manager | `int:Actor` + GSY actor id | Pseudonymous |
-| Terms acceptance | Version and date accepted, including the self-billing mandate | Participant | (extension) | Yes (link) |
-| Payment account status | KYC and onboarding status at the payment provider; payment method present — **every participant** | Payment provider | `UserAccount.kycVerified` | Status only |
+| Participant (admin) | Member of a community: role, profile, registry links — **mastered by R2M as Actor** | R2M / manager | `int:Actor`, `Address`, `ContactDetails` | **Yes** (on Actor topic / BPS cache) |
+| Registry entry | Link participant ↔ market identifier ↔ community ↔ meter | Community manager (via Actor) | `int:Actor` + GSY actor id | Pseudonymous |
+| UserAccount (readiness) | KYC + T&C + self-billing mandate + account status — **mastered by BPS** | Billing / PSP | `int:UserAccount` (wire: `billingKycStatus`) | Status only (no PII on wire) |
+| Payment account status | KYC and payment-method readiness at the payment provider — **every participant** | Payment provider | `UserAccount.kycVerified` (+ payments cache) | Status only |
 | Trade (read only) | Settled trade: buyer, seller, kWh, price, market | Local market | `int:EnergyTrade` | Pseudonymous |
 | Billing run | One computation for a community and period, versioned and immutable (`periodic` or `final`) | Billing | (extension) | No |
 | **Monthly statement** | Totals bought/sold, net balance, invoiceIds, status; **not payable** | Billing | `int:Billing` | Pseudonymous |
@@ -287,19 +298,21 @@ sequenceDiagram
 ```mermaid
 %% elk %%
 erDiagram
-  COMMUNITY ||--o{ PARTICIPANT : has
-  PARTICIPANT ||--|| REGISTRY_ENTRY : "identified by"
-  PARTICIPANT ||--o{ TERMS_ACCEPTANCE : accepts
+  COMMUNITY ||--o{ ACTOR : has
+  ACTOR ||--|| REGISTRY_ENTRY : "identified by"
+  ACTOR ||--o| USER_ACCOUNT : "readiness BPS"
   COMMUNITY ||--o{ BILLING_RUN : "billed by"
   BILLING_RUN ||--o{ STATEMENT : produces
   STATEMENT }o--o{ INVOICE : lists
-  INVOICE }o--|| PARTICIPANT : "issued to (consumer)"
-  INVOICE }o--|| PARTICIPANT : "issued in name of (producer)"
+  INVOICE }o--|| ACTOR : "issued to consumer"
+  INVOICE }o--|| ACTOR : "issued in name of producer"
   INVOICE }o--o{ TRADE : covers
   INVOICE ||--o{ PAYMENT : "settled by"
-  PARTICIPANT ||--o{ PAYOUT : receives
-  PARTICIPANT ||--o{ CARRY_FORWARD : "pair balance"
+  ACTOR ||--o{ PAYOUT : receives
+  ACTOR ||--o{ CARRY_FORWARD : "pair balance"
 ```
+
+Full ontology class map: [06-datamodel-ontology.md](06-datamodel-ontology.md).
 
 ## 6. Business rules
 
@@ -327,7 +340,7 @@ Adapters for every external system; **Stripe test or live per community**; EWDS 
 
 | Domain | V1 status | Note |
 |---|---|---|
-| F1 Participants & community | Implemented | Identity provider = local development instance |
+| F1 Participants & community | Implemented | Actor intake EWDS-only (R2M); `/v1` import = reference/e2e only |
 | F2 Trade acquisition | Implemented | **EWDS Client Gateway adapters real, mock default (A8)** |
 | F3 Settlement calculation | Implemented | ECB rates from a fixture; tariff port returns 0 + mention when no DSO tariff |
 | F4 Invoicing | Implemented | **In-house PDF (pdf-lib), e-mail by notification** |
@@ -339,7 +352,7 @@ Adapters for every external system; **Stripe test or live per community**; EWDS 
 - Working assumptions A13–A33 (`requirements.md`, mirror of the Blooo register WA-01…WA-20) still need partner validation. The ones with the strongest impact on this view are:
   - **A19:** invalidated v6, replaced by the two-level model (v6.1);
   - **A20:** fees off-platform (revised: tariff port for grid/levy/tax when published);
-  - **A21:** onboarding by import.
+  - **A21:** **withdrawn (INT-447)** — replaced by A4 EWDS-only Actor from R2M.
 - Still to be decided for the logical view:
   - which reference screens are in V1 scope.
 

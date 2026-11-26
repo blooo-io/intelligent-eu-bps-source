@@ -16,6 +16,7 @@ D5.5 remediation closeout (INT-440) and e2e-dev recovery on `dev`:
 - **INT-445** — money-path e2e timeout headroom + single payee resolve for PSP binding.
 - **INT-447** — EWDS-only Actor path: R2M publishes create/update (CSV→N Actors); A21 CSV fallback withdrawn; `acceptTerms` on the command channel; `PUT /me/profile` → `409 profile_managed_by_ewds` when `source=ewds`.
 - **INT-448** — T&C on ontology `UserAccount` (same level as `kycVerified`): `billingKycStatus` carries `termsVersion` / `termsAcceptedAt` / `selfBillingMandate`; `UserAccountStatusChanged` from AC-03.
+- **INT-449** — Docs alignment: ontology datamodel view (`06-datamodel-ontology.md`), detailed scenario flows S1–S14 (`07-scenario-flows.md`), architecture/requirements text updated for EWDS-only Actor + UserAccount T&C.
 - e2e-dev green on develop tip that ships this patch.
 
 ## What ships
@@ -31,7 +32,7 @@ D5.5 remediation closeout (INT-440) and e2e-dev recovery on `dev`:
 - GitOps deploy to Scaleway `k8s-intelligent-eu-dev` (`dev` / `int`) and packaging for `demo`.
 - OpenAPI / AsyncAPI contracts; EWDS invoice/payment schema validation via mocks.
 - Observability (OpenTelemetry), secrets via OpenBao + External Secrets, Keycloak OIDC, APISIX gateway.
-- Public docs site publishes the five architecture views (plus EWDS Client Gateway note) at `/architecture/`.
+- Public docs site publishes the architecture views (functional→physical, ontology datamodel, scenario flows, EWDS Client Gateway) at `/architecture/`.
 
 ## Changes since v1.1.6
 

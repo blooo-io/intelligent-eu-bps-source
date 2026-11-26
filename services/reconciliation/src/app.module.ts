@@ -10,17 +10,13 @@ import { BillingEventsListener } from "./events/billing-events.listener.js";
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
 import { createEventBus } from "./events/nats-event-bus.js";
 import { InternalReconciliationController } from "./reconciliation/internal.controller.js";
-import { PublicReconciliationController } from "./reconciliation/public.controller.js";
 import { ReconciliationService } from "./reconciliation/reconciliation.service.js";
 
 @Module({
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "reconciliation" }),
   ],
-  controllers: [
-    InternalReconciliationController,
-    PublicReconciliationController,
-  ],
+  controllers: [InternalReconciliationController],
   providers: [
     ReconciliationStore,
     ReconciliationService,

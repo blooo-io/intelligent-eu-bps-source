@@ -29,11 +29,10 @@ import {
   PERSONAL_DATA_SOURCES,
 } from "./export/personal-data-sources.port.js";
 import { InternalComplianceController } from "./compliance/internal.controller.js";
-import { PublicComplianceController } from "./compliance/public.controller.js";
 
 @Module({
   imports: [ModuleTemplateModule.forRoot({ moduleName: "compliance" })],
-  controllers: [PublicComplianceController, InternalComplianceController],
+  controllers: [InternalComplianceController],
   providers: [
     {
       provide: ComplianceStore,

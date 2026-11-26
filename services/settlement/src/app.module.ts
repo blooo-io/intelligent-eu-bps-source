@@ -4,7 +4,6 @@ import {
   KYC_STATUS_CLIENT,
   ModuleTemplateModule,
   OutboxService,
-  RequireVerifiedKycGuard,
 } from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
 import { SettlementStore } from "./domain/store.js";
@@ -24,7 +23,6 @@ import {
 } from "./ports/reference-data.port.js";
 import { TRADE_SOURCE, type TradeSourcePort } from "./ports/trade-source.port.js";
 import { SettlementController } from "./settlement/settlement.controller.js";
-import { PublicSettlementController } from "./settlement/public.controller.js";
 import { SettlementService } from "./settlement/settlement.service.js";
 import { createSettlementTransaction } from "./persistence/settlement-journal.js";
 
@@ -61,11 +59,10 @@ function createTradeSource(
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "settlement" }),
   ],
-  controllers: [SettlementController, PublicSettlementController],
+  controllers: [SettlementController],
   providers: [
     SettlementStore,
     SettlementService,
-    RequireVerifiedKycGuard,
     {
       provide: KYC_STATUS_CLIENT,
       // REQ-045 — AllowAll when PAYMENTS_INTERNAL_URL unset (test-only).

@@ -4,13 +4,9 @@ import {
   Get,
   Inject,
   Query,
-  Req,
   UseGuards,
 } from "@nestjs/common";
-import {
-  ModuleAuthGuard,
-  type AuthenticatedRequest,
-} from "@intelligent/module-template";
+import { ModuleAuthGuard } from "@intelligent/module-template";
 import type { StatementRecord } from "../domain/statement-store.js";
 import { StatementsService } from "./statements.service.js";
 
@@ -32,21 +28,6 @@ function toStatement(row: StatementRecord) {
     status: row.status,
     revision: row.revision,
   };
-}
-
-/** REQ-059 / REQ-010 — the caller's own monthly statements (informative, never payable). */
-@Controller("v1")
-export class PublicStatementsController {
-  constructor(
-    @Inject(StatementsService) private readonly statements: StatementsService,
-  ) {}
-
-  @Get("me/statements")
-  @UseGuards(new ModuleAuthGuard({ roles: ["member"] }))
-  async listMine(@Req() req: AuthenticatedRequest) {
-    const rows = await this.statements.listForParticipant(req.user!.sub);
-    return rows.map(toStatement);
-  }
 }
 
 /** REQ-059 / REQ-049 — ListStatements(participantId, period?) for AC-09 and operator tools. */

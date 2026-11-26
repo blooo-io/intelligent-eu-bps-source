@@ -6,7 +6,6 @@ import {
   KYC_STATUS_CLIENT,
   ModuleTemplateModule,
   OutboxService,
-  RequireVerifiedKycGuard,
 } from "@intelligent/module-template";
 import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.js";
 import { StatementStore } from "./domain/statement-store.js";
@@ -17,12 +16,8 @@ import { ErasureRequestedListener } from "./events/erasure-requested.listener.js
 import { PaymentStatusListener } from "./events/payment-status.listener.js";
 import { SettlementCompletedListener } from "./events/settlement-completed.listener.js";
 import { InvoicingController } from "./invoicing/invoicing.controller.js";
-import { PublicInvoicingController } from "./invoicing/public.controller.js";
 import { InvoicingService } from "./invoicing/invoicing.service.js";
-import {
-  InternalStatementsController,
-  PublicStatementsController,
-} from "./invoicing/statements.controller.js";
+import { InternalStatementsController } from "./invoicing/statements.controller.js";
 import { StatementsService } from "./invoicing/statements.service.js";
 import { createInvoiceTransaction } from "./persistence/invoice-journal.js";
 import {
@@ -73,19 +68,13 @@ class InvoicePersistence implements OnModuleInit {
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "invoicing" }),
   ],
-  controllers: [
-    InvoicingController,
-    PublicInvoicingController,
-    PublicStatementsController,
-    InternalStatementsController,
-  ],
+  controllers: [InvoicingController, InternalStatementsController],
   providers: [
     InvoiceStore,
     StatementStore,
     InvoicingService,
     StatementsService,
     InvoicePersistence,
-    RequireVerifiedKycGuard,
     {
       provide: KYC_STATUS_CLIENT,
       // REQ-045 — AllowAll when PAYMENTS_INTERNAL_URL unset (test-only).

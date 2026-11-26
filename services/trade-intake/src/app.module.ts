@@ -16,7 +16,6 @@ import { servicePrincipalMiddleware } from "./auth/service-principal.middleware.
 import { TradeStore } from "./domain/store.js";
 import { IntakeController } from "./intake/intake.controller.js";
 import { IntakeService } from "./intake/intake.service.js";
-import { PublicIntakeController } from "./intake/public.controller.js";
 import { FixturePartyResolver } from "./party/fixture-party-resolver.js";
 import { HttpPartyResolver } from "./party/http-party-resolver.js";
 import { MARKET_PORT, createMarketPort } from "./market/market.factory.js";
@@ -46,7 +45,7 @@ function createPartyResolver(
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "trade-intake" }),
   ],
-  controllers: [IntakeController, PublicIntakeController],
+  controllers: [IntakeController],
   providers: [
     TradeStore,
     IntakeService,

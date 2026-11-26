@@ -27,6 +27,28 @@ export class InvoicingController {
   }
 
   /**
+   * REQ-061 / INT-461 — EWDS sendReminder target (invoice-side record +
+   * PaymentReminderRequested for AC-11).
+   */
+  @Post("invoices/:invoiceId/reminders")
+  @HttpCode(200)
+  async sendReminder(
+    @Param("invoiceId") invoiceId: string,
+    @Body()
+    body: {
+      actorId?: string;
+      communityId?: string;
+      trigger?: "manual" | "scheduled";
+    },
+  ) {
+    return this.invoicing.sendReminder(invoiceId, {
+      actorId: body.actorId ?? "",
+      communityId: body.communityId,
+      trigger: body.trigger === "scheduled" ? "scheduled" : "manual",
+    });
+  }
+
+  /**
    * REQ-044 / INT-461 — EWDS setInvoiceStatus target (OpenAPI
    * POST /invoices/{invoiceId}/status). Needed for S10 cleanup of unpaid
    * producer invoices so the A2 payout gate can pass.

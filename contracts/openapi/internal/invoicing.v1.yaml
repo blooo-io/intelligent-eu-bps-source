@@ -241,6 +241,56 @@ paths:
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
         '401':
           $ref: '../components/schemas.yaml#/components/responses/Unauthorized'
+  /invoices/{invoiceId}/reminders:
+    post:
+      operationId: sendInvoiceReminder
+      tags: [Invoicing]
+      summary: Send a payment reminder for one invoice (EWDS sendReminder / REQ-061)
+      description: >
+        INT-461 — records the reminder on the invoice and emits
+        PaymentReminderRequested for AC-11. Open | Overdue | PartiallyPaid only.
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [actorId, communityId]
+              properties:
+                actorId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                communityId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                trigger:
+                  type: string
+                  enum: [manual, scheduled]
+                  default: manual
+      responses:
+        '200':
+          description: Reminder recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [invoiceId, reminderCount]
+                properties:
+                  invoiceId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  reminderCount:
+                    type: integer
+                    minimum: 1
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '../components/schemas.yaml#/components/responses/Conflict'
   /invoices/{invoiceId}/status:
     post:
       operationId: setInvoiceStatusInternal

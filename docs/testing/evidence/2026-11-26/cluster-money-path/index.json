@@ -1,56 +1,29 @@
 {
-  "generatedAt": "2026-11-26T16:40:00+01:00",
+  "generatedAt": "2026-11-26T19:00:00+01:00",
   "timezone": "Europe/Paris",
-  "jira": [
-    "INT-459"
-  ],
+  "jira": ["INT-459", "INT-460", "INT-461"],
   "cluster": "k8s-intelligent-eu-dev",
   "namespace": "int-apps",
   "run_path": "stripe-test",
   "PSP_PROVIDER": "stripe",
-  "driver": "scripts/stripe-fresh-billing-run.mjs + payments:start",
+  "driver": "scripts/stripe-fresh-billing-run.mjs + scripts/cluster-money-path-e2e.mjs",
+  "ci_workflow": "money-path-stripe-dev",
   "scenarios": [
+    { "id": "S4", "path": "s04-kyc", "run_path": "stripe-test" },
+    { "id": "S7", "path": "s07-billing", "run_path": "stripe-test" },
+    { "id": "S8", "path": "s08-pay-after-int460", "run_path": "stripe-test", "result": "Paid" },
     {
-      "id": "S4",
-      "path": "s04-kyc",
-      "run_path": "stripe-test"
-    },
-    {
-      "id": "S7",
-      "path": "s07-billing",
-      "run_path": "stripe-test"
-    },
-    {
-      "id": "S8",
-      "path": "s08-pay",
-      "run_path": "stripe-test"
+      "id": "S9",
+      "path": "s09-failure",
+      "run_path": "stripe-test",
+      "result": "decline ok; reminder 404 on AC-11 — fixed in INT-461 AC-06 route + CI"
     },
     {
       "id": "S10",
-      "path": "s10-payout",
+      "path": "s10-payout-live",
       "run_path": "stripe-test",
-      "result": "409 nothing_to_pay_out"
+      "result": "payout in_transit / Stripe po_* paid"
     }
   ],
-  "verdict": "Stripe pay on destinDev marks AC-06 invoices Paid after INT-460 unwrap fix.",
-  "int460": {
-    "result": "Paid",
-    "path": "s08-pay-after-int460",
-    "invoices": [
-      {
-        "invoiceId": "ec77bf9c-8733-4488-97d5-e535116d2828",
-        "status": "Paid",
-        "total": "2.00",
-        "producerId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
-        "consumerId": "11111111-2222-4333-8444-555555555555"
-      },
-      {
-        "invoiceId": "fab3b1b0-2061-45e5-ad09-6f43aee94e86",
-        "status": "Paid",
-        "total": "2.64",
-        "producerId": "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
-        "consumerId": "11111111-2222-4333-8444-555555555555"
-      }
-    ]
-  }
+  "verdict": "S8 Paid + S10 live payout proven on destinDev. S9 reminder + regression locked in money-path-stripe-dev CI (INT-461)."
 }

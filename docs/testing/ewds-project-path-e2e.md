@@ -81,6 +81,10 @@ kubectl -n int-apps port-forward svc/mock-cgw 18080:8080
 MOCK_CGW_BASE_URL=http://127.0.0.1:18080 pnpm --filter @intelligent/ewds-cluster-e2e test
 ```
 
+## Stripe money-path on destinDev (INT-461)
+
+Sibling workflow (not Mock CGW): [`money-path-stripe-e2e-cd.md`](money-path-stripe-e2e-cd.md) — S8 pay / S9 fail+reminder / S10 payout with live Stripe test keys after supply-chain.
+
 ## Out of scope (still)
 
 - Live EWAG topic grants / production CGW identity (`live-cgw`)

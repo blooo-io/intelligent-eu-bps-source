@@ -2,10 +2,10 @@
 title: "Billing & Payment Service — Scenario flows"
 view: scenarios
 status: draft
-version: 1.0
+version: 1.1
 date: 2026-11-26
 spec_baseline: "requirements v6.1 + INT-447 / INT-448"
-jira: INT-449
+jira: INT-449, INT-450
 ---
 # Detailed scenario flows
 
@@ -13,10 +13,16 @@ jira: INT-449
 > Datamodel / ontology: [`06-datamodel-ontology.md`](06-datamodel-ontology.md).
 > All project-UI paths are **EWDS-only** (records + command channel). `/v1` is the reference client (`apps/web`) only.
 
-Legend used in sequences:
-- **R2M** = project UI Client Gateway
-- **CGW** = Blooo billing Client Gateway
-- **AC-xx** = BPS modules (see application architecture)
+## Legend (lifelines)
+
+| Label | Meaning |
+|---|---|
+| **R2M UI + CGW** | Project UI talking through **its** Client Gateway |
+| **EWDS broker** | Energy Web Digital Spine message broker |
+| **Billing CGW** | **Blooo BPS** Client Gateway — **always** on the path between EWDS and BPS modules (INT-450) |
+| **AC-xx** | NestJS modules inside BPS (behind Billing CGW for all EWDS I/O) |
+
+**Convention:** every EWDS publish/subscribe/command for billing goes `EWDS ↔ Billing CGW ↔ AC-*`. Diagrams never imply a direct EWDS→module hop. Stripe webhooks and IdP calls do **not** use Billing CGW (they are bilateral to BPS).
 
 ---
 
@@ -42,7 +48,7 @@ sequenceDiagram
     AC03->>IdP: ensure user + invitation
     AC03->>AC11: invite e-mail (ids only in events)
   end
-  AC03-->>EWDS: (no Actor reply — intake only)
+  Note over CGW,AC03: No Actor reply topic — intake only
 ```
 
 **Trace:** REQ-008, UAT-008, INT-447.
@@ -56,10 +62,12 @@ sequenceDiagram
   actor Member as Member
   participant R2M as R2M UI + CGW
   participant EWDS as EWDS broker
+  participant CGW as Billing CGW
   participant AC03 as AC-03 Participants
   Member->>R2M: Edit name / address / contacts
   R2M->>EWDS: publish actor (same actorId, new version)
-  EWDS->>AC03: ingest update
+  EWDS->>CGW: deliver actor
+  CGW->>AC03: ActorSourcePort.ingest update
   AC03->>AC03: replace profile cache (source=ewds)
   Note over Member,AC03: PUT /v1/me/profile returns 409 profile_managed_by_ewds
 ```
@@ -77,17 +85,21 @@ sequenceDiagram
   actor Member as Member
   participant R2M as R2M UI + CGW
   participant EWDS as EWDS broker
+  participant CGW as Billing CGW
   participant AC10 as AC-10 Publication
   participant AC03 as AC-03 Participants
   Member->>R2M: Accept T&amp;C (+ self-billing if producer)
   R2M->>EWDS: billingCommandRequest acceptTerms
-  EWDS->>AC10: poll / receive command
+  EWDS->>CGW: deliver command
+  CGW->>AC10: poll / receive command
   AC10->>AC10: authorize (channel, DID, actor role)
   AC10->>AC03: POST .../terms-acceptance
   AC03->>AC03: store termsVersion, selfBillingMandate, termsAcceptedAt
   AC03->>AC10: UserAccountStatusChanged (outbox)
-  AC10->>EWDS: billingCommandReply accepted
-  AC10->>EWDS: publish billingKycStatus (T&amp;C + current kycVerified)
+  AC10->>CGW: send billingCommandReply accepted
+  CGW->>EWDS: publish reply
+  AC10->>CGW: publish billingKycStatus (T&amp;C + kycVerified)
+  CGW->>EWDS: publish record
   R2M->>EWDS: subscribe billingKycStatus
 ```
 
@@ -102,24 +114,28 @@ sequenceDiagram
   actor Member as Member
   participant R2M as R2M UI + CGW
   participant EWDS as EWDS broker
+  participant CGW as Billing CGW
   participant AC10 as AC-10 Publication
   participant AC07 as AC-07 Payments
   participant Stripe as Stripe
   participant AC03 as AC-03 Participants
   Member->>R2M: startKyc or setupPaymentMethod (surface hosted|embedded)
   R2M->>EWDS: billingCommandRequest
-  EWDS->>AC10: command
+  EWDS->>CGW: deliver command
+  CGW->>AC10: poll / receive
   AC10->>AC07: dispatch
   AC07->>Stripe: Account Link / Checkout / Identity / SetupIntent
   AC07-->>AC10: PspHandoff (url or clientSecret)
-  AC10->>EWDS: billingCommandReply + PspHandoff
+  AC10->>CGW: billingCommandReply + PspHandoff
+  CGW->>EWDS: publish reply
   R2M-->>Member: hosted redirect or embedded Stripe.js
   Member->>Stripe: complete KYC / card / SEPA
   Stripe-->>AC07: webhook (account.updated / identity / setup)
   AC07->>AC07: emit KycStatusChanged / PaymentAccountStatusChanged
   AC07->>AC03: apply kyc / payment ready
   AC03->>AC10: UserAccountStatusChanged (full snapshot)
-  AC10->>EWDS: billingKycStatus
+  AC10->>CGW: publish billingKycStatus
+  CGW->>EWDS: publish record
 ```
 
 **Trace:** REQ-051, REQ-040, REQ-045, A7-bis.
@@ -151,10 +167,12 @@ Ready also requires BR-09 gates before invoices / statements / payouts.
 sequenceDiagram
   participant GSY as GSY DEX CGW
   participant EWDS as EWDS broker
+  participant CGW as Billing CGW
   participant AC04 as AC-04 Trade intake
   participant AC05 as AC-05 Settlement
   GSY->>EWDS: publish settled trades / clearing
-  EWDS->>AC04: MarketPort receive
+  EWDS->>CGW: deliver
+  CGW->>AC04: MarketPort receive
   AC04->>AC04: attribute via registry (actorId)
   AC04->>AC05: trades available for period
   Note over AC04: Unknown party → flagged, not invoiced (REQ-058)
@@ -169,8 +187,9 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   actor Op as Manager / operator / scheduler
-  participant R2M as R2M (optional command)
-  participant EWDS as EWDS
+  participant R2M as R2M UI + CGW
+  participant EWDS as EWDS broker
+  participant CGW as Billing CGW
   participant AC14 as AC-14 Scheduler
   participant AC05 as AC-05 Settlement
   participant AC06 as AC-06 Invoicing
@@ -179,7 +198,8 @@ sequenceDiagram
   alt Project UI trigger
     Op->>R2M: triggerBillingRun
     R2M->>EWDS: billingCommandRequest
-    EWDS->>AC10: command → AC-14/AC-05
+    EWDS->>CGW: deliver command
+    CGW->>AC10: poll → dispatch AC-14/AC-05
   else Temporal schedule / operator
     AC14->>AC05: StartBillingRun(community, period)
   end
@@ -188,7 +208,8 @@ sequenceDiagram
   AC06->>AC06: legal numbers, PDF (BR-10)
   AC06->>AC11: e-mail invoice
   AC06->>AC10: InvoiceIssued / StatementIssued
-  AC10->>EWDS: billingInvoice + billingStatement
+  AC10->>CGW: publish billingInvoice + billingStatement
+  CGW->>EWDS: publish records
 ```
 
 **Trace:** REQ-054, REQ-059, REQ-005, REQ-048.
@@ -201,22 +222,25 @@ sequenceDiagram
 sequenceDiagram
   actor Cons as Consumer
   participant R2M as R2M UI + CGW
-  participant EWDS as EWDS
-  participant AC10 as AC-10
+  participant EWDS as EWDS broker
+  participant CGW as Billing CGW
+  participant AC10 as AC-10 Publication
   participant AC07 as AC-07 Payments
   participant Stripe as Stripe
   Cons->>R2M: startPayment(invoiceId, surface)
   R2M->>EWDS: billingCommandRequest startPayment
-  EWDS->>AC10: command
+  EWDS->>CGW: deliver command
+  CGW->>AC10: poll / receive
   AC10->>AC07: create PaymentIntent / Checkout on connected account
   AC07-->>AC10: PspHandoff
-  AC10->>EWDS: billingCommandReply
+  AC10->>CGW: billingCommandReply
+  CGW->>EWDS: publish reply
   Cons->>Stripe: pay (hosted or embedded)
   Stripe-->>AC07: payment_intent.* webhook
   AC07->>AC07: PaymentStatusChanged
   AC07->>AC10: publish path
-  AC10->>EWDS: billingPayment
-  AC10->>EWDS: billingInvoice status update
+  AC10->>CGW: billingPayment (+ invoice status)
+  CGW->>EWDS: publish records
 ```
 
 **Trace:** REQ-014, BR-11 (trade status untouched).
@@ -228,18 +252,24 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   participant Stripe as Stripe
-  participant AC07 as AC-07
-  participant AC10 as AC-10
-  participant EWDS as EWDS
-  participant Mgr as Manager via R2M
+  participant AC07 as AC-07 Payments
+  participant AC10 as AC-10 Publication
+  participant CGW as Billing CGW
+  participant EWDS as EWDS broker
+  participant R2M as R2M UI + CGW
+  actor Mgr as Manager
   Stripe-->>AC07: payment failed webhook
   AC07->>AC07: failureCategory + notify
   AC07->>AC10: PaymentStatusChanged
-  AC10->>EWDS: billingPayment (failed)
-  Mgr->>EWDS: billingCommandRequest sendReminder
-  EWDS->>AC10: authorize manager
+  AC10->>CGW: billingPayment (failed)
+  CGW->>EWDS: publish record
+  Mgr->>R2M: sendReminder
+  R2M->>EWDS: billingCommandRequest sendReminder
+  EWDS->>CGW: deliver command
+  CGW->>AC10: poll / authorize manager
   AC10->>AC07: reminder / AC-11 notify
-  AC10->>EWDS: billingCommandReply
+  AC10->>CGW: billingCommandReply
+  CGW->>EWDS: publish reply
 ```
 
 **Trace:** REQ-016, REQ-017, REQ-046, REQ-061.
@@ -251,19 +281,22 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   actor Prod as Producer / prosumer
-  participant R2M as R2M
-  participant EWDS as EWDS
-  participant AC10 as AC-10
-  participant AC07 as AC-07
+  participant R2M as R2M UI + CGW
+  participant EWDS as EWDS broker
+  participant CGW as Billing CGW
+  participant AC10 as AC-10 Publication
+  participant AC07 as AC-07 Payments
   participant Stripe as Stripe
   Prod->>R2M: requestWithdrawal (or autoPayout)
   R2M->>EWDS: billingCommandRequest requestWithdrawal
-  EWDS->>AC10: command
+  EWDS->>CGW: deliver command
+  CGW->>AC10: poll / receive
   AC10->>AC07: BR-14 check period invoices Paid
   AC07->>Stripe: create payout from Connect balance
   Stripe-->>AC07: payout.* webhook
   AC07->>AC10: PayoutStatusChanged
-  AC10->>EWDS: billingPayout
+  AC10->>CGW: billingPayout
+  CGW->>EWDS: publish record
 ```
 
 **Trace:** REQ-015, REQ-060, BR-14.
@@ -275,16 +308,19 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
   actor Mgr as Community manager
-  participant R2M as R2M
-  participant EWDS as EWDS
-  participant AC10 as AC-10
+  participant R2M as R2M UI + CGW
+  participant EWDS as EWDS broker
+  participant CGW as Billing CGW
+  participant AC10 as AC-10 Publication
   participant AC06 as AC-06 Invoicing
   Mgr->>R2M: setInvoiceStatus (reason mandatory)
   R2M->>EWDS: billingCommandRequest
-  EWDS->>AC10: authorize manager
+  EWDS->>CGW: deliver command
+  CGW->>AC10: poll / authorize manager
   AC10->>AC06: patch status + audit
   AC06->>AC10: InvoiceStatusChanged
-  AC10->>EWDS: billingInvoice + billingCommandReply
+  AC10->>CGW: billingInvoice + billingCommandReply
+  CGW->>EWDS: publish
 ```
 
 **Trace:** REQ-044, US-041.
@@ -293,16 +329,26 @@ sequenceDiagram
 
 ## S12 — Data-subject erasure
 
+Erasure can be started from the compliance portal (`/v1`) or from an EWDS erasure intake. The EWDS path still goes through **Billing CGW**.
+
 ```mermaid
 sequenceDiagram
   actor DPO as DPO / manager
   participant Portal as Portal / R2M
+  participant EWDS as EWDS broker
+  participant CGW as Billing CGW
   participant AC12 as AC-12 Compliance
-  participant AC03 as AC-03
-  participant AC07 as AC-07
+  participant AC03 as AC-03 Participants
+  participant AC07 as AC-07 Payments
   participant IdP as Keycloak
   participant Stripe as Stripe
-  DPO->>AC12: erasure request (participantId)
+  alt Reference portal
+    DPO->>AC12: erasure request (participantId)
+  else EWDS erasure intake
+    Portal->>EWDS: erasure request message
+    EWDS->>CGW: deliver
+    CGW->>AC12: ErasurePort.ingest
+  end
   AC12->>AC03: ErasureRequested
   AC03->>AC03: purge personal fields; keep invoices for legal retention
   AC12->>AC07: erase PSP customer where allowed
@@ -317,15 +363,19 @@ sequenceDiagram
 
 ## S13 — Command channel (authorization layers)
 
+Commands arrive on EWDS, are read by **Billing CGW**, then authorized/dispatched in AC-10.
+
 ```mermaid
 %% elk %%
 flowchart TB
-  REQ[billingCommandRequest] --> L1[Layer 1: EWDS channel role]
+  EWDS[EWDS broker] --> CGW[Billing CGW]
+  CGW --> REQ[AC-10 receives billingCommandRequest]
+  REQ --> L1[Layer 1: EWDS channel role]
   L1 --> L2[Layer 2: sender DID allow-list]
   L2 --> L3[Layer 3: actor role vs operation]
   L3 -->|ok| DISP[Dispatch to AC-03/05/06/07/14]
-  L3 -->|deny| REJ[billingCommandReply denied]
-  DISP --> REPLY[billingCommandReply + optional PspHandoff]
+  L3 -->|deny| REJ[billingCommandReply denied via CGW]
+  DISP --> REPLY[billingCommandReply + optional PspHandoff via CGW]
 ```
 
 Operations (project path): `startPayment`, `requestWithdrawal`, `setInvoiceStatus`, `startKyc`, `acceptTerms`, `sendReminder`, `triggerBillingRun`, `setupPaymentMethod`.  

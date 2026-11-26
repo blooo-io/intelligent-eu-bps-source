@@ -2,6 +2,19 @@
 
 Operator-facing notes for the V1 Billing & Payment Service release package. Architecture detail stays in [`docs/architecture/`](../architecture/); contracts stay in [`contracts/`](../../contracts/).
 
+## Package index (INT-87)
+
+| Horizon chapter | Start here |
+|---|---|
+| Narrative + chapter map | [`D5.5-report.md`](D5.5-report.md) |
+| Gap analysis (INT-83) | [`D5.5-gap-analysis.md`](D5.5-gap-analysis.md) |
+| Requirements | [`../requirements/`](../requirements/) |
+| Architecture views | [`../architecture/`](../architecture/) |
+| Testing / evidence | [`../testing/`](../testing/) |
+| Contracts | [`../../contracts/`](../../contracts/) |
+
+## Operator notes
+
 | Note | Jira | Purpose |
 |---|---|---|
 | [VERSIONING.md](VERSIONING.md) | INT-305 | SemVer tags, `cut-release`, GitHub Releases, versioned images |
@@ -11,5 +24,6 @@ Operator-facing notes for the V1 Billing & Payment Service release package. Arch
 | [RELEASE-NOTES.md](RELEASE-NOTES.md) | INT-95 | What ships, limitations, licence |
 | [PACKAGE-CONSISTENCY.md](PACKAGE-CONSISTENCY.md) | INT-96 | Internal consistency review / approval |
 | [FREEZE.md](FREEZE.md) | INT-97 | Source freeze for partner review |
-| [D5.5-report.md](D5.5-report.md) | INT-440 / INT-90 | Repo-side D5.5 narrative (DEV-01…DEV-14); formal Word/PDF remains INT-90/91 |
+| [D5.5-report.md](D5.5-report.md) | INT-83 / INT-87 / INT-90 | Repo-side D5.5 narrative (DEV-01…DEV-14); formal Word/PDF remains INT-90/91 |
+| [D5.5-gap-analysis.md](D5.5-gap-analysis.md) | INT-83 | Gaps of the pre-restructure narrative vs `develop` |
 | [sonarqube.md](sonarqube.md) | INT-291 | SonarQube / SonarCloud quality gate in CI |

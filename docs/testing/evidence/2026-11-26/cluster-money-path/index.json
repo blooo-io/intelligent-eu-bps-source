@@ -32,5 +32,25 @@
       "result": "409 nothing_to_pay_out"
     }
   ],
-  "verdict": "Stripe integration is effective on destinDev for Connect provision + direct-charge pay. Payout deferred; invoice Paid status not yet observed at capture."
+  "verdict": "Stripe pay on destinDev marks AC-06 invoices Paid after INT-460 unwrap fix.",
+  "int460": {
+    "result": "Paid",
+    "path": "s08-pay-after-int460",
+    "invoices": [
+      {
+        "invoiceId": "ec77bf9c-8733-4488-97d5-e535116d2828",
+        "status": "Paid",
+        "total": "2.00",
+        "producerId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+        "consumerId": "11111111-2222-4333-8444-555555555555"
+      },
+      {
+        "invoiceId": "fab3b1b0-2061-45e5-ad09-6f43aee94e86",
+        "status": "Paid",
+        "total": "2.64",
+        "producerId": "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+        "consumerId": "11111111-2222-4333-8444-555555555555"
+      }
+    ]
+  }
 }

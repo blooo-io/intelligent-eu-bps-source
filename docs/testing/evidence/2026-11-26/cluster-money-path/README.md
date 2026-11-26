@@ -11,4 +11,4 @@
 
 Operator path: `scripts/stripe-fresh-billing-run.mjs`, then `POST /internal/v1/payments:start`.
 
-Honest gap: AC-06 invoice status still `Open` at capture time after Stripe charge success (webhook/status sync lag or gap).
+**INT-460 fix verified:** after deploying the PaymentStatusListener unwrap, re-calling `payments:start` moved both invoices to **Paid** (`s08-pay-after-int460/`).

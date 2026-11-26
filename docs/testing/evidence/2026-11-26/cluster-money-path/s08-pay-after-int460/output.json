@@ -1,0 +1,19 @@
+{
+  "invoices": [
+    {
+      "invoiceId": "ec77bf9c-8733-4488-97d5-e535116d2828",
+      "status": "Paid",
+      "total": "2.00",
+      "producerId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      "consumerId": "11111111-2222-4333-8444-555555555555"
+    },
+    {
+      "invoiceId": "fab3b1b0-2061-45e5-ad09-6f43aee94e86",
+      "status": "Paid",
+      "total": "2.64",
+      "producerId": "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+      "consumerId": "11111111-2222-4333-8444-555555555555"
+    }
+  ],
+  "notes": "Both invoices Paid after INT-460 PaymentStatusListener unwrap deployed to destinDev."
+}

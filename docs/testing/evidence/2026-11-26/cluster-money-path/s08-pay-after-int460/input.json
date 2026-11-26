@@ -1,0 +1,10 @@
+{
+  "jira": "INT-460",
+  "action": "POST /internal/v1/payments:start (re-announce after unwrap fix)",
+  "invoiceIds": [
+    "ec77bf9c-8733-4488-97d5-e535116d2828",
+    "fab3b1b0-2061-45e5-ad09-6f43aee94e86"
+  ],
+  "actorId": "11111111-2222-4333-8444-555555555555",
+  "invoicingImage": "sha256:a31e56a91fad50a959c1499d39c731c389c3bc8c38778473a0f4d25b32303a95"
+}

@@ -435,6 +435,88 @@ describe("EWDS topic payload from contract events (INT-376, NFR-004, UAT-070)", 
     expect(latest.selfBillingMandate).toBe(true);
   });
 
+  it("INT-448: UserAccountStatusChanged branch coverage (nulls, skip, participantId)", async () => {
+    const dataspace = createMockDataSpace();
+    const store = new PublicationStore();
+    const service = new PublicationService(store, dataspace);
+    const bus = new InMemoryEventBus();
+    const listener = new BillingEventsListener(bus, service);
+    await listener.onModuleInit();
+
+    // Missing actor — no publish.
+    await bus.publish(
+      "UserAccountStatusChanged",
+      envelope("UserAccountStatusChanged", "AC-03", {
+        termsVersion: "v1.0.0",
+      }),
+    );
+    expect(dataspace.recorded().filter((r) => r.topic === "billingKycStatus")).toHaveLength(
+      0,
+    );
+
+    // participantId alias + explicit null T&C + no optional KYC fields.
+    await bus.publish(
+      "UserAccountStatusChanged",
+      envelope("UserAccountStatusChanged", "AC-03", {
+        participantId: PRODUCER,
+        termsVersion: null,
+        termsAcceptedAt: null,
+        selfBillingMandate: false,
+      }),
+    );
+    const cleared = dataspace
+      .recorded()
+      .filter((r) => r.topic === "billingKycStatus")
+      .at(-1)!.message as Record<string, unknown>;
+    expect(cleared.termsVersion).toBeNull();
+    expect(cleared.selfBillingMandate).toBe(false);
+    expect(cleared.kycVerified).toBe(false);
+
+    // Empty string terms → ignored (keep cache nulls); KYC via status Active.
+    await bus.publish(
+      "KycStatusChanged",
+      envelope("KycStatusChanged", "AC-07", {
+        participantId: PRODUCER,
+        status: "Active",
+        kycStatus: "verified",
+      }),
+    );
+
+    // Terms-only patch with empty strings ignored; keep prev KYC.
+    await bus.publish(
+      "UserAccountStatusChanged",
+      envelope("UserAccountStatusChanged", "AC-03", {
+        actorId: PRODUCER,
+        termsVersion: "",
+        termsAcceptedAt: "",
+      }),
+    );
+    const afterEmpty = dataspace
+      .recorded()
+      .filter((r) => r.topic === "billingKycStatus")
+      .at(-1)!.message as Record<string, unknown>;
+    expect(afterEmpty.kycVerified).toBe(true);
+
+    // Merge defaults when communityId empty on first KYC-less patch.
+    await service.onKycStatusChanged({
+      actorId: CONSUMER,
+      communityId: "",
+      updatedAt: "2026-12-01T06:00:00.000Z",
+    });
+    await service.onKycStatusChanged({
+      actorId: CONSUMER,
+      communityId: COMMUNITY,
+      termsVersion: "v2",
+      termsAcceptedAt: "2026-12-01T07:00:00.000Z",
+      selfBillingMandate: true,
+      updatedAt: "2026-12-01T07:00:00.000Z",
+    });
+    const consumer = store.getUserAccount(CONSUMER)!;
+    expect(consumer.communityId).toBe(COMMUNITY);
+    expect(consumer.termsVersion).toBe("v2");
+    expect(consumer.accountStatus).toBe("PendingVerification");
+  });
+
   it("NFR-004: no published payload contains keys email|name|address|iban|stripe*", async () => {
     const dataspace = createMockDataSpace();
     const store = new PublicationStore();

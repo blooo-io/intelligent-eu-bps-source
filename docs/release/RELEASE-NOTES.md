@@ -1,9 +1,18 @@
 # V1 release notes (INT-95)
 
 **Deliverable:** D5.5 — Billing & Payment Service V1  
-**Source tag:** `v1.2.1` (INT-440 / INT-446), after `v1.2.0` (INT-430), `v1.1.6` (INT-421), `v1.1.5` (INT-417), `v1.1.4` (INT-415), `v1.1.3` (INT-412), `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
+**Source tag:** `v1.2.2` (INT-466), after `v1.2.1` (INT-440 / INT-446), `v1.2.0` (INT-430), `v1.1.6` (INT-421), `v1.1.5` (INT-417), `v1.1.4` (INT-415), `v1.1.3` (INT-412), `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
 **Project:** Horizon Europe INTELLIGENT (GA 101160678), Task T5.6, led by Blooo  
 **Licence:** Apache License 2.0 — see [`LICENSE`](../../LICENSE) and [`NOTICE`](../../NOTICE)
+
+## Changes since v1.2.1
+
+Patch cut after `money-path-stripe-dev` green on `develop` (`c77da53`):
+
+- **INT-463** — Identity split: R2M owns member IdP (OIDC + Admin); BPS Keycloak is S2S module-service + ops SSO only. IdP erase delegated to the project UI; drop by-idp-sub / human `/v1` OIDC paths.
+- **INT-464** — Docs drift closeout + S1/S2 test hardening after the INT-463 audit; architecture decisions published on the docs site.
+- **INT-465** — money-path S10: `requestWithdrawalForActor` returns the live payout when the period is already paid out (durable-store idempotency); CI green again.
+- Also on this tag vs `v1.2.1`: INT-447…462 (EWDS Actor path, UserAccount T&C, ontology/scenario docs, remove public `/v1`, Mock CGW + money-path CI) — see **Changes since v1.2.0**.
 
 ## Changes since v1.2.0
 

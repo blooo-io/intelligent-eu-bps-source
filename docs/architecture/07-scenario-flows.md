@@ -216,6 +216,8 @@ stateDiagram-v2
 
 Ready also requires BR-09 before invoices / statements / payouts.
 
+**Trace:** REQ-045 / UAT-056.
+
 ---
 
 ## S6 — Settled trade intake

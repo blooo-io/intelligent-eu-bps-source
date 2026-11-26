@@ -1,0 +1,12 @@
+{
+  "payment": {
+    "paymentId": "d383942a-7f8f-47c1-9ba8-2c9d91bb4dab",
+    "invoiceId": "efb3d57c-ecd5-4fbc-92ff-7689968e95a7",
+    "status": "failed"
+  },
+  "invoiceStatus": "Open",
+  "reminder": {
+    "invoiceId": "efb3d57c-ecd5-4fbc-92ff-7689968e95a7",
+    "reminderCount": 1
+  }
+}

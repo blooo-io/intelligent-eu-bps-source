@@ -1,31 +1,16 @@
-# AC-01 E2E continuous verification (INT-184)
+# AC-01 continuous verification — superseded (INT-455 / INT-462)
 
-Industrial pattern: **GitOps deploys; a separate verification pipeline validates the live URL**.
+The Playwright post-deploy workflow **`e2e-dev`** was removed with the public `/v1` reference client (INT-455). Do not revive it for D5.5 evidence.
 
-```text
-supply-chain (images) → rollout web (:develop) → Playwright → app.dev
-```
+## What replaced it
 
-Not run on pull requests. Not a cloistered localhost SPA.
+| Path | Workflow / driver | Label |
+|---|---|---|
+| EWDS Mock CGW (S1 inject + S13) | `ewds-e2e-dev` | `run_path: mock` |
+| Stripe money-path S8/S9/S10 | `money-path-stripe-dev` + `scripts/cluster-money-path-e2e.mjs` | `run_path: stripe-test` |
 
-## Workflow
+Details: [`ewds-project-path-e2e.md`](ewds-project-path-e2e.md), [`money-path-stripe-e2e-cd.md`](money-path-stripe-e2e-cd.md).
 
-`.github/workflows/e2e-dev.yml` (`e2e-dev`):
+## Historical note
 
-| Trigger | When |
-|---|---|
-| `workflow_run` | After **successful** `supply-chain` on `develop` |
-| `workflow_dispatch` | Operator manual run (Actions → e2e-dev → Run) |
-| `repository_dispatch` type `e2e-dev` | Future Argo CD Notifications / external hook |
-
-Environment: GitHub **`dev`** (secret `KUBECONFIG_INTELLIGENT_EU_DEV`).
-
-Steps: checkout `develop` → restart floating `:develop` Deployments in `int-apps` (web + AC modules, INT-178 / INT-229 / INT-280) → wait HTTP 200 on `https://app.dev.intelligent-eu-bp.blooo.dev/` → Playwright suite (`docs/testing/ac01-e2e.md`).
-
-## Why restart Deployments
-
-Charts pin `image.tag: develop` + `pullPolicy: Always`. Argo does not redeploy when only the registry digest for that tag changes. Restarting each Deployment is the documented INT-178 operator path packaged into this verification job. INT-280 extends the roll list beyond web/settlement so selectively rebuilt modules (e.g. `reference-data`) are not left on a stale digest.
-
-## Optional next (Argo Notifications)
-
-Wire `argocd-notifications` so `on-deployed` for `dev-web` sends `repository_dispatch` (`e2e-dev`) when Synced+Healthy. Requires a PAT in `argocd-notifications-secret` (never commit). Until then, `workflow_run` after supply-chain is the automation path.
+Before INT-455, `supply-chain` → roll `:develop` → Playwright against `https://app.dev.…` proved AC-01 chrome and a Stripe pay journey. That stack is gone; portal UX is validated via manual / demo workbook paths, not CI Playwright.

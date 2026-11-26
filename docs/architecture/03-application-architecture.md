@@ -248,7 +248,7 @@ flowchart LR
 | `GET /me/statements`, `GET /me/invoices`, `GET /invoices/{id}`, `GET /invoices/{id}/document` | member | AC-05 / AC-06 | REQ-059, REQ-007, REQ-039 | Statements / invoices |
 | `GET /me/payouts`, `POST /me/payouts` {period} | member | AC-07 | REQ-015, REQ-060 | Payouts |
 | `POST /invoices/{id}/payments` | consumer | AC-07 | REQ-014 | Pay |
-| `POST /invoices/{id}/reminders` | manager | AC-11 | REQ-061 | Reminders |
+| `POST /invoices/{id}/reminders` | manager | AC-06 (emits for AC-11) | REQ-061 | Reminders (INT-461 / INT-462) |
 | `GET/PUT /communities/{id}/settings` (currency, period, threshold, VAT, mode) | manager | AC-03 | REQ-006, REQ-043, REQ-056 | Community settings |
 | `POST /communities/{id}/participants:import`, `GET /communities/{id}/participants`, `PATCH /participants/{id}`, `POST /participants/{id}:offboard` | manager | AC-03 | REQ-008, REQ-058, REQ-012 | Participants — **`:import` is reference/e2e seed only**; project path = R2M `actor` topic (INT-447) |
 | `POST /communities/{id}/billing-runs`, `GET /billing-runs/{id}` | manager, operator | AC-05 | REQ-006 | Billing runs |

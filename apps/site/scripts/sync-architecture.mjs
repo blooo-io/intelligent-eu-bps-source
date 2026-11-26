@@ -49,6 +49,7 @@ function toSiteHref(target) {
   if (clean.endsWith(".md")) {
     const base = clean.slice(0, -3);
     if (base === "README") return "./";
+    // INT-464 — decisions/*.md publish under /architecture/decisions/.
     return `./${base}`;
   }
   return null;
@@ -167,6 +168,22 @@ function main() {
     if (!name.endsWith(".md")) continue;
     const body = readFileSync(path.join(srcDir, name), "utf8");
     writePage(name, body);
+  }
+
+  // INT-464 — publish ADRs so /architecture/decisions/* resolves on the docs site.
+  const decisionsSrc = path.join(srcDir, "decisions");
+  if (existsSync(decisionsSrc)) {
+    const decisionsOut = path.join(outDir, "decisions");
+    mkdirSync(decisionsOut, { recursive: true });
+    for (const name of readdirSync(decisionsSrc)) {
+      if (!name.endsWith(".md")) continue;
+      const body = readFileSync(path.join(decisionsSrc, name), "utf8");
+      const rewritten = withBanner(rewriteLinks(body, `decisions/${name}`));
+      const withOutline = rewritten.startsWith("---")
+        ? rewritten.replace(/^---\n/, "---\noutline: deep\neditLink: false\n")
+        : `---\noutline: deep\neditLink: false\n---\n${rewritten}`;
+      writeFileSync(path.join(decisionsOut, name), withOutline, "utf8");
+    }
   }
 
   syncEwdsTopicsIndex();

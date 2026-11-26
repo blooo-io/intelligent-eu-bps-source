@@ -171,7 +171,7 @@ flowchart TB
 | **LB-14 Reporting & exports** | **Consultation**: community-manager views (payment status, member history for disputes), periodic summary, **payout overview (REQ-060)**, KPI export and KPI logs, end-to-end trace payment → invoice → run → trades. Read-only on other blocks' data | ReportSnapshot, KpiExport (derived, rebuildable) | F6.2–F6.4, F6.5 | REQ-018, 028, 031, 032, 046, 047, 060 |
 | **LB-13 Scheduling** | Triggers **time-based** jobs at the right moment, per community calendar, by sending a command to the owning block. It has no business logic and gives one supervision point for every deadline (see §4.5) | JobDefinition, JobExecution | — (cross-cutting) | REQ-006, 011, 029, 053, 056 |
 | **LB-08 Publication** | Publishes `billingStatement`, `billingInvoice`, `billingPayment`, `billingPayout`, `billingKycStatus`; **receives commands on P-CMD** and forwards them to LB-12 commands. Publishes through the data-space port with retry, and purges cached messages | OutboundMessage (outbox), PublicationStatus | F6.1, F7.2 (purge) | REQ-048, 052, 053 |
-| **LB-09 Notification** | Sends invitations, invoice e-mails (PDF attached), payment confirmations, **payment reminders (REQ-061)** and failure notices | NotificationLog | P1, F4.2, F5.3, F6.5 | REQ-017, 039, 008, 061 |
+| **LB-09 Notification** | Sends invoice e-mails (PDF attached), payment confirmations, **payment reminders (REQ-061)** and failure notices. Member IdP invitations are owned by R2M (INT-463), not this block | NotificationLog | P1, F4.2, F5.3, F6.5 | REQ-017, 039, 061 |
 | **LB-10 Compliance** | Access/change audit log. Retention rules and purge. Data-subject request workflow: export or erase personal data and propagate the request to LB-02, LB-05, LB-06 (provider) and LB-01 (IdP: delegated to the project UI, INT-463), keeping invoices under legal retention | AuditEvent, RetentionPolicy, DataSubjectRequest | F7.1–F7.3 | REQ-011, 013, 030 |
 | **LB-11 Reference data** | Exchange rates (EUR→community currency, by date) and VAT rates per community | ExchangeRate | F3.4 | REQ-002, 007 |
 | **LB-12 Billing API** | Documented entry point for the **reference client**: profiles, balances, invoices, **withdrawal, statements**, payment, onboarding, terms, admin, reports. Dispatches EWDS commands from P-CMD | None (facade) | all user-facing functions (reference path) | REQ-052 |
@@ -199,7 +199,7 @@ Each port is a logical interface. Implementations are **env-selected**; EWDS ada
 
 | Event | Emitted by | Consumed by | Meaning |
 |---|---|---|---|
-| ParticipantOnboarded | LB-02 | LB-09 (invitation), LB-06 (create provider customer/account link) | Actor ingested from EWDS (R2M); IdP account is managed by R2M (INT-463) |
+| ParticipantOnboarded | LB-02 | LB-06 (create provider customer/account link) | Actor ingested from EWDS (R2M); IdP account is managed by R2M (INT-463) |
 | UserAccountStatusChanged | LB-02 | LB-08 (`billingKycStatus`) | UserAccount snapshot (kycVerified + T&C) after terms accept or KYC apply (INT-448) |
 | ParticipantReadinessChanged | LB-02 (from LB-06 KYC status) | LB-05, LB-12 | Participant is or is no longer **KYC-verified** (terms + KYC for every role) |
 | ParticipantOffboarded | LB-02 | LB-04 (force final settlement) | Participant left the community |
@@ -433,7 +433,7 @@ The mapping to ontology classes is in the functional view §5 and the dedicated 
 
 | Function | Block(s) |
 |---|---|
-| F1.1–F1.3, F1.5 | LB-02 (+ LB-09 invitations, LB-06 payment onboarding) |
+| F1.1–F1.3, F1.5 | LB-02 (+ LB-06 payment onboarding; IdP invite = R2M, INT-463) |
 | F1.4 | LB-01 |
 | F2.1–F2.4 | LB-03 |
 | F3.1–F3.4 | LB-04 (+ LB-11) |

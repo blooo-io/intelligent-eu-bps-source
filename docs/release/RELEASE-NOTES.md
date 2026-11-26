@@ -101,7 +101,7 @@ v6.1 source realignment (INT-422 parent; day closeouts INT-423…INT-430):
 
 - Reference web app: an API console at `/api` lists every public operation for any signed-in role, and is linked from the header (INT-387).
 - Invoices: the PDF is returned as bytes, not a Stripe redirect (INT-389). Payment readiness and onboarding unblocked on the manual screens (INT-390, INT-391).
-- Payments: a member pays an invoice that names them by IdP subject (INT-395). Start fails closed when a saved card cannot sync to Ready (INT-390).
+- Payments: invoice pay/payee identity is `participantId` / `actorId` (INT-463 withdrew the IdP-subject bridge; INT-395 historical). Start fails closed when a saved card cannot sync to Ready (INT-390).
 - Gateway: Stripe.js is allowed in the app Content-Security-Policy (INT-388).
 - Test: an authenticated public API e2e suite runs on the deployed stack and fails unless every public operation is covered (INT-394).
 - Platform: Argo CD reports `platform-kyverno` Synced, with labels and annotations rendered on the Kyverno policy CRDs (INT-396). NATS, CNPG and Kyverno fixes from INT-377 to INT-384.
@@ -128,7 +128,7 @@ In **live** mode, AC-07 erase-at-psp does **not** delete the Connect account. St
 | Crypto / AMM / stablecoin | Out of D5.5 scope (deferred to D5.10) |
 | Grid fee / levy / tax | **0 + mention** on the invoice until a DSO tariff is published (REQ-004 / REQ-007). Publication maps fee components when present (INT-428); EWDS tariff transport shipped (INT-432). Full UAT-004 mock-tariff Pass still pending settlement/reference-data tariff billing |
 | EV charging | Out of scope (A10.4) |
-| DID / VC identity | Not in V1 (REQ-062 → D5.10); OIDC RP stays Keycloak-based (A9) |
+| DID / VC identity | Not in V1 (REQ-062 → D5.10); member OIDC RP = R2M on Keycloak (A9 / INT-463); BPS Keycloak = S2S + ops |
 | Stripe data residency | See [`05-physical-architecture.md`](../architecture/05-physical-architecture.md) §4.1 (third-party processor note) |
 | Invoicing | Billing-owned PDF and `SB-…` legal numbers (A6); Stripe Invoicing removed (INT-428). Reminders: UAT-078 Pass on mock path |
 | Acceptance | Counts are computed from in-scope UAT notes (`scope_d55: in`): **62 Pass / 0 Blocked / 0 Fail** (60 Pass + 2 Pass on mock path). Historical INT-204 baseline was 62 in-scope Pass before UAT-078. Re-run packaging: [`v6.1-rerun.md`](../testing/v6.1-rerun.md). Partner optimisations: pilot SLA number (NFR-008), onboarding step-count (NFR-016) — see [`docs/testing/v1-uat-package.md`](../testing/v1-uat-package.md) |

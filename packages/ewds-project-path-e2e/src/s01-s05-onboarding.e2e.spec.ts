@@ -63,10 +63,13 @@ describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
     const rows = actors.map((actor) => {
       const row = store.getParticipant(actor.actorId)!;
       expect(row.source).toBe("ewds");
+      // INT-463 — BPS does not provision Keycloak on Actor ingest.
+      expect(row.idpUserId).toBeNull();
       expect(deriveReadiness(row)).toBe("ProfileCompleted");
       return {
         actorId: actor.actorId,
         source: row.source,
+        idpUserId: row.idpUserId,
         readiness: deriveReadiness(row),
       };
     });
@@ -74,7 +77,7 @@ describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
       run_path: "mock",
       input: { communityId, actors },
       output: { sync: result, participants: rows },
-      notes: "EWDS Actor ingest via MockActorSourceAdapter (no Spine).",
+      notes: "EWDS Actor ingest; idpUserId null (R2M owns member IdP, INT-463).",
     });
   });
 
@@ -99,9 +102,8 @@ describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
       "Updated",
     );
 
-    const row = store.getParticipant(first.actorId)!;
     await expect(
-      participants.updateProfile(row.idpUserId!, {
+      participants.updateProfile(first.actorId, {
         name: "Hacker",
         address: "evil",
         email: "evil@example.invalid",

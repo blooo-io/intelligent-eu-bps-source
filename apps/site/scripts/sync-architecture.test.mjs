@@ -65,5 +65,15 @@ describe("sync-architecture (INT-413)", () => {
         ),
       ),
     );
+
+    // INT-464 — ADRs under decisions/ are published (INT-463 handoff discoverability).
+    assert.ok(
+      existsSync(path.join(archDir, "decisions/INT-463-r2m-member-idp.md")),
+      "missing decisions/INT-463-r2m-member-idp.md",
+    );
+    assert.match(
+      readFileSync(path.join(archDir, "index.md"), "utf8"),
+      /INT-463/,
+    );
   });
 });

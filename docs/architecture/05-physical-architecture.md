@@ -89,23 +89,22 @@ flowchart LR
   EWF((EWF Message Broker)) -. mTLS .- MODS
   DNS --> LB((Scaleway load balancer))
   LB --> APX[APISIX]
-  APX --> WEB[web app]
-  APX --> API[public API /v1]
   APX --> HOOK[/webhooks/payment-provider/]
   APX --> KC[Keycloak login]
-  API --> MODS[modules - private]
+  APX --> DOCS[docs portal]
   HOOK --> PAY[AC-07 Payments - private]
+  MODS[modules - private]
   MODS -- egress HTTPS --> STRIPE
 ```
+
+> **INT-455 / INT-463:** public product `/v1` and the reference web app (`app.*` / AC-01) are withdrawn. Project UI traffic is EWDS-only (R2M). Keycloak on `auth.*` serves **ops SSO**, **module-service** token endpoints, and **R2M member OIDC** (not a BPS human RP).
 
 Base domain: **`intelligent-eu-bp.blooo.dev`**. In the table, `<env>` is `dev` for the deployed environment. `demo` hosts are not served while `demo` is not deployed.
 
 | Public host | Target | Notes |
 |---|---|---|
-| `app.<env>.intelligent-eu-bp.blooo.dev` | AC-01 web app | Static front end |
-| `api.<env>.intelligent-eu-bp.blooo.dev` | APISIX → public API `/v1` | OIDC bearer required |
-| `api.<env>.intelligent-eu-bp.blooo.dev/webhooks/payment-provider` | AC-07 | Only unauthenticated route: Stripe signature verified, rate-limited. Registered as the webhook endpoint in each Stripe test account |
-| `auth.intelligent-eu-bp.blooo.dev` | Keycloak (realm `int` for `dev`) | Login pages and OIDC endpoints |
+| `api.<env>.intelligent-eu-bp.blooo.dev/webhooks/payment-provider` | AC-07 | Unauthenticated Stripe webhook: signature verified, rate-limited. Registered as the webhook endpoint in each Stripe test account |
+| `auth.intelligent-eu-bp.blooo.dev` | Keycloak (realm `int` for `dev`) | Ops login, S2S token, R2M member OIDC (INT-463) |
 | `docs.intelligent-eu-bp.blooo.dev` | Redocly API documentation, Prism mock for R2M | Public contract (D5.5 is PU) |
 | `sonar.intelligent-eu-bp.blooo.dev` | SonarQube Community Build (INT-292) | CI quality gate + UI; Sonar token/login (not Keycloak OIDC) |
 | `ops.intelligent-eu-bp.blooo.dev` | Argo CD, Perses, Jaeger (via APISIX) | Keycloak login, Blooo operators only |

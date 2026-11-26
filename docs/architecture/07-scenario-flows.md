@@ -527,21 +527,21 @@ sequenceDiagram
 
 ## Index by requirement / UAT
 
-Every scenario below maps to existing UAT item notes under `docs/requirements/items/uat/` (one primary UAT per primary REQ; secondary REQs listed where useful).
+Every scenario maps to existing UAT item notes under `docs/requirements/items/uat/` (UAT column aligned with the REQ column, same order).
 
-| Scenario | Primary REQ / UAT | Main ontology |
-|---|---|---|
-| S1 Onboard | REQ-008 / UAT-008 | `int:Actor` |
-| S2 Profile update | REQ-009 / UAT-009 | `int:Actor` |
-| S3 Terms | REQ-050 / UAT-062 | `int:UserAccount` |
-| S4 KYC / PM | REQ-051 / UAT-063 · REQ-040 / UAT-051 | `int:UserAccount` |
-| S5 Readiness | REQ-045 / UAT-056 | `int:Actor`, `int:UserAccount` |
-| S6 Trades | REQ-001 / UAT-001 · REQ-058 / UAT-075 | `int:EnergyTrade` |
-| S7 Billing run | REQ-054 / UAT-071 · REQ-059 / UAT-076 · REQ-048 / UAT-070 | `int:Billing`, `int:Invoice` |
-| S8 Pay | REQ-014 / UAT-014 | `int:Payment`, `int:Invoice` |
-| S9 Failure | REQ-016 / UAT-016 · REQ-061 / UAT-078 | `int:Payment`, `int:Invoice` |
-| S10 Payout | REQ-015 / UAT-015 · REQ-060 / UAT-077 | `int:Payout` |
-| S11 Invoice status | REQ-044 / UAT-055 | `int:Invoice` |
-| S12 Erasure | REQ-013 / UAT-013 | `int:Actor`, `int:UserAccount`, `int:Invoice` |
-| S13 Commands | REQ-052 / UAT-064 | `int:Actor`, `int:UserAccount`, `int:Invoice`, `int:Payment`, `int:Payout`, `int:Billing`, `int:Community` |
-| S14 Purge | REQ-053 / UAT-069 | `int:Billing`, `int:Invoice`, `int:Payment`, `int:Payout`, `int:UserAccount` |
+| Scenario | REQ | UAT | Main ontology |
+|---|---|---|---|
+| S1 Onboard | REQ-008 | UAT-008 | `int:Actor` |
+| S2 Profile update | REQ-009 | UAT-009 | `int:Actor` |
+| S3 Terms | REQ-050 | UAT-062 | `int:UserAccount` |
+| S4 KYC / PM | REQ-051, REQ-040 | UAT-063, UAT-051 | `int:UserAccount` |
+| S5 Readiness | REQ-045 | UAT-056 | `int:Actor`, `int:UserAccount` |
+| S6 Trades | REQ-001, REQ-058 | UAT-001, UAT-075 | `int:EnergyTrade` |
+| S7 Billing run | REQ-054, REQ-059, REQ-048 | UAT-071, UAT-076, UAT-070 | `int:Billing`, `int:Invoice` |
+| S8 Pay | REQ-014 | UAT-014 | `int:Payment`, `int:Invoice` |
+| S9 Failure | REQ-016, REQ-061 | UAT-016, UAT-078 | `int:Payment`, `int:Invoice` |
+| S10 Payout | REQ-015, REQ-060 | UAT-015, UAT-077 | `int:Payout` |
+| S11 Invoice status | REQ-044 | UAT-055 | `int:Invoice` |
+| S12 Erasure | REQ-013 | UAT-013 | `int:Actor`, `int:UserAccount`, `int:Invoice` |
+| S13 Commands | REQ-052 | UAT-064 | `int:Actor`, `int:UserAccount`, `int:Invoice`, `int:Payment`, `int:Payout`, `int:Billing`, `int:Community` |
+| S14 Purge | REQ-053 | UAT-069 | `int:Billing`, `int:Invoice`, `int:Payment`, `int:Payout`, `int:UserAccount` |

@@ -584,7 +584,9 @@ export class ParticipantsService {
   }
 
   private async performUpdateProfile(sub: string, profile: BillingProfile): Promise<BillingProfile> {
-    const row = this.store.findByIdpSub(sub);
+    // INT-463 — product callers pass actorId / participantId; IdP sub bind is legacy only.
+    const row =
+      this.store.getParticipant(sub) ?? this.store.findByIdpSub(sub);
     if (!row || row.status === "Offboarded") {
       throw new NotFoundException("Caller is not a registered participant");
     }

@@ -431,6 +431,10 @@ describe("ComplianceService", () => {
     const detail = service.getRequestDetail(created.requestId);
     expect(detail.paymentProviderErasureSent).toBe(false);
     expect(detail.identityErasureSent).toBe(true);
+    // INT-463 — IdP adapter was invoked (delegation outcome covered on MockIdp + factory specs).
+    expect(
+      idp.recorded().some((c) => c.participantId === PARTICIPANT),
+    ).toBe(true);
     expect(detail.status).toBe("failed");
     expect(service.listAudits().some((a) => a.action === "erasure.external.failed")).toBe(
       true,

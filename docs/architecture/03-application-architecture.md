@@ -34,7 +34,7 @@ Each logical block becomes its own deployable module. The only exception is LB-0
 | Component | Kind | Logical block | Responsibility | Owns data |
 |---|---|---|---|---|
 | **AC-01 Web app** | Front-end | — (client) | Participant portal and community-manager console (reference screens) | None |
-| **AC-02 API gateway** | Edge | LB-12 + LB-01 | Single public entry point: routing, OIDC token validation, role and community checks, rate limiting, public OpenAPI | None (config) |
+| **AC-02 API gateway** | Edge | LB-12 + LB-01 | Public entry for webhooks, docs, auth host; product `/v1` human OIDC withdrawn (INT-455). Member login is R2M (INT-463); module guards validate S2S JWT | None (config) |
 | **AC-03 Participants** | Domain | LB-02 | Communities, registry, profiles, terms and mandate, readiness, offboarding; no IdP account provisioning (R2M owns member accounts, INT-463) | Community, Participant, RegistryEntry, BillingProfile, TermsAcceptance |
 | **AC-04 Trade intake** | Domain | LB-03 | Market queries per window, deduplication, attribution, completeness, intake health | Trade, MarketInfo, ClearingResult, IntakeWindow, IntakeAnomaly |
 | **AC-05 Settlement** | Domain | LB-04 | Billing runs, **monthly statements**, pair settlement, netting, threshold and carry-forward, currency, VAT and tariff, ledger | BillingRun, PairSettlement, Statement, CarryForward, LedgerEntry |
@@ -43,7 +43,7 @@ Each logical block becomes its own deployable module. The only exception is LB-0
 | **AC-08 Reconciliation** | Control | LB-07 | Invoice ↔ payment and market ↔ clearing checks, discrepancies and alerts | ReconciliationResult, Discrepancy |
 | **AC-09 Reporting & exports** | Read side | LB-14 | Manager views, history, summaries, KPI export, end-to-end trace (read models built from events) | Read models, KpiExport |
 | **AC-10 Publication** | Support | LB-08 | **Five EWDS records** + **command channel consumer**; publication to the data space, retry, cache purge | OutboundMessage, PublicationStatus |
-| **AC-11 Notification** | Support | LB-09 | Invitations, **invoice e-mail with PDF sent by billing**, payment confirmations, **reminders**, failure notices | NotificationLog |
+| **AC-11 Notification** | Support | LB-09 | **Invoice e-mail with PDF sent by billing**, payment confirmations, **reminders**, failure notices (member IdP invites are R2M, INT-463) | NotificationLog |
 | **AC-12 Compliance** | Support | LB-10 | Audit log, retention, data-subject requests (export, erasure orchestration) | AuditEvent, RetentionPolicy, DataSubjectRequest |
 | **AC-13 Reference data** | Support | LB-11 | Exchange rates by date, VAT rates per community | ExchangeRate |
 | **AC-14 Scheduler** | Support | LB-13 | Time-based jobs: decides *when* and sends the command to the owning module | JobDefinition, JobExecution |

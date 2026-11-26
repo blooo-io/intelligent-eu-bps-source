@@ -1,0 +1,27 @@
+{
+  "payment": {
+    "paymentId": "99d5579f-ee96-4fc8-9c21-55be0a16aec4",
+    "invoiceId": "7978a449-93f5-416f-86b7-3935c8253596",
+    "status": "succeeded"
+  },
+  "invoice": {
+    "invoiceId": "7978a449-93f5-416f-86b7-3935c8253596",
+    "producerId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+    "consumerId": "11111111-2222-4333-8444-555555555555",
+    "communityId": "c0ffee00-1234-4abc-8def-0123456789ab",
+    "currency": "EUR",
+    "status": "Paid",
+    "legalNumber": "SB-66666666-000016",
+    "dueDate": "2026-12-10",
+    "total": "2.00",
+    "tradeIds": [
+      "0x8f3a1c2b4d5e6f708192a3b4c5d6e7f8"
+    ],
+    "pairSettlementId": "3387a25a-ac0b-4bfc-8fda-24e1346a4871",
+    "amounts": {
+      "energy": "2.00",
+      "vat": "0.00",
+      "total": "2.00"
+    }
+  }
+}

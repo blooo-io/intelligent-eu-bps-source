@@ -21,6 +21,9 @@ D5.5 remediation closeout (INT-440) and e2e-dev recovery on `dev`:
 - **INT-453** — EWDS project-path **full E2E** (S1–S14): `@intelligent/ewds-project-path-e2e` journey suite + Mock CGW wire tests; matrix in `docs/testing/ewds-project-path-e2e.md`.
 - **INT-455** — **Remove** public REST `/v1` and reference client `apps/web` (AC-01). EWDS-only external surface; internal module APIs + payment-provider webhooks remain. Decision: `docs/architecture/decisions/INT-455-remove-public-v1.md`.
 - e2e-dev (AC-01 Playwright) withdrawn with INT-455.
+- **INT-454 / INT-458** — Mock CGW cluster E2E + S1–S14 evidence packs (`run_path: mock`); Stripe script proofs separate.
+- **INT-459…461** — destinDev Stripe money-path: Connect/pay/Paid unwrap; CI workflow `money-path-stripe-dev` (S8/S9/S10); REQ-061 sendReminder on AC-06.
+- **INT-462** — Archive CI evidence; drop orphan AC-11 `/reminders` OpenAPI; testing docs point to EWDS + money-path CI.
 
 ## What ships
 

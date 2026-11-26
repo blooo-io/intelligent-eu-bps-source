@@ -1,29 +1,41 @@
 {
-  "generatedAt": "2026-11-26T19:00:00+01:00",
+  "generatedAt": "2026-11-26T19:17:00+01:00",
   "timezone": "Europe/Paris",
-  "jira": ["INT-459", "INT-460", "INT-461"],
+  "jira": ["INT-459", "INT-460", "INT-461", "INT-462"],
   "cluster": "k8s-intelligent-eu-dev",
   "namespace": "int-apps",
   "run_path": "stripe-test",
   "PSP_PROVIDER": "stripe",
   "driver": "scripts/stripe-fresh-billing-run.mjs + scripts/cluster-money-path-e2e.mjs",
   "ci_workflow": "money-path-stripe-dev",
+  "ci_run": "https://github.com/blooo-io/intelligent-eu-bps-source/actions/runs/45873655357",
   "scenarios": [
     { "id": "S4", "path": "s04-kyc", "run_path": "stripe-test" },
     { "id": "S7", "path": "s07-billing", "run_path": "stripe-test" },
-    { "id": "S8", "path": "s08-pay-after-int460", "run_path": "stripe-test", "result": "Paid" },
+    {
+      "id": "S8",
+      "path": "s08-pay-ci",
+      "run_path": "stripe-test",
+      "result": "Paid",
+      "paymentId": "99d5579f-ee96-4fc8-9c21-55be0a16aec4",
+      "invoiceId": "7978a449-93f5-416f-86b7-3935c8253596"
+    },
     {
       "id": "S9",
-      "path": "s09-failure",
+      "path": "s09-failure-ci",
       "run_path": "stripe-test",
-      "result": "decline ok; reminder 404 on AC-11 — fixed in INT-461 AC-06 route + CI"
+      "result": "failed + reminderCount 1",
+      "paymentId": "d383942a-7f8f-47c1-9ba8-2c9d91bb4dab",
+      "invoiceId": "efb3d57c-ecd5-4fbc-92ff-7689968e95a7"
     },
     {
       "id": "S10",
-      "path": "s10-payout-live",
+      "path": "s10-payout-ci",
       "run_path": "stripe-test",
-      "result": "payout in_transit / Stripe po_* paid"
+      "result": "in_transit / Stripe po_* paid",
+      "payoutId": "36702579-25a3-48cb-b2ac-da87db516310",
+      "stripePayoutId": "po_1Ug7EoF3LhmN7NjX5K5ZEA2i"
     }
   ],
-  "verdict": "S8 Paid + S10 live payout proven on destinDev. S9 reminder + regression locked in money-path-stripe-dev CI (INT-461)."
+  "verdict": "S8/S9/S10 proved on destinDev via money-path-stripe-dev CI (INT-461). INT-462 archives CI packs and drops orphan AC-11 /reminders."
 }

@@ -48,3 +48,13 @@ test("A7: command targets are declared in internal contracts", async () => {
     );
   }
 });
+
+test("INT-462: AC-11 OpenAPI no longer exposes orphan /reminders", async () => {
+  const yaml = await readFile(
+    "contracts/openapi/internal/notification.v1.yaml",
+    "utf8",
+  );
+  assert.doesNotMatch(yaml, /^  \/reminders:/m);
+  assert.match(yaml, /INT-462/);
+  assert.match(yaml, /AC-06/);
+});

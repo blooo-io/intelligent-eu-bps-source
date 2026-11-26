@@ -339,6 +339,7 @@ sequenceDiagram
   participant Stripe as Stripe
   participant AC07 as AC-07 Payments
   participant AC10 as AC-10 Publication
+  participant AC06 as AC-06 Invoicing
   participant CGW as Billing CGW
   participant EWDS as EWDS broker
   participant R2M as R2M UI + CGW
@@ -353,7 +354,8 @@ sequenceDiagram
   R2M->>EWDS: billingCommandRequest sendReminder
   EWDS->>CGW: deliver command
   CGW->>AC10: poll authorize manager
-  AC10->>AC07: reminder notify
+  Note over AC10: INT-461 — REQ-061 on AC-06; AC-11 delivers mail
+  AC10->>AC06: POST /invoices/{id}/reminders
   AC10->>CGW: billingCommandReply
   CGW->>EWDS: publish reply
 ```
@@ -361,7 +363,7 @@ sequenceDiagram
 | Step | Ontology objects |
 |---|---|
 | Failure publish | `int:Payment` |
-| Reminder | references `int:Invoice` / `int:Actor` |
+| Reminder | references `int:Invoice` / `int:Actor` (AC-06 owns HTTP; AC-11 mail) |
 
 **Trace:** REQ-016 / UAT-016, REQ-017 / UAT-017, REQ-046 / UAT-057, REQ-061 / UAT-078.
 

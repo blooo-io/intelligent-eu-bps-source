@@ -17,7 +17,8 @@ Covers Horizon Energy personas, the Invite CSV path (REQ-008 / Mailpit), filled 
 | [v6.1 re-run packaging](./v6.1-rerun.md) | Computed UAT counts + mock-path legend (INT-430) |
 | [v6.1 evidence matrix](./v6.1-evidence-matrix.md) | Process → run_path → artifact rules (INT-438; no silent mocks) |
 | [V1 validation summary](./v1-validation-summary.md) | Status table with Path column |
-| [AC-01 e2e](./ac01-e2e.md) | Deployed Playwright |
+| [AC-01 e2e](./ac01-e2e.md) | Superseded (INT-455) — points to EWDS + money-path CI |
+| [Money-path Stripe CD](./money-path-stripe-e2e-cd.md) | destinDev S8/S9/S10 after supply-chain (INT-461) |
 | [EWDS project-path E2E (S1–S14)](./ewds-project-path-e2e.md) | Full EWDS use-case suite (INT-453 in-process; INT-454 cluster Mock CGW) |
 
 ### Run-path legend (Task 6.14)

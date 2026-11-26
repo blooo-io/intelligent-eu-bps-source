@@ -1,0 +1,8 @@
+{
+  "invoiceId": "efb3d57c-ecd5-4fbc-92ff-7689968e95a7",
+  "paymentMethodId": "pm_card_chargeDeclined",
+  "reminder": {
+    "actorId": "dddddddd-eeee-4fff-8000-111111111111",
+    "communityId": "c0ffee00-1234-4abc-8def-0123456789ab"
+  }
+}

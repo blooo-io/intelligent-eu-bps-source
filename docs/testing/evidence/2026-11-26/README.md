@@ -6,9 +6,10 @@
 |---|---|---|
 | `mock-cgw-cluster-e2e.json` | Live cluster Mock CGW transport (S1 inject + S13 commands) | **No** |
 | `ewds-s01`…`ewds-s14` + `s1-s14-index.json` | Full S1–S14 process I/O on EWDS project path (in-process) | **No** — money paths stubbed |
-| `stripe-s04` / `stripe-s08` / `stripe-s10` + `stripe-proof-index.json` | Live **Stripe test mode** API objects for KYC / pay / payout probes | **Yes** (`run_path: stripe-test`) |
+| `stripe-s04` / `stripe-s08` / `stripe-s10` + `stripe-proof-index.json` | Live **Stripe test mode** API objects (script-level) | **Yes** |
+| `cluster-money-path/` (INT-459) | destinDev AC-07 money path with `PSP_PROVIDER=stripe` | **Yes** — Connect + direct charges |
 
-**Stripe is not effective inside the EWDS E2E journeys today.** S4/S8/S10 EWDS packs use fixtures/stubs. The `stripe-s*` packs are the separate proof that Stripe test mode works for those capabilities.
+**Stripe on the cluster (INT-459):** effective for Connect provision (S4) and pay (S8) against live Stripe test. EWDS journey stubs remain separate (`run_path: mock`).
 
 ## How regenerated
 

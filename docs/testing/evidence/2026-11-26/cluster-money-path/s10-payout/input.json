@@ -1,0 +1,5 @@
+{
+  "endpoint": "POST /internal/v1/payouts:request",
+  "actorId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+  "currency": "EUR"
+}

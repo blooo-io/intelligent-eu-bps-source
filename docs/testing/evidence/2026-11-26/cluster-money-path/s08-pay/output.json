@@ -1,0 +1,30 @@
+{
+  "payments": [
+    {
+      "invoiceId": "ec77bf9c-8733-4488-97d5-e535116d2828",
+      "paymentId": "2796f838-eda9-40ff-86e6-fa2eb8cd4885",
+      "status": "succeeded",
+      "stripe": {
+        "connectedAccount": "acct_1Ug5eqFNmC6Gh1He",
+        "paymentIntentId": "pi_3Ug5gmFNmC6Gh1He16cnHGRt",
+        "chargeId": "ch_3Ug5gmFNmC6Gh1He1NxVZHTB",
+        "amount": 200,
+        "currency": "eur"
+      }
+    },
+    {
+      "invoiceId": "fab3b1b0-2061-45e5-ad09-6f43aee94e86",
+      "paymentId": "399fec2f-2940-4b0a-936b-8f55cfefef3a",
+      "status": "succeeded",
+      "stripe": {
+        "connectedAccount": "acct_1Ug5ezFDwN8V7NM6",
+        "paymentIntentId": "pi_3Ug5gpFDwN8V7NM61N5xPOxK",
+        "chargeId": "ch_3Ug5gpFDwN8V7NM616c7f0tI",
+        "amount": 264,
+        "currency": "eur"
+      }
+    }
+  ],
+  "invoiceStatusAfterPay": "Open",
+  "notes": "Direct charges on producer Connect accounts. AC-07 returned succeeded; Stripe PI/charge confirmed via Stripe-Account header. Invoice status still Open at capture time (webhook/status sync lag or gap)."
+}

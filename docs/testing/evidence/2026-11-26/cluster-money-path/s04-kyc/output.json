@@ -1,0 +1,24 @@
+{
+  "accounts": [
+    {
+      "participantId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      "pspAccountRef": "acct_1Ug5eqFNmC6Gh1He",
+      "chargesEnabled": true,
+      "kycStatus": "verified"
+    },
+    {
+      "participantId": "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+      "pspAccountRef": "acct_1Ug5ezFDwN8V7NM6",
+      "chargesEnabled": true,
+      "kycStatus": "verified"
+    },
+    {
+      "participantId": "11111111-2222-4333-8444-555555555555",
+      "pspAccountRef": "acct_1Ug5f6JvoNdIXN2H",
+      "paymentMethodId": "pm_card_visa",
+      "chargesEnabled": true,
+      "kycStatus": "verified"
+    }
+  ],
+  "notes": "Live Stripe Connect Express accounts created by AC-07 on destinDev (not acct_test_*)."
+}

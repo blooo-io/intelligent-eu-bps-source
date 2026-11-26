@@ -1,0 +1,20 @@
+{
+  "endpoint": "POST /internal/v1/payment-accounts:provision",
+  "PSP_PROVIDER": "stripe",
+  "cluster": "k8s-intelligent-eu-dev",
+  "participants": [
+    {
+      "participantId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      "role": "producer"
+    },
+    {
+      "participantId": "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+      "role": "producer"
+    },
+    {
+      "participantId": "11111111-2222-4333-8444-555555555555",
+      "role": "prosumer",
+      "label": "lea"
+    }
+  ]
+}

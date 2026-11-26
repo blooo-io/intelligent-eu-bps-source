@@ -25,7 +25,7 @@ Assemble acceptance for partners from the existing UAT notes. **Case text stays 
 
 ## Already accepted (do not re-run unless regressing)
 
-See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. Freeze baseline after INT-204 (2026-10-18): **62 Pass**, **0 Blocked** in-scope, **0 Fail**. For the v6.1 / `v1.2.0` campaign, recompute counts from UAT notes and follow [`v6.1-rerun.md`](v6.1-rerun.md) (run-path labelling). As of INT-437: **62 Pass / 0 Blocked** (incl. Pass on mock path). UAT-044 / UAT-047 out of scope.
+See the Pass rows in [`v1-functional-cases.md`](v1-functional-cases.md) and the two execution logs. Freeze baseline after INT-204 (2026-10-18): **62 Pass**, **0 Blocked** in-scope, **0 Fail**. Recompute counts from UAT notes via [`v6.1-rerun.md`](v6.1-rerun.md). As of INT-467: **64 Pass / 0 Blocked** (incl. Pass on mock path). UAT-044 / UAT-047 out of scope.
 
 ## Keycloak UAT IdP users (INT-194)
 

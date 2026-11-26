@@ -2,9 +2,9 @@
 
 Traceability / validation snapshot for D5.5. Source of truth remains the UAT item notes and [`traceability-dashboard.md`](../requirements/traceability-dashboard.md).
 
-**As of 2026-11-25 (Europe/Paris), tag v1.2.0 (INT-437 / Task 6.14):** **62** in-scope UATs — **62 Pass** (incl. Pass on mock path), **0 Blocked**, **0 Not Run**, **0 Fail**.
+**As of 2026-11-26 (Europe/Paris), INT-467:** **64** in-scope UATs — **64 Pass** (53 Pass + 11 Pass on mock path), **0 Blocked**, **0 Not Run**, **0 Fail**. UAT-044 / UAT-047 are `scope_d55: out`.
 
-Counts are computed from UAT front matter (see [`v6.1-rerun.md`](v6.1-rerun.md)). Mock-path results use `run_path: mock` or `status: Pass on mock path`. Live CGW cases that were not re-run stay labelled mock-path.
+Counts are computed from UAT front matter (see [`v6.1-rerun.md`](v6.1-rerun.md)). Operator rule (INT-467): green automated evidence re-certifies a note after the v6.1 supersession. Mock-path results use `run_path: mock` or `status: Pass on mock path`.
 
 ## Evidence index
 
@@ -92,12 +92,14 @@ Path wording: where the UAT note carries `run_path: mock` or `status: Pass on mo
 | UAT-073 | REQ-056 | Pass | stripe-test |
 | UAT-074 | REQ-057 | Deprecated (REQ-057) | |
 | UAT-075 | REQ-058 | Pass | stripe-test |
-| UAT-078 | REQ-061 | Pass | mock path |
+| UAT-076 | REQ-059 | Pass on mock path | mock path |
+| UAT-077 | REQ-060 | Pass on mock path | mock path |
+| UAT-078 | REQ-061 | Pass on mock path | mock path |
 
 ## Open blockers
 
-None for in-scope V1 UATs (recomputed 2026-11-25). Pilot SLA number (NFR-008) and onboarding step-count (NFR-016) remain deferred optimisations with partners.
+None for in-scope V1 UATs (recomputed 2026-11-26, INT-467). Pilot SLA number (NFR-008) and onboarding step-count (NFR-016) remain deferred optimisations with partners.
 
 ## INT-81 / INT-204 note
 
-Validation summary refreshed after INT-204 (UAT-040 Pass). No Fail rows at freeze. Historical in-scope tally: **62 Pass / 0 Blocked / 0 Fail**. For the v6.1 / `v1.2.0` cut, use the computed counts in the release notes and [`v6.1-rerun.md`](v6.1-rerun.md).
+Historical freeze tally (INT-204): **62 Pass / 0 Blocked / 0 Fail**. Current computed tally: see the header (INT-467) and [`v6.1-rerun.md`](v6.1-rerun.md).

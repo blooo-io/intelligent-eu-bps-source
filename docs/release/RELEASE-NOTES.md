@@ -12,6 +12,7 @@ Patch cut after `money-path-stripe-dev` green on `develop` (`c77da53`):
 - **INT-463** — Identity split: R2M owns member IdP (OIDC + Admin); BPS Keycloak is S2S module-service + ops SSO only. IdP erase delegated to the project UI; drop by-idp-sub / human `/v1` OIDC paths.
 - **INT-464** — Docs drift closeout + S1/S2 test hardening after the INT-463 audit; architecture decisions published on the docs site.
 - **INT-465** — money-path S10: `requestWithdrawalForActor` returns the live payout when the period is already paid out (durable-store idempotency); CI green again.
+- **INT-467** — re-certify in-scope UATs superseded by Spec v6.1 from green automated evidence (operator rule); badge **64/64 Pass**; UAT-044/047 `scope_d55: out`.
 - Also on this tag vs `v1.2.1`: INT-447…462 (EWDS Actor path, UserAccount T&C, ontology/scenario docs, remove public `/v1`, Mock CGW + money-path CI) — see **Changes since v1.2.0**.
 
 ## Changes since v1.2.0
@@ -140,7 +141,7 @@ In **live** mode, AC-07 erase-at-psp does **not** delete the Connect account. St
 | DID / VC identity | Not in V1 (REQ-062 → D5.10); member OIDC RP = R2M on Keycloak (A9 / INT-463); BPS Keycloak = S2S + ops |
 | Stripe data residency | See [`05-physical-architecture.md`](../architecture/05-physical-architecture.md) §4.1 (third-party processor note) |
 | Invoicing | Billing-owned PDF and `SB-…` legal numbers (A6); Stripe Invoicing removed (INT-428). Reminders: UAT-078 Pass on mock path |
-| Acceptance | Counts are computed from in-scope UAT notes (`scope_d55: in`): **62 Pass / 0 Blocked / 0 Fail** (60 Pass + 2 Pass on mock path). Historical INT-204 baseline was 62 in-scope Pass before UAT-078. Re-run packaging: [`v6.1-rerun.md`](../testing/v6.1-rerun.md). Partner optimisations: pilot SLA number (NFR-008), onboarding step-count (NFR-016) — see [`docs/testing/v1-uat-package.md`](../testing/v1-uat-package.md) |
+| Acceptance | Counts are computed from in-scope UAT notes (`scope_d55: in`): **64 Pass / 0 Blocked / 0 Fail** (53 Pass + 11 Pass on mock path, INT-467). Historical INT-204 baseline was 62; v6.1 supersession then INT-467 re-cert from green tests. Re-run packaging: [`v6.1-rerun.md`](../testing/v6.1-rerun.md). Partner optimisations: pilot SLA number (NFR-008), onboarding step-count (NFR-016) — see [`docs/testing/v1-uat-package.md`](../testing/v1-uat-package.md) |
 | Partner IdP | V1 = single project IdP only (REQ-034 / REQ-037 and UAT-044 / UAT-047 `scope_d55: out`, INT-192). Config-only issuer path Pass on UAT-061 |
 | Stripe Connect | Producers/prosumers onboard via embedded Connect; consumers still use Elements card setup only — **Task 1.13 (consumer Connect for every role) deferred** (INT-426). Direct charges on the producer account (INT-355). Cards + SEPA in the model; operator test fixtures still use Account Tokens + test KYC tokens (INT-191 / INT-195) |
 | Command OpenAPI | EWDS `setupPaymentMethod` is wired in the command channel; the dedicated internal OpenAPI route (`/internal/v1/payment-methods:setup`) is still a contract gap (AC-10 posts to that path without a published operation) |

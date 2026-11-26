@@ -43,6 +43,8 @@ describe("apps/site public docs (INT-299…INT-302)", () => {
     assert.match(config, /"\/architecture\/"/);
     assert.match(config, /01-functional-architecture/);
     assert.match(config, /05-physical-architecture/);
+    assert.match(config, /06-datamodel-ontology/);
+    assert.match(config, /07-scenario-flows/);
     assert.match(config, /sync-architecture\.mjs/);
   });
 

@@ -241,8 +241,8 @@ Consumed by the reference client **AC-01 (`apps/web`) only** (A7 / REQ-052). The
 | Resource / operation | Role(s) | Served by | Requirements | Screen |
 |---|---|---|---|---|
 | `GET /me` (profile, roles, community, readiness) | all | AC-03 | REQ-049, REQ-009 | Portal home |
-| `PUT /me/profile` | member | AC-03 | REQ-009 | Profile |
-| `GET /terms/current`, `POST /me/terms-acceptance` | member, manager | AC-03 | REQ-050 | Terms |
+| `PUT /me/profile` | member | AC-03 | REQ-009 | Profile — **reference/`source=import` only**; `source=ewds` → `409 profile_managed_by_ewds` (INT-447) |
+| `GET /terms/current`, `POST /me/terms-acceptance` | member, manager | AC-03 | REQ-050 | Terms — project path uses command `acceptTerms` (INT-448) |
 | `POST /me/payment-account/onboarding` (returns Stripe-hosted Account Link / Identity URL) | member | AC-07 | REQ-051, REQ-040 | Payment setup |
 | `GET /me/balances` (unbilled amounts per counterpart) | member | AC-05 | REQ-002, REQ-056 | Balances |
 | `GET /me/statements`, `GET /me/invoices`, `GET /invoices/{id}`, `GET /invoices/{id}/document` | member | AC-05 / AC-06 | REQ-059, REQ-007, REQ-039 | Statements / invoices |
@@ -250,7 +250,7 @@ Consumed by the reference client **AC-01 (`apps/web`) only** (A7 / REQ-052). The
 | `POST /invoices/{id}/payments` | consumer | AC-07 | REQ-014 | Pay |
 | `POST /invoices/{id}/reminders` | manager | AC-11 | REQ-061 | Reminders |
 | `GET/PUT /communities/{id}/settings` (currency, period, threshold, VAT, mode) | manager | AC-03 | REQ-006, REQ-043, REQ-056 | Community settings |
-| `POST /communities/{id}/participants:import`, `GET /communities/{id}/participants`, `PATCH /participants/{id}`, `POST /participants/{id}:offboard` | manager | AC-03 | REQ-008, REQ-058, REQ-012 | Participants |
+| `POST /communities/{id}/participants:import`, `GET /communities/{id}/participants`, `PATCH /participants/{id}`, `POST /participants/{id}:offboard` | manager | AC-03 | REQ-008, REQ-058, REQ-012 | Participants — **`:import` is reference/e2e seed only**; project path = R2M `actor` topic (INT-447) |
 | `POST /communities/{id}/billing-runs`, `GET /billing-runs/{id}` | manager, operator | AC-05 | REQ-006 | Billing runs |
 | `POST /invoices/{id}/status` {status, reason} | manager | AC-06 | REQ-044 | Invoice detail |
 | `GET /communities/{id}/payments-overview`, `/participants/{id}/history`, `/reports/summary` | manager | AC-09 | REQ-018, REQ-031, REQ-032 | Reports |
@@ -383,7 +383,7 @@ sequenceDiagram
 
 ### 5.4 EWDS command request/reply
 
-The project UI sends `billingCommandRequest` messages (`startPayment`, `requestWithdrawal`, `startKyc`, `acceptTerms`, `sendReminder`, `triggerBillingRun`, `setupPaymentMethod`, …). Actor create/update is **not** a command — R2M publishes the `actor` topic (INT-447). AC-10 authorizes the three layers (channel role, sender DID, actor role), dispatches to the owning module, and publishes `billingCommandReply` with a **PspHandoff** when needed — Stripe-hosted URL or embedded `clientSecret` + `publishableKey` (A7-bis). See D4 in [`ewds-client-gateway.md`](ewds-client-gateway.md).
+The project UI sends `billingCommandRequest` messages (`startPayment`, `requestWithdrawal`, `startKyc`, `acceptTerms`, `sendReminder`, `triggerBillingRun`, `setupPaymentMethod`, …). Actor create/update is **not** a command — R2M publishes the `actor` topic (INT-447). AC-10 authorizes the three layers (channel role, sender DID, actor role), dispatches to the owning module, and publishes `billingCommandReply` with a **PspHandoff** when needed — Stripe-hosted URL or embedded `clientSecret` + `publishableKey` (A7-bis). See D4 in [`ewds-client-gateway.md`](ewds-client-gateway.md). End-to-end sequences: [`07-scenario-flows.md`](07-scenario-flows.md); ontology map: [`06-datamodel-ontology.md`](06-datamodel-ontology.md).
 
 ## 6. Reference screens (AC-01 — reference client, V1)
 

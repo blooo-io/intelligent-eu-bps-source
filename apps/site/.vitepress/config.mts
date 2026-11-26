@@ -65,6 +65,8 @@ export default withMermaid({
           { text: "Application", link: "/architecture/03-application-architecture" },
           { text: "Technical", link: "/architecture/04-technical-architecture" },
           { text: "Physical", link: "/architecture/05-physical-architecture" },
+          { text: "Ontology datamodel", link: "/architecture/06-datamodel-ontology" },
+          { text: "Scenario flows", link: "/architecture/07-scenario-flows" },
           { text: "EWDS Client Gateway", link: "/architecture/ewds-client-gateway" },
         ],
       },
@@ -127,6 +129,14 @@ export default withMermaid({
             {
               text: "5. Physical",
               link: "/architecture/05-physical-architecture",
+            },
+            {
+              text: "6. Ontology datamodel",
+              link: "/architecture/06-datamodel-ontology",
+            },
+            {
+              text: "7. Scenario flows",
+              link: "/architecture/07-scenario-flows",
             },
             {
               text: "EWDS Client Gateway",

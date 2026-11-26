@@ -162,7 +162,7 @@ flowchart TB
 | Block | Responsibility | Owns (data) | Functions | Requirements |
 |---|---|---|---|---|
 | **LB-01 Access control** | Authenticates every request with the project IdP, resolves the user's role and community from token claims, and enforces "own data / own community" rules | Session context only (no persistence); OIDC client configuration per community | F1.4 | REQ-033–037, REQ-049, REQ-010, NFR-011, NFR-013 |
-| **LB-02 Participants & communities** | Community settings, participant registry (market id, meter), billing profiles, roles, terms and self-billing mandate acceptance, participant readiness, offboarding | Community, Participant, RegistryEntry, BillingProfile, TermsAcceptance, ParticipantReadiness | F1.1, F1.2, F1.3, F1.5 | REQ-008, 009, 012, 050, 058 |
+| **LB-02 Participants & communities** | Community settings, Actor intake (EWDS-only), registry, billing-profile cache, **UserAccount** T&C + readiness, offboarding | Community, Participant, RegistryEntry, BillingProfile, UserAccount (T&C fields), ParticipantReadiness | F1.1, F1.2, F1.3, F1.5 | REQ-008, 009, 012, 050, 058, INT-447/448 |
 | **LB-03 Trade intake** | Queries the market for settled trades, clearing results and markets per window; deduplicates; attributes buyer/seller through LB-02; checks completeness per market; monitors intake | Trade (copy, read-only semantics), MarketInfo, ClearingResult, IntakeWindow, IntakeAnomaly | F2.1–F2.4 | REQ-001, 029, 041 (completeness), 058 |
 | **LB-04 Settlement engine** | Runs billing periods (scheduled or on demand). Computes pair amounts, netting, threshold and carry-forward, currency conversion, VAT and tariff components; **builds the monthly statement (Level 1)**. Keeps the immutable billing ledger | BillingRun, PairSettlement, CarryForwardBalance, LedgerEntry, Statement, BillingAccount | F3.1–F3.4, F4.5 | REQ-002, 003, 005, 006, 007, 043, 055, 056, 059 |
 | **LB-05 Invoicing** | Turns pair settlements into invoices in the producer's name. Assigns the legal number per producer, generates the **in-house PDF** and manages the invoice lifecycle (including manual status change with reason) | Invoice, InvoiceLine, InvoiceNumberSeries, InvoiceDocument, InvoiceStatusHistory | F4.1, F4.2, F4.4 | REQ-039, 042, 044, 045 (check), 054 |
@@ -199,7 +199,8 @@ Each port is a logical interface. Implementations are **env-selected**; EWDS ada
 
 | Event | Emitted by | Consumed by | Meaning |
 |---|---|---|---|
-| ParticipantOnboarded | LB-02 | LB-09 (invitation), LB-06 (create provider customer/account link) | Participant imported, account created |
+| ParticipantOnboarded | LB-02 | LB-09 (invitation), LB-06 (create provider customer/account link) | Actor ingested from EWDS (R2M), IdP account created |
+| UserAccountStatusChanged | LB-02 | LB-08 (`billingKycStatus`) | UserAccount snapshot (kycVerified + T&C) after terms accept or KYC apply (INT-448) |
 | ParticipantReadinessChanged | LB-02 (from LB-06 KYC status) | LB-05, LB-12 | Participant is or is no longer **KYC-verified** (terms + KYC for every role) |
 | ParticipantOffboarded | LB-02 | LB-04 (force final settlement) | Participant left the community |
 | KycStatusChanged | LB-06 | LB-02, LB-08 (billingKycStatus), LB-14 | KYC / payout capability change for a participant or manager |
@@ -362,8 +363,8 @@ stateDiagram-v2
 %% elk %%
 stateDiagram-v2
   [*] --> Invited: EWDS Actor published by project UI (R2M)
-  Invited --> ProfileCompleted: login, profile
-  ProfileCompleted --> TermsAccepted: terms (+ self-billing mandate for producers)
+  Invited --> ProfileCompleted: Actor profile complete (R2M)
+  ProfileCompleted --> TermsAccepted: acceptTerms command (UserAccount T&C)
   TermsAccepted --> Ready: KYC verified (Connect for every role; Identity for managers) and payment method when buying
   Ready --> Restricted: KYC revoked or payment method removed
   Restricted --> Ready: resolved
@@ -393,8 +394,8 @@ Each entity is owned by one block (LP-1). Pseudonymous identifiers cross block b
 | Community | LB-02 | communityId, currency, billingPeriod, threshold, vatRate, billingMode, `autoPayout`, `payoutSchedule`, `liveEnabled`, oidcIssuer | No |
 | Participant | LB-02 | participantId (Actor UUID), communityId, role (consumer/producer/prosumer), status | No |
 | RegistryEntry | LB-02 | participantId, marketActorId, meterId, validFrom/To | Pseudonymous |
-| BillingProfile | LB-02 | participantId, name, address, e-mail | **Yes** |
-| TermsAcceptance | LB-02 | participantId, termsVersion, selfBillingMandate, acceptedAt | Link only |
+| BillingProfile | LB-02 | participantId, name, address, e-mail — **cache of Actor**; project path updates via `actor` republish only | **Yes** |
+| UserAccount (T&C + KYC mirror) | LB-02 | participantId, termsVersion, selfBillingMandate, termsAcceptedAt, kycVerified | Link / status only; wire = `billingKycStatus` |
 | PaymentAccount | LB-06 | participantId, providerAccountRef / customerRef, kycStatus, paymentMethodPresent — **every participant** | Provider refs |
 | Trade | LB-03 | tradeId, marketId, buyerActorId, sellerActorId, kWh, price, status, deliveryStart/End, attributed participants, invoicedBy (invoiceId) | Pseudonymous |
 | ClearingResult / MarketInfo | LB-03 | marketId, tradedQuantity, numTrades, delivery window, mechanism | No |
@@ -414,7 +415,7 @@ Each entity is owned by one block (LP-1). Pseudonymous identifiers cross block b
 | ReconciliationResult / Discrepancy | LB-07 | scope (invoice or market), expected, actual, status | No |
 | JobDefinition / JobExecution | LB-13 | job, target block, schedule (per community), last run, outcome | No |
 
-The mapping to ontology classes is in the functional view §5. Outbound messages follow `ewds-topics/` (five record types + command channel).
+The mapping to ontology classes is in the functional view §5 and the dedicated [ontology datamodel](06-datamodel-ontology.md). Outbound messages follow `ewds-topics/` (five record types + command channel). Scenario sequences: [07-scenario-flows.md](07-scenario-flows.md).
 
 ## 7. Cross-cutting logical rules
 

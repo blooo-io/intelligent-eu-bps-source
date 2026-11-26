@@ -295,6 +295,51 @@ paths:
                 $ref: '../components/schemas.yaml#/components/schemas/PspHandoff'
         '400':
           $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+  /payment-methods:attach:
+    post:
+      operationId: attachPaymentMethod
+      tags: [Payments]
+      summary: Bind a PSP payment-method ref to a participant account
+      description: >
+        INT-461 / REQ-016 — operator/service fixture path to attach a Stripe
+        test PaymentMethod token (e.g. pm_card_visa, pm_card_chargeDeclined)
+        so money-path S9 can force a declined direct charge without the UI.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [participantId, paymentMethodId]
+              properties:
+                participantId:
+                  $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                paymentMethodId:
+                  type: string
+                  minLength: 1
+                  description: PSP payment-method id or Stripe test token.
+      responses:
+        '200':
+          description: Payment method bound.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [participantId, paymentMethodId, status]
+                properties:
+                  participantId:
+                    $ref: '../components/schemas.yaml#/components/schemas/Uuid'
+                  paymentMethodId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [complete]
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /payment-methods:setup:
     post:
       operationId: setupPaymentMethod

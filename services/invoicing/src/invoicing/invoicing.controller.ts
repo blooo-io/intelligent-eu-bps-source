@@ -27,6 +27,35 @@ export class InvoicingController {
   }
 
   /**
+   * REQ-044 / INT-461 — EWDS setInvoiceStatus target (OpenAPI
+   * POST /invoices/{invoiceId}/status). Needed for S10 cleanup of unpaid
+   * producer invoices so the A2 payout gate can pass.
+   */
+  @Post("invoices/:invoiceId/status")
+  @HttpCode(200)
+  async setInvoiceStatus(
+    @Param("invoiceId") invoiceId: string,
+    @Body()
+    body: {
+      status?: string;
+      reason?: string;
+      actorId?: string;
+      communityId?: string;
+    },
+  ) {
+    const updated = await this.invoicing.setInvoiceStatus(invoiceId, {
+      status: body.status as never,
+      reason: body.reason ?? "",
+      actorId: body.actorId ?? "",
+      communityId: body.communityId,
+    });
+    return {
+      invoiceId: updated.invoiceId as string,
+      invoiceStatus: updated.status as string,
+    };
+  }
+
+  /**
    * REQ-039 / UAT-050 — GetInvoiceDocument for AC-11 (and AC-07).
    */
   @Get("invoices/:invoiceId/document")

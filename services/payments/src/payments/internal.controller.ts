@@ -214,6 +214,29 @@ export class InternalPaymentsController {
   }
 
   /**
+   * INT-461 / REQ-016 — attach a PSP payment-method ref (Stripe test tokens
+   * included) so operator S9 can force card_declined without the project UI.
+   */
+  @Post(String.raw`payment-methods\:attach`)
+  @HttpCode(200)
+  @UseGuards(new ModuleAuthGuard({ roles: ["service"] }))
+  async attachPaymentMethod(
+    @Body()
+    body: { participantId?: unknown; paymentMethodId?: unknown } | undefined,
+  ) {
+    const participantId = requireUuid(body?.participantId, "participantId");
+    const paymentMethodId =
+      typeof body?.paymentMethodId === "string" && body.paymentMethodId.trim()
+        ? body.paymentMethodId.trim()
+        : "";
+    if (!paymentMethodId) {
+      throw new BadRequestException("paymentMethodId is required");
+    }
+    await this.payments.attachPaymentMethod(participantId, paymentMethodId);
+    return { participantId, paymentMethodId, status: "complete" as const };
+  }
+
+  /**
    * REQ-014 / A7-bis — EWDS setupPaymentMethod (INT-440).
    */
   @Post(String.raw`payment-methods\:setup`)

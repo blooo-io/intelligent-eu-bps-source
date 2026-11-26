@@ -267,6 +267,44 @@ describe("invoicing HTTP (INT-106)", () => {
     expect(await res.json()).toMatchObject({ accepted: true, sent: 1 });
   });
 
+  // INT-461 — OpenAPI POST /invoices/{id}/status was missing on the controller.
+  it("POST /internal/v1/invoices/:id/status voids an Open invoice", async () => {
+    const created = await service.createFromSettlement({
+      settlementId: "s4610000-0000-4000-8000-000000004610",
+      runId: "r4610000-0000-4000-8000-000000004610",
+      consumerId: "11111111-2222-4333-8444-555555555555",
+      producerId: "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      tradeIds: ["0x461"],
+      kWh: "1.00",
+      energyAmount: "1.00",
+      vat: "0.00",
+      currency: "EUR",
+      rate: "1.0000",
+      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+    });
+    const res = await fetch(
+      `${base}/internal/v1/invoices/${created!.invoiceId}/status`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-intelligent-roles": "service",
+        },
+        body: JSON.stringify({
+          status: "Void",
+          reason: "INT-461 S10 payout gate cleanup",
+          actorId: "dddddddd-eeee-4fff-8000-111111111111",
+          communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
+        }),
+      },
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      invoiceId: created!.invoiceId,
+      invoiceStatus: "Void",
+    });
+  });
+
 
 
 

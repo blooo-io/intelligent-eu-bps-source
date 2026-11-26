@@ -7,22 +7,22 @@ See also: [`v1-test-plan.md`](v1-test-plan.md), [`v1-integration-scenarios.md`](
 
 ## Confirmed set
 
-Count: **66** in-scope UAT notes.
+Count: **64** in-scope UAT notes.
 
 | UAT | Requirement | Status (latest) |
 |---|---|---|
-| UAT-001 | REQ-001 | Pass (mock path) |
-| UAT-002 | REQ-002 | Pass |
+| UAT-001 | REQ-001 | Pass |
+| UAT-002 | REQ-002 | Pass (mock path) |
 | UAT-003 | REQ-003 | Pass |
 | UAT-005 | REQ-005 | Pass |
 | UAT-006 | REQ-006 | Pass |
-| UAT-007 | REQ-007 | Pass |
-| UAT-008 | REQ-008 | Pass |
+| UAT-007 | REQ-007 | Pass (mock path) |
+| UAT-008 | REQ-008 | Pass (mock path) |
 | UAT-009 | REQ-009 | Pass |
 | UAT-010 | REQ-010 | Pass |
 | UAT-011 | REQ-011 | Pass |
 | UAT-012 | REQ-012 | Pass |
-| UAT-013 | REQ-013 | Pass |
+| UAT-013 | REQ-013 | Pass (mock path) |
 | UAT-014 | REQ-014 | Pass |
 | UAT-015 | REQ-015 | Pass |
 | UAT-016 | REQ-016 | Pass |
@@ -44,15 +44,13 @@ Count: **66** in-scope UAT notes.
 | UAT-041 | NFR-009 | Pass |
 | UAT-042 | NFR-010 | Pass |
 | UAT-043 | REQ-033 | Pass |
-| UAT-044 | REQ-034 | Not Run |
 | UAT-045 | REQ-035 | Pass |
 | UAT-046 | REQ-036 | Pass |
-| UAT-047 | REQ-037 | Not Run |
 | UAT-049 | NFR-011 | Pass |
-| UAT-050 | REQ-039 | Not Run |
+| UAT-050 | REQ-039 | Pass (mock path) |
 | UAT-051 | REQ-040 | Pass |
 | UAT-052 | REQ-041 | Pass |
-| UAT-053 | REQ-042 | Not Run |
+| UAT-053 | REQ-042 | Pass (mock path) |
 | UAT-054 | REQ-043 | Pass |
 | UAT-055 | REQ-044 | Pass |
 | UAT-056 | REQ-045 | Pass |
@@ -63,26 +61,26 @@ Count: **66** in-scope UAT notes.
 | UAT-061 | NFR-013 | Pass |
 | UAT-062 | REQ-050 | Pass |
 | UAT-063 | REQ-051 | Pass |
-| UAT-064 | REQ-052 | Pass |
+| UAT-064 | REQ-052 | Pass (mock path) |
 | UAT-065 | NFR-014 | Pass |
 | UAT-066 | NFR-015 | Pass |
 | UAT-067 | NFR-016 | Pass |
-| UAT-068 | NFR-017 | Pass (mock path) |
-| UAT-069 | REQ-053 | Pass (mock path) |
+| UAT-068 | NFR-017 | Pass |
+| UAT-069 | REQ-053 | Pass |
 | UAT-070 | REQ-048 | Pass (mock path) |
 | UAT-071 | REQ-054 | Pass |
 | UAT-072 | REQ-055 | Pass |
 | UAT-073 | REQ-056 | Pass |
 | UAT-075 | REQ-058 | Pass |
-| UAT-076 | REQ-059 | Not Run |
-| UAT-077 | REQ-060 | Not Run |
+| UAT-076 | REQ-059 | Pass (mock path) |
+| UAT-077 | REQ-060 | Pass (mock path) |
 | UAT-078 | REQ-061 | Pass (mock path) |
 
-UAT-074 (REQ-057 early settlement) is **out of scope / deprecated** for v6.1 and is not counted above.
+UAT-044 / UAT-047 (multi-IdP) and UAT-074 (REQ-057 early settlement) are **out of scope** for D5.5 V1 and are not counted above.
 
 ## Execution
 
 - INT-78 runs this set and updates each note's `status` / `last_run` / `tester` / run notes.
 - INT-80 covers partner UAT packaging of the same catalogue.
+- INT-467: after Spec v6.1 supersession, green automated evidence re-certifies notes; refresh this inventory when the in-scope set changes.
 - Do not invent new UAT IDs; gaps go to INT-82.
-

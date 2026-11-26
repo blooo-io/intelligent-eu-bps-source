@@ -73,8 +73,8 @@ test("INT-96 / INT-97 consistency and freeze notes are linked", async () => {
   assert.match(index, /PACKAGE-CONSISTENCY\.md/);
   assert.match(index, /INT-97/);
   assert.match(index, /FREEZE\.md/);
-  // Task 6.14 / INT-437: package cites computed v6.1 Pass tally + re-run link (not a frozen "62").
-  assert.match(consistency, /62 Pass/);
+  // INT-467: package cites current computed Pass tally + re-run link.
+  assert.match(consistency, /64 Pass/);
   assert.match(consistency, /0 Blocked/);
   assert.match(consistency, /v6\.1-rerun\.md/);
   assert.match(freeze, /v1\.0\.0/);

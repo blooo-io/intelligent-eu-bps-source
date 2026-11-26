@@ -12,7 +12,7 @@ Internal check that the tagged source, `docs/` and UAT statuses describe the sam
 |---|---|---|
 | 1 | Git tag `v1.0.0` matches root `package.json` version `1.0.0` | **Not published.** INT-92 named the tag; it was never pushed. INT-359 publishes `v1.0.1` against package version `1.0.1`. Current package on this branch is `1.2.2` (INT-466); `v1.2.1` already cut (INT-446) |
 | 2 | [`SOURCE-RELEASE.md`](SOURCE-RELEASE.md) lists the same doc/code roots as the repo map | Pass |
-| 3 | [`RELEASE-NOTES.md`](RELEASE-NOTES.md) limitations align with in-scope UAT statuses | Pass — **62 Pass / 0 Blocked** (60 Pass + 2 Pass on mock path, INT-437). Re-run packaging: [`../testing/v6.1-rerun.md`](../testing/v6.1-rerun.md) |
+| 3 | [`RELEASE-NOTES.md`](RELEASE-NOTES.md) limitations align with in-scope UAT statuses | Pass — **64 Pass / 0 Blocked** (53 Pass + 11 Pass on mock path, INT-467). Re-run packaging: [`../testing/v6.1-rerun.md`](../testing/v6.1-rerun.md) |
 | 4 | [`../testing/v1-validation-summary.md`](../testing/v1-validation-summary.md) counts match UAT notes | Pass — summary recomputed 2026-11-25 with Path column; see `v6.1-rerun.md` |
 | 5 | INT-81 snapshot on [`../requirements/traceability-dashboard.md`](../requirements/traceability-dashboard.md) matches those counts | Pass (after INT-81 merge). Re-check after the v6.1 re-run |
 | 6 | INT-93 deployment + INT-94 integration API + INT-95 notes linked from [`README.md`](README.md) | Pass |
@@ -23,6 +23,6 @@ Internal check that the tagged source, `docs/` and UAT statuses describe the sam
 
 ## Internal approval
 
-Blooo engineering: **approved for source freeze** (`v1.0.0`) with historical INT-204 baseline **62 Pass / 0 Blocked**; v6.1 / `v1.2.0` acceptance is **62 Pass / 0 Blocked** (INT-437).
+Blooo engineering: **approved for source freeze** (`v1.0.0`) with historical INT-204 baseline **62 Pass / 0 Blocked**; current `develop` acceptance is **64 Pass / 0 Blocked** (INT-467).
 
 Partner-facing D5.5 report freeze remains contingent on INT-90 / INT-91 (Blooo D5.5 report owner).

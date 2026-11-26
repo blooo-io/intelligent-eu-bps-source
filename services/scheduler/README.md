@@ -5,7 +5,7 @@ Temporal owns schedules in production; this module records executions and issues
 
 | Operation | Path | Spec |
 |---|---|---|
-| ListJobs | `GET /v1/jobs` | 02 §4.5 |
-| RunJob | `POST /v1/jobs/{id}:run` | REQ-006 / UAT-006 |
+| ListJobs | internal API (operator) | 02 §4.5 |
+| RunJob | internal API (operator) or EWDS command `triggerBillingRun` | REQ-006 / UAT-006 |
 
 Publishes `JobFailed` on dispatch failure (AC-11). V1 uses an in-process dispatcher mock; HTTP base URLs can be wired later via env.

@@ -94,7 +94,7 @@ sequenceDiagram
   EWDS->>CGW: deliver actor
   CGW->>AC03: ActorSourcePort.ingest update
   AC03->>AC03: replace profile cache source=ewds
-  Note over Member,AC03: PUT /v1/me/profile → 409 profile_managed_by_ewds
+  Note over Member,AC03: Profile edits only through the R2M actor publish - no billing REST write path (INT-455)
 ```
 
 | Step | Ontology objects |

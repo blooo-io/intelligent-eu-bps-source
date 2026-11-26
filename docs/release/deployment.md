@@ -35,8 +35,9 @@ Bootstrap and operator scripts: `deploy/README.md`, `deploy/argocd/README.md`, `
 | Image pull | GHCR pull secret via OpenBao seed (INT-177) |
 | Image tag | Floating `develop` on `dev` (INT-178); immutable SHA also published |
 | TLS | cert-manager + Let's Encrypt production issuer (INT-173) |
-| IdP | Keycloak realm per environment; OIDC client for the web app |
-| Gateway | APISIX routes for `app`, `api`, `auth` hosts |
+| IdP | R2M owns the member IdP (OIDC + Admin); BPS Keycloak realm per environment is service-to-service (module-service clients) + operator SSO only (INT-463) |
+| Gateway | APISIX for the `auth` host and internal/webhook routes; **no public `/v1` product API and no reference web app** (INT-455). The project UI reaches billing through EWDS only |
+| EWDS | `dev` runs the Mock CGW (`mock-cgw` chart) until EWAG grants topics/roles; real Client Gateway adapters are selected by environment variables |
 | Mail | Mailpit chart on non-prod |
 | Workflows | Temporal namespaces registered by GitOps Job (INT-172) |
 
@@ -98,9 +99,10 @@ stripe listen --forward-to localhost:8080/webhooks/payment-provider
 
 ## Smoke checks (dev)
 
+Read-only checks (INT-157). The external surface is EWDS only; there is no public REST `/v1` endpoint to probe.
+
 ```bash
-curl -fsS https://app.dev.intelligent-eu-bp.blooo.dev/health
-curl -fsS https://app.dev.intelligent-eu-bp.blooo.dev/config.json
-# API expects OIDC — unauthenticated call should be 401
-curl -sS -o /dev/null -w '%{http_code}\n' https://api.dev.intelligent-eu-bp.blooo.dev/v1/me
+kubectl -n argocd get applications | grep '^dev-'
+# EWDS project path against the Mock CGW: see docs/testing/ewds-project-path-e2e.md
+# Payment-provider webhook (AC-07): POST /webhooks/payment-provider needs a valid provider signature
 ```

@@ -17,7 +17,7 @@ Immutable pointer to the D5.5 Billing & Payment Service V1 source tree used for 
 | Specification | `docs/requirements/` |
 | Architecture | `docs/architecture/` |
 | Contracts | `contracts/` |
-| Services / web / mocks | `services/`, `apps/web/`, `mocks/` |
+| Services / mocks | `services/` (AC-03…AC-14, `mock-cgw`), `mocks/` (AC-15) |
 | Deploy packaging | `deploy/` |
 | Operator release docs | `docs/release/` |
 | Validation evidence | `docs/testing/` (INT-73…INT-81) |

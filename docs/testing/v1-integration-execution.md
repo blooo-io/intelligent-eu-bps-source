@@ -1,7 +1,7 @@
 # V1 integration execution log (INT-75)
 
 Prepared cases: [`v1-integration-scenarios.md`](v1-integration-scenarios.md) (INT-74).  
-Environment: module test runners with AC-15 fixtures (`createMockSuite`); Stripe paths via mock PSP / test-mode adapters. Unauthenticated AC-01 browser smoke is in [`ac01-e2e.md`](ac01-e2e.md) (INT-182). Cluster-wide authenticated e2e (OIDC test users) remains a follow-up.
+Environment: module test runners with AC-15 fixtures (`createMockSuite`); Stripe paths via mock PSP / test-mode adapters. The AC-01 browser smoke (INT-182) is superseded (INT-455); current paths: [`ewds-project-path-e2e.md`](ewds-project-path-e2e.md) and [`money-path-stripe-e2e-cd.md`](money-path-stripe-e2e-cd.md). Cluster-wide authenticated e2e (OIDC test users) remains a follow-up.
 
 **Run date:** 2026-10-17  
 **Tester:** automated (agent)  
@@ -13,7 +13,7 @@ Environment: module test runners with AC-15 fixtures (`createMockSuite`); Stripe
 |---|---|---|---|
 | S1 | UAT-071 | Pass | `services/settlement` — two pair settlements for two producers |
 | S2 | UAT-072 | Pass | `services/settlement` — single netted pair settlement |
-| S3 | UAT-073 | Pass (prior) | Carry-forward under threshold; portal/billing notes already Pass |
+| S3 | UAT-073 | Pass (prior) | Carry-forward under threshold; billing notes already Pass |
 | S4 | UAT-075 | Pass (prior) | `services/trade-intake` unknown-party anomaly |
 | S5 | UAT-052 | Pass | `services/reconciliation` + mock clearing mismatch |
 | S6+S7 | UAT-001 | Pass (mock path) | Mock S6/S7 flags; intake stores duplicate `tradeId` once (S7) |

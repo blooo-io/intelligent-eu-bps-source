@@ -1,5 +1,7 @@
 # UAT-028 operator trace seed (INT-196…200 / INT-228)
 
+> **Superseded (INT-455 / INT-463):** describes the removed /v1 reference client; kept as historical evidence. Current path: docs/testing/ewds-project-path-e2e.md and money-path-stripe-e2e-cd.md.
+
 **Status:** Pass on `dev` (2026-10-18 / INT-200). Invoice lineage + succeeded payment seeded; operator can open the invoice and see originating trade id(s), then follow `pairSettlementId` → billing `runId`.
 
 ## Why a bridge?

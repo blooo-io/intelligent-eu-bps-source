@@ -2,7 +2,7 @@
 
 ## Demo workbook (testers)
 
-**Primary live-demo document:**
+**Historical demo document (superseded by the EWDS-only path, INT-455 / INT-463; current path: [`ewds-project-path-e2e.md`](./ewds-project-path-e2e.md) and [`money-path-stripe-e2e-cd.md`](./money-path-stripe-e2e-cd.md)):**
 
 → [`cahier-de-tests-demo-intelligent-billing-and-payment.md`](./cahier-de-tests-demo-intelligent-billing-and-payment.md)  
 → PDF: [`cahier-de-tests-demo-intelligent-billing-and-payment.pdf`](./cahier-de-tests-demo-intelligent-billing-and-payment.pdf)
@@ -11,8 +11,8 @@ Covers Horizon Energy personas, the Invite CSV path (REQ-008 / Mailpit), filled 
 
 | Document | Usage |
 |---|---|
-| [Demo workbook (personas + screens)](./cahier-de-tests-demo-intelligent-billing-and-payment.md) | Tester / demo support |
-| [Manual S1 portal journey](./manual-s1-portal-journey.md) | Money-path S1 complement |
+| [Demo workbook (personas + screens)](./cahier-de-tests-demo-intelligent-billing-and-payment.md) | Historical (superseded, INT-455 / INT-463) |
+| [Manual S1 portal journey](./manual-s1-portal-journey.md) | Historical (superseded, INT-455 / INT-463) |
 | [V1 UAT package](./v1-uat-package.md) | UAT pack / accounts |
 | [v6.1 re-run packaging](./v6.1-rerun.md) | Computed UAT counts + mock-path legend (INT-430) |
 | [v6.1 evidence matrix](./v6.1-evidence-matrix.md) | Process → run_path → artifact rules (INT-438; no silent mocks) |

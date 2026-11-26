@@ -20,9 +20,8 @@ Start from the [architecture overview](/architecture/).
 
 ```mermaid
 flowchart LR
-  UI[Reference client] --> GW[API gateway + OIDC]
-  PUI[Project UI] -.EWDS.-> CG[Client Gateway adapters] --> MOD
-  GW --> MOD[NestJS modules]
+  PUI[Project UI] -.EWDS.-> CG[Client Gateway adapters] --> MOD[NestJS modules]
+  GW[API gateway] -->|webhooks| MOD
   MOD --> PG[(PostgreSQL per module)]
   MOD --> OB[Outbox] --> CDC[CDC] --> BUS[NATS JetStream]
   SCH[Temporal] --> MOD

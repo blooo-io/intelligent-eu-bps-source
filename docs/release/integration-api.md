@@ -12,7 +12,7 @@ Nest modules communicate via **internal** OpenAPI under [`contracts/openapi/inte
 | Billing command channel (AsyncAPI) | Actions: pay, withdraw, KYC, terms, reminders, billing runs, etc. |
 | [`docs/architecture/ewds-topics/`](../../docs/architecture/ewds-topics/) | Topic schemas and examples |
 
-E2E evidence for the project path: [`docs/testing/ewds-project-path-e2e.md`](../testing/ewds-project-path-e2e.md) (future INT-454 cluster EWDS).
+E2E evidence for the project path: [`docs/testing/ewds-project-path-e2e.md`](../testing/ewds-project-path-e2e.md) (Mock CGW on `dev` until EWAG grants topics/roles).
 
 ## Internal HTTP (not a public product API)
 

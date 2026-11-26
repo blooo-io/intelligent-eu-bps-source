@@ -34,13 +34,13 @@ pnpm test
 
 Every workspace with executable source must stay at or above **80%** statements, branches, functions and lines (`config/coverage-thresholds.json`).
 
-## Mock the public API
+## Mock the webhook contract
 
 ```bash
 pnpm run contracts:mock
 ```
 
-Serves `contracts/openapi/public.v1.yaml` with Prism so UIs and clients can develop against the contract.
+Serves `contracts/openapi/webhooks/payment-provider.v1.yaml` with Prism. There is no public `/v1` product API (INT-455); integrate through EWDS records and the command channel.
 
 ## Local Kubernetes stack (optional)
 

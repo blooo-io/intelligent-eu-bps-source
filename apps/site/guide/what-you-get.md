@@ -4,7 +4,7 @@ The repository is a **monorepo** that packages a complete billing stack you can 
 
 ## Application modules
 
-Thirteen NestJS domain modules plus a web app and a mock suite. Each module owns its PostgreSQL database and talks to others only through **internal HTTP APIs** and **events** (transactional outbox → CDC → NATS JetStream).
+Thirteen NestJS domain modules plus a mock suite. Each module owns its PostgreSQL database and talks to others only through **internal HTTP APIs** and **events** (transactional outbox → CDC → NATS JetStream).
 
 | Module | Responsibility |
 |---|---|
@@ -20,7 +20,6 @@ Thirteen NestJS domain modules plus a web app and a mock suite. Each module owns
 | Compliance | Audit, retention, data-subject requests |
 | Reference data | FX / VAT reference |
 | Scheduler | Temporal workflows and timers |
-| Web app | Reference UI on the **public** API only |
 
 See [Modules](/reference/modules) for the directory map.
 

@@ -3,8 +3,8 @@
 ## Toolchain
 
 - Node ≥ 22, pnpm 9
-- TypeScript, NestJS (services), React / Refine (`apps/web`)
-- Vitest for unit tests; Playwright e2e targets a **deployed** environment (not PR unit CI)
+- TypeScript, NestJS (services)
+- Vitest for unit tests; Playwright e2e (where present) targets a **deployed** environment (not PR unit CI)
 
 ## Useful commands
 

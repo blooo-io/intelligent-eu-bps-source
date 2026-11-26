@@ -13,7 +13,7 @@ This guide describes how to run the Billing & Payment Service **on infrastructur
 | Temporal | Platform chart | Your Temporal cluster / namespace |
 | OIDC IdP | Keycloak chart | Keycloak, or another OIDC provider with compatible claims |
 | Secrets | OpenBao + External Secrets | HashiCorp Vault, cloud KMS, sealed secrets, etc. |
-| Ingress / gateway | APISIX | APISIX, or another gateway that can terminate OIDC and route `/v1` |
+| Ingress / gateway | APISIX | APISIX, or another gateway that can terminate TLS and route payment-provider webhooks |
 | TLS | cert-manager | Your certificates |
 
 ## High-level steps
@@ -49,19 +49,18 @@ helm upgrade --install participants deploy/charts/participants \
 
 Repeat for the modules you enable. Set `replicaCount` ≥ 1 only when the image exists.
 
-### 5. Wire the gateway and web app
+### 5. Wire the gateway
 
-- Expose the **public API** (`/v1`) through your gateway with OIDC validation.
-- Serve `apps/web` (reference client) against `/v1` if you have no project UI. In the INTELLIGENT deployment the project UI reads billing records and sends commands through the EWDS; actions needing card entry or KYC open Stripe-hosted pages.
-- Configure CORS and redirect URIs for your IdP client.
+- Route the payment-provider webhook (`POST /webhooks/payment-provider`) through your gateway with TLS. There is no public `/v1` product API (INT-455); internal `/internal/v1/...` endpoints are cluster-only.
+- The project UI reads billing records and sends commands through the EWDS; actions needing card entry or KYC open Stripe-hosted pages. Member sign-in is owned by R2M (INT-463).
+- Keep IdP client credentials for module-to-module (service) tokens in your secret store.
 
 ### 6. Smoke test
 
 ```bash
-curl -fsS https://<your-app-host>/health
-curl -fsS https://<your-app-host>/config.json
-# Unauthenticated API call should be 401
-curl -sS -o /dev/null -w '%{http_code}\n' https://<your-api-host>/v1/me
+curl -fsS https://<your-api-host>/health
+# Webhook route is reachable; an unsigned request must be rejected (4xx)
+curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://<your-api-host>/webhooks/payment-provider
 ```
 
 ## Environments

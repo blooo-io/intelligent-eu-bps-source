@@ -38,7 +38,7 @@ This note consolidates one green `develop` run. It does not replace the live gat
 | `services/settlement` | 92.80% | 83.54% | 100.00% | 92.80% |
 | `services/trade-intake` | 95.73% | 84.61% | 100.00% | 95.73% |
 
-All fifteen executable workspaces meet the 80% gate on this run (INT-455 — `apps/web` withdrawn).
+All fifteen executable workspaces meet the 80% gate on this run (twelve services AC-03…AC-14 plus the module template, mocks and `cd-smoke`; `apps/web` withdrawn, INT-455).
 
 ## Refresh
 

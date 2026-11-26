@@ -1,5 +1,7 @@
 # Manual S1 portal journey (prod-shaped path)
 
+> **Superseded (INT-455 / INT-463):** describes the removed /v1 reference client; kept as historical evidence. Current path: docs/testing/ewds-project-path-e2e.md and money-path-stripe-e2e-cd.md.
+
 > **Cahier démo principal (tous personas + tous écrans en images) :**  
 > [`cahier-de-tests-demo-intelligent-billing-and-payment.md`](./cahier-de-tests-demo-intelligent-billing-and-payment.md)  
 > Index : [`docs/testing/README.md`](./README.md). Product name: **Intelligent Billing & Payment**.

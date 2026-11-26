@@ -1,6 +1,6 @@
 # Stripe Connect test KYC (INT-195 / UAT-015)
 
-V1 uses **Stripe test mode only** (BR-12). Custom Connect accounts created with Account Tokens (INT-191) can stick at `verification_failed_keyed_identity` unless the KYC payload uses Stripe’s [Connect testing](https://docs.stripe.com/connect/testing) magic values.
+Stripe runs in **test mode** for virtual communities and in live mode only for communities enabled for live (REQ-043); this note covers test mode. Every participant role completes Connect KYC. Custom Connect accounts created with Account Tokens (INT-191) can stick at `verification_failed_keyed_identity` unless the KYC payload uses Stripe’s [Connect testing](https://docs.stripe.com/connect/testing) magic values.
 
 ## Magic values (test mode)
 
@@ -15,7 +15,7 @@ Without the document file tokens, keyed identity failures leave `charges_enabled
 
 ## Product path
 
-Since INT-362 the portal no longer has a KYC form. The producer opens `/onboarding?step=payment` (or Payout account), AC-07 creates a Stripe-collected account (producer pays fees and bears disputes) and the Stripe embedded Account onboarding component collects everything. In test mode, enter the magic values above in that component (and Stripe's test phone / SMS code `000 000`). On exit the portal calls Start again and reads the status from Stripe.
+The project UI sends `startKyc` on the EWDS command channel (INT-455 / INT-463; the reference portal was removed). AC-07 creates a Stripe-collected account (the connected account pays fees and bears disputes) and the reply carries a hosted Account Link or an embedded-component `clientSecret` (`surface`). In test mode, enter the magic values above in the Stripe component (and Stripe's test phone / SMS code `000 000`). The status is read back from Stripe and published on `billingKycStatus`.
 
 ## Operator fixture path (test mode only)
 

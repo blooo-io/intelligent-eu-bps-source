@@ -24,7 +24,7 @@ baseline: "01-functional-architecture.md v2.0 (revised 2026-11-25); requirements
 | LP-4 | **Idempotency on every entry point.** | Trades are keyed by trade id, provider events by event id, and runs by (community, period, version). |
 | LP-5 | **Immutable financial records.** | Billing runs, computed amounts and issued invoices are append-only. A correction creates a new version or a credit note (REQ-005, NFR-003). |
 | LP-6 | **Personal data confined.** | Personal data lives only in the Participant block (profiles), the Invoicing block (PDF documents) and the Compliance block (audit). Every other block and every outbound message uses pseudonymous identifiers. |
-| LP-7 | **Two entry points for clients.** | The project UI uses only the EWDS (records published by LB-08, commands on P-CMD). The reference client uses LB-12. Both reach the same commands (REQ-052). |
+| LP-7 | **Single EWDS command entry.** | Clients (the project UI, R2M) use only the EWDS: records published by LB-08, commands on P-CMD. LB-12 dispatches those commands to the owning blocks. There is no public REST API or reference client (INT-455, REQ-052). |
 
 ## 2. Logical blocks
 
@@ -36,8 +36,7 @@ The blocks are shown in three small diagrams, one per concern. One big diagram i
 %% elk %%
 flowchart TB
   subgraph Clients
-    UI[Reference client]
-    PUI[Project UI]
+    PUI[Project UI · R2M]
   end
   subgraph Access[Access layer]
     API[LB-12 Billing API]
@@ -62,7 +61,6 @@ flowchart TB
   subgraph Ports[External ports]
     P1((Market)) ~~~ P2((Data space)) ~~~ P3((Payment)) ~~~ P4((IdP)) ~~~ P5((Rates)) ~~~ P6((Mail)) ~~~ P7((KPI export))
   end
-  UI --> API
   PUI -. EWDS .-> P_CMD((P-CMD))
   P_CMD -. commands .-> API
   API --> IAM
@@ -93,9 +91,8 @@ flowchart LR
 ```mermaid
 %% elk %%
 flowchart LR
-  UI[Reference client] --> API[LB-12 Billing API]
   PUI[Project UI] -. EWDS .-> CMD((P-CMD))
-  CMD -.-> API
+  CMD -.-> API[LB-12 Billing API]
   API --> IAM[LB-01 Access control] --> IDP((P-IDP IdP))
   API --> CORE[Core blocks LB-02..LB-06]
   API --> RPT[LB-14 Reporting & exports]
@@ -114,8 +111,7 @@ flowchart LR
 %% elk %%
 flowchart TB
   subgraph Clients
-    UI[Reference client]
-    PUI[Project UI]
+    PUI[Project UI · R2M]
   end
   API[LB-12 Billing API]
   IAM[LB-01 Access control]
@@ -135,7 +131,6 @@ flowchart TB
     REF[LB-11 Reference data]
     JOB[LB-13 Scheduling]
   end
-  UI --> API
   PUI -. EWDS .-> P_CMD((P-CMD))
   P_CMD -.-> API
   API --> IAM
@@ -174,7 +169,7 @@ flowchart TB
 | **LB-09 Notification** | Sends invoice e-mails (PDF attached), payment confirmations, **payment reminders (REQ-061)** and failure notices. Member IdP invitations are owned by R2M (INT-463), not this block | NotificationLog | P1, F4.2, F5.3, F6.5 | REQ-017, 039, 061 |
 | **LB-10 Compliance** | Access/change audit log. Retention rules and purge. Data-subject request workflow: export or erase personal data and propagate the request to LB-02, LB-05, LB-06 (provider) and LB-01 (IdP: delegated to the project UI, INT-463), keeping invoices under legal retention | AuditEvent, RetentionPolicy, DataSubjectRequest | F7.1–F7.3 | REQ-011, 013, 030 |
 | **LB-11 Reference data** | Exchange rates (EUR→community currency, by date) and VAT rates per community | ExchangeRate | F3.4 | REQ-002, 007 |
-| **LB-12 Billing API** | Documented entry point for the **reference client**: profiles, balances, invoices, **withdrawal, statements**, payment, onboarding, terms, admin, reports. Dispatches EWDS commands from P-CMD | None (facade) | all user-facing functions (reference path) | REQ-052 |
+| **LB-12 Billing API** | Facade for **EWDS commands** (P-CMD): `startPayment`, `requestWithdrawal`, `setInvoiceStatus`, `startKyc`, `sendReminder`, `triggerBillingRun`, `setupPaymentMethod`, `acceptTerms`. Dispatches them to the owning blocks. No public REST `/v1` and no reference client (INT-455); internal `/internal/v1/...` APIs only | None (facade) | all user-facing functions (EWDS command path) | REQ-052 |
 
 ## 3. External ports
 
@@ -182,16 +177,16 @@ Each port is a logical interface. Implementations are **env-selected**; EWDS ada
 
 | Port | Direction | Purpose | Real implementation (target) | **V1 implementation** |
 |---|---|---|---|---|
-| **P-MKT Market** | out → in | Get settled trades per time window (≤ 24 h), clearing results per market, markets (delivery period, community, mechanism) | GSY DEX via EWDS request/reply (`tradesQuery`, `clearingResultsQuery`, `marketsQuery`); GSY off-chain storage REST is a **test fixture only** (A8) | **EWDS Client Gateway adapter** selected by `MARKET_ADAPTER` (mock default until EWAG grants roles) |
-| **P-DS Data space** | out | Publish five billing record types; purge cached messages | EWDS Client Gateway (Blooo instance) | **EWDS CG adapter** (mock default) |
-| **P-CMD Command channel** | in | Billing command request/reply on EWDS (project UI path) | `billingCommandRequest` / `billingCommandReply` | **EWDS CG adapter** (mock default) |
+| **P-MKT Market** | out → in | Get settled trades per time window (≤ 24 h), clearing results per market, markets (delivery period, community, mechanism) | GSY DEX via EWDS request/reply (`tradesQuery`, `clearingResultsQuery`, `marketsQuery`); GSY off-chain storage REST is a **test fixture only** (A8) | **EWDS Client Gateway adapter** selected by `MARKET_ADAPTER` (Blooo CGW deployed with mTLS; API key and remaining grants pending EWAG; `dev` uses Mock CGW with `MARKET_ADAPTER=mock`, INT-454) |
+| **P-DS Data space** | out | Publish five billing record types; purge cached messages | EWDS Client Gateway (Blooo instance, mTLS deployed; API key pending EWAG) | **EWDS CG adapter** (mock default; Mock CGW on `dev`, INT-454) |
+| **P-CMD Command channel** | in | Billing command request/reply on EWDS (project UI path) | `billingCommandRequest` / `billingCommandReply` | **EWDS CG adapter** (mock default; Mock CGW on `dev`, INT-454) |
 | **P-TARIFF Tariff** | out | DSO tariff records (grid fee, levy, tax); none published yet → 0 + mention | EWDS tariff topic when available | **Mock** (0 + mention) |
 | **P-PSP Payment provider** | out + in (events) | Connect accounts + KYC for every participant; PaymentIntents (direct charge); payouts; webhooks incl. `payout.*` | Stripe test or live per community | **Stripe** test or live per community |
 | **P-IDP Identity provider** | out + in | Service JWT validation (`module-service` client credentials) and ops UI SSO. Member account creation, invitation and erasure are owned by R2M (INT-463), not by this port | Project IdP (Keycloak hosted by Blooo, replaceable by a pilot OIDC IdP) | Local development instance |
 | **P-FX Rates** | out | EUR→CHF reference rate for a date | ECB reference rates | **Mock**: fixture table |
 | **P-MAIL Mail** | out | Send e-mails with attachments | Transactional mail service | Local mail catcher |
 | **P-KPI KPI export** | out | Deliver periodic billing exports for WP6 / GSY Analytics | Format/channel to agree (file or EWDS) | File export |
-| **Client API** | in | **Reference client only** (`apps/web`); project UI uses EWDS records + P-CMD | — | Real (Blooo reference client) |
+| ~~**Client API**~~ | — | **Withdrawn (INT-455)**: no public REST `/v1`, no reference client; the project UI uses EWDS records + P-CMD | — | — |
 
 ## 4. Internal interactions
 
@@ -451,8 +446,8 @@ The mapping to ontology classes is in the functional view §5 and the dedicated 
 
 ## 9. Points for the application view
 - Packaging: one modular application (blocks as modules) or several services. A modular monolith fits the V1 scope and team size; this is to be decided in view 3.
-- Reference screens: which screens are in V1, built on LB-12 (**reference client only**).
-- API style and versioning for LB-12, and the event transport between blocks.
+- ~~Reference screens: which screens are in V1, built on LB-12~~ — closed (INT-455): no reference client; screens belong to the R2M project UI.
+- Internal API style and versioning for LB-12 (`/internal/v1/...`), and the event transport between blocks.
 
 ## 10. Validation checklist
 - [ ] The 14 logical blocks and their responsibilities are right (no missing or overlapping block)

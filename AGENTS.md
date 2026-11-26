@@ -7,7 +7,7 @@ This file tells an agent **what to read, in which order, and which rules are non
 - **Billing model (two levels):** (1) monthly participant **statement** (ontology `Billing`), one per participant and period (monthly default, quarterly allowed), not payable — totals bought/sold, net balance, list of invoices; (2) **legal invoices** per producer→consumer pair, issued in the producer's name (self-billing mandate in the T&C), netted per pair, threshold per pair (default 5 EUR/CHF, carried forward, forced at year end or exit). Payment = direct charge to the producer's Stripe Connect account; payout = withdrawal from the connected account (manual schedule, or `autoPayout`), allowed once that period's invoices where the participant is producer are Paid. The platform never holds funds.
 - **V1 scope:** live mode per community (operator role + live Stripe keys), Greenvolt first; others virtual (Stripe test). EWDS Client Gateway adapters are real and selected by environment variables; mock is the default until EWAG grants roles/topics.
 - **Project UI** integrates only through the EWDS (records + command channel). Public REST `/v1` and reference client AC-01 were removed (INT-455).
-- **Architecture:** 13 NestJS modules (one per logical block) + a mock suite + docs site, on Kubernetes (Scaleway Kapsule, nl-ams). Events go through a transactional outbox → Debezium → NATS JetStream. Workflows run on Temporal. APISIX is the gateway and Keycloak the identity provider.
+- **Architecture:** 12 NestJS services (AC-03…AC-14, one per logical block) + APISIX gateway (AC-02) + a mock suite (AC-15) + Mock CGW + docs site, on Kubernetes (Scaleway Kapsule, nl-ams). Events go through a transactional outbox → Debezium → NATS JetStream. Workflows run on Temporal. APISIX is the gateway and Keycloak the identity provider.
 - **Work items** live in Jira project `INT` (Blooo). **Specification and architecture** live in `docs/` (source of truth).
 
 ## 2. Read before coding (in this order)
@@ -24,7 +24,7 @@ This file tells an agent **what to read, in which order, and which rules are non
 4. The contracts in `contracts/` for the APIs and events you touch.
 
 ## 3. Non-negotiable rules
-1. **Contract first.** Change or create the OpenAPI/AsyncAPI contract first, then the mock, then the code. The implementation must satisfy the contract (`express-openapi-validator`, Schemathesis in CI).
+1. **Contract first.** Change or create the OpenAPI/AsyncAPI contract first, then the mock, then the code. The implementation must satisfy the contract (target: `express-openapi-validator`, Schemathesis, oasdiff, Orval; **in CI today:** Spectral, Redocly, AsyncAPI CLI, EWDS JSON-schema validation; Prism and openapi-typescript available).
 2. **Module boundaries.**
    - A module never reads or writes another module's database.
    - Cross-module communication goes only through internal APIs (03 §3.2) or events (03 §4).

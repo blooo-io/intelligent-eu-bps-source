@@ -14,7 +14,7 @@
 |---|---|
 | Database credentials | Each module |
 | Stripe secret + webhook signing secret | Payments / invoicing |
-| OIDC client secret (if confidential client) | Gateway / web |
+| OIDC client secret (if confidential client) | Gateway / service clients |
 | SMTP / notification credentials | Notification |
 | Registry pull credentials | Nodes / deploy |
 

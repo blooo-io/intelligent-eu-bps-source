@@ -8,7 +8,7 @@ date: 2026-11-26
 
 Automated **end-to-end** coverage of every use case in [`docs/architecture/07-scenario-flows.md`](../architecture/07-scenario-flows.md) (**S1–S14**) on the **project EWDS path** (records + command channel).
 
-Not Playwright against `apps/web` (`/v1` reference client). Not live EWAG grants (submit later).
+The removed `/v1` reference client (`apps/web`) is out of scope (INT-455). Live EWAG grants are pending: the transport is the Mock CGW on `dev` until then.
 
 Transport stand-in: **Mock CGW** (`@intelligent/ewds-client`, INT-441). Module journeys run in-process across AC-03 / AC-04 / AC-10 / AC-12 sources.
 

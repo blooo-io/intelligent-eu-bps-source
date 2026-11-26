@@ -12,4 +12,4 @@ Participants and communities (INT-103 / LB-02).
 
 Contracts: `contracts/openapi/internal/participants.v1.yaml`, `contracts/openapi/public.v1.yaml` (AC-03 paths), `contracts/asyncapi/participants.v1.yaml`.
 
-V1 stores data in memory (PostgreSQL wiring follows with CNPG). Identity-provider admin calls go through P-IDP (`createUser`, `sendInvitation`, `deleteUser`) with a mock adapter in tests.
+V1 stores data in memory (PostgreSQL wiring follows with CNPG). **INT-463:** member IdP create/invite/erase is owned by R2M; AC-03 no longer calls Keycloak Admin. Retained `services/participants/src/idp/*` adapters are unused on the product path (tests / historical).

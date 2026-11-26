@@ -1,0 +1,24 @@
+{
+  "accountId": "acct_1Ug5CxFPEY7O3sX3",
+  "payouts_enabled": false,
+  "balanceAvailable": [
+    {
+      "amount": -3563,
+      "currency": "eur",
+      "source_types": {
+        "card": -3563
+      }
+    }
+  ],
+  "balancePending": [
+    {
+      "amount": 0,
+      "currency": "eur",
+      "source_types": {
+        "card": 0
+      }
+    }
+  ],
+  "note": "Payout create needs funded Connect balance + completed KYC; this pack proves live Stripe account/balance APIs for the payout path.",
+  "notes": "Live Stripe test account + platform balance probe for payout path."
+}

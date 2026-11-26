@@ -1,0 +1,12 @@
+{
+  "userAccountStatusChanged": {
+    "actorId": "a1111111-0000-4000-8000-000000000001",
+    "participantId": "a1111111-0000-4000-8000-000000000001",
+    "kycVerified": true,
+    "accountStatus": "Active",
+    "verificationKind": "connect_account",
+    "termsVersion": "v1.0.0",
+    "termsAcceptedAt": "2026-11-26T16:06:59.467Z",
+    "selfBillingMandate": false
+  }
+}

@@ -45,6 +45,22 @@ pnpm --filter @intelligent/ewds-client test
 | S13 Commands | REQ-052 | UAT-064 | All 8 ops on Mock CGW + authz deny for member `triggerBillingRun` |
 | S14 Purge | REQ-053 | UAT-069 | `purgeCache` (≤ 7 days) |
 
+## Evidence packs (INT-458) — input / output per scenario
+
+```bash
+EWDS_EVIDENCE_DIR=$PWD/docs/testing/evidence/$(date -u +%F) \
+  pnpm --filter @intelligent/ewds-project-path-e2e test
+# → ewds-s01…s14/input.json + output.json + s1-s14-index.json
+```
+
+**Stripe honesty:** EWDS journeys label money paths `run_path: mock` (stubs). Live Stripe test proofs for S4/S8/S10:
+
+```bash
+EVIDENCE_DIR=docs/testing/evidence/$(date -u +%F) node scripts/stripe-scenario-proof.mjs
+```
+
+See `docs/testing/evidence/2026-11-26/README.md`.
+
 ## Cluster path (INT-454) — Mock CGW on destinDev
 
 Live pods on `k8s-intelligent-eu-dev` with **Mock CGW** as the transport (not EWAG Spine):

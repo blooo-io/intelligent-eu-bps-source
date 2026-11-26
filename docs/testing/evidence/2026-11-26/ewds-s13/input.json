@@ -1,0 +1,13 @@
+{
+  "operations": [
+    "startPayment",
+    "requestWithdrawal",
+    "setInvoiceStatus",
+    "startKyc",
+    "acceptTerms",
+    "sendReminder",
+    "triggerBillingRun",
+    "setupPaymentMethod"
+  ],
+  "memberDenied": "triggerBillingRun"
+}

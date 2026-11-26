@@ -12,7 +12,10 @@ export default defineConfig({
   test: {
     environment: "node",
     // Single entry imports the journey specs (shared markCovered registry).
-    include: ["src/zz-coverage-gate.e2e.spec.ts"],
+    include: [
+      "src/zz-coverage-gate.e2e.spec.ts",
+      "fixtures/evidence-recorder.spec.ts",
+    ],
     testTimeout: 30_000,
   },
   resolve: {

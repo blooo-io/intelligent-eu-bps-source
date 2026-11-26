@@ -1,0 +1,10 @@
+{
+  "messageId": "erase-msg-1",
+  "sender": "did:ethr:0xController",
+  "body": {
+    "actorId": "11111111-2222-4333-8444-555555555555",
+    "communityId": "c0ffee00-1234-4abc-8def-0123456789ab",
+    "type": "erasure",
+    "controllerRef": "did:ethr:0xController"
+  }
+}

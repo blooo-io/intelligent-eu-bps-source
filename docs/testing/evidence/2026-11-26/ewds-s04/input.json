@@ -1,0 +1,7 @@
+{
+  "actorId": "a1111111-0000-4000-8000-000000000001",
+  "applyKycStatus": {
+    "kycVerified": true,
+    "eventId": "e2e-kyc-1"
+  }
+}

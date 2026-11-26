@@ -1,0 +1,19 @@
+{
+  "billingPayout": {
+    "payoutId": "b1b2b3b4-b5b6-4788-9999-cccccccccccc",
+    "actorId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+    "communityId": "c0ffee00-1234-4abc-8def-0123456789ab",
+    "billingMode": "virtual",
+    "amount": 14.25,
+    "currency": "CHF",
+    "payoutStatus": "paid",
+    "trigger": "manual",
+    "statementIds": [
+      "a2b4c6d8-1e3f-4a5b-8c7d-9e0f1a2b3c4d"
+    ],
+    "arrivalDate": "2026-12-05",
+    "failureCategory": null,
+    "createdAt": "2026-12-01T06:00:00.000Z",
+    "updatedAt": "2026-12-01T06:00:00.000Z"
+  }
+}

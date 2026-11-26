@@ -1,0 +1,61 @@
+{
+  "communityId": "a1000000-0000-4000-8000-000000000001",
+  "actors": [
+    {
+      "actorId": "a1111111-0000-4000-8000-000000000001",
+      "communityId": "a1000000-0000-4000-8000-000000000001",
+      "gsyActorId": "gsy-ewds-consumer-1",
+      "meterId": "m-ewds-1",
+      "role": "consumer",
+      "name": "Elena Costa",
+      "address": {
+        "street": "Via Roma 10",
+        "postalCode": "00100",
+        "city": "Roma",
+        "country": "IT"
+      },
+      "contact": {
+        "email": "elena.costa@example.invalid",
+        "phone": "+39061111111"
+      },
+      "version": "1"
+    },
+    {
+      "actorId": "a2222222-0000-4000-8000-000000000002",
+      "communityId": "a1000000-0000-4000-8000-000000000001",
+      "gsyActorId": "gsy-ewds-producer-1",
+      "meterId": "m-ewds-2",
+      "role": "producer",
+      "name": "Marco Rossi",
+      "address": {
+        "street": "Via Milano 5",
+        "postalCode": "20100",
+        "city": "Milano",
+        "country": "IT"
+      },
+      "contact": {
+        "email": "marco.rossi@example.invalid"
+      },
+      "version": "1"
+    },
+    {
+      "actorId": "a3333333-0000-4000-8000-000000000003",
+      "communityId": "a1000000-0000-4000-8000-000000000001",
+      "gsyActorId": "gsy-ewds-prosumer-1",
+      "meterId": "m-ewds-3",
+      "role": "prosumer",
+      "name": "Giulia Bianchi",
+      "address": {
+        "street": "Via Napoli 2",
+        "postalCode": "80100",
+        "city": "Napoli",
+        "country": "IT"
+      },
+      "contact": {
+        "email": "giulia.bianchi@example.invalid",
+        "phone": "+39081111111"
+      },
+      "version": "1"
+    }
+  ]
+}

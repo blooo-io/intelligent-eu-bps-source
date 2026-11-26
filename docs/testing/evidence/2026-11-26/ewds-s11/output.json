@@ -1,0 +1,36 @@
+{
+  "billingInvoice": {
+    "invoiceId": "3f1c2a9e-8b7d-4c21-9a0e-5d6f7a8b9c01",
+    "billingId": "a2b4c6d8-1e3f-4a5b-8c7d-9e0f1a2b3c4d",
+    "issuerStatementId": "d3e5f7a9-2b4c-4d6e-8f0a-1b2c3d4e5f6a",
+    "communityId": "c0ffee00-1234-4abc-8def-0123456789ab",
+    "billingMode": "virtual",
+    "settlementType": "periodic",
+    "billingPeriodFrom": "2026-11-01T00:00:00.000Z",
+    "billingPeriodUntil": "2026-12-01T00:00:00.000Z",
+    "invoiceStatus": "Void",
+    "invoiceIssueDate": "2026-12-01T06:00:00.000Z",
+    "invoiceIssuedTo": "11111111-2222-4333-8444-555555555555",
+    "invoiceIssuedBy": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+    "selfBilling": true,
+    "invoiceDueDate": "2026-12-15",
+    "totalEnergyKWh": 5,
+    "totalAmount": 10,
+    "outstandingAmount": 0,
+    "energyAmount": 10,
+    "gridFeeAmount": 0,
+    "gridFeeStatus": "not_published",
+    "taxAmount": 0,
+    "totalTaxAmount": 0,
+    "vatRate": 0,
+    "carriedForwardAmount": 0,
+    "currency": "CHF",
+    "exchangeRate": null,
+    "createdAt": "2026-12-01T06:00:00.000Z",
+    "updatedAt": "2026-11-26T16:06:59.605Z",
+    "tradeIds": [
+      "0x8f3a1c2b4d5e6f708192a3b4c5d6e7f8"
+    ],
+    "paymentIds": null
+  }
+}

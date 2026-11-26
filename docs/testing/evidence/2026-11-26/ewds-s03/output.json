@@ -1,0 +1,13 @@
+{
+  "billingKycStatus": {
+    "actorId": "11111111-2222-4333-8444-555555555555",
+    "communityId": "c0ffee00-1234-4abc-8def-0123456789ab",
+    "kycVerified": false,
+    "accountStatus": "PendingVerification",
+    "verificationKind": "connect_account",
+    "termsVersion": "v1.0.0",
+    "termsAcceptedAt": "2026-11-26T06:00:00.000Z",
+    "selfBillingMandate": false,
+    "updatedAt": "2026-12-01T06:00:00.000Z"
+  }
+}

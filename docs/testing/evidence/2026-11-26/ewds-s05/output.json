@@ -1,0 +1,8 @@
+{
+  "readiness": {
+    "participantId": "a1111111-0000-4000-8000-000000000001",
+    "ready": true,
+    "status": "Ready",
+    "kycVerified": true
+  }
+}

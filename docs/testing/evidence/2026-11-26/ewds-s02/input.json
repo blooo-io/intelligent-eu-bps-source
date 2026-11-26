@@ -1,0 +1,21 @@
+{
+  "bumpedActor": {
+    "actorId": "a1111111-0000-4000-8000-000000000001",
+    "communityId": "a1000000-0000-4000-8000-000000000001",
+    "gsyActorId": "gsy-ewds-consumer-1",
+    "meterId": "m-ewds-1",
+    "role": "consumer",
+    "name": "Ana Updated Via R2M",
+    "address": {
+      "street": "Via Roma 10",
+      "postalCode": "00100",
+      "city": "Roma",
+      "country": "IT"
+    },
+    "contact": {
+      "email": "elena.costa@example.invalid",
+      "phone": "+39061111111"
+    },
+    "version": "2"
+  }
+}

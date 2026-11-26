@@ -1,0 +1,5 @@
+{
+  "scenario": "S10",
+  "api": "GET /v1/accounts/{id} + balance",
+  "accountId": "acct_1Ug5CxFPEY7O3sX3"
+}

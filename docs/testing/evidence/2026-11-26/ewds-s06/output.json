@@ -1,0 +1,16 @@
+{
+  "trades": [
+    {
+      "tradeId": "0x0123456789abcdef0123456789abcdef",
+      "marketId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "buyerActorId": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sellerActorId": "0xcccccccccccccccccccccccccccccccc",
+      "energyKWh": 3.5,
+      "pricePerKWhEur": 0.12,
+      "status": "settled",
+      "deliveryStart": "2026-11-01T00:00:00Z",
+      "deliveryEnd": "2026-11-01T01:00:00Z",
+      "adjustedPricePerKWhEur": 0.115
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "accountId": "acct_1Ug5CxFPEY7O3sX3",
+  "charges_enabled": false,
+  "payouts_enabled": false,
+  "accountLinkUrlPrefix": "https://connect.stripe.com/setup/e/acct_1Ug5CxFP",
+  "notes": "Live Stripe test Connect Express account + Account Link (KYC handoff)."
+}

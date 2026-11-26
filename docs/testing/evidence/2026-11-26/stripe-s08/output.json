@@ -1,0 +1,8 @@
+{
+  "checkoutSessionId": "cs_test_a0qjTgwilx2JN6kr9hRYuCZyuSpWhiXUKywG62z8lrbXdOF0dPE9z0sLtN",
+  "payment_status": "unpaid",
+  "urlPrefix": "https://checkout.stripe.com/g/pay/cs_test_a0qjTg",
+  "currency": "chf",
+  "amount_total": 1081,
+  "notes": "Live Stripe test Checkout Session — real cs_test_* id (pay handoff)."
+}

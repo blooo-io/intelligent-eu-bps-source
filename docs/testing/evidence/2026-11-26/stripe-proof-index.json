@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-11-26T16:07:43.303Z",
+  "timezone": "Europe/Paris",
+  "jira": [
+    "INT-458"
+  ],
+  "run_path": "stripe-test",
+  "scenarios": [
+    {
+      "id": "stripe-s04",
+      "run_path": "stripe-test",
+      "input": "stripe-s04/input.json",
+      "output": "stripe-s04/output.json",
+      "notes": "Live Stripe test Connect Express account + Account Link (KYC handoff)."
+    },
+    {
+      "id": "stripe-s08",
+      "run_path": "stripe-test",
+      "input": "stripe-s08/input.json",
+      "output": "stripe-s08/output.json",
+      "notes": "Live Stripe test Checkout Session — real cs_test_* id (pay handoff)."
+    },
+    {
+      "id": "stripe-s10",
+      "run_path": "stripe-test",
+      "input": "stripe-s10/input.json",
+      "output": "stripe-s10/output.json",
+      "notes": "Live Stripe test account + platform balance probe for payout path."
+    }
+  ]
+}

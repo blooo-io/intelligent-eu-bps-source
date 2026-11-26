@@ -107,7 +107,15 @@ describe("INT-453 E2E S3/S7–S11/S13/S14 (publication + commands)", () => {
       kycVerified: false,
     });
     // S3 already marked in onboarding; bridge reinforces publish leg.
-    markCovered("S3");
+    markCovered("S3", {
+      run_path: "mock",
+      input: {
+        event: "UserAccountStatusChanged",
+        actorId: IDS.consumer,
+        termsVersion: "v1.0.0",
+      },
+      output: { billingKycStatus: row },
+    });
   });
 
   it("S7: triggerBillingRun command + StatementIssued/InvoiceIssued → EWDS topics", async () => {
@@ -194,7 +202,16 @@ describe("INT-453 E2E S3/S7–S11/S13/S14 (publication + commands)", () => {
       .find((r) => r.topic === "billingInvoice")!.message;
     expect(validateStatement(statement).ok).toBe(true);
     expect(validateInvoice(invoice).ok).toBe(true);
-    markCovered("S7");
+    markCovered("S7", {
+      run_path: "mock",
+      input: {
+        command: "triggerBillingRun",
+        actorId: IDS.consumer,
+        role: "manager",
+      },
+      output: { billingStatement: statement, billingInvoice: invoice },
+      notes: "Command target + publish stubs — not a live Stripe invoice create.",
+    });
   });
 
   it("S8: startPayment → Checkout handoff reply + PaymentStatusChanged publish", async () => {
@@ -267,7 +284,21 @@ describe("INT-453 E2E S3/S7–S11/S13/S14 (publication + commands)", () => {
       .recorded()
       .find((r) => r.topic === "billingPayment")!.message;
     expect(validatePayment(payment).ok).toBe(true);
-    markCovered("S8");
+    markCovered("S8", {
+      run_path: "mock",
+      input: {
+        command: "startPayment",
+        invoiceId: IDS.invoice,
+        actorId: IDS.consumer,
+      },
+      output: {
+        commandReply: replyPayload,
+        billingPayment: payment,
+        handoffUrlShape: replyPayload.data.handoff.url,
+      },
+      notes:
+        "Handoff URL is a fixture string — Stripe API NOT called. See stripe-s08 evidence for stripe-test.",
+    });
   });
 
   it("S9: failed payment publish + sendReminder command", async () => {
@@ -331,7 +362,12 @@ describe("INT-453 E2E S3/S7–S11/S13/S14 (publication + commands)", () => {
       .at(-1)!.message as Record<string, unknown>;
     expect(validatePayment(payment).ok).toBe(true);
     expect(payment.paymentStatus).toBe("failed");
-    markCovered("S9");
+    markCovered("S9", {
+      run_path: "mock",
+      input: { command: "sendReminder", invoiceId: IDS.invoice },
+      output: { billingPayment: payment, reminderCount: 1 },
+      notes: "Failed payment event is synthetic — not a Stripe decline webhook.",
+    });
   });
 
   it("S10: requestWithdrawal → billingPayout publish", async () => {
@@ -374,7 +410,13 @@ describe("INT-453 E2E S3/S7–S11/S13/S14 (publication + commands)", () => {
       .recorded()
       .find((r) => r.topic === "billingPayout")!.message;
     expect(validatePayout(payout).ok).toBe(true);
-    markCovered("S10");
+    markCovered("S10", {
+      run_path: "mock",
+      input: { command: "requestWithdrawal", actorId: IDS.producer },
+      output: { billingPayout: payout },
+      notes:
+        "Withdrawal target stubbed — Stripe payout API NOT called. See stripe-s10 evidence.",
+    });
   });
 
   it("S11: setInvoiceStatus command → InvoiceStatusChanged republish", async () => {
@@ -436,7 +478,11 @@ describe("INT-453 E2E S3/S7–S11/S13/S14 (publication + commands)", () => {
       .at(-1)!.message as Record<string, unknown>;
     expect(validateInvoice(invoice).ok).toBe(true);
     expect(invoice.invoiceStatus).toBe("Void");
-    markCovered("S11");
+    markCovered("S11", {
+      run_path: "mock",
+      input: { command: "setInvoiceStatus", invoiceId: IDS.invoice, status: "Void" },
+      output: { billingInvoice: invoice },
+    });
   });
 
   it("S13: Mock CGW + every command op schema + dispatcher authz round-trip", async () => {
@@ -478,7 +524,17 @@ describe("INT-453 E2E S3/S7–S11/S13/S14 (publication + commands)", () => {
       },
     );
     expect(denied.allow).toBe(false);
-    markCovered("S13");
+    markCovered("S13", {
+      run_path: "mock",
+      input: {
+        operations: commandChannelScenarios().map((s) => s.operation),
+        memberDenied: "triggerBillingRun",
+      },
+      output: {
+        allEightOpsSchemaValid: true,
+        memberTriggerBillingRunAllowed: false,
+      },
+    });
   });
 
   it("S14: purgeCache clears outbound older than 7 days", async () => {
@@ -505,7 +561,11 @@ describe("INT-453 E2E S3/S7–S11/S13/S14 (publication + commands)", () => {
     const purged = await service.purgeCache(before);
     expect(purged.accepted).toBe(true);
     expect(purged.purgedLocal + purged.purgedGateway).toBeGreaterThanOrEqual(0);
-    markCovered("S14");
+    markCovered("S14", {
+      run_path: "mock",
+      input: { purgeBefore: before },
+      output: purged,
+    });
   });
 });
 

@@ -37,10 +37,11 @@ describe("INT-453 E2E S6 settled trade intake", () => {
     const adapter = new EwdsMarketAdapter(
       fake as unknown as RequestReplyClient,
     );
-    const trades = await adapter.queryTrades({
+    const window = {
       from: "2026-11-01T00:00:00Z",
       until: "2026-11-01T06:00:00Z",
-    });
+    };
+    const trades = await adapter.queryTrades(window);
     expect(trades.length).toBeGreaterThan(0);
     expect(fake.calls.every((c) => c.op === "tradesQuery")).toBe(true);
     for (const t of trades) {
@@ -49,6 +50,11 @@ describe("INT-453 E2E S6 settled trade intake", () => {
       expect(t.buyerActorId).toBeTruthy();
       expect(t.sellerActorId).toBeTruthy();
     }
-    markCovered("S6");
+    markCovered("S6", {
+      run_path: "mock",
+      input: { operation: "tradesQuery", window, rrCalls: fake.calls },
+      output: { trades },
+      notes: "FakeRr fixture — not live GSY/EWAG topics.",
+    });
   });
 });

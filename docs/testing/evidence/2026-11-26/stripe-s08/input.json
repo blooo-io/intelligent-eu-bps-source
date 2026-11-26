@@ -1,0 +1,7 @@
+{
+  "scenario": "S8",
+  "api": "POST /v1/checkout/sessions",
+  "mode": "payment",
+  "priceId": "price_1Ug5D0FDSWgmDDqhaFGE1kKA",
+  "amount": "10.81 CHF"
+}

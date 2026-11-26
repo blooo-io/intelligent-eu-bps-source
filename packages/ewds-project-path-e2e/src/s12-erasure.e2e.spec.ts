@@ -47,6 +47,24 @@ describe("INT-453 E2E S12 erasure", () => {
     });
     expect(consumer.done).toHaveBeenCalledWith("erase-msg-1", true);
     adapter.stop();
-    markCovered("S12");
+    markCovered("S12", {
+      run_path: "mock",
+      input: {
+        messageId: "erase-msg-1",
+        sender: CONTROLLER,
+        body: {
+          actorId: IDS.consumer,
+          communityId: IDS.community,
+          type: "erasure",
+          controllerRef: CONTROLLER,
+        },
+      },
+      output: {
+        accepted: seen[0],
+        outcome: { status: "completed", requestId: "req-e2e-1" },
+        ack: true,
+      },
+      notes: "Ids only on the wire (NFR-002); no Stripe customer delete in this path.",
+    });
   });
 });

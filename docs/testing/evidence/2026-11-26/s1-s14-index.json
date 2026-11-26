@@ -1,0 +1,130 @@
+{
+  "generatedAt": "2026-11-26T16:06:59.632Z",
+  "timezone": "Europe/Paris",
+  "jira": [
+    "INT-458",
+    "INT-453"
+  ],
+  "scenarios": [
+    {
+      "id": "S1",
+      "title": "Onboard participants (Actor create)",
+      "run_path": "mock",
+      "input": "ewds-s01/input.json",
+      "output": "ewds-s01/output.json",
+      "notes": "EWDS Actor ingest via MockActorSourceAdapter (no Spine).",
+      "recordedAt": "2026-11-26T16:06:59.461Z"
+    },
+    {
+      "id": "S2",
+      "title": "Update administrative profile (Actor republish + 409)",
+      "run_path": "mock",
+      "input": "ewds-s02/input.json",
+      "output": "ewds-s02/output.json",
+      "recordedAt": "2026-11-26T16:06:59.464Z"
+    },
+    {
+      "id": "S3",
+      "title": "Accept T&C / self-billing → billingKycStatus",
+      "run_path": "mock",
+      "input": "ewds-s03/input.json",
+      "output": "ewds-s03/output.json",
+      "recordedAt": "2026-11-26T16:06:59.505Z"
+    },
+    {
+      "id": "S4",
+      "title": "KYC / payment-method setup (PspHandoff)",
+      "run_path": "mock",
+      "input": "ewds-s04/input.json",
+      "output": "ewds-s04/output.json",
+      "notes": "KYC applied in-process — not live Stripe Connect. See stripe-s04 evidence for stripe-test path.",
+      "recordedAt": "2026-11-26T16:06:59.468Z"
+    },
+    {
+      "id": "S5",
+      "title": "Readiness to Ready (gates)",
+      "run_path": "mock",
+      "input": "ewds-s05/input.json",
+      "output": "ewds-s05/output.json",
+      "recordedAt": "2026-11-26T16:06:59.469Z"
+    },
+    {
+      "id": "S6",
+      "title": "Settled trade intake",
+      "run_path": "mock",
+      "input": "ewds-s06/input.json",
+      "output": "ewds-s06/output.json",
+      "notes": "FakeRr fixture — not live GSY/EWAG topics.",
+      "recordedAt": "2026-11-26T16:06:59.630Z"
+    },
+    {
+      "id": "S7",
+      "title": "Periodic billing run (statement + invoice publish)",
+      "run_path": "mock",
+      "input": "ewds-s07/input.json",
+      "output": "ewds-s07/output.json",
+      "notes": "Command target + publish stubs — not a live Stripe invoice create.",
+      "recordedAt": "2026-11-26T16:06:59.530Z"
+    },
+    {
+      "id": "S8",
+      "title": "Pay an invoice",
+      "run_path": "mock",
+      "input": "ewds-s08/input.json",
+      "output": "ewds-s08/output.json",
+      "notes": "Handoff URL is a fixture string — Stripe API NOT called. See stripe-s08 evidence for stripe-test.",
+      "recordedAt": "2026-11-26T16:06:59.553Z"
+    },
+    {
+      "id": "S9",
+      "title": "Payment failure & reminder",
+      "run_path": "mock",
+      "input": "ewds-s09/input.json",
+      "output": "ewds-s09/output.json",
+      "notes": "Failed payment event is synthetic — not a Stripe decline webhook.",
+      "recordedAt": "2026-11-26T16:06:59.571Z"
+    },
+    {
+      "id": "S10",
+      "title": "Payout / withdrawal",
+      "run_path": "mock",
+      "input": "ewds-s10/input.json",
+      "output": "ewds-s10/output.json",
+      "notes": "Withdrawal target stubbed — Stripe payout API NOT called. See stripe-s10 evidence.",
+      "recordedAt": "2026-11-26T16:06:59.590Z"
+    },
+    {
+      "id": "S11",
+      "title": "Manager invoice status change",
+      "run_path": "mock",
+      "input": "ewds-s11/input.json",
+      "output": "ewds-s11/output.json",
+      "recordedAt": "2026-11-26T16:06:59.606Z"
+    },
+    {
+      "id": "S12",
+      "title": "Data-subject erasure",
+      "run_path": "mock",
+      "input": "ewds-s12/input.json",
+      "output": "ewds-s12/output.json",
+      "notes": "Ids only on the wire (NFR-002); no Stripe customer delete in this path.",
+      "recordedAt": "2026-11-26T16:06:59.632Z"
+    },
+    {
+      "id": "S13",
+      "title": "Command channel authorization layers",
+      "run_path": "mock",
+      "input": "ewds-s13/input.json",
+      "output": "ewds-s13/output.json",
+      "recordedAt": "2026-11-26T16:06:59.612Z"
+    },
+    {
+      "id": "S14",
+      "title": "Publication purge (≤ 7 days)",
+      "run_path": "mock",
+      "input": "ewds-s14/input.json",
+      "output": "ewds-s14/output.json",
+      "recordedAt": "2026-11-26T16:06:59.629Z"
+    }
+  ]
+}

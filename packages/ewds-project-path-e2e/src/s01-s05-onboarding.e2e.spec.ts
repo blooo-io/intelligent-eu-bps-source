@@ -64,12 +64,22 @@ describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
   it("S1: Actor create → ParticipantRecord source=ewds at ProfileCompleted", async () => {
     const result = await sync.sync(communityId);
     expect(result.created).toBeGreaterThanOrEqual(3);
-    for (const actor of actors) {
+    const rows = actors.map((actor) => {
       const row = store.getParticipant(actor.actorId)!;
       expect(row.source).toBe("ewds");
       expect(deriveReadiness(row)).toBe("ProfileCompleted");
-    }
-    markCovered("S1");
+      return {
+        actorId: actor.actorId,
+        source: row.source,
+        readiness: deriveReadiness(row),
+      };
+    });
+    markCovered("S1", {
+      run_path: "mock",
+      input: { communityId, actors },
+      output: { sync: result, participants: rows },
+      notes: "EWDS Actor ingest via MockActorSourceAdapter (no Spine).",
+    });
   });
 
   it("S2: Actor version bump updates cache; PUT profile → 409 for source=ewds", async () => {
@@ -104,7 +114,15 @@ describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
     ).rejects.toMatchObject({
       response: { code: "profile_managed_by_ewds" },
     });
-    markCovered("S2");
+    markCovered("S2", {
+      run_path: "mock",
+      input: { bumpedActor: bumped },
+      output: {
+        syncUpdated: upd.updated,
+        profileName: store.getParticipant(first.actorId)?.profile?.name,
+        putProfileDenied: "profile_managed_by_ewds",
+      },
+    });
   });
 
   it("S3: acceptTermsForActor → UserAccountStatusChanged with T&C", async () => {
@@ -125,7 +143,19 @@ describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
     expect(participants.checkReadiness(consumer.actorId).status).toBe(
       "TermsAccepted",
     );
-    markCovered("S3");
+    markCovered("S3", {
+      run_path: "mock",
+      input: {
+        actorId: consumer.actorId,
+        termsVersion: "v1.0.0",
+        selfBillingMandate: false,
+      },
+      output: {
+        accepted,
+        outboxUserAccount: ua?.event.data,
+        readiness: participants.checkReadiness(consumer.actorId).status,
+      },
+    });
   });
 
   it("S4: KYC apply re-publishes UserAccount keeping T&C; startKyc surface is handoff-ready", async () => {
@@ -150,7 +180,16 @@ describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
       termsVersion: "v1.0.0",
       accountStatus: "Active",
     });
-    markCovered("S4");
+    markCovered("S4", {
+      run_path: "mock",
+      input: {
+        actorId: consumer.actorId,
+        applyKycStatus: { kycVerified: true, eventId: "e2e-kyc-1" },
+      },
+      output: { userAccountStatusChanged: latest },
+      notes:
+        "KYC applied in-process — not live Stripe Connect. See stripe-s04 evidence for stripe-test path.",
+    });
   });
 
   it("S5: readiness ladder ProfileCompleted → TermsAccepted → Ready", async () => {
@@ -175,11 +214,19 @@ describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
       participantId: consumer.actorId,
       kycVerified: true,
     });
-    expect(participants.checkReadiness(consumer.actorId)).toMatchObject({
+    const ready = participants.checkReadiness(consumer.actorId);
+    expect(ready).toMatchObject({
       ready: true,
       status: "Ready",
       kycVerified: true,
     });
-    markCovered("S5");
+    markCovered("S5", {
+      run_path: "mock",
+      input: {
+        actorId: consumer.actorId,
+        steps: ["acceptTerms", "applyPaymentAccountStatus", "applyKycStatus"],
+      },
+      output: { readiness: ready },
+    });
   });
 });

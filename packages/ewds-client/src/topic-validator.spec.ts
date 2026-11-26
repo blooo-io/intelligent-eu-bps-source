@@ -11,6 +11,7 @@ const pkgRoot = path.resolve(
 const docsRoot = path.resolve(pkgRoot, "../../docs/architecture/ewds-topics");
 
 const topics = [
+  "actor",
   "billingStatement",
   "billingInvoice",
   "billingPayment",

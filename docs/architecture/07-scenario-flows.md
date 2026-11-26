@@ -12,6 +12,7 @@ jira: INT-449, INT-450, INT-451
 > Supplement to the five architecture views ([README](README.md)).
 > Datamodel / ontology: [`06-datamodel-ontology.md`](06-datamodel-ontology.md).
 > All project-UI paths are **EWDS-only** (records + command channel). `/v1` is the reference client (`apps/web`) only.
+> Full E2E evidence for this path: [`docs/testing/ewds-project-path-e2e.md`](../testing/ewds-project-path-e2e.md) (INT-453, S1–S14).
 
 ## Legend (lifelines)
 

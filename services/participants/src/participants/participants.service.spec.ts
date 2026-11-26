@@ -573,9 +573,102 @@ describe("ParticipantsService", () => {
             (e.event.data as { action?: string }).action === "terms.accepted",
         ),
       ).toBe(true);
+      // INT-448 / INT-453 — UserAccount wire for billingKycStatus.
+      const ua = events.find((e) => e.event.type === "UserAccountStatusChanged");
+      expect(ua).toBeDefined();
+      expect(ua!.event.data).toMatchObject({
+        actorId: created.participantId,
+        termsVersion: "v1.0.0",
+        termsAcceptedAt: "2026-11-25T09:00:00.000Z",
+        selfBillingMandate: false,
+        kycVerified: false,
+      });
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("INT-453 / REQ-050: acceptTermsForActor (command channel) emits UserAccountStatusChanged", async () => {
+    const participantId = "aaaaaaaa-1111-4111-8111-111111111188";
+    store.putParticipant({
+      participantId,
+      communityId,
+      role: "producer",
+      status: "ProfileCompleted",
+      marketActorId: "mkt-cmd-terms",
+      meterId: "m-cmd-terms",
+      idpUserId: "bbbbbbbb-2222-4222-8222-222222222288",
+      profile: {
+        name: "Cmd Terms",
+        address: "1 Cmd",
+        email: "cmd-terms@example.invalid",
+      },
+      termsVersionAccepted: null,
+      selfBillingMandate: false,
+      paymentAccountReady: false,
+      paymentBlockReason: null,
+      source: "ewds",
+      postalAddress: null,
+      phone: null,
+      termsAcceptedAt: null,
+      kycVerified: false,
+      actorVersion: "1",
+    });
+    const result = await service.acceptTermsForActor(participantId, {
+      termsVersion: "v1.0.0",
+      selfBillingMandate: true,
+    });
+    expect(result).toMatchObject({
+      termsVersion: "v1.0.0",
+      selfBillingMandate: true,
+    });
+    expect(store.getParticipant(participantId)?.termsVersionAccepted).toBe(
+      "v1.0.0",
+    );
+    expect(service.checkReadiness(participantId).status).toBe("TermsAccepted");
+    const events = await outboxStore.list();
+    const ua = events.find((e) => e.event.type === "UserAccountStatusChanged");
+    expect(ua?.event.data).toMatchObject({
+      actorId: participantId,
+      termsVersion: "v1.0.0",
+      selfBillingMandate: true,
+      kycVerified: false,
+      accountStatus: "PendingVerification",
+    });
+  });
+
+  it("INT-453 / REQ-051: applyKycStatus re-publishes UserAccount with T&C preserved", async () => {
+    const [created] = await service.importParticipants(communityId, [
+      {
+        email: "ua-kyc@example.com",
+        marketActorId: "actor-ua-kyc",
+        meterId: "meter-ua-kyc",
+        role: "consumer",
+      },
+    ]);
+    const row = store.getParticipant(created.participantId)!;
+    await service.acceptTerms(row.idpUserId!, ["member"], {
+      termsVersion: "v1.0.0",
+      selfBillingMandate: false,
+    });
+    await service.applyKycStatus({
+      eventId: "evt-ua-kyc-1",
+      participantId: created.participantId,
+      kycVerified: true,
+    });
+    const events = await outboxStore.list();
+    const uaEvents = events.filter(
+      (e) => e.event.type === "UserAccountStatusChanged",
+    );
+    expect(uaEvents.length).toBeGreaterThanOrEqual(2);
+    const latest = uaEvents.at(-1)!.event.data as Record<string, unknown>;
+    expect(latest).toMatchObject({
+      actorId: created.participantId,
+      kycVerified: true,
+      termsVersion: "v1.0.0",
+      selfBillingMandate: false,
+      accountStatus: "Active",
+    });
   });
 
   it("REQ-050: producer without self-billing mandate is refused", async () => {

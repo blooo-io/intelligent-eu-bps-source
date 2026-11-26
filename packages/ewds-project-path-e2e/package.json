@@ -1,0 +1,26 @@
+{
+  "name": "@intelligent/ewds-project-path-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "INT-453 — full EWDS project-path E2E for scenario flows S1–S14 (Mock CGW, no /v1)",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@intelligent/ewds-client": "workspace:*",
+    "@intelligent/mocks": "workspace:*",
+    "@intelligent/module-template": "workspace:*",
+    "@nestjs/common": "^12.6.0",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2",
+    "vitest": "4.1.12"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -18,7 +18,7 @@ D5.5 remediation closeout (INT-440) and e2e-dev recovery on `dev`:
 - **INT-448** — T&C on ontology `UserAccount` (same level as `kycVerified`): `billingKycStatus` carries `termsVersion` / `termsAcceptedAt` / `selfBillingMandate`; `UserAccountStatusChanged` from AC-03.
 - **INT-449** — Docs alignment: ontology datamodel view (`06-datamodel-ontology.md`), detailed scenario flows S1–S14 (`07-scenario-flows.md`), architecture/requirements text updated for EWDS-only Actor + UserAccount T&C.
 - **INT-450…452** — Scenario-flow polish (Billing CGW on every hop, ontology on steps, REQ|UAT index columns).
-- **INT-453** — EWDS project-path smoke: `UserAccountStatusChanged` on acceptTerms / command-target / KYC apply; checklist in `docs/testing/ewds-project-path-smoke.md`.
+- **INT-453** — EWDS project-path **full E2E** (S1–S14): `@intelligent/ewds-project-path-e2e` journey suite + Mock CGW wire tests; matrix in `docs/testing/ewds-project-path-e2e.md`.
 - e2e-dev green on develop tip that ships this patch.
 
 ## What ships

@@ -7,6 +7,7 @@ import { Ajv2020, type ErrorObject } from "ajv/dist/2020.js";
 import type { Plugin } from "ajv";
 
 export type EwdsTopicName =
+  | "actor"
   | "billingStatement"
   | "billingInvoice"
   | "billingPayment"

@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "types": ["node", "vitest/globals"],
+    "noEmit": true,
+    "paths": {
+      "@participants/*": ["../../services/participants/src/*"],
+      "@publication/*": ["../../services/publication/src/*"],
+      "@trade-intake/*": ["../../services/trade-intake/src/*"],
+      "@compliance/*": ["../../services/compliance/src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "fixtures/**/*.ts"]
+}

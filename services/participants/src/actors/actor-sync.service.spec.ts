@@ -10,7 +10,6 @@ import {
 } from "@intelligent/module-template";
 import { ewdsActorFixtures } from "@intelligent/mocks";
 import { ParticipantsStore } from "../domain/store.js";
-import { MockIdpAdapter } from "../idp/mock-idp.adapter.js";
 import { ParticipantsService } from "../participants/participants.service.js";
 import { deriveReadiness } from "../participants/readiness.js";
 import type { ActorRecord } from "./actor-source.port.js";
@@ -20,7 +19,6 @@ import { MockActorSourceAdapter } from "./mock-actor-source.adapter.js";
 describe("ActorSyncService (REQ-008 / UAT-008)", () => {
   let store: ParticipantsStore;
   let outboxStore: InMemoryOutboxStore;
-  let idp: MockIdpAdapter;
   let participants: ParticipantsService;
   let communityId: string;
   let actors: ActorRecord[];
@@ -29,12 +27,10 @@ describe("ActorSyncService (REQ-008 / UAT-008)", () => {
   beforeEach(() => {
     store = new ParticipantsStore();
     outboxStore = new InMemoryOutboxStore();
-    idp = new MockIdpAdapter();
     const outbox = new OutboxService(outboxStore);
     participants = new ParticipantsService(
       store,
       outbox,
-      idp,
       {
         async get() {
           return {
@@ -55,7 +51,6 @@ describe("ActorSyncService (REQ-008 / UAT-008)", () => {
     sync = new ActorSyncService(
       store,
       outbox,
-      idp,
       new MockActorSourceAdapter(actors),
     );
   });
@@ -75,7 +70,6 @@ describe("ActorSyncService (REQ-008 / UAT-008)", () => {
     const syncFour = new ActorSyncService(
       store,
       new OutboxService(outboxStore),
-      idp,
       new MockActorSourceAdapter(four),
     );
     const result = await syncFour.sync(communityId);
@@ -138,7 +132,6 @@ describe("ActorSyncService (REQ-008 / UAT-008)", () => {
     const sync2 = new ActorSyncService(
       store,
       new OutboxService(outboxStore),
-      idp,
       new MockActorSourceAdapter(bumped),
     );
     const result = await sync2.sync(communityId);

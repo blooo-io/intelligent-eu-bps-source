@@ -23,7 +23,7 @@ jira: INT-449, INT-450, INT-451
 | **Billing CGW** | **Blooo BPS** Client Gateway — **always** on the path between EWDS and BPS modules (INT-450) |
 | **AC-xx** | NestJS modules inside BPS (behind Billing CGW for all EWDS I/O) |
 
-**Convention:** every EWDS publish/subscribe/command for billing goes `EWDS ↔ Billing CGW ↔ AC-*`. Stripe webhooks and IdP calls do **not** use Billing CGW.
+**Convention:** every EWDS publish/subscribe/command for billing goes `EWDS ↔ Billing CGW ↔ AC-*`. Stripe webhooks and IdP calls do **not** use Billing CGW. Member IdP administration is R2M-owned (INT-463); BPS calls Keycloak only for service JWTs.
 
 **Ontology on arrows:** each message is annotated with the ontology class(es) or wire subset involved (`int:Actor`, `int:UserAccount`, …). Commands are actions, not record classes — listed as `command` + the UserAccount / Invoice fields they mutate.
 
@@ -52,8 +52,6 @@ sequenceDiagram
   participant EWDS as EWDS broker
   participant CGW as Billing CGW
   participant AC03 as AC-03 Participants
-  participant IdP as Keycloak
-  participant AC11 as AC-11 Notification
   Mgr->>R2M: Enter actors UI or CSV
   Note right of Mgr: int:Actor create
   loop One message per Actor
@@ -63,8 +61,7 @@ sequenceDiagram
     CGW->>AC03: ActorSourcePort.ingest
     AC03->>AC03: upsert ParticipantRecord source=ewds
     Note right of AC03: cache int:Actor
-    AC03->>IdP: ensure user + invitation
-    AC03->>AC11: invite e-mail ids only
+    Note right of AC03: No IdP user or invitation in BPS (R2M, INT-463)
   end
   Note over CGW,AC03: No Actor reply topic — intake only
 ```
@@ -75,7 +72,9 @@ sequenceDiagram
 | EWDS topic `actor` | same |
 | BPS ParticipantRecord | cache of Actor; UserAccount not yet complete |
 
-**Trace:** REQ-008, UAT-008, INT-447.
+Member Keycloak account creation and invitation are performed by R2M with its scoped Admin API client, not by AC-03 (INT-463).
+
+**Trace:** REQ-008, UAT-008, INT-447, INT-463.
 
 ---
 
@@ -447,7 +446,6 @@ sequenceDiagram
   participant AC12 as AC-12 Compliance
   participant AC03 as AC-03 Participants
   participant AC07 as AC-07 Payments
-  participant IdP as Keycloak
   participant Stripe as Stripe
   alt Reference portal
     DPO->>AC12: erasure request participantId
@@ -462,7 +460,7 @@ sequenceDiagram
   Note right of AC03: clear Actor PII cache keep Invoice ids
   AC12->>AC07: erase PSP customer where allowed
   AC07->>Stripe: delete or anonymise
-  AC12->>IdP: erase user
+  Note over AC12: IdP erase = R2M (INT-463); outcome delegated_to_project_ui
   AC03-->>AC12: ErasureCompleted
 ```
 
@@ -472,7 +470,7 @@ sequenceDiagram
 | Retained | `int:Invoice` identifiers for legal retention |
 | Not erased from history | published billing records already purged by retention (REQ-053) |
 
-**Trace:** REQ-013 / UAT-013, NFR-015 (ids only in logs/events).
+**Trace:** REQ-013 / UAT-013, INT-463, NFR-015 (ids only in logs/events).
 
 ---
 

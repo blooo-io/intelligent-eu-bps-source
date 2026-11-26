@@ -214,16 +214,13 @@ describe("StatementsService (REQ-059)", () => {
     expect(runs).toBe(1);
   });
 
-  it("REQ-010: listForParticipant returns the caller's statements (raw sub and resolved id)", async () => {
+  it("REQ-010 / INT-463: listForParticipant returns the caller's statements by participantId", async () => {
     invoices.put(invoice("k1", "sub-K", "P", "2.00", { runId: "R2" }));
-    svc = build({
-      resolveByIdpSub: async (sub: string) =>
-        sub === "idp-P" ? { participantId: "P", communityId: COM } : null,
-    } as ParticipantsResolverPort);
+    svc = build(new NoopParticipantsResolver());
     await svc.issueStatementsForRun("R1");
     await svc.issueStatementsForRun("R2");
 
-    const mine = await svc.listForParticipant("idp-P");
+    const mine = await svc.listForParticipant("P");
     expect(mine.map((s) => s.participantId)).toEqual(["P"]);
     expect((await svc.listForParticipant("sub-K")).map((s) => s.participantId)).toEqual([
       "sub-K",

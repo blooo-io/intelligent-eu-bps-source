@@ -124,7 +124,7 @@ Pinned Phase 1 values (API auth later — INT-309):
 
 ## Command channel — hosted or embedded (D4 / A7-bis)
 
-Project-UI actions never hit billing `/v1`. Commands travel EWDS request/reply; replies carry a Stripe handoff (`url` for hosted, or `clientSecret` + `publishableKey` for embedded). Card/IBAN/identity stay in the user's browser ↔ Stripe.
+Project-UI actions never hit billing `/v1`. **No end-user JWT travels on the wire (INT-463):** the member's OIDC session stays on R2M; the command carries `actorId` and is signed by the R2M Client Gateway DID. Commands travel EWDS request/reply; replies carry a Stripe handoff (`url` for hosted, or `clientSecret` + `publishableKey` for embedded). Card/IBAN/identity stay in the user's browser ↔ Stripe.
 
 ```mermaid
 sequenceDiagram

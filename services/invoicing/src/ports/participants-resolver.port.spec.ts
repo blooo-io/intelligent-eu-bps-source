@@ -1,44 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  createParticipantsResolver,
-  HttpParticipantsResolver,
   NoopParticipantsResolver,
+  createParticipantsResolver,
 } from "./participants-resolver.port.js";
 
-describe("participants-resolver.port (INT-236)", () => {
-  it("returns noop without PARTICIPANTS_INTERNAL_URL", () => {
-    expect(createParticipantsResolver({})).toBeInstanceOf(
-      NoopParticipantsResolver,
-    );
-  });
-
-  it("HttpParticipantsResolver maps IdP sub", async () => {
-    const fetchImpl = vi.fn(async () =>
-      new Response(
-        JSON.stringify({
-          participantId: "11111111-2222-4333-8444-555555555555",
-          communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
-        }),
-        { status: 200 },
-      ),
-    );
-    const client = new HttpParticipantsResolver(
-      "http://participants:8080",
-      fetchImpl as never,
-    );
+describe("participants-resolver.port (INT-463)", () => {
+  it("NoopParticipantsResolver always returns null", async () => {
     await expect(
-      client.resolveByIdpSub("c1a55e01-0001-4000-8000-000000000001"),
-    ).resolves.toEqual({
-      participantId: "11111111-2222-4333-8444-555555555555",
-      communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
-    });
+      new NoopParticipantsResolver().resolveByIdpSub("any"),
+    ).resolves.toBeNull();
   });
 
-  it("HttpParticipantsResolver returns null on 404", async () => {
-    const client = new HttpParticipantsResolver(
-      "http://participants:8080",
-      vi.fn(async () => new Response("", { status: 404 })) as never,
-    );
-    await expect(client.resolveByIdpSub("missing")).resolves.toBeNull();
+  it("createParticipantsResolver always returns the no-op (by-idp-sub removed)", () => {
+    const resolver = createParticipantsResolver({
+      PARTICIPANTS_INTERNAL_URL: "http://participants.internal",
+    });
+    expect(resolver).toBeInstanceOf(NoopParticipantsResolver);
   });
 });

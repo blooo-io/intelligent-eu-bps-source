@@ -153,9 +153,8 @@ describe("ManagerKycService (REQ-051)", () => {
     expect(await query.statusOf(MANAGER)).toBe("verified");
   });
 
-  it("INT-442: statusOf resolves IdP sub → participantId before manager miss", async () => {
+  it("INT-463: statusOf looks up participantId directly (no IdP sub bridge)", async () => {
     const participantId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
-    const idpSub = "keycloak-sofia-sub";
     await accounts.put({
       participantId,
       pspAccountRef: "acct_sofia",
@@ -167,16 +166,10 @@ describe("ManagerKycService (REQ-051)", () => {
       kycVerified: true,
       kycVerifiedAt: new Date().toISOString(),
     });
-    const withResolver = new KycQueryService(accounts, store, {
-      resolveByIdpSub: async (sub) =>
-        sub === idpSub
-          ? { participantId, communityId: COMMUNITY }
-          : null,
-    });
-    expect(await withResolver.statusOf(idpSub)).toBe("verified");
-    const status = await withResolver.getStatus(idpSub);
+    expect(await query.statusOf(participantId)).toBe("verified");
+    const status = await query.getStatus(participantId);
     expect(status).toMatchObject({
-      subjectId: idpSub,
+      subjectId: participantId,
       subjectType: "participant",
       kycVerified: true,
       kycStatus: "verified",

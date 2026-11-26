@@ -22,7 +22,6 @@ import {
   MapInvoiceParty,
   type InvoicePartyDetails,
 } from "../ports/invoice-party.port.js";
-import type { ParticipantsResolverPort } from "../ports/participants-resolver.port.js";
 import { NoopParticipantsResolver } from "../ports/participants-resolver.port.js";
 import { MapReadiness } from "../ports/readiness.port.js";
 import { InvoicingService } from "./invoicing.service.js";
@@ -468,29 +467,10 @@ describe("InvoicingService", () => {
     );
   });
 
-  it("INT-236 — listInvoices resolves IdP sub to participantId", async () => {
+  it("INT-463 — listInvoices uses participantId directly", async () => {
     const invoice = (await service.createFromSettlement(settlement()))!;
-    const idp: ParticipantsResolverPort = {
-      resolveByIdpSub: async (sub) =>
-        sub === "c1a55e01-0001-4000-8000-000000000001"
-          ? {
-              participantId: "11111111-2222-4333-8444-555555555555",
-              communityId: "c0ffee00-1234-4abc-8def-0123456789ab",
-            }
-          : null,
-    };
-    const withIdp = new InvoicingService(
-      store,
-      new OutboxService(outboxStore),
-      new MapReadiness(new Map([[PRODUCER_A, true]])),
-      idp,
-      statementsFor(),
-      undefined,
-      undefined,
-      fixtureParties(),
-    );
-    const listed = await withIdp.listInvoicesForParticipant(
-      "c1a55e01-0001-4000-8000-000000000001",
+    const listed = await service.listInvoicesForParticipant(
+      "11111111-2222-4333-8444-555555555555",
     );
     expect(listed.some((r) => r.invoiceId === invoice.invoiceId)).toBe(true);
   });

@@ -10,7 +10,6 @@ import {
 } from "@intelligent/module-template";
 import { ewdsActorFixtures } from "@intelligent/mocks";
 import { ParticipantsStore } from "@participants/domain/store.js";
-import { MockIdpAdapter } from "@participants/idp/mock-idp.adapter.js";
 import { ParticipantsService } from "@participants/participants/participants.service.js";
 import { deriveReadiness } from "@participants/participants/readiness.js";
 import type { ActorRecord } from "@participants/actors/actor-source.port.js";
@@ -21,7 +20,6 @@ import { markCovered } from "../fixtures/coverage-tracker.js";
 describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
   let store: ParticipantsStore;
   let outboxStore: InMemoryOutboxStore;
-  let idp: MockIdpAdapter;
   let participants: ParticipantsService;
   let communityId: string;
   let actors: ActorRecord[];
@@ -30,12 +28,11 @@ describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
   beforeEach(() => {
     store = new ParticipantsStore();
     outboxStore = new InMemoryOutboxStore();
-    idp = new MockIdpAdapter();
     const outbox = new OutboxService(outboxStore);
+    // INT-463 — AC-03 no longer takes IdP admin; R2M owns member Keycloak.
     participants = new ParticipantsService(
       store,
       outbox,
-      idp,
       {
         async get() {
           return {
@@ -56,7 +53,6 @@ describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
     sync = new ActorSyncService(
       store,
       outbox,
-      idp,
       new MockActorSourceAdapter(actors),
     );
   });
@@ -93,7 +89,6 @@ describe("INT-453 E2E S1–S5 onboarding (EWDS Actor path)", () => {
     const sync2 = new ActorSyncService(
       store,
       new OutboxService(outboxStore),
-      idp,
       new MockActorSourceAdapter(
         actors.map((a) => (a.actorId === first.actorId ? bumped : a)),
       ),

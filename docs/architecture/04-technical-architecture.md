@@ -35,7 +35,7 @@ For each application component, the existing open-source building blocks (all MI
 |---|---|---|---|
 | AC-01 Web app | **Refine** (MIT) or **react-admin** (MIT) for the **reference client** (`apps/web`); Stripe-hosted onboarding, Checkout and Identity pages | Statements, payouts and readiness screens | High |
 | AC-02 API gateway | **Apache APISIX** (Apache-2.0), **Kong OSS** (Apache-2.0), **Envoy Gateway** (Apache-2.0) or **Traefik** (MIT) + **oauth2-proxy** (MIT); OpenAPI from the framework | Route and role configuration | Very high (no code) |
-| AC-03 Participants | **Keycloak** (Apache-2.0) admin API for accounts and invitations; framework CRUD | Registry, readiness rules, CSV import | Medium |
+| AC-03 Participants | Framework CRUD (no Keycloak admin API in BPS; member accounts are R2M-owned, INT-463) | Registry, readiness rules, CSV import | Medium |
 | AC-04 Trade intake | Stripe/HTTP clients; EWDS client patterns from the GSY/EWAG repos | Window querying, deduplication, attribution, completeness | Low (core logic) |
 | AC-05 Settlement | **Formance Ledger** (MIT) or **TigerBeetle** (Apache-2.0) for the immutable double-entry ledger and the carry-forward balances | Pair computation, netting, threshold, FX and VAT rules | Medium |
 | AC-06 Invoicing | **In-house PDF with pdf-lib (MIT)**, stored in the invoicing database; legal number sequential per producer, owned by billing; e-mail by AC-11 (A6) | Mapping a pair settlement to an invoice; self-billing mention; numbering; PDF layout | Medium |
@@ -44,7 +44,7 @@ For each application component, the existing open-source building blocks (all MI
 | AC-09 Reporting & exports | Read models in the database; optionally a BI tool (see §5, Grafana is AGPL) | Report queries, KPI export format | Medium |
 | AC-10 Publication | **Transactional outbox library** (framework-native, **Debezium** (Apache-2.0), **Eventuate Tram** (Apache-2.0) or **Watermill** (MIT)); JSON Schema validators | Mapping to `billingInvoice` / `billingPayment` | High |
 | AC-11 Notification | **Billing templates**; **Mailpit** (MIT) locally; a templating library | Invitation, invoice PDF e-mail, reminders, failure templates | High |
-| AC-12 Compliance | Keycloak and Stripe deletion APIs; database audit features | DSAR orchestration, retention rules | Medium |
+| AC-12 Compliance | Stripe deletion API; database audit features (IdP erasure delegated to R2M, INT-463) | DSAR orchestration, retention rules | Medium |
 | AC-13 Reference data | Simple HTTP client to the ECB feed | Rate storage | Low effort anyway |
 | AC-14 Scheduler | **Temporal** (MIT): durable workflows, timers and retries for runs, **payout gating and auto payouts**, and DSAR sagas. Alternatively **Kubernetes CronJobs** + **Quartz** (Apache-2.0) | Job definitions | High |
 | Event transport | **NATS JetStream** (Apache-2.0) | — | Very high (no code) |
@@ -82,7 +82,7 @@ For each application component, the existing open-source building blocks (all MI
 | AC-03 … AC-13 modules | NestJS (TypeScript), PostgreSQL (own database), outbox → Debezium Server → NATS JetStream, OpenTelemetry |
 | AC-06 Invoicing | + pdf-lib (MIT) for invoice PDF |
 | AC-07 Payments | + stripe-node, Stripe Connect, Identity, webhooks (test or live per community) |
-| AC-03 Participants | + Keycloak admin REST API |
+| AC-03 Participants | (no Keycloak admin REST API after INT-463) |
 | AC-14 Scheduler | Temporal (workflows and timers), TypeScript workers |
 | AC-15 Mock suite | NestJS mock services + fixtures; Stripe test mode is real |
 | Platform | Keycloak, Temporal, NATS JetStream, CloudNativePG, Debezium Server, ESO + OpenBao, cert-manager, OTel + Prometheus + Jaeger + VictoriaLogs + Perses, Argo CD |
@@ -245,7 +245,9 @@ flowchart TB
   PER --> PROM
 ```
 
-### 6.2 Request path (user call)
+### 6.2 Request path (legacy reference client)
+
+> **INT-455 / INT-463:** the public `/v1` path and the human OIDC flow below are historical. Members sign in on R2M; billing is reached only through EWDS commands. See §7 and [R2M Keycloak handoff](r2m-keycloak-handoff.md).
 
 ```mermaid
 sequenceDiagram
@@ -304,7 +306,7 @@ sequenceDiagram
 
 | Area                     | Design                                                                                                                                                                                                                                                                                                                                      | Requirements                           |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| User authentication      | Keycloak realm per environment. Authorization Code + PKCE for the web app. APISIX `openid-connect` validates bearer tokens via JWKS. Roles and community come from token claims. The roles claim is configuration, not a Keycloak constant: a dot-path (default `realm_access.roles`; e.g. `roles` or `groups` for another OIDC IdP) set by the gateway value `oidc.roleClaim` and by `OIDC_ROLE_CLAIM` on modules (service JWTs) and the web app (`/config.json`), so a pilot IdP is mapped without code change. | REQ-033–037, REQ-049, NFR-011, NFR-013 |
+| User authentication      | **Member sign-in is owned by the project UI (R2M)** (INT-463): Authorization Code + PKCE against the Blooo-hosted Keycloak realm per environment; R2M creates, invites and erases members through a scoped Admin API client ([handoff](r2m-keycloak-handoff.md)). Billing has no human OIDC relying party and no public `/v1` (INT-455); the end-user JWT never enters EWDS. Billing trusts the Billing CGW, the sender gateway DID allow-list and `actorId` (AC-10 three-layer authorization). BPS Keycloak is limited to `module-service` JWTs and ops UI login (Argo CD, Perses, Jaeger). The roles claim for service JWTs is configuration, not a Keycloak constant: a dot-path (default `realm_access.roles`) set by `OIDC_ROLE_CLAIM` on modules. | REQ-033–037, REQ-049, NFR-011, NFR-013 |
 | Authorisation in modules | NestJS guards re-check role and community scope on every request, so a participant can only read their own data.                                                                                                                                                                                                                            | REQ-010                                |
 | Service-to-service       | Internal APIs require a service token: a Keycloak client-credentials grant per module, validated by the module guard. Kubernetes **NetworkPolicies** use default deny and only allow the synchronous dependencies of 03 §2.2, plus NATS, PostgreSQL, Temporal and the OTel collector. A service mesh for mTLS between pods is **deferred**. | NFR-001                                |
 | Secrets                  | ESO syncs Kubernetes secrets from OpenBao, with one path per module and per environment. They cover Stripe secret keys, the webhook signing secret and the Keycloak client secrets. Database credentials are generated by CloudNativePG. No secret is stored in Git or in container images (gitleaks in CI).                                | NFR-005, NFR-015                       |

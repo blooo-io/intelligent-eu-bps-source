@@ -45,7 +45,7 @@ describe("participant-community.port (INT-336)", () => {
     await expect(empty.communityOf(PARTICIPANT)).resolves.toBeNull();
   });
 
-  it("HttpParticipantCommunity resolves an IdP subject (INT-375)", async () => {
+  it("HttpParticipantCommunity.resolveByIdpSub is a no-op (INT-463)", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(
         JSON.stringify({ participantId: PARTICIPANT, communityId: COMMUNITY }),
@@ -57,35 +57,8 @@ describe("participant-community.port (INT-336)", () => {
       fetchImpl as never,
       "test-token",
     );
-    await expect(client.resolveByIdpSub("kc-sub")).resolves.toEqual({
-      participantId: PARTICIPANT,
-      communityId: COMMUNITY,
-    });
-    expect(fetchImpl).toHaveBeenCalledWith(
-      "http://participants:8080/internal/v1/participants:by-idp-sub/kc-sub",
-      expect.objectContaining({ method: "GET" }),
-    );
-
-    const missing = new HttpParticipantCommunity(
-      "http://participants:8080",
-      vi.fn(async () => new Response("", { status: 404 })) as never,
-      "test-token",
-    );
-    await expect(missing.resolveByIdpSub("unknown")).resolves.toBeNull();
-
-    const partial = new HttpParticipantCommunity(
-      "http://participants:8080",
-      vi.fn(async () => new Response(JSON.stringify({ participantId: PARTICIPANT }), { status: 200 })) as never,
-      "test-token",
-    );
-    await expect(partial.resolveByIdpSub("sub")).resolves.toBeNull();
-
-    const down = new HttpParticipantCommunity(
-      "http://participants:8080",
-      vi.fn(async () => new Response("", { status: 500 })) as never,
-      "test-token",
-    );
-    await expect(down.resolveByIdpSub("sub")).rejects.toThrow(/500/);
+    await expect(client.resolveByIdpSub("kc-sub")).resolves.toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("HttpParticipantCommunity fails on a server error", async () => {

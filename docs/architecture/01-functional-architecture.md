@@ -45,7 +45,7 @@ The Billing & Payment Service (T5.6, deliverable D5.5) turns the energy trades s
 | Local market | External system (GSY DEX) | Source of settled trades, clearing results and markets | — |
 | Project data space | External system (EWDS) | Channel used to obtain trades and publish billing records; **command channel for the project UI** | — |
 | Payment service provider | External system (Stripe) | **KYC of every participant**, payments, payouts | — |
-| Identity provider | External system (project IdP) | Authenticates users and provides their roles | — |
+| Identity provider | External system (project IdP, Keycloak hosted by Blooo) | Authenticates members for the project UI (R2M is the OIDC relying party and member admin, INT-463); issues service JWTs for billing modules; ops UI SSO | — |
 | Exchange-rate source | External system (ECB reference rates) | EUR→CHF rate for CHF communities (A16) | — |
 | Project UI and evaluation | External consumers (R2M UI, WP6 / GSY Analytics) | **Reads records and sends commands through the EWDS only** (REQ-052) | — |
 
@@ -76,9 +76,10 @@ flowchart LR
   CGWB <--> MB
   UIS --> CGWU
   CORE --> CGWB
-  WEB -->|/v1 REST, OIDC| CORE
+  WEB -->|reference client, no member OIDC| CORE
   CORE -->|API| STRIPE[(Stripe Connect + Identity)]
-  CORE -->|OIDC| KC[(Keycloak)]
+  CORE -->|S2S JWT, ops SSO| KC[(Keycloak)]
+  UIS -->|member OIDC, admin API - INT-463| KC
   USER((Community member / manager)) --> UIS
   USER -.->|hosted page or embedded component| STRIPE
 ```
@@ -138,10 +139,10 @@ flowchart TB
 
 | Function | Description | Main actor(s) | Requirements |
 |---|---|---|---|
-| **F1.1 Onboard participants** | The community manager creates Actors in the **project UI (R2M)** (UI form or CSV→N Actor messages). Billing **ingests** the EWDS `actor` topic only and sends invitations | Community manager | REQ-008, US-007, INT-447 |
+| **F1.1 Onboard participants** | The community manager creates Actors in the **project UI (R2M)** (UI form or CSV→N Actor messages). Billing **ingests** the EWDS `actor` topic only. Member IdP accounts and invitations are created by R2M (INT-463); billing sends no IdP invitation | Community manager | REQ-008, US-007, INT-447 |
 | **F1.2 Maintain registry** | Links each participant to their market identifier, community and meter. Changes are published as Actor updates from R2M; billing syncs | Community manager | REQ-058, INT-447 |
 | **F1.3 Profile & terms** | Administrative profile changes republish `actor`. T&C (+ self-billing mandate) are accepted via command `acceptTerms` and stored on **UserAccount** (published on `billingKycStatus`) | Consumer, producer | REQ-009, REQ-050, US-044, INT-448 |
-| **F1.4 Access & roles** | Authentication through the project IdP; roles (member, community manager, operator) restrict access to the participant's own data and community | All humans | REQ-033–037, REQ-049, REQ-010, NFR-011, NFR-013 |
+| **F1.4 Access & roles** | Member sign-in (OIDC) is owned by the project UI (R2M) against the Blooo-hosted Keycloak (INT-463). Billing does not validate end-user JWTs: it authorizes EWDS commands by gateway DID and `actorId` (REQ-052). Billing's own Keycloak use is service-to-service JWT and ops UI login only | All humans | REQ-033–037, REQ-049, REQ-010, NFR-011, NFR-013 |
 | **F1.5 Offboard** | Removes a participant from future billing and forces a final settlement, while keeping the history | Community manager | REQ-012, REQ-056 |
 | **F2.1 Retrieve settled trades** | Obtains from the local market the settled trades of a period, plus clearing results and markets (delivery period, mechanism) | Platform operator | REQ-001 |
 | **F2.2 Attribute trades** | Resolves the buyer and seller of each trade through the registry. A trade with an unknown party is flagged and not invoiced | — | REQ-058 |
@@ -168,7 +169,7 @@ flowchart TB
 | **F6.5 Manager payout overview and reminders** | Community-manager payout overview (REQ-060) and payment reminders / missing-payment alerts (REQ-061) | Community manager | REQ-060, REQ-061 |
 | **F7.1 Access audit** | Logs every access to or change of personal and payment data | DPO | REQ-030 |
 | **F7.2 Retention & purge** | Retention periods for personal data; data-space messages purged within 7 days | DPO | REQ-011, REQ-053 |
-| **F7.3 Data-subject requests** | Access and erasure requests received through the portal or the community manager, propagated to the payment provider and the IdP. Invoices are kept for the legal retention period | DPO | REQ-013 |
+| **F7.3 Data-subject requests** | Access and erasure requests received through the portal or the community manager, propagated to the payment provider; IdP account erasure is delegated to the project UI (INT-463). Invoices are kept for the legal retention period | DPO | REQ-013 |
 
 Billing results reach the **project UI only through the EWDS** (REQ-052); the REST API serves the reference client.
 
@@ -184,15 +185,15 @@ sequenceDiagram
   participant R2M as Project UI R2M
   participant DS as EWDS
   participant B as Billing service
-  participant IDP as Identity provider
+  participant IDP as Identity provider (R2M-owned, INT-463)
   actor M as Participant
   participant PSP as Payment provider
   CM->>B: Configure community (currency, period, threshold, VAT, mode)
   CM->>R2M: Create Actors (UI or CSV→N messages)
   R2M->>DS: publish actor
   DS->>B: Actor intake (sync only)
-  B->>IDP: Create accounts
-  B-->>M: Invitation
+  R2M->>IDP: Create accounts and invite (R2M admin API)
+  IDP-->>M: Invitation
   M->>R2M: acceptTerms command (+ self-billing if producer)
   R2M->>DS: billingCommandRequest acceptTerms
   DS->>B: dispatch → store UserAccount T&C
@@ -257,7 +258,7 @@ sequenceDiagram
 
 ### P5 Data-subject request
 
-A request comes in through the portal or the community manager. The DPO validates it. The service then exports or erases the participant's personal data, asks the payment provider and the IdP to erase their copies, keeps the invoices and accounting records for the legal period, and confirms the outcome.
+A request comes in through the portal or the community manager. The DPO validates it. The service then exports or erases the participant's personal data, asks the payment provider to erase its copy, records IdP erasure as delegated to the project UI (INT-463), keeps the invoices and accounting records for the legal period, and confirms the outcome.
 
 ### P6 Payout (withdrawal)
 

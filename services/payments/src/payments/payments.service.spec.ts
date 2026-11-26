@@ -1895,17 +1895,9 @@ describe("PaymentsService", () => {
     expect(payment.amount).toBe("3.00");
   });
 
-  it("REQ-045: card save without KYC notifies ready=false (IdP sub → participant)", async () => {
-    const idpSub = "d4e5f6a7-1111-4222-8333-444455556666";
+  it("REQ-045: card save without KYC notifies ready=false (INT-463 participantId)", async () => {
     const notifier = {
       applyPaymentAccountStatus: vi.fn(async () => undefined),
-    };
-    const resolver = {
-      resolveByIdpSub: vi.fn(async (sub: string) =>
-        sub === idpSub
-          ? { participantId: CONSUMER, communityId: COMMUNITY }
-          : null,
-      ),
     };
     service = new PaymentsService(
       store,
@@ -1914,7 +1906,7 @@ describe("PaymentsService", () => {
       invoices,
       notifier,
       accountsStore,
-      resolver,
+      new NoopParticipantsResolver(),
       pspErase,
       new IdempotentConsumer(new InMemoryProcessedEventsStore()),
       psp,
@@ -1924,7 +1916,7 @@ describe("PaymentsService", () => {
       kycOf(),
     );
     const session = await service.attachCallerPaymentMethod({
-      participantId: idpSub,
+      participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",
       paymentMethodId: "pm_card_visa",
@@ -1938,15 +1930,14 @@ describe("PaymentsService", () => {
         notFound: "fail",
       }),
     );
-    expect(store.getAccount(idpSub)).toBeUndefined();
     expect(store.getAccount(CONSUMER)?.pspPaymentMethodRef).toBe("pm_card_visa");
-    await expect(service.getMyPaymentAccount(idpSub)).resolves.toMatchObject({
+    await expect(service.getMyPaymentAccount(CONSUMER)).resolves.toMatchObject({
       status: "complete",
       last4: "4242",
     });
     // REQ-051 — with PM but no KYC, Start begins Connect (not Elements).
     const again = await service.startOnboarding({
-      participantId: idpSub,
+      participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",
     });
@@ -1954,7 +1945,7 @@ describe("PaymentsService", () => {
     expect(again.pspAccountRef).toMatch(/^acct_/);
     psp.completeOnboarding(again.pspAccountRef!);
     const elements = await service.startOnboarding({
-      participantId: idpSub,
+      participantId: CONSUMER,
       communityId: COMMUNITY,
       role: "consumer",
     });
@@ -1994,30 +1985,7 @@ describe("PaymentsService", () => {
     expect(store.getAccount(CONSUMER)?.pspPaymentMethodRef).toBe("pm_card_visa");
   });
 
-  it("INT-230 — payInvoice resolves IdP sub to participantId", async () => {
-    const idpSub = "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f";
-    const resolver = {
-      resolveByIdpSub: vi.fn(async () => ({
-        participantId: CONSUMER,
-        communityId: COMMUNITY,
-      })),
-    };
-    service = new PaymentsService(
-      store,
-      new OutboxService(outboxStore),
-      psp,
-      invoices,
-      new NoopParticipantsNotifier(),
-      accountsStore,
-      resolver,
-      pspErase,
-      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      psp,
-      clock,
-      psp,
-      payoutEvents,
-      kycOf(),
-    );
+  it("INT-463 — payInvoice uses participantId directly (no IdP sub bridge)", async () => {
     await service.ensureParticipant({
       participantId: CONSUMER,
       communityId: COMMUNITY,
@@ -2032,110 +2000,24 @@ describe("PaymentsService", () => {
     });
     await markKycVerified(store, PRODUCER, accountsStore);
     invoices.put({
-      invoiceId: "inv-idp",
-      pspInvoiceRef: "in_inv-idp",
+      invoiceId: "inv-participant",
+      pspInvoiceRef: "in_inv-participant",
       producerId: PRODUCER,
       consumerId: CONSUMER,
       currency: "EUR",
       status: "Open",
       total: "1.50",
-      producerPspAccountRef: "acct_idp",
+      producerPspAccountRef: "acct_participant",
     });
     const payment = await service.payInvoice({
-      invoiceId: "inv-idp",
-      participantId: idpSub,
-      communityId: COMMUNITY,
-    });
-    expect(payment.status).toBe("succeeded");
-    expect(resolver.resolveByIdpSub).toHaveBeenCalledWith(idpSub);
-  });
-
-  it("INT-443 — payInvoice resolves payee IdP sub for KYC (UAT seed)", async () => {
-    const producerIdp = "producer-idp-sub-uat";
-    const resolver = {
-      resolveByIdpSub: vi.fn(async (sub: string) => {
-        if (sub === producerIdp) {
-          return { participantId: PRODUCER, communityId: COMMUNITY };
-        }
-        return null;
-      }),
-    };
-    service = new PaymentsService(
-      store,
-      new OutboxService(outboxStore),
-      psp,
-      invoices,
-      new NoopParticipantsNotifier(),
-      accountsStore,
-      resolver,
-      pspErase,
-      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      psp,
-      clock,
-      psp,
-      payoutEvents,
-      kycOf(),
-    );
-    await service.ensureParticipant({
-      participantId: CONSUMER,
-      communityId: COMMUNITY,
-      role: "consumer",
-    });
-    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
-    await markKycVerified(store, CONSUMER, accountsStore);
-    await service.ensureParticipant({
-      participantId: PRODUCER,
-      communityId: COMMUNITY,
-      role: "producer",
-    });
-    await markKycVerified(store, PRODUCER, accountsStore);
-    // Bind Connect account under participant UUID (seed path).
-    store.putAccount({
-      ...store.getAccount(PRODUCER)!,
-      pspAccountRef: "acct_payee_idp",
-    });
-    invoices.put({
-      invoiceId: "inv-payee-idp",
-      pspInvoiceRef: "in_inv-payee-idp",
-      producerId: producerIdp,
-      consumerId: CONSUMER,
-      currency: "EUR",
-      status: "Open",
-      total: "1.50",
-    });
-    const payment = await service.payInvoice({
-      invoiceId: "inv-payee-idp",
+      invoiceId: "inv-participant",
       participantId: CONSUMER,
       communityId: COMMUNITY,
     });
     expect(payment.status).toBe("succeeded");
-    expect(resolver.resolveByIdpSub).toHaveBeenCalledWith(producerIdp);
   });
 
-  it("INT-395 — pays an invoice that names the consumer by IdP sub", async () => {
-    const idpSub = "b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f";
-    const resolver = {
-      resolveByIdpSub: vi.fn(async () => ({
-        participantId: CONSUMER,
-        communityId: COMMUNITY,
-      })),
-    };
-    service = new PaymentsService(
-      store,
-      new OutboxService(outboxStore),
-      psp,
-      invoices,
-      new NoopParticipantsNotifier(),
-      accountsStore,
-      resolver,
-      pspErase,
-      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      psp,
-      clock,
-      psp,
-      payoutEvents,
-      kycOf(),
-    );
+  it("INT-395 — rejects pay when invoice consumer does not match caller", async () => {
     await service.ensureParticipant({
       participantId: CONSUMER,
       communityId: COMMUNITY,
@@ -2150,98 +2032,29 @@ describe("PaymentsService", () => {
     });
     await markKycVerified(store, PRODUCER, accountsStore);
     invoices.put({
-      invoiceId: "inv-idp-consumer",
-      pspInvoiceRef: "in_inv-idp-consumer",
+      invoiceId: "inv-paid-consumer",
+      pspInvoiceRef: "in_inv-paid-consumer",
       producerId: PRODUCER,
-      consumerId: idpSub,
+      consumerId: CONSUMER,
       currency: "EUR",
       status: "Paid",
       total: "22.00",
-      producerPspAccountRef: "acct_idp_consumer",
+      producerPspAccountRef: "acct_paid_consumer",
     });
     await expect(
       service.payInvoice({
-        invoiceId: "inv-idp-consumer",
-        participantId: idpSub,
+        invoiceId: "inv-paid-consumer",
+        participantId: CONSUMER,
         communityId: COMMUNITY,
       }),
     ).rejects.toThrow(/Paid is not payable/);
     await expect(
       service.payInvoice({
-        invoiceId: "inv-idp-consumer",
+        invoiceId: "inv-paid-consumer",
         participantId: "someone-else",
         communityId: COMMUNITY,
       }),
     ).rejects.toThrow(/not payable by this participant/);
-  });
-
-  it("INT-251 — IdP resolve wins over a durable row keyed by the IdP sub", async () => {
-    const idpSub = "c1a55e01-0001-4000-8000-000000000001";
-    const resolver = {
-      resolveByIdpSub: vi.fn(async () => ({
-        participantId: CONSUMER,
-        communityId: COMMUNITY,
-      })),
-    };
-    service = new PaymentsService(
-      store,
-      new OutboxService(outboxStore),
-      psp,
-      invoices,
-      new NoopParticipantsNotifier(),
-      accountsStore,
-      resolver,
-      pspErase,
-      new IdempotentConsumer(new InMemoryProcessedEventsStore()),
-      psp,
-      clock,
-      psp,
-      payoutEvents,
-      kycOf(),
-    );
-    // Poison: account whose primary key is the IdP sub (prior failed resolve).
-    await accountsStore.put({
-      participantId: idpSub,
-      communityId: COMMUNITY,
-      role: "consumer",
-      pspAccountRef: null,
-      pspPaymentMethodRef: "pm_poison",
-      kycStatus: "none",
-      kycVerified: false,
-      kycVerifiedAt: null,
-      kycMethod: null,
-      payoutAccountVerified: false,
-    });
-    await service.ensureParticipant({
-      participantId: CONSUMER,
-      communityId: COMMUNITY,
-      role: "consumer",
-    });
-    await service.attachPaymentMethod(CONSUMER, "pm_card_visa");
-    await markKycVerified(store, CONSUMER, accountsStore);
-    await service.ensureParticipant({
-      participantId: PRODUCER,
-      communityId: COMMUNITY,
-      role: "producer",
-    });
-    await markKycVerified(store, PRODUCER, accountsStore);
-    invoices.put({
-      invoiceId: "inv-poison",
-      pspInvoiceRef: "in_inv-poison",
-      producerId: PRODUCER,
-      consumerId: CONSUMER,
-      currency: "EUR",
-      status: "Open",
-      total: "2.00",
-      producerPspAccountRef: "acct_ok",
-    });
-    const payment = await service.payInvoice({
-      invoiceId: "inv-poison",
-      participantId: idpSub,
-      communityId: COMMUNITY,
-    });
-    expect(payment.status).toBe("succeeded");
-    expect(resolver.resolveByIdpSub).toHaveBeenCalledWith(idpSub);
   });
 
   // INT-269 / REQ-051 — prosumer Connect then Elements; Ready only with KYC + PM.

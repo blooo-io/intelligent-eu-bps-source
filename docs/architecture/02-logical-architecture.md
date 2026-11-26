@@ -161,7 +161,7 @@ flowchart TB
 
 | Block | Responsibility | Owns (data) | Functions | Requirements |
 |---|---|---|---|---|
-| **LB-01 Access control** | Authenticates every request with the project IdP, resolves the user's role and community from token claims, and enforces "own data / own community" rules | Session context only (no persistence); OIDC client configuration per community | F1.4 | REQ-033–037, REQ-049, REQ-010, NFR-011, NFR-013 |
+| **LB-01 Access control** | Authorizes every EWDS command (CGW channel role, sender DID allow-list, actor role) and validates service JWTs on internal APIs. It does not authenticate end users: member OIDC is owned by the project UI (R2M), and no end-user JWT enters billing (INT-463) | Session context only (no persistence); service-JWT client configuration | F1.4 | REQ-033–037, REQ-049, REQ-010, NFR-011, NFR-013 |
 | **LB-02 Participants & communities** | Community settings, Actor intake (EWDS-only), registry, billing-profile cache, **UserAccount** T&C + readiness, offboarding | Community, Participant, RegistryEntry, BillingProfile, UserAccount (T&C fields), ParticipantReadiness | F1.1, F1.2, F1.3, F1.5 | REQ-008, 009, 012, 050, 058, INT-447/448 |
 | **LB-03 Trade intake** | Queries the market for settled trades, clearing results and markets per window; deduplicates; attributes buyer/seller through LB-02; checks completeness per market; monitors intake | Trade (copy, read-only semantics), MarketInfo, ClearingResult, IntakeWindow, IntakeAnomaly | F2.1–F2.4 | REQ-001, 029, 041 (completeness), 058 |
 | **LB-04 Settlement engine** | Runs billing periods (scheduled or on demand). Computes pair amounts, netting, threshold and carry-forward, currency conversion, VAT and tariff components; **builds the monthly statement (Level 1)**. Keeps the immutable billing ledger | BillingRun, PairSettlement, CarryForwardBalance, LedgerEntry, Statement, BillingAccount | F3.1–F3.4, F4.5 | REQ-002, 003, 005, 006, 007, 043, 055, 056, 059 |
@@ -172,7 +172,7 @@ flowchart TB
 | **LB-13 Scheduling** | Triggers **time-based** jobs at the right moment, per community calendar, by sending a command to the owning block. It has no business logic and gives one supervision point for every deadline (see §4.5) | JobDefinition, JobExecution | — (cross-cutting) | REQ-006, 011, 029, 053, 056 |
 | **LB-08 Publication** | Publishes `billingStatement`, `billingInvoice`, `billingPayment`, `billingPayout`, `billingKycStatus`; **receives commands on P-CMD** and forwards them to LB-12 commands. Publishes through the data-space port with retry, and purges cached messages | OutboundMessage (outbox), PublicationStatus | F6.1, F7.2 (purge) | REQ-048, 052, 053 |
 | **LB-09 Notification** | Sends invitations, invoice e-mails (PDF attached), payment confirmations, **payment reminders (REQ-061)** and failure notices | NotificationLog | P1, F4.2, F5.3, F6.5 | REQ-017, 039, 008, 061 |
-| **LB-10 Compliance** | Access/change audit log. Retention rules and purge. Data-subject request workflow: export or erase personal data and propagate the request to LB-02, LB-05, LB-06 (provider) and LB-01 (IdP), keeping invoices under legal retention | AuditEvent, RetentionPolicy, DataSubjectRequest | F7.1–F7.3 | REQ-011, 013, 030 |
+| **LB-10 Compliance** | Access/change audit log. Retention rules and purge. Data-subject request workflow: export or erase personal data and propagate the request to LB-02, LB-05, LB-06 (provider) and LB-01 (IdP: delegated to the project UI, INT-463), keeping invoices under legal retention | AuditEvent, RetentionPolicy, DataSubjectRequest | F7.1–F7.3 | REQ-011, 013, 030 |
 | **LB-11 Reference data** | Exchange rates (EUR→community currency, by date) and VAT rates per community | ExchangeRate | F3.4 | REQ-002, 007 |
 | **LB-12 Billing API** | Documented entry point for the **reference client**: profiles, balances, invoices, **withdrawal, statements**, payment, onboarding, terms, admin, reports. Dispatches EWDS commands from P-CMD | None (facade) | all user-facing functions (reference path) | REQ-052 |
 
@@ -187,7 +187,7 @@ Each port is a logical interface. Implementations are **env-selected**; EWDS ada
 | **P-CMD Command channel** | in | Billing command request/reply on EWDS (project UI path) | `billingCommandRequest` / `billingCommandReply` | **EWDS CG adapter** (mock default) |
 | **P-TARIFF Tariff** | out | DSO tariff records (grid fee, levy, tax); none published yet → 0 + mention | EWDS tariff topic when available | **Mock** (0 + mention) |
 | **P-PSP Payment provider** | out + in (events) | Connect accounts + KYC for every participant; PaymentIntents (direct charge); payouts; webhooks incl. `payout.*` | Stripe test or live per community | **Stripe** test or live per community |
-| **P-IDP Identity provider** | out + in | Token validation and claims; account creation, invitation and erasure | Project IdP (Keycloak operated by Blooo, replaceable by a pilot OIDC IdP) | Local development instance |
+| **P-IDP Identity provider** | out + in | Service JWT validation (`module-service` client credentials) and ops UI SSO. Member account creation, invitation and erasure are owned by R2M (INT-463), not by this port | Project IdP (Keycloak hosted by Blooo, replaceable by a pilot OIDC IdP) | Local development instance |
 | **P-FX Rates** | out | EUR→CHF reference rate for a date | ECB reference rates | **Mock**: fixture table |
 | **P-MAIL Mail** | out | Send e-mails with attachments | Transactional mail service | Local mail catcher |
 | **P-KPI KPI export** | out | Deliver periodic billing exports for WP6 / GSY Analytics | Format/channel to agree (file or EWDS) | File export |
@@ -199,7 +199,7 @@ Each port is a logical interface. Implementations are **env-selected**; EWDS ada
 
 | Event | Emitted by | Consumed by | Meaning |
 |---|---|---|---|
-| ParticipantOnboarded | LB-02 | LB-09 (invitation), LB-06 (create provider customer/account link) | Actor ingested from EWDS (R2M), IdP account created |
+| ParticipantOnboarded | LB-02 | LB-09 (invitation), LB-06 (create provider customer/account link) | Actor ingested from EWDS (R2M); IdP account is managed by R2M (INT-463) |
 | UserAccountStatusChanged | LB-02 | LB-08 (`billingKycStatus`) | UserAccount snapshot (kycVerified + T&C) after terms accept or KYC apply (INT-448) |
 | ParticipantReadinessChanged | LB-02 (from LB-06 KYC status) | LB-05, LB-12 | Participant is or is no longer **KYC-verified** (terms + KYC for every role) |
 | ParticipantOffboarded | LB-02 | LB-04 (force final settlement) | Participant left the community |

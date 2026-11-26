@@ -14,7 +14,6 @@ import {
 } from "@intelligent/module-template";
 import { ParticipantsStore } from "../domain/store.js";
 import type { ParticipantRecord } from "../domain/types.js";
-import { MockIdpAdapter } from "../idp/mock-idp.adapter.js";
 import type { PspCapabilitiesPort } from "../ports/psp-capabilities.port.js";
 import { ParticipantsService } from "./participants.service.js";
 import {
@@ -25,7 +24,6 @@ import {
 describe("ParticipantsService", () => {
   let store: ParticipantsStore;
   let outboxStore: InMemoryOutboxStore;
-  let idp: MockIdpAdapter;
   let service: ParticipantsService;
   let communityId: string;
   let pspCapabilities: PspCapabilitiesPort & { liveConfigured: boolean };
@@ -33,7 +31,6 @@ describe("ParticipantsService", () => {
   beforeEach(() => {
     store = new ParticipantsStore();
     outboxStore = new InMemoryOutboxStore();
-    idp = new MockIdpAdapter();
     pspCapabilities = {
       liveConfigured: false,
       async get() {
@@ -47,7 +44,6 @@ describe("ParticipantsService", () => {
     service = new ParticipantsService(
       store,
       new OutboxService(outboxStore),
-      idp,
       pspCapabilities,
       { async list(communityId: string) { return { communityId, periods: [] as string[] }; } },
     );
@@ -62,7 +58,7 @@ describe("ParticipantsService", () => {
     expect(lea?.meterId).toBe("m-lea-martin");
   });
 
-  it("imports participants, provisions IdP and emits ParticipantOnboarded (REQ-008)", async () => {
+  it("imports participants without Keycloak create and emits ParticipantOnboarded (REQ-008 / INT-463)", async () => {
     const [created] = await service.importParticipants(communityId, [
       {
         email: "producer@example.com",
@@ -72,8 +68,7 @@ describe("ParticipantsService", () => {
       },
     ]);
     expect(created.status).toBe("Invited");
-    expect(idp.created.size).toBe(1);
-    expect(idp.invitations.size).toBe(1);
+    expect(store.getParticipant(created.participantId)!.idpUserId).toBeNull();
     const events = await outboxStore.list();
     expect(events.map((e) => e.event.type)).toContain("ParticipantOnboarded");
     expect(service.resolveParty("actor-prod-1")).toEqual({
@@ -94,8 +89,6 @@ describe("ParticipantsService", () => {
         existingIdpSubject: existingSub,
       },
     ]);
-    expect(idp.created.size).toBe(0);
-    expect(idp.invitations.size).toBe(0);
     const row = store.getParticipant(created.participantId)!;
     expect(row.idpUserId).toBe(existingSub);
     expect(service.getMe(existingSub, ["member"]).participantId).toBe(
@@ -170,7 +163,6 @@ describe("ParticipantsService", () => {
     service = new ParticipantsService(
       store,
       new OutboxService(outboxStore),
-      idp,
       pspCapabilities,
       {
         async list(id: string) {
@@ -482,14 +474,6 @@ describe("ParticipantsService", () => {
     expect(() =>
       service.patchParticipant(created.participantId, { meterId: "z" }),
     ).toThrow(/offboarded/);
-  });
-
-  it("INT-230 — resolves IdP sub to participantId", () => {
-    const row = service.resolveByIdpSub("b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f");
-    expect(row.participantId).toBe("f69e6745-3bfe-49ad-b84e-0853aa86ad05");
-    expect(() =>
-      service.resolveByIdpSub("00000000-0000-4000-8000-000000000099"),
-    ).toThrow(/Unknown IdP/);
   });
 
   it("INT-230 — S1 producers reach Ready after payment-account notify", async () => {
@@ -842,7 +826,6 @@ describe("ParticipantsService", () => {
     const participantId = "f69e6745-3bfe-49ad-b84e-0853aa86ad05";
     const before = store.getParticipant(participantId)!;
     expect(before.profile?.email).toContain("@");
-    const idpBefore = before.idpUserId!;
 
     const result = await service.applyErasureRequested({
       requestId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
@@ -853,8 +836,6 @@ describe("ParticipantsService", () => {
     const after = store.getParticipant(participantId)!;
     expect(after.profile?.email).toBe("[erased]");
     expect(after.idpUserId).toBeNull();
-    // Task 3.18 — IdP delete is eraseIdentity, not the local anonymization path.
-    expect(idp.deleted.has(idpBefore)).toBe(false);
 
     const events = await outboxStore.list();
     const completed = events.find((e) => e.event.type === "ErasureCompleted");
@@ -931,28 +912,24 @@ describe("ParticipantsService", () => {
     });
   });
 
-  it("REQ-013: eraseIdentity deletes the Keycloak user, 404 counts as erased", async () => {
+  it("REQ-013 / INT-463: eraseIdentity clears cached idpUserId without Keycloak delete", async () => {
     const [created] = await service.importParticipants(communityId, [
       {
         email: "erase-me@example.invalid",
         marketActorId: "mkt-erase-1",
         meterId: "m-erase-1",
         role: "consumer",
+        existingIdpSubject: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
       },
     ]);
-    const idpUserId = store.getParticipant(created.participantId)!.idpUserId!;
-    expect(idp.created.has(idpUserId)).toBe(true);
+    expect(store.getParticipant(created.participantId)!.idpUserId).toBe(
+      "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+    );
 
     const first = await service.eraseIdentity(created.participantId);
     expect(first.erased).toBe(true);
-    expect(idp.deleted.has(idpUserId)).toBe(true);
+    expect(store.getParticipant(created.participantId)!.idpUserId).toBeNull();
 
-    // Simulate Keycloak 404 for an already-deleted user.
-    idp.deleteUser = vi.fn(async () => {
-      throw Object.assign(new Error("Keycloak deleteUser failed with HTTP 404"), {
-        status: 404,
-      });
-    });
     const second = await service.eraseIdentity(created.participantId);
     expect(second.erased).toBe(true);
   });

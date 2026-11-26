@@ -14,7 +14,6 @@ import {
   PARTICIPANTS_NOTIFIER,
 } from "./ports/participants-notifier.port.js";
 import {
-  HttpParticipantsResolver,
   NoopParticipantsResolver,
   PARTICIPANTS_RESOLVER,
 } from "./ports/participants-resolver.port.js";
@@ -97,7 +96,8 @@ describe("AppModule factories (INT-193)", () => {
     expect(nest.get(INVOICE_LOOKUP)).toBeInstanceOf(HttpInvoiceLookup);
     expect(nest.get(STATEMENT_LOOKUP)).toBeInstanceOf(HttpStatementLookup);
     expect(nest.get(PARTICIPANTS_NOTIFIER)).toBeInstanceOf(HttpParticipantsNotifier);
-    expect(nest.get(PARTICIPANTS_RESOLVER)).toBeInstanceOf(HttpParticipantsResolver);
+    // INT-463 — by-idp-sub removed; resolver is always the no-op.
+    expect(nest.get(PARTICIPANTS_RESOLVER)).toBeInstanceOf(NoopParticipantsResolver);
   });
 
   it("selects StripePspAdapter when PSP_PROVIDER=stripe (AD-6)", async () => {

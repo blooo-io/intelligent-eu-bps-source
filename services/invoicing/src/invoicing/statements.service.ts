@@ -183,12 +183,9 @@ export class StatementsService {
     });
   }
 
-  /** REQ-010 — statements of the caller (IdP sub and the AC-03 participant it maps to). */
+  /** REQ-010 / INT-463 — statements of the caller (participantId / actorId). */
   async listForParticipant(sub: string): Promise<StatementRecord[]> {
-    const ids = new Set<string>([sub]);
-    const resolved = await this.idpResolver.resolveByIdpSub(sub);
-    if (resolved?.participantId) ids.add(resolved.participantId);
-    return this.statements.listByParticipant([...ids]);
+    return this.statements.listByParticipant([sub]);
   }
 
   async listInternal(

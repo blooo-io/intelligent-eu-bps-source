@@ -1,27 +1,27 @@
 /**
- * REQ-013 / Task 3.21 — IdP/PSP erasure adapter selection.
+ * REQ-013 / Task 3.21 / INT-463 — IdP/PSP erasure adapter selection.
  */
 import { describe, expect, it, vi } from "vitest";
 import { createEraseAdapters } from "./erase-adapters.factory.js";
-import { HttpIdpEraseAdapter } from "../idp/http-idp-erase.adapter.js";
+import { DelegatedProjectUiIdpEraseAdapter } from "../idp/delegated-project-ui-idp-erase.adapter.js";
 import { MockIdpAdapter } from "../idp/mock-idp.adapter.js";
 import { HttpPspEraseAdapter } from "../psp/http-psp-erase.adapter.js";
 import { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
 
-describe("createEraseAdapters (REQ-013)", () => {
-  it("REQ-013: http adapters selected when internal URLs set", () => {
+describe("createEraseAdapters (REQ-013 / INT-463)", () => {
+  it("INT-463: http mode uses delegated IdP + HTTP PSP", () => {
     const adapters = createEraseAdapters({
       PARTICIPANTS_INTERNAL_URL: "http://participants:8080",
       PAYMENTS_INTERNAL_URL: "http://payments:8080",
     });
     expect(adapters.mode).toBe("http");
-    expect(adapters.idp).toBeInstanceOf(HttpIdpEraseAdapter);
+    expect(adapters.idp).toBeInstanceOf(DelegatedProjectUiIdpEraseAdapter);
     expect(adapters.psp).toBeInstanceOf(HttpPspEraseAdapter);
   });
 
-  it("REQ-013: ERASURE_ADAPTERS=http without URLs throws", () => {
+  it("REQ-013: ERASURE_ADAPTERS=http without PAYMENTS_INTERNAL_URL throws", () => {
     expect(() => createEraseAdapters({ ERASURE_ADAPTERS: "http" })).toThrow(
-      /PARTICIPANTS_INTERNAL_URL|PAYMENTS_INTERNAL_URL/,
+      /PAYMENTS_INTERNAL_URL/,
     );
   });
 
@@ -52,34 +52,29 @@ describe("createEraseAdapters (REQ-013)", () => {
       createEraseAdapters({
         NODE_ENV: "production",
         ERASURE_ADAPTERS: "mock",
-        PARTICIPANTS_INTERNAL_URL: "http://participants:8080",
         PAYMENTS_INTERNAL_URL: "http://payments:8080",
       }),
     ).toThrow(/ERASURE_ADAPTERS=mock refused/);
   });
-});
 
-describe("HttpIdpEraseAdapter / HttpPspEraseAdapter (REQ-013)", () => {
-  it("HttpIdpEraseAdapter POSTs erase-identity", async () => {
-    const fetchImpl = vi.fn(async () =>
-      new Response(JSON.stringify({ erased: true }), { status: 200 }),
-    );
-    const adapter = new HttpIdpEraseAdapter(
-      "http://participants:8080/",
-      fetchImpl as never,
-      "test-token",
-    );
-    const result = await adapter.erase({
+  it("INT-463: delegated IdP erase does not call the network", async () => {
+    const adapters = createEraseAdapters({
+      PAYMENTS_INTERNAL_URL: "http://payments:8080",
+    });
+    const result = await adapters.idp.erase({
       requestId: "r-1",
       participantId: "p-1",
     });
-    expect(result.ok).toBe(true);
-    expect(fetchImpl).toHaveBeenCalledWith(
-      "http://participants:8080/internal/v1/participants/p-1:erase-identity",
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(result).toEqual({
+      ok: true,
+      requestId: "r-1",
+      participantId: "p-1",
+      outcome: "delegated_to_project_ui",
+    });
   });
+});
 
+describe("HttpPspEraseAdapter (REQ-013)", () => {
   it("HttpPspEraseAdapter POSTs erase-at-psp and returns outcome", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(

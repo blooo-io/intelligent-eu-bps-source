@@ -1,16 +1,16 @@
 import { MockIdpAdapter } from "../idp/mock-idp.adapter.js";
 import type { IdpPort } from "../idp/idp.port.js";
-import { HttpIdpEraseAdapter } from "../idp/http-idp-erase.adapter.js";
+import { DelegatedProjectUiIdpEraseAdapter } from "../idp/delegated-project-ui-idp-erase.adapter.js";
 import { MockPspEraseAdapter } from "../psp/mock-psp-erase.adapter.js";
 import type { PspErasePort } from "../psp/psp-erase.port.js";
 import { HttpPspEraseAdapter } from "../psp/http-psp-erase.adapter.js";
 
 /**
- * REQ-013 / Task 3.21 — select IdP and PSP erasure adapters from the environment.
+ * REQ-013 / Task 3.21 / INT-463 — select IdP and PSP erasure adapters.
  *
- * - `ERASURE_ADAPTERS=mock` forces the in-process mocks.
- * - Otherwise `http` when `PARTICIPANTS_INTERNAL_URL` and `PAYMENTS_INTERNAL_URL` are both set.
- * - `ERASURE_ADAPTERS=http` with a URL missing throws at boot.
+ * - IdP member erase is always **delegated to the project UI** (no Keycloak call from BPS).
+ * - `ERASURE_ADAPTERS=mock` forces in-process mocks (PSP mock + delegated IdP).
+ * - Otherwise PSP uses HTTP when `PAYMENTS_INTERNAL_URL` is set.
  */
 export type EraseAdapters = {
   idp: IdpPort;
@@ -24,9 +24,9 @@ export function createEraseAdapters(
   env: NodeJS.ProcessEnv = process.env,
 ): EraseAdapters {
   const forced = (env.ERASURE_ADAPTERS ?? "").trim().toLowerCase();
-  const participants = env.PARTICIPANTS_INTERNAL_URL?.trim();
   const payments = env.PAYMENTS_INTERNAL_URL?.trim();
   const production = env.NODE_ENV === "production";
+  const delegatedIdp = () => new DelegatedProjectUiIdpEraseAdapter();
 
   if (forced === "mock") {
     // INT-440 — in-process mocks never boot in cluster images.
@@ -43,21 +43,21 @@ export function createEraseAdapters(
   }
 
   if (forced === "http") {
-    if (!participants || !payments) {
+    if (!payments) {
       throw new Error(
-        "ERASURE_ADAPTERS=http requires PARTICIPANTS_INTERNAL_URL and PAYMENTS_INTERNAL_URL",
+        "ERASURE_ADAPTERS=http requires PAYMENTS_INTERNAL_URL",
       );
     }
     return {
-      idp: new HttpIdpEraseAdapter(participants),
+      idp: delegatedIdp(),
       psp: new HttpPspEraseAdapter(payments),
       mode: "http",
     };
   }
 
-  if (participants && payments) {
+  if (payments) {
     return {
-      idp: new HttpIdpEraseAdapter(participants),
+      idp: delegatedIdp(),
       psp: new HttpPspEraseAdapter(payments),
       mode: "http",
     };
@@ -65,7 +65,7 @@ export function createEraseAdapters(
 
   if (production) {
     throw new Error(
-      "ERASURE_ADAPTERS=http (or PARTICIPANTS_INTERNAL_URL + PAYMENTS_INTERNAL_URL) required when NODE_ENV=production",
+      "ERASURE_ADAPTERS=http (or PAYMENTS_INTERNAL_URL) required when NODE_ENV=production",
     );
   }
 

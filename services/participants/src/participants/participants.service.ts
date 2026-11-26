@@ -26,7 +26,6 @@ import type {
   PostalAddress,
   ReadinessStatus,
 } from "../domain/types.js";
-import { IDP_ADMIN_PORT, type IdpAdminPort } from "../idp/idp.port.js";
 import {
   PSP_CAPABILITIES_PORT,
   type PspCapabilitiesPort,
@@ -129,7 +128,6 @@ export class ParticipantsService {
   constructor(
     @Inject(ParticipantsStore) private readonly store: ParticipantsStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
-    @Inject(IDP_ADMIN_PORT) private readonly idp: IdpAdminPort,
     @Inject(PSP_CAPABILITIES_PORT)
     private readonly pspCapabilities: PspCapabilitiesPort,
     @Inject(OPEN_PERIODS_PORT)
@@ -324,20 +322,6 @@ export class ParticipantsService {
     return result;
   }
 
-  /**
-   * INT-230 — map IdP JWT `sub` to registry participantId (Keycloak ≠ participant UUID).
-   */
-  resolveByIdpSub(idpUserId: string): ResolvePartyResult {
-    const row = this.store.findByIdpSub(idpUserId);
-    if (!row || row.status === "Offboarded") {
-      throw new NotFoundException(`Unknown IdP subject ${idpUserId}`);
-    }
-    return {
-      participantId: row.participantId,
-      communityId: row.communityId,
-    };
-  }
-
   listParticipants(communityId: string): Array<{
     participantId: string;
     communityId: string;
@@ -418,9 +402,8 @@ export class ParticipantsService {
           `marketActorId already registered: ${row.marketActorId}`,
         );
       }
-      // REQ-008: create participant, IdP account, invitation —
-      // or bind an already-provisioned IdP subject (INT-180).
-      let idpUserId: string;
+      // INT-463 — BPS does not create Keycloak users; optional bind only (INT-180).
+      let idpUserId: string | null = null;
       if (row.existingIdpSubject) {
         if (this.store.findByIdpSub(row.existingIdpSubject)) {
           throw new BadRequestException(
@@ -428,14 +411,6 @@ export class ParticipantsService {
           );
         }
         idpUserId = row.existingIdpSubject;
-      } else {
-        const idpUser = await this.idp.createUser({
-          email: row.email,
-          communityId,
-          role: row.role,
-        });
-        await this.idp.sendInvitation(idpUser.userId);
-        idpUserId = idpUser.userId;
       }
       const participantId = randomUUID();
       const record: ParticipantRecord = {
@@ -556,11 +531,13 @@ export class ParticipantsService {
       };
     }
     const settings = this.requireCommunity(row.communityId);
-    const next: ParticipantRecord = { ...row, status: "Offboarded" };
+    // INT-463 — member IdP delete is R2M's job; clear any cached binding only.
+    const next: ParticipantRecord = {
+      ...row,
+      status: "Offboarded",
+      idpUserId: null,
+    };
     this.store.putParticipant(next);
-    if (row.idpUserId) {
-      await this.idp.deleteUser(row.idpUserId);
-    }
     const effectiveAt = new Date().toISOString();
     // REQ-012: offboard triggers final settlement via event to AC-05.
     await this.outbox.append({
@@ -970,29 +947,21 @@ export class ParticipantsService {
   }
 
   /**
-   * REQ-013 / Task 3.18 — delete the Keycloak user. HTTP 404 counts as erased.
+   * REQ-013 / INT-463 — member IdP erase is owned by R2M. AC-03 no longer
+   * deletes Keycloak users; clears any cached idpUserId and reports erased.
    * Local anonymization stays on {@link applyErasureRequested}.
    */
   async eraseIdentity(participantId: string): Promise<{ erased: boolean }> {
     const row = this.requireParticipant(participantId);
-    if (!row.idpUserId) {
-      return { erased: true };
+    if (row.idpUserId) {
+      this.store.putParticipant({ ...row, idpUserId: null });
     }
-    try {
-      await this.idp.deleteUser(row.idpUserId);
-      return { erased: true };
-    } catch (err) {
-      // Keycloak adapter already treats 404 as success; other adapters may throw.
-      if (isNotFoundError(err)) {
-        return { erased: true };
-      }
-      throw err;
-    }
+    return { erased: true };
   }
 
   /**
    * REQ-013 / INT-275 — anonymize registry personal data; emit ErasureCompleted (AC-03).
-   * IdP deletion is {@link eraseIdentity} (Task 3.18) — called by AC-12 separately.
+   * Member IdP deletion is delegated to the project UI (INT-463).
    */
   async applyErasureRequested(input: {
     requestId: string;

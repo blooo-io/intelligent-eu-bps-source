@@ -1,26 +1,10 @@
 import { withMermaid } from "vitepress-plugin-mermaid";
-import { useSidebar } from "vitepress-openapi";
-// Prepared by scripts/build-openapi.mjs before vitepress (INT-302).
-import spec from "../public/openapi/public.v1.json" with { type: "json" };
 
 /**
  * Docs site for open-source adopters (INT-299 … INT-302, INT-401, INT-413).
- * Blooo canonical host: https://intelligent.docs.blooo.dev/ (DOCS_BASE=/).
- * Run pages:package to ship the Pages artifact + CNAME for the custom domain.
- * OpenAPI UI: vitepress-openapi (Vue pages under /api/).
- * Architecture views: synced from docs/architecture/ (scripts/sync-architecture.mjs).
+ * INT-455 — public REST OpenAPI browser withdrawn; EWDS integration docs remain.
  */
 const base = (process.env.DOCS_BASE || "/").replace(/\/?$/, "/") || "/";
-
-// INT-370 — VitePress leaves non-HTML nav and sidebar links unprefixed.
-// The raw contract must already include `base`, or GitHub Pages resolves it
-// at the host root (404) instead of under /<repo>/.
-const rawOpenApi = `${base}openapi/public.v1.yaml`;
-
-const openapiSidebar = useSidebar({
-  spec,
-  linkPrefix: "/api/operations/",
-});
 
 export default withMermaid({
   title: "INTELLIGENT Billing & Payment",
@@ -32,7 +16,6 @@ export default withMermaid({
   lastUpdated: true,
   ignoreDeadLinks: [
     /^https?:\/\/localhost/,
-    // Upstream sample Redoc portal (optional); may be offline in link checks.
     /^https:\/\/docs\.intelligent-eu-bp\.blooo\.dev/,
   ],
   head: [
@@ -41,12 +24,10 @@ export default withMermaid({
       "meta",
       {
         name: "homepage",
-        content:
-          "https://github.com/blooo-io/intelligent-eu-bps-source",
+        content: "https://github.com/blooo-io/intelligent-eu-bps-source",
       },
     ],
   ],
-  // Client-side Mermaid (MIT) via vitepress-plugin-mermaid — INT-300.
   mermaid: {
     securityLevel: "loose",
   },
@@ -74,9 +55,8 @@ export default withMermaid({
       {
         text: "API",
         items: [
-          { text: "API overview", link: "/api/" },
+          { text: "API overview (EWDS)", link: "/api/" },
           { text: "API & events (notes)", link: "/reference/api" },
-          { text: "public.v1.yaml", link: rawOpenApi },
         ],
       },
       {
@@ -169,17 +149,10 @@ export default withMermaid({
         {
           text: "API",
           items: [
-            { text: "Overview", link: "/api/" },
+            { text: "Overview (INT-455)", link: "/api/" },
             { text: "Narrative notes", link: "/reference/api" },
-            { text: "Raw OpenAPI YAML", link: rawOpenApi },
           ],
         },
-        ...openapiSidebar
-          .generateSidebarGroups({ linkPrefix: "/api/operations/" })
-          .map((group) => ({
-            ...group,
-            collapsed: true,
-          })),
       ],
       "/contribute/": [
         {

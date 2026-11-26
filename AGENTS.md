@@ -6,8 +6,8 @@ This file tells an agent **what to read, in which order, and which rules are non
 - Billing & Payment Service of the Horizon Europe project INTELLIGENT (Task T5.6, Deliverable D5.5, public). Led by Blooo.
 - **Billing model (two levels):** (1) monthly participant **statement** (ontology `Billing`), one per participant and period (monthly default, quarterly allowed), not payable — totals bought/sold, net balance, list of invoices; (2) **legal invoices** per producer→consumer pair, issued in the producer's name (self-billing mandate in the T&C), netted per pair, threshold per pair (default 5 EUR/CHF, carried forward, forced at year end or exit). Payment = direct charge to the producer's Stripe Connect account; payout = withdrawal from the connected account (manual schedule, or `autoPayout`), allowed once that period's invoices where the participant is producer are Paid. The platform never holds funds.
 - **V1 scope:** live mode per community (operator role + live Stripe keys), Greenvolt first; others virtual (Stripe test). EWDS Client Gateway adapters are real and selected by environment variables; mock is the default until EWAG grants roles/topics.
-- **Project UI** integrates only through the EWDS (records + command channel). `apps/web` is the reference client for adopters without the project UI.
-- **Architecture:** 13 NestJS modules (one per logical block) + a Refine web app + a mock suite, on Kubernetes (Scaleway Kapsule, nl-ams). Events go through a transactional outbox → Debezium → NATS JetStream. Workflows run on Temporal. APISIX is the gateway and Keycloak the identity provider.
+- **Project UI** integrates only through the EWDS (records + command channel). Public REST `/v1` and reference client AC-01 were removed (INT-455).
+- **Architecture:** 13 NestJS modules (one per logical block) + a mock suite + docs site, on Kubernetes (Scaleway Kapsule, nl-ams). Events go through a transactional outbox → Debezium → NATS JetStream. Workflows run on Temporal. APISIX is the gateway and Keycloak the identity provider.
 - **Work items** live in Jira project `INT` (Blooo). **Specification and architecture** live in `docs/` (source of truth).
 
 ## 2. Read before coding (in this order)
@@ -15,7 +15,7 @@ This file tells an agent **what to read, in which order, and which rules are non
 2. `docs/architecture/README.md`, then the views relevant to your task:
    - `01-functional-architecture.md`: actors, processes, **business rules BR-01..BR-15**;
    - `02-logical-architecture.md`: blocks, data ownership, events, lifecycles, scheduled jobs;
-   - `03-application-architecture.md`: modules AC-01..AC-15, **public and internal APIs**, event catalogue, adapters, mock scenarios;
+   - `03-application-architecture.md`: modules AC-02..AC-15, **internal APIs**, EWDS, webhooks, event catalogue, adapters, mock scenarios;
    - `04-technical-architecture.md`: technology decisions TD-1..TD-13, principles TP-1..TP-8, security;
    - `05-physical-architecture.md`: environments, hosts, operations;
    - `06-datamodel-ontology.md`: Actor vs UserAccount, ontology ER/class maps, EWDS topic mapping (INT-449);
@@ -46,10 +46,7 @@ This file tells an agent **what to read, in which order, and which rules are non
     - **Required for any change:** package in Git (Helm / Argo Application / operator script) → Jira `INT-xxx` → PR → CI → merge → Argo CD sync, or apply **only** manifests/scripts that already exist on the merged branch (documented operator path).
     - **Forbidden live:** `helm install/upgrade` of charts not driven by Argo, creating/patching Secrets or OpenBao state, one-off CR patches, seeding KV paths, or any “just fix it on the cluster” shortcut.
     - If something is missing for the cluster to become healthy, **stop**, state the gap in the PR/Jira comment, and ship the packaging first.
-13. **UX mockup revalidation (INT-254).** Approved Volt mockups are source of truth for AC-01.
-    - Members with `readiness !== Ready` must not see the sider (full-screen setup chrome on every route).
-    - After every UX delivery: re-open the mockup, re-challenge live UI (sider, labels, titles, CTAs), smoke the screen that changed — not Home-only — before Done.
-    - Details: `.cursor/rules/19-ux-mockup-revalidation.mdc`.
+13. **External surface (INT-455).** No public REST `/v1` product API or reference web client. EWDS records + command channel + webhooks only.
 
 ## 4. Typical task flow
 `INT-xxx` (Jira; create the issue first if none exists) → branch `<type>/INT-xxx-short-description` from `develop` (`feature`, `fix`, `docs`, `test`, `refactor`, `ci` or `chore`, matching the commit type) → contract → Prism mock → generated types/clients → implementation → unit tests + UAT scenario; record the run path (`mock`, `stripe-test`, `live-cg`, `stripe-live`) in the UAT note → PR (template) → request `blooo-io/github-admin` → CI green, including every test script and 80% statements, branches, functions and lines per module → **agent squash-merges** when mergeable and not blocked (INT-162) → Argo CD deploys to `dev`. **Dependabot (INT-322):** squash-merge green/mergeable Dependabot PRs as soon as they are ready; do not leave them open and do not force-merge failing ones.
@@ -59,7 +56,6 @@ After a version is built and its tests pass, deploy it to the cluster `k8s-intel
 ## 5. Module map (directory → component → logical block)
 | Directory | Component | Block |
 |---|---|---|
-| `apps/web` | AC-01 Web app | — |
 | `deploy/` (APISIX config) | AC-02 API gateway | LB-12, LB-01 |
 | `services/participants` | AC-03 | LB-02 |
 | `services/trade-intake` | AC-04 | LB-03 |

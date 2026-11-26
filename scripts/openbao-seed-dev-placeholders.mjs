@@ -24,7 +24,6 @@ const BOOTSTRAP_SECRET = "openbao-dev-bootstrap";
 
 /** Paths referenced by ExternalSecret extract keys (module template + nats + debezium + IdP + gateway). */
 export const DEV_PLACEHOLDER_PATHS = [
-  "dev/web",
   "dev/participants",
   "dev/trade-intake",
   "dev/settlement",
@@ -119,7 +118,7 @@ export const DEV_PLACEHOLDER_FIELDS = {
  * Paths that hold Stripe test credentials (INT-186 / INT-191).
  * Placeholder apply must not wipe them with a bare `seeded=true` put (INT-295).
  */
-export const STRIPE_PROTECTED_PATHS = ["dev/payments", "dev/invoicing", "dev/web"];
+export const STRIPE_PROTECTED_PATHS = ["dev/payments", "dev/invoicing"];
 
 /** True when OpenBao already holds a non-placeholder Stripe field. */
 export function hasRealStripeCredentials(data = {}) {
@@ -184,7 +183,6 @@ export async function checkSeedLayout(repoRoot = root) {
   }
   const charts = await readdir(path.join(repoRoot, "deploy/charts"));
   for (const name of [
-    "web",
     "payments",
     "nats",
     "debezium-server",
@@ -206,7 +204,7 @@ export function printSeedSteps() {
 
 KUBECONFIG=… node scripts/openbao-seed-dev-placeholders.mjs --apply
 
-# Writes keyed paths used by ExternalSecret extract (e.g. secret/data/dev/web)
+# Writes keyed paths used by ExternalSecret extract (e.g. secret/data/dev/payments)
 # with field seeded=true (plus platform/keycloak password and platform/apisix admin/viewer placeholders).
 # Replace with Stripe test keys / real Keycloak admin and APISIX Admin API keys later.
 `;

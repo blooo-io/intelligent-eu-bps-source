@@ -17,8 +17,8 @@ import {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 test("dev placeholder paths cover modules, debezium, nats, keycloak and apisix (INT-133 / INT-160 / INT-161)", () => {
-  assert.ok(DEV_PLACEHOLDER_PATHS.includes("dev/web"));
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("dev/payments"));
+  assert.equal(DEV_PLACEHOLDER_PATHS.includes("dev/web"), false);
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("dev/cd-smoke"));
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("dev/debezium-server"));
   assert.ok(DEV_PLACEHOLDER_PATHS.includes("platform/nats/accounts"));
@@ -34,7 +34,7 @@ test("dev placeholder paths cover modules, debezium, nats, keycloak and apisix (
 
 test("seed layout is documented without secret material", async () => {
   const summary = await checkSeedLayout(root);
-  assert.ok(summary.pathCount >= 15);
+  assert.ok(summary.pathCount >= 14);
   const text = printSeedSteps();
   assert.match(text, /seeded=true/);
   assert.match(text, /INT-157/);
@@ -83,7 +83,6 @@ test("INT-295 placeholder seed detects real Stripe credentials to protect", () =
   assert.deepEqual(STRIPE_PROTECTED_PATHS.sort(), [
     "dev/invoicing",
     "dev/payments",
-    "dev/web",
   ].sort());
   assert.equal(
     hasRealStripeCredentials({ seeded: "true", stripe_secret_key: "sk_test_abc" }),

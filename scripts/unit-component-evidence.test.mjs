@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const REQUIRED_MODULES = [
-  "apps/web",
   "mocks",
   "packages/module-template",
   "services/cd-smoke",
@@ -46,5 +45,5 @@ test("unit/component evidence lists every executable workspace above 80%", async
     );
   }
 
-  assert.match(evidence, /All sixteen executable workspaces meet the 80%/);
+  assert.match(evidence, /All fifteen executable workspaces meet the 80%/);
 });

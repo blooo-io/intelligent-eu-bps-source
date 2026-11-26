@@ -1,31 +1,19 @@
 # API & events
 
-The interactive reference lives under **[/api/](/api/)** — VitePress pages driven by [vitepress-openapi](https://vitepress-openapi.vercel.app/) from [`contracts/openapi/public.v1.yaml`](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/contracts/openapi/public.v1.yaml) (INT-302).
+**INT-455** — the public REST OpenAPI `/v1` catalogue and interactive browser are withdrawn.
 
 | Resource | Path |
 |---|---|
-| Overview + full spec | [/api/](/api/) |
-| Per-operation pages | [/api/operations/…](/api/) (sidebar) |
-| Raw YAML | [/openapi/public.v1.yaml](/openapi/public.v1.yaml) |
+| EWDS integration overview | [/api/](/api/) |
+| Architecture — EWDS topics | [/architecture/ewds-topics](/architecture/ewds-topics) |
+| Command channel & adapters | [/architecture/ewds-client-gateway](/architecture/ewds-client-gateway) |
+| Repository contracts | [integration-api.md](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/docs/release/integration-api.md) |
 
-Playground default server for Try it out: `https://api.dev.intelligent-eu-bp.blooo.dev/v1` (OIDC bearer). Override the list at build time with `DOCS_API_SERVERS` (JSON), or type a custom URL in the UI.
-
-**Token:** on [/api/](/api/) use the username/password helper (Keycloak client `docs`, INT-403 / INT-404), or the same password grant via curl with your own credentials (the docs page does not publish passwords).
-
-::: tip Standalone portal
-`apps/docs-portal` (Redocly) remains available if you want a separate API-only deploy. The docs site no longer embeds Redoc; vitepress-openapi is the in-site explorer.
-:::
-
-
-## Public REST API
-
-- Style: versioned `/v1`, OIDC bearer tokens
-- Integrators treat the **OpenAPI file** as authoritative
-- Breaking changes require a new major path (`/v2`) and are checked with oasdiff in CI
+External integration is **EWDS-only** (published billing records + billing command channel). Payment-provider webhooks use `contracts/openapi/webhooks/payment-provider.v1.yaml`.
 
 ## Internal APIs
 
-Module-to-module HTTP APIs live under `contracts/openapi/internal/`. They are not public; call them only from trusted cluster network paths.
+Module-to-module HTTP APIs live under `contracts/openapi/internal/`. They are not a public product surface; call them only from trusted cluster network paths with service tokens.
 
 ## Events
 

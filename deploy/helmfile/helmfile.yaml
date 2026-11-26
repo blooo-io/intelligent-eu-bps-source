@@ -20,13 +20,6 @@ releases:
       - ../charts/mailpit/values.yaml
       - ../envs/{{ .Environment.Name }}/values.yaml
 
-  - name: web
-    namespace: "{{ .Values.appsNamespace }}"
-    chart: ../charts/web
-    values:
-      - ../charts/web/values.yaml
-      - ../envs/{{ .Environment.Name }}/values.yaml
-
   - name: docs-portal
     namespace: "{{ .Values.appsNamespace }}"
     chart: ../charts/docs-portal

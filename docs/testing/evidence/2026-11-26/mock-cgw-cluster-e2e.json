@@ -1,0 +1,16 @@
+{
+  "date": "2026-11-26",
+  "timezone": "Europe/Paris",
+  "run_path": "mock",
+  "cluster": "k8s-intelligent-eu-dev",
+  "namespace": "int-apps",
+  "component": "mock-cgw",
+  "image": "ghcr.io/blooo-io/intelligent-eu-bps-source/services-mock-cgw:develop",
+  "image_sha_tag": "900fb53f7e625a86a421b2e7f5e2da282efb7efc",
+  "gatewayDid": "did:ethr:volta:0xMockCgwBlooo00000000000000000000000001",
+  "driver": "@intelligent/ewds-cluster-e2e",
+  "result": "pass",
+  "tests": 9,
+  "coverage_note": "S1 actor inject + S13 eight command ops against live Mock CGW via kubectl port-forward svc/mock-cgw",
+  "jira": ["INT-454", "INT-456", "INT-457"]
+}

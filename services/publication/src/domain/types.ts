@@ -130,12 +130,19 @@ export type PayoutProjection = {
   updatedAt: string;
 };
 
-/** A5 / REQ-015 — KYC status published as billingKycStatus (no PII). */
+/**
+ * A5 / REQ-015 / INT-448 — UserAccount subset published as billingKycStatus (no PII).
+ * T&C fields sit alongside kycVerified (ontology UserAccount).
+ */
 export type KycProjection = {
   actorId: string;
   communityId: string;
   kycVerified: boolean;
   accountStatus: string;
   verificationKind: string;
+  /** REQ-050 — null until T&C accepted. */
+  termsVersion: string | null;
+  termsAcceptedAt: string | null;
+  selfBillingMandate: boolean;
   updatedAt: string;
 };

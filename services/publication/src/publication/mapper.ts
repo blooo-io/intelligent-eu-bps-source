@@ -135,7 +135,7 @@ export function toBillingPayout(p: PayoutProjection): Record<string, unknown> {
   };
 }
 
-/** A5 — billingKycStatus; identifiers only. */
+/** A5 / INT-448 — billingKycStatus (UserAccount subset); identifiers only. */
 export function toBillingKycStatus(k: KycProjection): Record<string, unknown> {
   return {
     actorId: k.actorId,
@@ -143,6 +143,9 @@ export function toBillingKycStatus(k: KycProjection): Record<string, unknown> {
     kycVerified: k.kycVerified,
     accountStatus: k.accountStatus,
     verificationKind: k.verificationKind,
+    termsVersion: k.termsVersion,
+    termsAcceptedAt: k.termsAcceptedAt,
+    selfBillingMandate: k.selfBillingMandate,
     updatedAt: k.updatedAt,
   };
 }

@@ -15,6 +15,7 @@ D5.5 remediation closeout (INT-440) and e2e-dev recovery on `dev`:
 - **INT-443** — `payInvoice` resolves payee IdP for KYC (UAT seed); onboarding e2e accepts `of 3|4` steps.
 - **INT-445** — money-path e2e timeout headroom + single payee resolve for PSP binding.
 - **INT-447** — EWDS-only Actor path: R2M publishes create/update (CSV→N Actors); A21 CSV fallback withdrawn; `acceptTerms` on the command channel; `PUT /me/profile` → `409 profile_managed_by_ewds` when `source=ewds`.
+- **INT-448** — T&C on ontology `UserAccount` (same level as `kycVerified`): `billingKycStatus` carries `termsVersion` / `termsAcceptedAt` / `selfBillingMandate`; `UserAccountStatusChanged` from AC-03.
 - e2e-dev green on develop tip that ships this patch.
 
 ## What ships

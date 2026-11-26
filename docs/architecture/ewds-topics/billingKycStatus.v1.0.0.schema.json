@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://intelligent-project.eu/schema/v1.0.0/billing/billingKycStatus",
   "title": "billingKycStatus",
-  "description": "EWDS topic: KYC / account readiness subset (ontology UserAccount). No document payloads or personal names. DRAFT v0.2 (INT-423).",
+  "description": "EWDS topic: ontology UserAccount subset (INT-448). Carries kycVerified and T&C acceptance (termsVersion, termsAcceptedAt, selfBillingMandate) at the same level. No document payloads or personal names. DRAFT v0.3.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -11,7 +11,10 @@
     "kycVerified",
     "accountStatus",
     "verificationKind",
-    "updatedAt"
+    "updatedAt",
+    "termsVersion",
+    "termsAcceptedAt",
+    "selfBillingMandate"
   ],
   "properties": {
     "actorId": {
@@ -37,11 +40,33 @@
     },
     "verificationKind": {
       "type": "string",
-      "enum": ["connect_account", "identity"]
+      "enum": [
+        "connect_account",
+        "identity"
+      ]
     },
     "updatedAt": {
       "type": "string",
       "format": "date-time"
+    },
+    "termsVersion": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Accepted T&C version (UserAccount / REQ-050). Null until accepted."
+    },
+    "termsAcceptedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "When T&C were accepted. Null until accepted."
+    },
+    "selfBillingMandate": {
+      "type": "boolean",
+      "description": "Producer/prosumer self-billing mandate accepted (REQ-050). False until accepted."
     }
   }
 }

@@ -714,6 +714,7 @@ export class ParticipantsService {
       input.termsVersion,
       acceptedAt,
     );
+    await this.emitUserAccountStatusChanged(next);
     return {
       termsVersion: input.termsVersion,
       selfBillingMandate: input.selfBillingMandate,
@@ -769,6 +770,8 @@ export class ParticipantsService {
         input.termsVersion,
         acceptedAt,
       );
+      // INT-448 — UserAccount wire (billingKycStatus) includes T&C.
+      await this.emitUserAccountStatusChanged(next);
     }
 
     if (isManager) {
@@ -827,6 +830,34 @@ export class ParticipantsService {
         action: "terms.accepted",
         target: `participant:${actorId}|version:${termsVersion}`,
         timestamp,
+      },
+    });
+  }
+
+  /**
+   * INT-448 / REQ-050 / REQ-048 — publish UserAccount subset for EWDS
+   * billingKycStatus (T&C alongside kycVerified).
+   */
+  private async emitUserAccountStatusChanged(
+    row: ParticipantRecord,
+  ): Promise<void> {
+    const settings = this.store.getCommunity(row.communityId);
+    await this.outbox.append({
+      aggregateType: "UserAccount",
+      aggregateId: row.participantId,
+      type: "UserAccountStatusChanged",
+      producer: PRODUCER,
+      communityId: row.communityId,
+      billingMode: settings?.billingMode ?? "virtual",
+      data: {
+        actorId: row.participantId,
+        participantId: row.participantId,
+        kycVerified: row.kycVerified,
+        accountStatus: row.kycVerified ? "Active" : "PendingVerification",
+        verificationKind: "connect_account",
+        termsVersion: row.termsVersionAccepted,
+        termsAcceptedAt: row.termsAcceptedAt,
+        selfBillingMandate: row.selfBillingMandate,
       },
     });
   }
@@ -899,6 +930,8 @@ export class ParticipantsService {
     next.status = deriveReadiness(next);
     this.store.putParticipant(next);
     await this.emitReadinessIfChanged(row, previousStatus, next);
+    // INT-448 — refresh UserAccount EWDS record with KYC + current T&C.
+    await this.emitUserAccountStatusChanged(next);
     return this.checkReadiness(input.participantId);
   }
 

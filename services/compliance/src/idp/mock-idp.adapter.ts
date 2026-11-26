@@ -20,6 +20,8 @@ export class MockIdpAdapter implements IdpPort {
       ok: true,
       requestId: input.requestId,
       participantId: input.participantId,
+      // INT-463 — same product outcome as live: project UI owns member IdP erase.
+      outcome: "delegated_to_project_ui",
     };
   }
 }

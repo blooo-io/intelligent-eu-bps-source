@@ -84,8 +84,7 @@ export class InternalParticipantsController {
   }
 
   /**
-   * REQ-013 / Task 3.18 — erase IdP identity (service-role only).
-   * Keycloak 404 counts as erased.
+   * REQ-013 / INT-463 — clear cached idpUserId; member Keycloak erase is R2M's.
    */
   @Post(String.raw`participants/:participantId\:erase-identity`)
   @HttpCode(200)
@@ -98,12 +97,6 @@ export class InternalParticipantsController {
   @Get("participants/:participantId/notification-contact")
   getNotificationContact(@Param("participantId") participantId: string) {
     return this.participants.getNotificationContact(participantId);
-  }
-
-  /** INT-230 — IdP sub → participantId for AC-07 pay / onboarding. */
-  @Get(String.raw`participants\:by-idp-sub/:idpUserId`)
-  resolveByIdpSub(@Param("idpUserId") idpUserId: string) {
-    return this.participants.resolveByIdpSub(idpUserId);
   }
 
   /** INT-193 — AC-07 notifies KYC / payment-method readiness (sync until NATS). */

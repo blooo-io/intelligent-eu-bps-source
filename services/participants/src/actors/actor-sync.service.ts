@@ -8,7 +8,6 @@ import {
 import { OutboxService } from "@intelligent/module-template";
 import { ParticipantsStore } from "../domain/store.js";
 import type { ParticipantRecord, PostalAddress } from "../domain/types.js";
-import { IDP_ADMIN_PORT, type IdpAdminPort } from "../idp/idp.port.js";
 import { deriveReadiness } from "../participants/readiness.js";
 import {
   ACTOR_SOURCE_PORT,
@@ -23,16 +22,15 @@ export function formatPostalAddress(address: PostalAddress): string {
 }
 
 /**
- * REQ-008 / REQ-058 / UAT-008 / INT-447 — upsert participants from ActorSourcePort.
- * Project path is EWDS-only (R2M publishes Actor create/update). `/v1` CSV import
- * is reference-client / e2e seed only — not a project-path fallback.
+ * REQ-008 / REQ-058 / UAT-008 / INT-447 / INT-463 — upsert participants from ActorSourcePort.
+ * Project path is EWDS-only (R2M publishes Actor create/update). Member IdP
+ * create/invite is owned by R2M — BPS does not call Keycloak Admin here.
  */
 @Injectable()
 export class ActorSyncService {
   constructor(
     @Inject(ParticipantsStore) private readonly store: ParticipantsStore,
     @Inject(OutboxService) private readonly outbox: OutboxService,
-    @Inject(IDP_ADMIN_PORT) private readonly idp: IdpAdminPort,
     @Optional()
     @Inject(ACTOR_SOURCE_PORT)
     private readonly source: ActorSourcePort | null,
@@ -86,14 +84,7 @@ export class ActorSyncService {
       return "updated";
     }
 
-    // REQ-008 — create IdP user + invitation like the CSV import path.
-    const idpUser = await this.idp.createUser({
-      email: actor.contact.email,
-      communityId: actor.communityId,
-      role: actor.role,
-    });
-    await this.idp.sendInvitation(idpUser.userId);
-
+    // INT-463 — R2M provisions Keycloak; BPS only caches the Actor.
     // REQ-058 — participantId = Actor UUID.
     const record: ParticipantRecord = {
       participantId: actor.actorId,
@@ -102,7 +93,7 @@ export class ActorSyncService {
       status: "Invited",
       marketActorId: actor.gsyActorId,
       meterId: actor.meterId,
-      idpUserId: idpUser.userId,
+      idpUserId: null,
       profile: null,
       termsVersionAccepted: null,
       selfBillingMandate: false,

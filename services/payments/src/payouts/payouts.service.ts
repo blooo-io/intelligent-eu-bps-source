@@ -405,12 +405,11 @@ export class PayoutsService implements PayoutEventsHandler {
     });
   }
 
-  /** INT-230 — a JWT `sub` may be the IdP user id; AC-03 maps it to the participant. */
+  /** INT-463 — caller is participantId / actorId (no IdP `sub` bridge). */
   private async resolveCaller(
     subOrParticipantId: string,
   ): Promise<{ participantId: string; communityId?: string }> {
-    const resolved = await this.idpResolver.resolveByIdpSub(subOrParticipantId);
-    return resolved ?? { participantId: subOrParticipantId };
+    return { participantId: subOrParticipantId };
   }
 
   /** Verified Connect accounts of the community; the in-memory row wins over the durable one. */

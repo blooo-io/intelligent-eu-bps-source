@@ -10,7 +10,6 @@ import {
   OutboxService,
 } from "@intelligent/module-template";
 import { ParticipantsStore } from "../domain/store.js";
-import { MockIdpAdapter } from "../idp/mock-idp.adapter.js";
 import { ParticipantsService } from "../participants/participants.service.js";
 import { InMemoryEventBus } from "./in-memory-event-bus.js";
 import { KycStatusChangedListener } from "./kyc-status-changed.listener.js";
@@ -29,7 +28,6 @@ describe("KycStatusChangedListener (REQ-051)", () => {
     service = new ParticipantsService(
       store,
       new OutboxService(outboxStore),
-      new MockIdpAdapter(),
       {
         async get() {
           return {

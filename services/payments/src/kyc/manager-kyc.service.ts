@@ -220,19 +220,11 @@ export class KycQueryService {
     private readonly idpResolver: ParticipantsResolverPort | null = null,
   ) {}
 
-  /** Direct participantId hit, else IdP sub → participantId (INT-230). */
+  /** INT-463 — lookup by participantId only (no IdP `sub` bridge). */
   private async accountFor(
     subjectId: string,
   ): Promise<AccountRecord | undefined> {
-    const direct = await this.accounts.get(subjectId);
-    if (direct) {
-      return direct;
-    }
-    const resolved = await this.idpResolver?.resolveByIdpSub(subjectId);
-    if (!resolved) {
-      return undefined;
-    }
-    return this.accounts.get(resolved.participantId);
+    return this.accounts.get(subjectId);
   }
 
   async statusOf(subjectId: string): Promise<KycStatus> {

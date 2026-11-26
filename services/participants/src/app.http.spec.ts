@@ -102,16 +102,12 @@ describe("participants HTTP (INT-103)", () => {
       communityId: SEED_COMMUNITY_ID,
     });
 
-    // INT-230 — IdP sub resolve (seeded UAT member).
-    const byIdp = await fetch(
+    // INT-463 — by-idp-sub withdrawn; community resolve stays on participantId.
+    const byIdpGone = await fetch(
       `${base}/internal/v1/participants:by-idp-sub/b7bd0605-d3e5-4015-bdb7-dd1a47bbb26f`,
       { headers: { "x-intelligent-roles": "service" } },
     );
-    expect(byIdp.status).toBe(200);
-    expect(await byIdp.json()).toMatchObject({
-      participantId: "f69e6745-3bfe-49ad-b84e-0853aa86ad05",
-      communityId: SEED_COMMUNITY_ID,
-    });
+    expect(byIdpGone.status).toBe(404);
 
     // INT-440 / Task 2.9 — invoice-party for AC-06 PDF (S1 producer A).
     const party = await fetch(

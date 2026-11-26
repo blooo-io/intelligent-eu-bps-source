@@ -284,14 +284,6 @@ describe("PayoutsService (REQ-015, UAT-015)", () => {
     });
   });
 
-  it("INT-230: resolves an IdP sub to the registry participant", async () => {
-    vi.mocked(resolver.resolveByIdpSub).mockResolvedValue({ participantId: "P", communityId: COM });
-    psp.balance = "25.00";
-    const p = await svc.requestWithdrawal({ ...req, participantId: "idp-sub-of-P", communityId: "other" });
-    expect(p).toMatchObject({ participantId: "P", communityId: COM });
-    expect(psp.createPayout).toHaveBeenCalledWith("acct_P", "19.70", "EUR", "po:P:2026-10");
-  });
-
   it("REQ-060: lists own payouts and the periods still withdrawable", async () => {
     psp.balance = "25.00";
     const paid = await svc.requestWithdrawal(req);

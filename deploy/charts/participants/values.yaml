@@ -26,19 +26,16 @@ keycloakEgress: true
 stripeEgress: false
 # INT-429 / NFR-017 — DDHub CGW client (label + CGW_API_KEY secretKeyRef via module template).
 ewdsClient: true
-# INT-215 / INT-218 / INT-325 — Keycloak Admin P-IDP.
-# Client secrets come from OpenBao ExternalSecret envFrom (never Helm values).
+# INT-463 — member IdP admin moved to R2M; AC-03 keeps Keycloak only for S2S JWT.
 # Service DNS is platform-keycloak-keycloakx-http (port 80), not keycloak:8080.
-# A8 — chart defaults stay mock; deploy/envs overlays switch adapters live (A8-live).
 env:
-  IDP_ADMIN_PROVIDER: keycloak
+  IDP_ADMIN_PROVIDER: mock
   KEYCLOAK_BASE_URL: http://platform-keycloak-keycloakx-http.keycloak.svc.cluster.local
   # INT-348 — JWT iss is public KC_HOSTNAME (INT-345); JWKS stays on KEYCLOAK_BASE_URL.
   KEYCLOAK_ISSUER: https://auth.intelligent-eu-bp.blooo.dev/realms/int
   KEYCLOAK_REALM: int
   # NFR-013 / INT-357 — roles claim dot-path (same as apisix-gateway oidc.roleClaim).
   OIDC_ROLE_CLAIM: realm_access.roles
-  KEYCLOAK_ADMIN_CLIENT_ID: participants-admin
   KEYCLOAK_SERVICE_CLIENT_ID: module-service
   # INT-314 — require Bearer JWT on /internal/* (forgeable headers alone rejected).
   SERVICE_JWT_REQUIRED: "true"

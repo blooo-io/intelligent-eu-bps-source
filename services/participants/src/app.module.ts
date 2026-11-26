@@ -2,8 +2,6 @@ import { Inject, Injectable, MiddlewareConsumer, Module, NestModule, OnModuleIni
 import { ModuleTemplateModule, OutboxService } from "@intelligent/module-template";
 import { principalMiddleware } from "./auth/principal.middleware.js";
 import { ParticipantsStore } from "./domain/store.js";
-import { createIdpAdminPort } from "./idp/idp-admin.factory.js";
-import { IDP_ADMIN_PORT } from "./idp/idp.port.js";
 import { InternalParticipantsController } from "./participants/internal.controller.js";
 import { ParticipantsService } from "./participants/participants.service.js";
 import { createParticipantTransaction } from "./persistence/participant-journal.js";
@@ -50,8 +48,7 @@ import {
     ParticipantsStore,
     ParticipantsService,
     ParticipantPersistence,
-    // INT-208 — Keycloak Admin when env present; mock otherwise / IDP_ADMIN_PROVIDER=mock
-    { provide: IDP_ADMIN_PORT, useFactory: () => createIdpAdminPort() },
+    // INT-463 — member IdP admin removed from AC-03 (R2M owns create/invite/erase).
     { provide: EVENT_BUS_PORT, useFactory: () => createEventBus() },
     ErasureRequestedListener,
     // REQ-051 — mirror participant KYC into readiness (INT-431).

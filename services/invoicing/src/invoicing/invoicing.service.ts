@@ -201,16 +201,10 @@ export class InvoicingService {
   }
 
   /**
-   * INT-236 — JWT `sub` may be Keycloak idpUserId; also keep raw sub so UAT
-   * seed invoices (consumerId = IdP sub) remain visible.
+   * INT-463 — caller is participantId / actorId (no IdP `sub` bridge).
    */
   async resolveCallerIds(sub: string): Promise<string[]> {
-    const ids = new Set<string>([sub]);
-    const resolved = await this.idpResolver.resolveByIdpSub(sub);
-    if (resolved?.participantId) {
-      ids.add(resolved.participantId);
-    }
-    return [...ids];
+    return [sub];
   }
 
   private isCallerOnInvoice(

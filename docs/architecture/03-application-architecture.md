@@ -35,7 +35,7 @@ Each logical block becomes its own deployable module. The only exception is LB-0
 |---|---|---|---|---|
 | **AC-01 Web app** | Front-end | — (client) | Participant portal and community-manager console (reference screens) | None |
 | **AC-02 API gateway** | Edge | LB-12 + LB-01 | Single public entry point: routing, OIDC token validation, role and community checks, rate limiting, public OpenAPI | None (config) |
-| **AC-03 Participants** | Domain | LB-02 | Communities, registry, profiles, terms and mandate, readiness, offboarding; account provisioning in the IdP | Community, Participant, RegistryEntry, BillingProfile, TermsAcceptance |
+| **AC-03 Participants** | Domain | LB-02 | Communities, registry, profiles, terms and mandate, readiness, offboarding; no IdP account provisioning (R2M owns member accounts, INT-463) | Community, Participant, RegistryEntry, BillingProfile, TermsAcceptance |
 | **AC-04 Trade intake** | Domain | LB-03 | Market queries per window, deduplication, attribution, completeness, intake health | Trade, MarketInfo, ClearingResult, IntakeWindow, IntakeAnomaly |
 | **AC-05 Settlement** | Domain | LB-04 | Billing runs, **monthly statements**, pair settlement, netting, threshold and carry-forward, currency, VAT and tariff, ledger | BillingRun, PairSettlement, Statement, CarryForward, LedgerEntry |
 | **AC-06 Invoicing** | Domain | LB-05 | Billing-owned invoices in the producer's name: legal numbering per producer, PDF stored in the invoicing DB, lifecycle and manual status; e-mail via AC-11 (A6) | Invoice, InvoiceLine, NumberSeries, InvoiceDocument, StatusHistory |
@@ -122,8 +122,7 @@ flowchart LR
   PUB[AC-10 Publication] --> X2((EWDS Client Gateway / mock))
   PAY[AC-07 Payments] --> X3((Stripe test))
   X3 -- webhooks --> PAY
-  PART[AC-03 Participants] --> X4((Keycloak local))
-  GW[AC-02 API gateway] --> X4
+  GW[AC-02 API gateway / module guards] --> X4((Keycloak local, S2S JWT; member admin = R2M, INT-463))
   REF[AC-13 Reference data] --> X5((ECB rates / fixture))
   NOT[AC-11 Notification] --> X6((Mail / local catcher))
   RPT[AC-09 Reporting] --> X7((File export))
@@ -225,7 +224,6 @@ flowchart LR
   PUB ==> X_DS
   PAY ==> X_PSP
   X_PSP == webhooks ==> PAY
-  PART ==> X_IDP
   GW ==> X_IDP
   REF ==> X_FX
   NOT ==> X_MAIL
@@ -402,7 +400,7 @@ Every adapter implements one logical port behind a stable interface. Switching f
 | Erasure intake (AC-12) | P-ERASURE-REQ | receive erasure requests; reportOutcome | `ERASURE_REQUEST_SOURCE=mock\|ewds\|none` (default none; mock in tests; `ewds` in WS4) | EWDS subscriber (`ErasureRequestPort`) |
 | Tariff adapter (AC-13) | P-TARIFF | getTariff(communityId, at) | `TARIFF_ADAPTER=mock\|ewds` (mock default) | EWDS when DSO publishes; else 0 |
 | Payment adapter (AC-07) | P-PSP | KycOnboardingPort, CollectPort (direct charge / hosted Checkout on the producer account), PayoutPort, PspEventsPort | **Stripe** test or live per community | — |
-| IdP admin adapter (AC-03) + token validation (AC-02) | P-IDP | createUser, sendInvitation, deleteUser; validateToken | Keycloak, local instance | Project IdP (Blooo-operated) or pilot OIDC IdP |
+| Service-JWT validation (module guard) | P-IDP | validateServiceToken (`module-service` client credentials); no createUser / sendInvitation / deleteUser in BPS (R2M owns member admin, INT-463) | Keycloak, local instance | Project IdP (Blooo-hosted) or pilot OIDC IdP |
 | FX adapter (AC-13) | P-FX | getRate(currency, date) | **Fixture** (AC-15) | ECB reference rates |
 | Mail adapter (AC-11) | P-MAIL | send(template, to, attachments) — invoice PDF and payment reminders are sent by billing via AC-11 (A6; Stripe no longer e-mails invoices) | Local mail catcher | Transactional mail service |
 | KPI export adapter (AC-09) | P-KPI | export(period, dataset) | File export | Format/channel agreed with WP6 / GSY |
@@ -422,7 +420,7 @@ Every adapter implements one logical port behind a stable interface. Switching f
 | S9 | *(retired, REQ-057 deprecated)* | — |
 | S10 | Payment failures (Stripe test cards: declined, insufficient funds, authentication) | REQ-016, REQ-046 |
 | S11 | Producer without KYC → invoices held | REQ-045 |
-| S12 | Erasure request → propagation to Stripe test and IdP | REQ-013 |
+| S12 | Erasure request → propagation to Stripe test; IdP erasure delegated to R2M (INT-463) | REQ-013 |
 | S13 | Every published message validates against `billingInvoice` / `billingPayment` | REQ-048 |
 
 ## 9. Traceability: logical → application

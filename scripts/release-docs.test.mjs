@@ -43,9 +43,9 @@ test("INT-92 / INT-359 source release note matches package version", async () =>
   assert.match(source, /never pushed/);
   assert.match(notes, /OpenBao/);
   assert.match(notes, /GPL-3\.0/);
-  // INT-412 / INT-415 / INT-417 / INT-421 / INT-446 / INT-466 — keep notes aligned with root package.json on every patch bump.
+  // INT-412 / INT-415 / INT-417 / INT-421 / INT-446 / INT-466 / INT-468 — keep notes aligned with root package.json on every patch bump.
   assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
-  assert.equal(pkg.version, "1.2.2");
+  assert.equal(pkg.version, "1.2.3");
   assert.ok(
     notes.includes(`\`v${pkg.version}\``),
     `RELEASE-NOTES.md must cite v${pkg.version}`,

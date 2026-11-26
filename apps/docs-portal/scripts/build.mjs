@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * INT-244 — build static docs portal: landing page + Redocly HTML for public.v1.
+ * INT-244 / INT-456 — build static docs portal.
+ * Public /v1 OpenAPI withdrawn (INT-455); portal documents the remaining
+ * external webhook contract + EWDS-first integrator pointer.
  */
 import { cpSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -17,8 +19,12 @@ mkdirSync(dist, { recursive: true });
 
 cpSync(path.join(appRoot, "public"), dist, { recursive: true });
 
-const openapiSrc = path.join(repoRoot, "contracts/openapi/public.v1.yaml");
-const openapiDest = path.join(dist, "public.v1.yaml");
+// INT-456 — only remaining external OpenAPI after public.v1 removal.
+const openapiSrc = path.join(
+  repoRoot,
+  "contracts/openapi/webhooks/payment-provider.v1.yaml",
+);
+const openapiDest = path.join(dist, "payment-provider.v1.yaml");
 cpSync(openapiSrc, openapiDest);
 
 const redocly = path.join(repoRoot, "node_modules/@redocly/cli/bin/cli.js");
@@ -32,7 +38,7 @@ execFileSync(
     "-o",
     path.join(dist, "api.html"),
     "--title",
-    "INTELLIGENT Billing API",
+    "INTELLIGENT payment-provider webhook",
   ],
   { cwd: repoRoot, stdio: "inherit" },
 );

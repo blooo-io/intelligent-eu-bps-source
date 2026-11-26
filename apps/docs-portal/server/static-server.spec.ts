@@ -26,7 +26,8 @@ describe("docs-portal static-server (INT-244)", () => {
   it("serves /health, static files, HEAD, 404 and 405", async () => {
     const root = mkdtempSync(path.join(tmpdir(), "docs-portal-"));
     writeFileSync(path.join(root, "index.html"), "<html>ok</html>");
-    writeFileSync(path.join(root, "public.v1.yaml"), "openapi: 3.1.0\n");
+    // INT-456 — portal serves payment-provider webhook OpenAPI (public.v1 gone).
+    writeFileSync(path.join(root, "payment-provider.v1.yaml"), "openapi: 3.1.0\n");
     server = createStaticServer(root);
     await new Promise<void>((resolve) => server!.listen(0, "127.0.0.1", resolve));
     const { port } = server.address() as { port: number };
@@ -40,7 +41,7 @@ describe("docs-portal static-server (INT-244)", () => {
     expect(page.status).toBe(200);
     expect(await page.text()).toContain("ok");
 
-    const yaml = await fetch(`${base}/public.v1.yaml`);
+    const yaml = await fetch(`${base}/payment-provider.v1.yaml`);
     expect(yaml.status).toBe(200);
     expect(yaml.headers.get("content-type")).toMatch(/yaml/);
 

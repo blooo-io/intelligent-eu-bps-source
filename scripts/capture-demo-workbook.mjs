@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const require = createRequire(path.join(root, "apps/web/package.json"));
+const require = createRequire(path.join(root, "package.json"));
 const { chromium } = require("@playwright/test");
 const outDir = path.join(root, "docs/testing/assets/demo-workbook");
 const baseUrl =

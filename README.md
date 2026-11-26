@@ -2,13 +2,11 @@
 
 [![CI](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/ci.yml?query=branch%3Adevelop)
 [![Docs](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/docs.yml/badge.svg)](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/docs.yml)
-[![e2e-dev](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/e2e-dev.yml/badge.svg)](https://github.com/blooo-io/intelligent-eu-bps-source/actions/workflows/e2e-dev.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Docs site](https://img.shields.io/badge/docs-intelligent.docs.blooo.dev-1a4d3e)](https://intelligent.docs.blooo.dev/)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](docs/architecture/04-technical-architecture.md)
 [![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)](docs/architecture/04-technical-architecture.md)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](apps/web)
 [![pnpm](https://img.shields.io/badge/pnpm-9-F69220?logo=pnpm&logoColor=white)](package.json)
 
 **Quality (SonarQube Community — [live dashboard](https://sonar.intelligent-eu-bp.blooo.dev/dashboard?id=blooo-io_intelligent-eu-billing-and-payment))**
@@ -89,8 +87,7 @@ flowchart LR
 | [`docs/maintainers/`](docs/maintainers/) | Upstream-only process pointers |
 | [`contracts/`](contracts/) | **Contract-first** OpenAPI 3.1 (REST) and AsyncAPI 3 (events) |
 | [`services/`](services/) | NestJS modules — one database per module |
-| [`apps/web/`](apps/web/) | AC-01 — reference client for adopters without the project UI (the INTELLIGENT project UI integrates through the EWDS) |
-| [`apps/site/`](apps/site/) | **Public docs site** (VitePress → GitHub Pages) |
+| [`apps/site/`](apps/site/) | **Public docs site** (VitePress → GitHub Pages); EWDS integration notes (INT-455 — no public `/v1` browser) |
 | [`apps/docs-portal/`](apps/docs-portal/) | Redocly public OpenAPI portal |
 | [`packages/`](packages/) | Shared NestJS module template, generated clients |
 | [`mocks/`](mocks/) | AC-15 mock suite and scenarios S1–S13 |
@@ -102,7 +99,6 @@ flowchart LR
 
 | Directory | Component | Logical block |
 |---|---|---|
-| `apps/web` | AC-01 Web app | — |
 | `deploy/` (APISIX) | AC-02 API gateway | LB-12, LB-01 |
 | `services/participants` | AC-03 | LB-02 |
 | `services/trade-intake` | AC-04 | LB-03 |

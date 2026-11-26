@@ -22,7 +22,6 @@ This note consolidates one green `develop` run. It does not replace the live gat
 
 | Module | Statements | Branches | Functions | Lines |
 |---|---:|---:|---:|---:|
-| `apps/web` | 98.89% | 81.08% | 94.44% | 98.89% |
 | `mocks` | 100.00% | 89.18% | 100.00% | 100.00% |
 | `packages/module-template` | 100.00% | 100.00% | 100.00% | 100.00% |
 | `services/cd-smoke` | 94.28% | 93.33% | 100.00% | 94.28% |
@@ -39,7 +38,7 @@ This note consolidates one green `develop` run. It does not replace the live gat
 | `services/settlement` | 92.80% | 83.54% | 100.00% | 92.80% |
 | `services/trade-intake` | 95.73% | 84.61% | 100.00% | 95.73% |
 
-All sixteen executable workspaces meet the 80% gate on this run.
+All fifteen executable workspaces meet the 80% gate on this run (INT-455 — `apps/web` withdrawn).
 
 ## Refresh
 

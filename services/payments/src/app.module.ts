@@ -21,7 +21,6 @@ import {
   createManagerKycStore,
   MANAGER_KYC_STORE,
 } from "./ports/manager-kyc.store.js";
-import { PayoutsController } from "./payouts/payouts.controller.js";
 import { PayoutsService } from "./payouts/payouts.service.js";
 import { createPaymentTransaction } from "./persistence/payment-journal.js";
 
@@ -105,7 +104,7 @@ import { StripePspEraseAdapter } from "./psp/stripe-psp-erase.adapter.js";
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "payments" }),
   ],
-  controllers: [PaymentsController, InternalPaymentsController, PayoutsController],
+  controllers: [PaymentsController, InternalPaymentsController],
   providers: [
     PaymentsStore,
     PaymentsService,

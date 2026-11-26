@@ -1,61 +1,14 @@
----
-aside: false
-outline: false
-title: API reference
----
+# API reference (withdrawn)
 
-# API reference
+**INT-455** — the public REST OpenAPI `/v1` catalogue and interactive browser are **withdrawn**.
 
-Interactive reference for the public Billing & Payment API (`/v1`), generated from [`contracts/openapi/public.v1.yaml`](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/contracts/openapi/public.v1.yaml) with [vitepress-openapi](https://vitepress-openapi.vercel.app/) (INT-302).
+External integration with billing is **EWDS-only**:
 
-- Raw contract: [/openapi/public.v1.yaml](/openapi/public.v1.yaml)
-- Narrative notes: [API & events](/reference/api)
+- **Published records** — statements, invoices, payments, payouts, KYC status (see [EWDS topic schemas](/architecture/ewds-topics)).
+- **Command channel** — pay invoice, start KYC, accept terms, billing runs, and other actions (AsyncAPI under `contracts/asyncapi/` in the repository).
 
-## Authentication (get a Bearer token)
+Nest modules still expose **internal** HTTP APIs (`contracts/openapi/internal/`) for service-to-service use; these are not published on the gateway as a product API.
 
-Every `/v1` call needs an **OIDC access token** in `Authorization: Bearer …`.
+Narrative integration notes: [API & events](/reference/api). Decision record: [INT-455](https://github.com/blooo-io/intelligent-eu-bps-source/blob/develop/docs/architecture/decisions/INT-455-remove-public-v1.md).
 
-On the upstream sample IdP (Keycloak realm `int`), the public client **`docs`** exposes a **username / password** token endpoint (Resource Owner Password Credentials — INT-403 / INT-404). Use credentials issued to you by an operator — **this page never publishes passwords**. Sample / UAT only — not for production IdPs.
-
-The helper and the IdP are rate-limited (gateway + Keycloak brute-force detection). Failed attempts cool down in the browser as well.
-
-### In-page helper
-
-Enter your IdP username and password, then **Copy Authorization value** into
-**Try it out → Authorization**. After paste, the curl sample under Samples must
-show `-H 'Authorization: Bearer …'` (INT-407 / INT-408). If it does not, the
-playground is not using the token yet — re-paste and wait a moment before Try it out.
-
-<ApiTokenHelper />
-
-### curl (same grant)
-
-Replace the placeholders with credentials you already have (never commit them):
-
-```bash
-curl -sS -X POST \
-  'https://auth.intelligent-eu-bp.blooo.dev/realms/int/protocol/openid-connect/token' \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'grant_type=password' \
-  -d 'client_id=docs' \
-  -d 'username=<username>' \
-  -d 'password=<password>' \
-  -d 'scope=openid' | jq -r .access_token
-```
-
-Then call the API:
-
-```bash
-curl -sS 'https://api.dev.intelligent-eu-bp.blooo.dev/v1/me' \
-  -H "Authorization: Bearer <access_token>"
-```
-
-If the password grant fails on a long-lived cluster, an operator must re-apply the `docs` client with `scripts/keycloak-ensure-uat-users.mjs` (realm ConfigMap import does not update existing clients).
-
----
-
-Use the sidebar to open each operation, or browse the full spec below.
-
-Playground servers (Try it out / Samples) include the upstream sample gateway `https://api.dev.intelligent-eu-bp.blooo.dev/v1` plus relative `/v1` and `http://localhost/v1`. You can also enter a custom URL.
-
-<OASpec />
+E2E evidence for the project path: EWDS project-path tests (`docs/testing/ewds-project-path-e2e.md`); cluster EWDS E2E is tracked under INT-454.

@@ -6,7 +6,6 @@ import { BillingEventsListener } from "./events/billing-events.listener.js";
 import { EVENT_BUS_PORT } from "./events/event-bus.port.js";
 import { createEventBus } from "./events/nats-event-bus.js";
 import { InternalReportingController } from "./reporting/internal.controller.js";
-import { PublicReportingController } from "./reporting/public.controller.js";
 import { ReportingService } from "./reporting/reporting.service.js";
 import {
   createParticipantsResolver,
@@ -15,7 +14,7 @@ import {
 
 @Module({
   imports: [ModuleTemplateModule.forRoot({ moduleName: "reporting" })],
-  controllers: [PublicReportingController, InternalReportingController],
+  controllers: [InternalReportingController],
   providers: [
     ReportingStore,
     ReportingService,

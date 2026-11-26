@@ -15,9 +15,9 @@ test("D5.5 release docs point at architecture, contracts and licence (INT-93/94/
   assert.match(deploy, /05-physical-architecture/);
   assert.match(deploy, /deploy\//);
   assert.match(deploy, /GitOps|Argo/);
-  assert.match(api, /openapi\/public\.v1\.yaml/);
   assert.match(api, /asyncapi\//);
   assert.match(api, /contracts\/README/);
+  assert.match(api, /INT-455|EWDS/);
   assert.match(notes, /Apache/);
   assert.match(notes, /Stripe test/);
   assert.match(notes, /mocked|mock/i);
@@ -25,7 +25,7 @@ test("D5.5 release docs point at architecture, contracts and licence (INT-93/94/
 
   await access("LICENSE");
   await access("NOTICE");
-  await access("contracts/openapi/public.v1.yaml");
+  await access("contracts/openapi/components/schemas.yaml");
 });
 
 test("INT-92 / INT-359 source release note matches package version", async () => {
@@ -93,14 +93,15 @@ test("INT-291 SonarQube quality note is linked", async () => {
   assert.match(deploy, /sonarqube\.md/);
 });
 
-test("A7: public API is documented as the apps/web reference-client API only", async () => {
-  const publicApi = await readFile("contracts/openapi/public.v1.yaml", "utf8");
-  const tp = await readFile(
-    "docs/architecture/04-technical-architecture.md",
+test("INT-455: integration docs describe EWDS-only external surface", async () => {
+  const api = await readFile("docs/release/integration-api.md", "utf8");
+  const decision = await readFile(
+    "docs/architecture/decisions/INT-455-remove-public-v1.md",
     "utf8",
   );
-  assert.match(publicApi, /reference client \(apps\/web\) only/);
-  assert.doesNotMatch(tp, /project UI consume only the public API/);
+  assert.match(decision, /removed/);
+  assert.match(api, /EWDS/);
+  assert.doesNotMatch(api, /@intelligent\/public-api-client/);
 });
 
 test("A8: configuration guide lists the real adapter flags", async () => {

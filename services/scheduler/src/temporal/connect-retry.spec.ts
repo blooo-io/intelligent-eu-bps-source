@@ -49,4 +49,20 @@ describe("connectWithRetry (INT-227)", () => {
     ).rejects.toThrow("down");
     expect(connect).toHaveBeenCalledTimes(3);
   });
+
+  it("wraps a non-Error rejection after the last attempt", async () => {
+    const connect = vi.fn(async () => {
+      throw "not-an-error";
+    });
+    const sleep = vi.fn(async () => undefined);
+    await expect(
+      connectWithRetry("temporal:7233", {
+        connect,
+        sleep,
+        attempts: 2,
+        baseDelayMs: 1,
+      }),
+    ).rejects.toThrow("not-an-error");
+  });
 });
+

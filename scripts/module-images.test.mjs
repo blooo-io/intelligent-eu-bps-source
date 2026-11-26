@@ -78,15 +78,6 @@ test("INT-410/INT-412 Dependabot auto-merge squash-merges only after CI success"
   assert.equal(text.includes("gh pr merge --auto"), false);
 });
 
-test("INT-412 web app tsconfig excludes Vitest specs from production tsc", async () => {
-  const text = await readFile(
-    new URL("../apps/web/tsconfig.app.json", import.meta.url),
-    "utf8",
-  );
-  assert.match(text, /"types":\s*\["vite\/client"\]/);
-  assert.match(text, /src\/\*\*\/\*\.spec\.ts/);
-  assert.equal(text.includes("vitest/globals"), false);
-});
 
 test("INT-418 pnpm overrides pin vitest 4.1.12 (patched mocker CVEs; avoid vitest 5 coverage drop)", async () => {
   const pkg = JSON.parse(
@@ -139,19 +130,6 @@ test("cd-smoke Dockerfile is discovered and runs as non-root", async () => {
   assert.match(source, /INT-420/);
 });
 
-// INT-137: AC-01 web image is discoverable as apps-web and runs non-root.
-test("apps/web Dockerfile is discovered and runs as non-root", async () => {
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-  const dockerfiles = await findDockerfiles(root);
-  assert.ok(
-    dockerfiles.includes("apps/web/Dockerfile"),
-    `expected apps/web/Dockerfile in ${JSON.stringify(dockerfiles)}`,
-  );
-  const source = await readFile(path.join(root, "apps/web/Dockerfile"), "utf8");
-  assert.equal(dockerfileRunsAsNonRoot(source), true);
-  assert.equal(imageSuffix("apps/web/Dockerfile"), "apps-web");
-  assert.match(source, /nodejs22-debian13:nonroot/);
-});
 
 // INT-244: developer API portal image is discoverable as apps-docs-portal.
 test("apps/docs-portal Dockerfile is discovered and runs as non-root", async () => {
@@ -185,23 +163,11 @@ test("module image build can push a floating tag alongside the SHA", async () =>
 });
 
 const ALL = [
-  "apps/web/Dockerfile",
   "apps/docs-portal/Dockerfile",
   "services/cd-smoke/Dockerfile",
   "services/participants/Dockerfile",
   "services/payments/Dockerfile",
 ];
-
-// INT-183: path → image selection
-test("selectDockerfilesForChangedPaths rebuilds only apps-web for web paths", () => {
-  assert.deepEqual(
-    selectDockerfilesForChangedPaths(
-      ["apps/web/src/App.tsx", "apps/web/src/auth/protected-outlet.tsx"],
-      ALL,
-    ),
-    ["apps/web/Dockerfile"],
-  );
-});
 
 test("selectDockerfilesForChangedPaths rebuilds one service for its tree", () => {
   assert.deepEqual(
@@ -221,20 +187,10 @@ test("selectDockerfilesForChangedPaths rebuilds all on packages or config change
   );
 });
 
-// INT-185: lockfile + web-only (Playwright devDependency) → apps-web only
-test("selectDockerfilesForChangedPaths keeps web-only lockfile changes selective", () => {
+test("INT-455 apps/site has no Dockerfile so tree changes force full rebuild", () => {
   assert.deepEqual(
-    selectDockerfilesForChangedPaths(
-      [
-        "apps/web/package.json",
-        "apps/web/e2e/auth-gate.spec.ts",
-        "pnpm-lock.yaml",
-        "scripts/run-tests.mjs",
-        "docs/testing/ac01-e2e.md",
-      ],
-      ALL,
-    ),
-    ["apps/web/Dockerfile"],
+    selectDockerfilesForChangedPaths(["apps/site/index.md"], ALL),
+    ALL,
   );
 });
 
@@ -254,9 +210,8 @@ test("selectDockerfilesForChangedPaths skips docs/deploy/contracts/scripts pushe
       [
         "docs/testing/v1-test-plan.md",
         "deploy/envs/dev/values.yaml",
-        "contracts/openapi/public.v1.yaml",
+        "contracts/openapi/components/schemas.yaml",
         "scripts/run-tests.mjs",
-        ".github/workflows/e2e-dev.yml",
       ],
       ALL,
     ),
@@ -267,10 +222,10 @@ test("selectDockerfilesForChangedPaths skips docs/deploy/contracts/scripts pushe
 test("selectDockerfilesForChangedPaths unions multiple module hits", () => {
   assert.deepEqual(
     selectDockerfilesForChangedPaths(
-      ["apps/web/src/main.tsx", "services/payments/src/main.ts"],
+      ["apps/docs-portal/public/index.html", "services/payments/src/main.ts"],
       ALL,
     ),
-    ["apps/web/Dockerfile", "services/payments/Dockerfile"],
+    ["apps/docs-portal/Dockerfile", "services/payments/Dockerfile"],
   );
 });
 
@@ -360,17 +315,20 @@ test("Dockerfiles for mocks consumers COPY mocks/", async () => {
 });
 
 test("dockerfileForModulePath and path classifiers", () => {
-  assert.equal(dockerfileForModulePath("apps/web/src/App.tsx"), "apps/web/Dockerfile");
+  assert.equal(
+    dockerfileForModulePath("apps/docs-portal/public/index.html"),
+    "apps/docs-portal/Dockerfile",
+  );
   assert.equal(dockerfileForModulePath("services/foo/bar.ts"), "services/foo/Dockerfile");
   assert.equal(dockerfileForModulePath("docs/readme.md"), null);
   assert.equal(isGlobalImageRebuildPath("pnpm-lock.yaml"), false);
   assert.equal(isGlobalImageRebuildPath("scripts/module-images.mjs"), false);
   assert.equal(isGlobalImageRebuildPath(".trivyignore"), true);
-  assert.equal(isGlobalImageRebuildPath("apps/web/src/x.ts"), false);
-  assert.equal(isSkipOnlyPath("deploy/charts/web/values.yaml"), true);
+  assert.equal(isGlobalImageRebuildPath("apps/site/foo.md"), false);
+  assert.equal(isSkipOnlyPath("deploy/envs/dev/values.yaml"), true);
   assert.equal(isSkipOnlyPath("scripts/run-tests.mjs"), true);
   assert.equal(isSkipOnlyPath("scripts/module-images.mjs"), true);
-  assert.equal(isSkipOnlyPath("apps/web/src/x.ts"), false);
+  assert.equal(isSkipOnlyPath("apps/docs-portal/public/index.html"), false);
 });
 
 test("listChangedPaths returns null for zero/missing base", () => {
@@ -413,9 +371,9 @@ test("listChangedPaths parses git diff output", () => {
   const paths = listChangedPaths("/repo", "aaa", "bbb", (_root, args) => {
     if (args[0] === "cat-file") return "";
     assert.deepEqual(args.slice(0, 3), ["diff", "--name-only", "--diff-filter=ACMRD"]);
-    return "apps/web/src/App.tsx\nservices/participants/src/x.ts\n";
+    return "apps/site/index.md\nservices/participants/src/x.ts\n";
   });
-  assert.deepEqual(paths, ["apps/web/src/App.tsx", "services/participants/src/x.ts"]);
+  assert.deepEqual(paths, ["apps/site/index.md", "services/participants/src/x.ts"]);
 });
 
 test("resolveDockerfilesToBuild honours IMAGE_CHANGED_ONLY", () => {
@@ -436,9 +394,9 @@ test("resolveDockerfilesToBuild honours IMAGE_CHANGED_ONLY", () => {
     "/repo",
     ALL,
     { IMAGE_CHANGED_ONLY: "true", IMAGE_DIFF_BASE: "aaa", IMAGE_DIFF_HEAD: "bbb" },
-    () => ["apps/web/src/App.tsx"],
+    () => ["services/participants/src/main.ts"],
   );
-  assert.deepEqual(selective.dockerfiles, ["apps/web/Dockerfile"]);
+  assert.deepEqual(selective.dockerfiles, ["services/participants/Dockerfile"]);
   assert.match(selective.reason, /selective/);
 
   const skip = resolveDockerfilesToBuild(
@@ -461,7 +419,7 @@ test("resolveDockerfilesToBuild uses parent when before is zero (INT-318)", () =
       assert.equal(before, "parentsha");
       assert.equal(after, "tipsha");
       // scripts-only tip (same class as INT-317) must not rebuild images
-      return [".github/workflows/e2e-dev.yml", "scripts/stripe-fresh-billing-run.mjs"];
+      return ["docs/testing/ewds-project-path-e2e.md", "scripts/stripe-fresh-billing-run.mjs"];
     },
     () => "parentsha",
   );

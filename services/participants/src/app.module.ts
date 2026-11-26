@@ -5,7 +5,6 @@ import { ParticipantsStore } from "./domain/store.js";
 import { createIdpAdminPort } from "./idp/idp-admin.factory.js";
 import { IDP_ADMIN_PORT } from "./idp/idp.port.js";
 import { InternalParticipantsController } from "./participants/internal.controller.js";
-import { PublicParticipantsController } from "./participants/public.controller.js";
 import { ParticipantsService } from "./participants/participants.service.js";
 import { createParticipantTransaction } from "./persistence/participant-journal.js";
 
@@ -46,7 +45,7 @@ import {
   imports: [
     ModuleTemplateModule.forRoot({ moduleName: "participants" }),
   ],
-  controllers: [InternalParticipantsController, PublicParticipantsController],
+  controllers: [InternalParticipantsController],
   providers: [
     ParticipantsStore,
     ParticipantsService,

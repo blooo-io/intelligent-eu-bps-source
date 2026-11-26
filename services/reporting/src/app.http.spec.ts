@@ -4,13 +4,8 @@ import { NestFactory } from "@nestjs/core";
 import type { INestApplication } from "@nestjs/common";
 import { AppModule } from "./app.module.js";
 import { ReportingService } from "./reporting/reporting.service.js";
-import {
-  PARTICIPANTS_RESOLVER,
-  type ParticipantsResolverPort,
-} from "./ports/participants-resolver.port.js";
 
 const COMMUNITY = "c0ffee00-1234-4abc-8def-0123456789ab";
-const OTHER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const PERIOD = "2026-09";
 const CONSUMER = "11111111-2222-4333-8444-555555555555";
 const PRODUCER = "22222222-2222-4333-8444-555555555555";
@@ -20,7 +15,6 @@ describe("reporting HTTP (INT-112)", () => {
   let app: INestApplication;
   let base: string;
   let service: ReportingService;
-  let resolver: ParticipantsResolverPort;
 
   beforeAll(async () => {
     app = await NestFactory.create(AppModule, { logger: false });
@@ -31,14 +25,10 @@ describe("reporting HTTP (INT-112)", () => {
     }
     base = `http://127.0.0.1:${address.port}`;
     service = app.get(ReportingService);
-    resolver = app.get<ParticipantsResolverPort>(PARTICIPANTS_RESOLVER);
   });
 
   beforeEach(() => {
     service.resetStore();
-    // INT-373 — the IdP sub of the seeded member is bound to the registry CONSUMER id.
-    resolver.resolveByIdpSub = async (sub: string) =>
-      sub === CONSUMER ? { participantId: CONSUMER, communityId: COMMUNITY } : null;
     service.projectInvoice({
       invoiceId: INV,
       communityId: COMMUNITY,
@@ -71,23 +61,13 @@ describe("reporting HTTP (INT-112)", () => {
     expect(await res.json()).toEqual({ status: "ok", module: "reporting" });
   });
 
-  it("manager reads overview/summary; operator downloads KPI (REQ-018/032/047)", async () => {
-    const denied = await fetch(
-      `${base}/v1/communities/${COMMUNITY}/payments-overview`,
-    );
-    expect(denied.status).toBe(401);
-
-    const overview = await fetch(
-      `${base}/v1/communities/${COMMUNITY}/payments-overview`,
-      {
-        headers: {
-          "x-intelligent-roles": "manager",
-          "x-intelligent-community": COMMUNITY,
-        },
-      },
-    );
-    expect(overview.status).toBe(200);
-    expect(await overview.json()).toHaveLength(1);
+  it("internal build and KPI export require service (REQ-018/032/047)", async () => {
+    const buildDenied = await fetch(`${base}/internal/v1/reports:build`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ communityId: COMMUNITY, period: PERIOD }),
+    });
+    expect(buildDenied.status).toBe(401);
 
     const build = await fetch(`${base}/internal/v1/reports:build`, {
       method: "POST",
@@ -99,22 +79,6 @@ describe("reporting HTTP (INT-112)", () => {
     });
     expect(build.status).toBe(202);
 
-    const summary = await fetch(
-      `${base}/v1/reports/summary?communityId=${COMMUNITY}&period=${PERIOD}`,
-      {
-        headers: {
-          "x-intelligent-roles": "manager",
-          "x-intelligent-community": COMMUNITY,
-        },
-      },
-    );
-    expect(summary.status).toBe(200);
-    expect(await summary.json()).toMatchObject({
-      invoiceCount: 1,
-      paymentCount: 1,
-      total: "10.00",
-    });
-
     const exportKpi = await fetch(`${base}/internal/v1/kpi-exports`, {
       method: "POST",
       headers: {
@@ -124,176 +88,5 @@ describe("reporting HTTP (INT-112)", () => {
       body: JSON.stringify({ communityId: COMMUNITY, period: PERIOD }),
     });
     expect(exportKpi.status).toBe(202);
-
-    const kpi = await fetch(
-      `${base}/v1/kpi-exports/${PERIOD}?communityId=${COMMUNITY}`,
-      { headers: { "x-intelligent-roles": "operator" } },
-    );
-    expect(kpi.status).toBe(200);
-    expect(kpi.headers.get("content-type")).toContain("application/octet-stream");
-    const body = await kpi.text();
-    expect(body).toContain(INV);
-    expect(body).toContain("10.00");
-  });
-
-  // UAT-060 — community B must not read community A's reports or history.
-  it("UAT-060 — another community cannot read overview, summary or history (REQ-049)", async () => {
-    const overview = await fetch(
-      `${base}/v1/communities/${COMMUNITY}/payments-overview`,
-      {
-        headers: {
-          "x-intelligent-roles": "manager",
-          "x-intelligent-token-use": "user",
-          "x-intelligent-sub": "manager-b",
-          "x-intelligent-community": OTHER,
-        },
-      },
-    );
-    expect(overview.status).toBe(403);
-
-    const summary = await fetch(
-      `${base}/v1/reports/summary?communityId=${COMMUNITY}&period=${PERIOD}`,
-      {
-        headers: {
-          "x-intelligent-roles": "manager",
-          "x-intelligent-token-use": "user",
-          "x-intelligent-sub": "manager-b",
-          "x-intelligent-community": OTHER,
-        },
-      },
-    );
-    expect(summary.status).toBe(403);
-
-    // UAT-060 / REQ-049 — payment-method report is community-scoped like summary.
-    const paymentMethodsDenied = await fetch(
-      `${base}/v1/reports/payment-methods?communityId=${COMMUNITY}&period=${PERIOD}`,
-      {
-        headers: {
-          "x-intelligent-roles": "manager",
-          "x-intelligent-token-use": "user",
-          "x-intelligent-sub": "manager-b",
-          "x-intelligent-community": OTHER,
-        },
-      },
-    );
-    expect(paymentMethodsDenied.status).toBe(403);
-
-    const foreignHistory = await fetch(
-      `${base}/v1/participants/${CONSUMER}/history`,
-      {
-        headers: {
-          "x-intelligent-roles": "manager",
-          "x-intelligent-token-use": "user",
-          "x-intelligent-sub": "manager-b",
-          "x-intelligent-community": OTHER,
-        },
-      },
-    );
-    expect(foreignHistory.status).toBe(404);
-
-    const ownHistory = await fetch(
-      `${base}/v1/participants/${CONSUMER}/history`,
-      {
-        headers: {
-          "x-intelligent-roles": "member",
-          "x-intelligent-token-use": "user",
-          "x-intelligent-sub": CONSUMER,
-          "x-intelligent-community": COMMUNITY,
-        },
-      },
-    );
-    expect(ownHistory.status).toBe(200);
-    const history = (await ownHistory.json()) as { invoices: unknown[] };
-    expect(history.invoices).toHaveLength(1);
-
-    const otherMember = await fetch(
-      `${base}/v1/participants/${PRODUCER}/history`,
-      {
-        headers: {
-          "x-intelligent-roles": "member",
-          "x-intelligent-token-use": "user",
-          "x-intelligent-sub": CONSUMER,
-          "x-intelligent-community": COMMUNITY,
-        },
-      },
-    );
-    expect(otherMember.status).toBe(404);
-
-    const unbound = await fetch(
-      `${base}/v1/participants/${CONSUMER}/history`,
-      {
-        headers: {
-          "x-intelligent-roles": "member",
-          "x-intelligent-token-use": "user",
-          "x-intelligent-sub": "unbound-sub",
-          "x-intelligent-community": COMMUNITY,
-        },
-      },
-    );
-    expect(unbound.status).toBe(404);
-  });
-
-  it("UAT-057 ER1.4 GET /reports/payment-methods returns per-method KPIs", async () => {
-    service.projectPayment({
-      paymentId: "dddddddd-dddd-4ddd-8ddd-eeeeeeeeeeee",
-      invoiceId: INV,
-      communityId: COMMUNITY,
-      amount: "10.00",
-      currency: "EUR",
-      status: "succeeded",
-      method: "card",
-      processingTimeMs: 2000,
-      feeAmount: "0.44",
-      feeCurrency: "EUR",
-    });
-
-    const res = await fetch(
-      `${base}/v1/reports/payment-methods?communityId=${COMMUNITY}&period=${PERIOD}`,
-      {
-        headers: {
-          "x-intelligent-roles": "manager",
-          "x-intelligent-community": COMMUNITY,
-        },
-      },
-    );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      communityId: string;
-      period: string;
-      rows: Array<{ method: string; succeededCount: number }>;
-    };
-    expect(body.communityId).toBe(COMMUNITY);
-    expect(body.period).toBe(PERIOD);
-    expect(body.rows.some((r) => r.method === "card" && r.succeededCount >= 1)).toBe(
-      true,
-    );
-  });
-
-  // REQ-049 — community B must not read community A's payout overview.
-  it("REQ-049: another community's manager gets 403/404 on payouts-overview", async () => {
-    const denied = await fetch(
-      `${base}/v1/communities/${COMMUNITY}/payouts-overview`,
-      {
-        headers: {
-          "x-intelligent-roles": "manager",
-          "x-intelligent-token-use": "user",
-          "x-intelligent-sub": "manager-b",
-          "x-intelligent-community": OTHER,
-        },
-      },
-    );
-    expect([403, 404]).toContain(denied.status);
-
-    const ok = await fetch(
-      `${base}/v1/communities/${COMMUNITY}/payouts-overview?period=${PERIOD}`,
-      {
-        headers: {
-          "x-intelligent-roles": "manager",
-          "x-intelligent-community": COMMUNITY,
-        },
-      },
-    );
-    expect(ok.status).toBe(200);
-    expect(await ok.json()).toEqual([]);
   });
 });

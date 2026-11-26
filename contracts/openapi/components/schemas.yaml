@@ -3,7 +3,7 @@ info:
   title: Shared V1 schemas
   version: 1.0.0
   description: >
-    Schemas shared by the public and internal contracts. Field names come from
+    Schemas shared by internal OpenAPI contracts (INT-455). Field names come from
     the validated logical data model (02 §6) and the API catalogue (03 §3).
     This document is not an API.
   license:

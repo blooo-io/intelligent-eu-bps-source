@@ -260,7 +260,7 @@ test("INT-289 — APISIX security headers helper on public routes", async () => 
     "utf8",
   );
   assert.match(routes, /securityHeadersPlugin/);
-  assert.match(routes, /name: web-app[\s\S]*plugins:/);
+  assert.match(routes, /name: docs-portal[\s\S]*plugins:/);
 
   const values = await readFile(
     "deploy/charts/apisix-gateway/values.yaml",

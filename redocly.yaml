@@ -4,8 +4,6 @@ rules:
   info-license-strict: off
   no-unused-components: error
 apis:
-  public@v1:
-    root: contracts/openapi/public.v1.yaml
   webhook@v1:
     root: contracts/openapi/webhooks/payment-provider.v1.yaml
   participants@v1:

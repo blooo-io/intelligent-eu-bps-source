@@ -19,7 +19,8 @@ D5.5 remediation closeout (INT-440) and e2e-dev recovery on `dev`:
 - **INT-449** — Docs alignment: ontology datamodel view (`06-datamodel-ontology.md`), detailed scenario flows S1–S14 (`07-scenario-flows.md`), architecture/requirements text updated for EWDS-only Actor + UserAccount T&C.
 - **INT-450…452** — Scenario-flow polish (Billing CGW on every hop, ontology on steps, REQ|UAT index columns).
 - **INT-453** — EWDS project-path **full E2E** (S1–S14): `@intelligent/ewds-project-path-e2e` journey suite + Mock CGW wire tests; matrix in `docs/testing/ewds-project-path-e2e.md`.
-- e2e-dev green on develop tip that ships this patch.
+- **INT-455** — **Remove** public REST `/v1` and reference client `apps/web` (AC-01). EWDS-only external surface; internal module APIs + payment-provider webhooks remain. Decision: `docs/architecture/decisions/INT-455-remove-public-v1.md`.
+- e2e-dev (AC-01 Playwright) withdrawn with INT-455.
 
 ## What ships
 
@@ -27,7 +28,7 @@ D5.5 remediation closeout (INT-440) and e2e-dev recovery on `dev`:
 - In-house self-billing PDFs (`pdf-lib`) with gapless legal numbers `SB-<producer8>-<seq6>` per producer; Stripe Invoicing removed (A6).
 - Payouts from the producer's Stripe Connect account to their bank (manual schedule; optional `autoPayout`).
 - KYC for every participant role (Connect onboarding target) and Stripe Identity for community managers; `kycVerified` gates statements, invoices, payments and payouts. Backend KycService / Identity, shared readiness, ActorSourcePort, BillingModeResolver, live-mode guards and per-community PSP key selection shipped (INT-431 / WS3).
-- NestJS modules AC-03…AC-14, Refine reference web app (AC-01), mock suite (AC-15).
+- NestJS modules AC-03…AC-14, mock suite (AC-15). Reference web app (AC-01) and public `/v1` removed (INT-455).
 - Stripe test mode Connect payments and webhooks; live keys selectable per community when enabled (REQ-043).
 - EWDS Client Gateway adapters (`@intelligent/ewds-client`) for the five billing records (`billingStatement`, `billingInvoice`, `billingPayment`, `billingPayout`, `billingKycStatus`) and the billing command channel; mock default until EWAG grants topics/roles. Actor intake, command dispatcher/poller, and erasure/tariff EWDS transports shipped (INT-432 / WS4).
 - Live or virtual billing mode per community (Greenvolt first live community).

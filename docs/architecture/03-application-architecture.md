@@ -21,9 +21,9 @@ baseline: 02-logical-architecture.md v2.0 (revised 2026-11-25); 01-functional
 |---|---|---|
 | AD-1 | **Modular architecture, one deployable module per logical block.** Each module is built, tested and deployed independently. It owns its data and exposes its capabilities only through APIs and events. | 2026-10-07 |
 | AD-2 | **Target hosting: a Kubernetes cluster.** Each module runs as its own workload. Cluster design belongs to the technical and physical views. | 2026-10-07 |
-| AD-3 | **External API: REST `/v1` for the reference client (`apps/web`); EWDS records + command channel (AsyncAPI) for the project UI.** Authentication on `/v1` uses OIDC bearer tokens from the project IdP. | 2026-10-07; REQ-052; A7 |
+| AD-3 | **External API: EWDS records + command channel (AsyncAPI) only.** ~~REST `/v1` for the reference client~~ **Withdrawn (INT-455).** | 2026-10-07; REQ-052; A7; INT-455 |
 | AD-4 | **Events between modules: asynchronous, at-least-once, through a transactional outbox per module.** Consumers are idempotent. The transport is chosen in the technical view. | 2026-10-07; logical LP-3/LP-4 |
-| AD-5 | **Reference client (`apps/web`) for adopters without the project UI**; not part of the INTELLIGENT project UI path (A7). | 2026-10-07; REQ-052 |
+| AD-5 | ~~**Reference client (`apps/web`) for adopters without the project UI**~~ **Withdrawn (INT-455)** — no Blooo portal / reference SPA on the product path. | 2026-10-07; REQ-052; INT-455 |
 | AD-6 | **Adapters selected by environment variables.** EWDS adapters are real with **mock as the code default** (A8); deployed environments switch them live. Stripe runs in test or live mode per community. | A8; A10.1 |
 | AD-7 | **API-first, contract-first** (added 2026-10-07): public and internal REST APIs are specified in OpenAPI, domain events and the EWDS command channel in AsyncAPI, and EWDS record schemas as JSON Schema **before** implementation. Contracts are the source for mocks and generated clients (see technical view TP-8 / TD-13). | 2026-10-07; A7 |
 
@@ -53,7 +53,7 @@ That makes 13 back-end modules, the web app and the mock suite. Every component 
 
 ### 2.1 Overview by layer
 
-D6 (spec v6.1) — module map. The reference web app is the only `/v1` client; the project UI uses the EWDS command channel.
+D6 (spec v6.1) — module map. **INT-455:** no reference web app / public `/v1`; the project UI uses the EWDS command channel only.
 
 ```mermaid
 %% elk %%
@@ -234,9 +234,9 @@ flowchart LR
 
 ## 3. APIs
 
-### 3.1 Public API (AC-02, `/v1`, OpenAPI)
+### 3.1 Public API (AC-02, `/v1`, OpenAPI) — **withdrawn (INT-455)**
 
-Consumed by the reference client **AC-01 (`apps/web`) only** (A7 / REQ-052). The INTELLIGENT project UI integrates through EWDS records and the command channel, not through `/v1`. Every call needs a bearer token, and responses only contain data of the caller's own participant or community (REQ-010).
+~~Consumed by the reference client AC-01 (`apps/web`).~~ **Removed.** The INTELLIGENT project UI integrates through EWDS records and the command channel only (REQ-052 / A7 / INT-455). APISIX still terminates TLS and routes payment-provider webhooks and the docs portal; there is no public `/v1` product API.
 
 | Resource / operation | Role(s) | Served by | Requirements | Screen |
 |---|---|---|---|---|
@@ -385,23 +385,9 @@ sequenceDiagram
 
 The project UI sends `billingCommandRequest` messages (`startPayment`, `requestWithdrawal`, `startKyc`, `acceptTerms`, `sendReminder`, `triggerBillingRun`, `setupPaymentMethod`, …). Actor create/update is **not** a command — R2M publishes the `actor` topic (INT-447). AC-10 authorizes the three layers (channel role, sender DID, actor role), dispatches to the owning module, and publishes `billingCommandReply` with a **PspHandoff** when needed — Stripe-hosted URL or embedded `clientSecret` + `publishableKey` (A7-bis). See D4 in [`ewds-client-gateway.md`](ewds-client-gateway.md). End-to-end sequences: [`07-scenario-flows.md`](07-scenario-flows.md); ontology map: [`06-datamodel-ontology.md`](06-datamodel-ontology.md).
 
-## 6. Reference screens (AC-01 — reference client, V1)
+## 6. Reference screens (AC-01) — **withdrawn (INT-455)**
 
-| Area | Screen | Main API | Requirements |
-|---|---|---|---|
-| Participant | Sign-in (IdP), home with readiness checklist | `/me` | REQ-033, REQ-049 |
-| Participant | Profile | `/me/profile` | REQ-009 |
-| Participant | Terms (+ self-billing mandate for producers) | `/terms`, `/me/terms-acceptance` | REQ-050 |
-| Participant | Payment setup (Stripe onboarding or payment method) | `/me/payment-account/onboarding` | REQ-051 |
-| Participant | Statements, balances, invoices, payouts | `/me/statements`, `/me/balances`, `/me/invoices`, `/me/payouts` | REQ-059, REQ-015 |
-| Participant | Invoices (list, detail, PDF) + pay | `/me/invoices`, `/invoices/{id}/payments` | REQ-007, REQ-014, REQ-039 |
-| Participant | Privacy (export / erasure request) | `/data-subject-requests` | REQ-013 |
-| Manager | Community settings | `/communities/{id}/settings` | REQ-006, REQ-043, REQ-056 |
-| Manager | Participants (import, registry, offboard) | `/communities/{id}/participants…` | REQ-008, REQ-058, REQ-012 |
-| Manager | Billing runs (trigger, follow) | `/billing-runs` | REQ-006 |
-| Manager | Invoices and payment overview (incl. manual status) | `/payments-overview`, `/invoices/{id}/status` | REQ-018, REQ-044 |
-| Manager | Member history and periodic summary | `/participants/{id}/history`, `/reports/summary` | REQ-031, REQ-032 |
-| Operator | Intake anomalies, discrepancies, jobs | `/intake/anomalies`, `/reconciliation/…`, `/jobs` | REQ-029, REQ-041 |
+The former reference SPA (`apps/web`) and its `/v1` screen map are **removed**. Project UX is owned by the R2M UI over EWDS (see [`07-scenario-flows.md`](07-scenario-flows.md)).
 
 ## 7. Adapters and V1 implementations
 
@@ -496,5 +482,5 @@ Every adapter implements one logical port behind a stable interface. Switching f
 
 ## 13. Changes in v2.0 (2026-11-25)
 - Two-level billing: monthly statements (AC-05) plus pair invoices (AC-06); early settlement removed (REQ-057 deprecated).
-- Project UI path: five EWDS records + command channel (AC-10); `/v1` is reference-client only.
+- Project UI path: five EWDS records + command channel (AC-10); public `/v1` / reference client withdrawn (INT-455).
 - Payouts, KYC for every participant, hosted Checkout / Account Link onboarding, in-house PDF invoices (TP-7).

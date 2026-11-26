@@ -37,7 +37,7 @@ describe("reconciliation HTTP (INT-108)", () => {
     expect(await res.json()).toEqual({ status: "ok", module: "reconciliation" });
   });
 
-  it("reconcile requires service principal and lists discrepancies for operator (REQ-041)", async () => {
+  it("reconcile requires service principal (REQ-041)", async () => {
     service.projectInvoice({
       invoiceId: "inv-missing",
       total: "1.00",
@@ -80,17 +80,5 @@ describe("reconciliation HTTP (INT-108)", () => {
       body: JSON.stringify({ scope: "market", communityId: COMMUNITY }),
     });
     expect(marketRun.status).toBe(202);
-
-    const deniedList = await fetch(`${base}/v1/reconciliation/discrepancies`);
-    expect(deniedList.status).toBe(401);
-
-    const list = await fetch(
-      `${base}/v1/reconciliation/discrepancies?communityId=${COMMUNITY}`,
-      { headers: { "x-intelligent-roles": "operator" } },
-    );
-    expect(list.status).toBe(200);
-    const body = (await list.json()) as Array<{ scope: string }>;
-    expect(body.some((d) => d.scope === "invoice")).toBe(true);
-    expect(body.some((d) => d.scope === "market")).toBe(true);
   });
 });

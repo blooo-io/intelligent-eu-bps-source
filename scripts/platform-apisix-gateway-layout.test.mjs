@@ -19,7 +19,7 @@ test("dev APISIX gateway Argo app lands in ingress wave 4 (INT-114)", async () =
   assert.match(demo, /targetRevision: v1\.0\.1/);
 });
 
-test("gateway chart has webhook without OIDC and /v1 with openid-connect", async () => {
+test("gateway chart has webhook without OIDC; public /v1 withdrawn (INT-455)", async () => {
   const routes = await readFile(
     "deploy/charts/apisix-gateway/templates/routes.yaml",
     "utf8",
@@ -27,17 +27,14 @@ test("gateway chart has webhook without OIDC and /v1 with openid-connect", async
   assert.match(routes, /kind: ApisixRoute/);
   assert.match(routes, /Values\.webhook\.path/);
   assert.match(routes, /limit-req/);
-  assert.match(routes, /apisix-gateway\.oidcPlugin/);
   assert.match(routes, /auth-idp/);
+  assert.match(routes, /INT-455/);
+  assert.doesNotMatch(routes, /name: public-api/);
+  assert.doesNotMatch(routes, /name: web-app/);
   // INT-404 — token endpoint rate-limited ahead of the catch-all auth route.
   assert.match(routes, /keycloak-token/);
   assert.match(routes, /openid-connect\/token/);
   assert.match(routes, /Values\.auth\.tokenRate\.rate/);
-  assert.match(routes, /web-app/);
-  // INT-218 — AC-09 paths must not fall through to participants /v1/communities/*.
-  assert.match(routes, /communities\/\*\/payments-overview/);
-  assert.match(routes, /participants\/\*\/history/);
-  assert.match(routes, /name: reporting[\s\S]*priority: 60/);
   // INT-170 / INT-171 — Keycloak KC_PROXY_HEADERS=forwarded needs RFC7239 Forwarded.
   assert.match(routes, /proxy-rewrite/);
   assert.match(routes, /Forwarded:/);
@@ -131,7 +128,7 @@ test("role claim path is configuration on gateway, modules and web (NFR-013 / IN
   const modules = [
     "compliance", "invoicing", "notification", "participants", "payments",
     "publication", "reconciliation", "reference-data", "reporting",
-    "scheduler", "settlement", "trade-intake", "web",
+    "scheduler", "settlement", "trade-intake",
   ];
   for (const name of modules) {
     const chart = await readFile(`deploy/charts/${name}/values.yaml`, "utf8");

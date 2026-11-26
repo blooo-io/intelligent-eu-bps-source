@@ -241,6 +241,44 @@ describe("ParticipantsService", () => {
     });
   });
 
+  it("INT-447 / REQ-009: PUT profile refused when source=ewds (profile_managed_by_ewds)", async () => {
+    const participantId = "aaaaaaaa-1111-4111-8111-111111111199";
+    const idpUserId = "bbbbbbbb-2222-4222-8222-222222222299";
+    store.putParticipant({
+      participantId,
+      communityId,
+      role: "consumer",
+      status: "ProfileCompleted",
+      marketActorId: "mkt-ewds-lock",
+      meterId: "m-ewds-lock",
+      idpUserId,
+      profile: {
+        name: "Locked By Ewds",
+        address: "1 Lock St",
+        email: "locked@example.invalid",
+      },
+      termsVersionAccepted: null,
+      selfBillingMandate: false,
+      paymentAccountReady: false,
+      paymentBlockReason: null,
+      source: "ewds",
+      postalAddress: null,
+      phone: null,
+      termsAcceptedAt: null,
+      kycVerified: false,
+      actorVersion: "1",
+    });
+    await expect(
+      service.updateProfile(idpUserId, {
+        name: "Should Fail",
+        address: "2 Lock St",
+        email: "locked@example.invalid",
+      }),
+    ).rejects.toMatchObject({
+      response: { code: "profile_managed_by_ewds" },
+    });
+  });
+
   it("advances readiness through profile, terms and payment (BR-09, REQ-050)", async () => {
     const [created] = await service.importParticipants(communityId, [
       {

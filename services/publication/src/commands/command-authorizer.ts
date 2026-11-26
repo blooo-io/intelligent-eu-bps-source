@@ -36,6 +36,7 @@ export class CommandAuthorizer {
       requestWithdrawal: policyRequestWithdrawal,
       setInvoiceStatus: policyManagerOfInvoiceCommunity,
       startKyc: policyStartKyc,
+      acceptTerms: policyAcceptTerms,
       sendReminder: policyManagerOfInvoiceCommunity,
       triggerBillingRun: policyTriggerBillingRun,
       setupPaymentMethod: policySetupPaymentMethod,
@@ -157,6 +158,17 @@ function policyTriggerBillingRun(ctx: PolicyCtx): AuthzDecision {
 
 /** A7-bis — member may set up a payment method for themselves. */
 function policySetupPaymentMethod(ctx: PolicyCtx): AuthzDecision {
+  const member = ctx.authz.memberships.find((m) => m.role === "member");
+  if (!member) return { allow: false, code: "forbidden" };
+  return {
+    allow: true,
+    communityId: member.communityId,
+    role: "member",
+  };
+}
+
+/** INT-447 / REQ-050 — member accepts T&C (+ self-billing) for their Actor. */
+function policyAcceptTerms(ctx: PolicyCtx): AuthzDecision {
   const member = ctx.authz.memberships.find((m) => m.role === "member");
   if (!member) return { allow: false, code: "forbidden" };
   return {

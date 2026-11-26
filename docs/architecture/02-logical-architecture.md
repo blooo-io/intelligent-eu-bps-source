@@ -361,7 +361,7 @@ stateDiagram-v2
 ```mermaid
 %% elk %%
 stateDiagram-v2
-  [*] --> Invited: imported by manager or EWDS Actor
+  [*] --> Invited: EWDS Actor published by project UI (R2M)
   Invited --> ProfileCompleted: login, profile
   ProfileCompleted --> TermsAccepted: terms (+ self-billing mandate for producers)
   TermsAccepted --> Ready: KYC verified (Connect for every role; Identity for managers) and payment method when buying

@@ -210,6 +210,8 @@ export class CommandDispatcher {
         return this.doStartRun(req, decision);
       case "setupPaymentMethod":
         return this.doSetupPaymentMethod(req);
+      case "acceptTerms":
+        return this.doAcceptTerms(req);
       default:
         return errorReply(
           req.requestId,
@@ -369,6 +371,28 @@ export class CommandDispatcher {
       operation: "setupPaymentMethod",
       success: true,
       data: { handoff: result.handoff },
+    };
+  }
+
+  /** INT-447 / REQ-050 — T&C acceptance via EWDS command channel. */
+  private async doAcceptTerms(
+    req: BillingCommandRequest,
+  ): Promise<BillingCommandReply> {
+    const termsVersion = requireString(req.payload.termsVersion, "termsVersion");
+    const mandate = req.payload.selfBillingMandate;
+    if (typeof mandate !== "boolean") {
+      throw new Error("selfBillingMandate is required");
+    }
+    const result = await this.targets.acceptTerms({
+      actorId: req.actorId,
+      termsVersion,
+      selfBillingMandate: mandate,
+    });
+    return {
+      requestId: req.requestId,
+      operation: "acceptTerms",
+      success: true,
+      data: { ...result },
     };
   }
 }

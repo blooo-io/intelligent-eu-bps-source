@@ -262,6 +262,7 @@ export function createCommandPoller(
     invoicingBaseUrl: invoicingUrl,
     notificationBaseUrl: notificationUrl,
     settlementBaseUrl: settlementUrl,
+    participantsBaseUrl: participantsUrl,
   });
   const dispatcher =
     deps?.dispatcher ??

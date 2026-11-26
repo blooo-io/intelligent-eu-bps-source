@@ -12,6 +12,7 @@ export type CommandOperation =
   | "requestWithdrawal"
   | "setInvoiceStatus"
   | "startKyc"
+  | "acceptTerms"
   | "sendReminder"
   | "triggerBillingRun"
   | "setupPaymentMethod";
@@ -79,6 +80,7 @@ export function commandChannelScenarios(): CommandScenario[] {
   const requestIdWithdraw = randomUUID();
   const requestIdStatus = randomUUID();
   const requestIdKyc = randomUUID();
+  const requestIdTerms = randomUUID();
   const requestIdReminder = randomUUID();
   const requestIdRun = randomUUID();
   const requestIdSetup = randomUUID();
@@ -159,6 +161,28 @@ export function commandChannelScenarios(): CommandScenario[] {
         operation: "startKyc",
         success: true,
         data: handoffEmbedded("identity"),
+      },
+    },
+    {
+      operation: "acceptTerms",
+      request: {
+        requestId: requestIdTerms,
+        operation: "acceptTerms",
+        actorId: ACTOR,
+        payload: {
+          termsVersion: "v1.0.0",
+          selfBillingMandate: true,
+        },
+      },
+      reply: {
+        requestId: requestIdTerms,
+        operation: "acceptTerms",
+        success: true,
+        data: {
+          termsVersion: "v1.0.0",
+          selfBillingMandate: true,
+          acceptedAt: "2026-11-26T06:00:00.000Z",
+        },
       },
     },
     {

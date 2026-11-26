@@ -31,7 +31,7 @@ While EWAG topiccreator / API-key enrolment block live CGW Blooo, use
 
 - Same REST subset as `CgwClient`: `GET/POST /api/v2/messages`, `POST …/ack`, `GET …/identity`, header `x-api-key`
 - Schema-checks `billingCommandRequest` / `billingCommandReply`
-- `commandChannelScenarios()` covers every contracted operation (startPayment, requestWithdrawal, setInvoiceStatus, startKyc, sendReminder, triggerBillingRun, setupPaymentMethod)
+- `commandChannelScenarios()` covers every contracted operation (startPayment, requestWithdrawal, setInvoiceStatus, startKyc, acceptTerms, sendReminder, triggerBillingRun, setupPaymentMethod)
 
 ```ts
 import {

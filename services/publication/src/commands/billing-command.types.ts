@@ -6,6 +6,7 @@ export type BillingCommandOperation =
   | "requestWithdrawal"
   | "setInvoiceStatus"
   | "startKyc"
+  | "acceptTerms"
   | "sendReminder"
   | "triggerBillingRun"
   | "setupPaymentMethod";

@@ -427,6 +427,37 @@ describe("CommandDispatcher (REQ-052 / A7 / A7-bis)", () => {
     expect(targets.startKyc).not.toHaveBeenCalled();
   });
 
+  it("INT-447: acceptTerms dispatches to AC-03 target", async () => {
+    const { d, targets } = harness();
+    targets.acceptTerms = vi.fn(async () => ({
+      termsVersion: "v1.0.0",
+      selfBillingMandate: true,
+      acceptedAt: "2026-11-26T06:00:00.000Z",
+    }));
+    const r = await d.handle(
+      msg(
+        "acceptTerms",
+        { termsVersion: "v1.0.0", selfBillingMandate: true },
+        "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa0f",
+      ),
+    );
+    expect(r).toEqual({
+      requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaa0f",
+      operation: "acceptTerms",
+      success: true,
+      data: {
+        termsVersion: "v1.0.0",
+        selfBillingMandate: true,
+        acceptedAt: "2026-11-26T06:00:00.000Z",
+      },
+    });
+    expect(targets.acceptTerms).toHaveBeenCalledWith({
+      actorId: ACTOR,
+      termsVersion: "v1.0.0",
+      selfBillingMandate: true,
+    });
+  });
+
   it("startKyc for manager uses identity kind", async () => {
     const { d, targets, authzClient } = harness();
     authzClient.set(activeManager(ACTOR, C1));
@@ -566,6 +597,9 @@ function stubTargets(): CommandTargetsPort {
       throw new Error("not stubbed");
     },
     setupPaymentMethod: async () => {
+      throw new Error("not stubbed");
+    },
+    acceptTerms: async () => {
       throw new Error("not stubbed");
     },
   };

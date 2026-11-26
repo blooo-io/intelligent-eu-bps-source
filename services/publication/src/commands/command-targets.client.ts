@@ -57,6 +57,16 @@ export interface CommandTargetsPort {
     surface: "hosted" | "embedded";
     returnUrl?: string;
   }): Promise<{ handoff: PspHandoff }>;
+  /** INT-447 / REQ-050 — AC-03 terms acceptance by actorId. */
+  acceptTerms(i: {
+    actorId: string;
+    termsVersion: string;
+    selfBillingMandate: boolean;
+  }): Promise<{
+    termsVersion: string;
+    selfBillingMandate: boolean;
+    acceptedAt: string;
+  }>;
 }
 
 /** Maps target HTTP failures to dispatcher error codes (no PII in message). */
@@ -76,6 +86,7 @@ export type CommandTargetUrls = {
   invoicingBaseUrl: string;
   notificationBaseUrl: string;
   settlementBaseUrl: string;
+  participantsBaseUrl: string;
 };
 
 /**
@@ -186,6 +197,23 @@ export class HttpCommandTargetsClient implements CommandTargetsPort {
       "/internal/v1/payment-methods:setup",
       i,
     ) as Promise<{ handoff: PspHandoff }>;
+  }
+
+  async acceptTerms(i: {
+    actorId: string;
+    termsVersion: string;
+    selfBillingMandate: boolean;
+  }) {
+    const { actorId, ...body } = i;
+    return this.postJson(
+      this.urls.participantsBaseUrl,
+      `/internal/v1/participants/${encodeURIComponent(actorId)}/terms-acceptance`,
+      body,
+    ) as Promise<{
+      termsVersion: string;
+      selfBillingMandate: boolean;
+      acceptedAt: string;
+    }>;
   }
 
   private async postJson(

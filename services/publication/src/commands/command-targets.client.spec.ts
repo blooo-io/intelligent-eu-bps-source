@@ -37,6 +37,7 @@ describe("HttpCommandTargetsClient (REQ-052 / Task 4.3)", () => {
         invoicingBaseUrl: "http://invoicing:8080",
         notificationBaseUrl: "http://notification:8080",
         settlementBaseUrl: "http://settlement:8080",
+        participantsBaseUrl: "http://participants:8080",
       },
       fetchImpl,
     );
@@ -97,6 +98,7 @@ describe("HttpCommandTargetsClient (REQ-052 / Task 4.3)", () => {
         invoicingBaseUrl: "http://invoicing:8080",
         notificationBaseUrl: "http://notification:8080",
         settlementBaseUrl: "http://settlement:8080",
+        participantsBaseUrl: "http://participants:8080",
       },
       fetchImpl,
     );
@@ -166,6 +168,16 @@ describe("HttpCommandTargetsClient (REQ-052 / Task 4.3)", () => {
           { status: 200 },
         );
       }
+      if (u.includes("terms-acceptance")) {
+        return new Response(
+          JSON.stringify({
+            termsVersion: "v1.0.0",
+            selfBillingMandate: true,
+            acceptedAt: "2026-11-26T06:00:00.000Z",
+          }),
+          { status: 200 },
+        );
+      }
       return new Response("", { status: 500 });
     }) as unknown as typeof fetch;
 
@@ -175,6 +187,7 @@ describe("HttpCommandTargetsClient (REQ-052 / Task 4.3)", () => {
         invoicingBaseUrl: "http://invoicing:8080",
         notificationBaseUrl: "http://notification:8080",
         settlementBaseUrl: "http://settlement:8080",
+        participantsBaseUrl: "http://participants:8080",
       },
       fetchImpl,
     );
@@ -199,6 +212,13 @@ describe("HttpCommandTargetsClient (REQ-052 / Task 4.3)", () => {
     await expect(
       client.setupPaymentMethod({ actorId: ACTOR, surface: "hosted" }),
     ).resolves.toMatchObject({ handoff: { purpose: "setup" } });
+    await expect(
+      client.acceptTerms({
+        actorId: ACTOR,
+        termsVersion: "v1.0.0",
+        selfBillingMandate: true,
+      }),
+    ).resolves.toMatchObject({ termsVersion: "v1.0.0" });
   });
 
   it("maps 400 -> invalid", async () => {
@@ -211,6 +231,7 @@ describe("HttpCommandTargetsClient (REQ-052 / Task 4.3)", () => {
         invoicingBaseUrl: "http://invoicing:8080",
         notificationBaseUrl: "http://notification:8080",
         settlementBaseUrl: "http://settlement:8080",
+        participantsBaseUrl: "http://participants:8080",
       },
       fetchImpl,
     );
@@ -233,6 +254,7 @@ describe("HttpCommandTargetsClient (REQ-052 / Task 4.3)", () => {
         invoicingBaseUrl: "http://invoicing:8080",
         notificationBaseUrl: "http://notification:8080",
         settlementBaseUrl: "http://settlement:8080",
+        participantsBaseUrl: "http://participants:8080",
       },
       fetchImpl,
     );

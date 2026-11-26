@@ -339,20 +339,21 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant WEB as AC-01 Web app
-  participant GW as AC-02 Gateway
+  participant R2M as R2M UI via EWDS command
+  participant PUB as AC-10 Publication
   participant PAY as AC-07 Payments
   participant STR as Stripe test
   participant BUS as Event channel
   participant INV as AC-06 Invoicing
-  Note over INV: at issue (5.1) AC-06 assigns a billing legal number and stores the PDF; AC-11 e-mails it (A6). No Stripe invoice is created.
-  WEB->>GW: POST /invoices/{id}/payments
-  GW->>PAY: pay invoice
+  Note over INV: at issue (5.1) AC-06 assigns legal number and stores PDF — AC-11 e-mails it (A6) — no Stripe invoice
+  R2M->>PUB: billingCommandRequest startPayment
+  PUB->>PAY: dispatch pay invoice
   PAY->>INV: GetInvoice (amounts, legalNumber)
   PAY->>STR: PaymentIntent direct charge (or hosted Checkout) on the producer Connect account (CollectPort)
   STR-->>PAY: Connect webhook (payment_intent.succeeded / …)
   PAY->>BUS: PaymentStatusChanged
   BUS-->>INV: update outstanding and status
+  BUS-->>PUB: publish billingPayment
 ```
 
 Payment rules (INT-355, REQ-014, TD-6 / A6, A10.5):
@@ -367,12 +368,13 @@ Payment rules (INT-355, REQ-014, TD-6 / A6, A10.5):
 
 ```mermaid
 sequenceDiagram
-  participant WEB as AC-01 or EWDS command
+  participant R2M as R2M UI via EWDS command
   participant PAY as AC-07 Payments
   participant INV as AC-06 Invoicing
   participant STR as Stripe
   participant PUB as AC-10 Publication
-  WEB->>PAY: RequestWithdrawal(period)
+  R2M->>PUB: billingCommandRequest requestWithdrawal
+  PUB->>PAY: RequestWithdrawal(period)
   PAY->>INV: Producer invoices for period all Paid (BR-14)
   PAY->>STR: Create payout on connected account
   STR-->>PAY: payout.paid / failed webhook

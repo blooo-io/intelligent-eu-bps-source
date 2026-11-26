@@ -133,6 +133,28 @@ importers:
         specifier: 4.1.12
         version: 4.1.12(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/coverage-istanbul@4.1.12)(@vitest/coverage-v8@4.1.12)(jsdom@31.0.1)(vite@6.4.6(@types/node@26.6.6)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.51.4)(yaml@2.9.1))
 
+  packages/ewds-cluster-e2e:
+    dependencies:
+      '@intelligent/ewds-client':
+        specifier: workspace:*
+        version: link:../ewds-client
+      '@intelligent/mocks':
+        specifier: workspace:*
+        version: link:../../mocks
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.6
+        version: 26.6.6
+      '@vitest/coverage-v8':
+        specifier: 4.1.12
+        version: 4.1.12(vitest@4.1.12)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 4.1.12
+        version: 4.1.12(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/coverage-istanbul@4.1.12)(@vitest/coverage-v8@4.1.12)(jsdom@31.0.1)(vite@6.4.6(@types/node@26.6.6)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.51.4)(yaml@2.9.1))
+
   packages/ewds-project-path-e2e:
     dependencies:
       '@intelligent/ewds-client':
@@ -299,6 +321,25 @@ importers:
       '@types/express':
         specifier: ^5.0.6
         version: 5.0.6
+      '@types/node':
+        specifier: ^26.6.6
+        version: 26.6.6
+      '@vitest/coverage-v8':
+        specifier: 4.1.12
+        version: 4.1.12(vitest@4.1.12)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 4.1.12
+        version: 4.1.12(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/coverage-istanbul@4.1.12)(@vitest/coverage-v8@4.1.12)(jsdom@31.0.1)(vite@6.4.6(@types/node@26.6.6)(jiti@1.21.7)(lightningcss@1.33.0)(terser@5.51.4)(yaml@2.9.1))
+
+  services/mock-cgw:
+    dependencies:
+      '@intelligent/ewds-client':
+        specifier: workspace:*
+        version: link:../../packages/ewds-client
+    devDependencies:
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6

@@ -28,12 +28,23 @@ export type MockCgwQueued = {
   acked: boolean;
 };
 
+/** Default DID for Mock CGW identity / destinDev command allow-list (INT-454). */
+export const MOCK_CGW_GATEWAY_DID =
+  "did:ethr:volta:0xMockCgwBlooo00000000000000000000000001";
+
 export type MockCgwServerOpts = {
   /** DID returned by GET /api/v2/identity (sender on injected messages). */
   gatewayDid?: string;
   apiKey?: string;
   /** When true, reject command topic posts that fail JSON Schema. */
   validateTopics?: boolean;
+  /**
+   * INT-454 — bind address. Loopback for in-process tests; `0.0.0.0` for the
+   * cluster Mock CGW service so pods reach it.
+   */
+  host?: string;
+  /** INT-454 — fixed port (cluster). Omit / `0` for an ephemeral test port. */
+  port?: number;
 };
 
 export type MockCgwListen = {
@@ -96,25 +107,130 @@ function topicErrors(
   return [];
 }
 
+function enqueue(
+  messages: MockCgwQueued[],
+  input: {
+    fqcn: string;
+    topicName: string;
+    topicOwner?: string;
+    topicVersion?: string;
+    transactionId?: string;
+    payload: unknown;
+    sender?: string;
+  },
+  gatewayDid: string,
+  validateTopics: boolean,
+): { messageId: string; validationErrors: string[] } {
+  const errors = topicErrors(input.topicName, input.payload, validateTopics);
+  if (errors.length > 0) {
+    return { messageId: "", validationErrors: errors };
+  }
+  const id = randomUUID();
+  messages.push({
+    id,
+    fqcn: input.fqcn,
+    topicName: input.topicName,
+    topicOwner: input.topicOwner ?? "integration.apps.intelligent.auth.ewc",
+    topicVersion: input.topicVersion ?? "1.0.0",
+    transactionId: input.transactionId ?? null,
+    payload: JSON.stringify(input.payload),
+    sender: input.sender ?? gatewayDid,
+    signatureValid: true,
+    timestampNanos: Date.now() * 1e6,
+    acked: false,
+  });
+  return { messageId: id, validationErrors: [] };
+}
+
 /**
- * Start a loopback Mock CGW. Call {@link MockCgwListen.close} in afterEach.
+ * Start a Mock CGW. Call {@link MockCgwListen.close} in afterEach.
+ *
+ * INT-441 — loopback stub for unit / in-process E2E.
+ * INT-454 — bind `0.0.0.0:PORT` for the cluster Mock CGW service; expose
+ * `POST /test/v1/inject` so a cluster driver can seed Actor / command messages.
  */
 export async function startMockCgwServer(
   opts: MockCgwServerOpts = {},
 ): Promise<MockCgwListen> {
+  // Empty apiKey → accept any non-empty x-api-key (cluster pods use OpenBao key).
   const apiKey = opts.apiKey ?? "test-cgw-api-key";
-  const gatewayDid =
-    opts.gatewayDid ??
-    "did:ethr:volta:0xMockCgwBlooo00000000000000000000000001";
+  const gatewayDid = opts.gatewayDid ?? MOCK_CGW_GATEWAY_DID;
   const validateTopics = opts.validateTopics !== false;
+  const host = opts.host ?? "127.0.0.1";
+  const port = opts.port ?? 0;
   const messages: MockCgwQueued[] = [];
 
   const server: Server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", "http://127.0.0.1");
+
+      // Probe path matches module Helm liveness/readiness (no API key).
+      if (req.method === "GET" && url.pathname === "/health") {
+        json(res, 200, { status: "ok", component: "mock-cgw" });
+        return;
+      }
+
       const key = req.headers["x-api-key"];
-      if (key !== apiKey) {
+      const keyOk =
+        typeof key === "string" &&
+        key.length > 0 &&
+        (apiKey === "" || key === apiKey);
+      if (!keyOk) {
         unauthorized(res);
+        return;
+      }
+
+      // INT-454 — remote inject for cluster E2E (same semantics as inject()).
+      if (req.method === "POST" && url.pathname === "/test/v1/inject") {
+        const raw = await readBody(req);
+        const body = JSON.parse(raw || "{}") as {
+          fqcn?: string;
+          topicName?: string;
+          topicOwner?: string;
+          topicVersion?: string;
+          transactionId?: string;
+          payload?: unknown;
+          sender?: string;
+        };
+        const result = enqueue(
+          messages,
+          {
+            fqcn: String(body.fqcn ?? ""),
+            topicName: String(body.topicName ?? ""),
+            topicOwner: body.topicOwner,
+            topicVersion: body.topicVersion,
+            transactionId: body.transactionId,
+            payload: body.payload,
+            sender: body.sender,
+          },
+          gatewayDid,
+          validateTopics,
+        );
+        if (result.validationErrors.length > 0) {
+          json(res, 400, {
+            statusCode: 400,
+            message: "topic schema validation failed",
+            errors: result.validationErrors,
+          });
+          return;
+        }
+        json(res, 201, result);
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/test/v1/queue") {
+        json(
+          res,
+          200,
+          messages.map((m) => ({
+            id: m.id,
+            fqcn: m.fqcn,
+            topicName: m.topicName,
+            acked: m.acked,
+            sender: m.sender,
+            transactionId: m.transactionId,
+          })),
+        );
         return;
       }
 
@@ -237,13 +353,15 @@ export async function startMockCgwServer(
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => resolve());
+    server.listen(port, host, () => resolve());
   });
   const addr = server.address();
   if (!addr || typeof addr === "string") {
     throw new Error("MockCgwServer failed to bind");
   }
-  const baseUrl = `http://127.0.0.1:${addr.port}`;
+  // Advertise loopback when bound on all interfaces (container probes use Service DNS).
+  const advertiseHost = host === "0.0.0.0" ? "127.0.0.1" : host;
+  const baseUrl = `http://${advertiseHost}:${addr.port}`;
 
   return {
     baseUrl,
@@ -255,29 +373,7 @@ export async function startMockCgwServer(
         server.close((err) => (err ? reject(err) : resolve()));
       }),
     inject(input) {
-      const errors = topicErrors(
-        input.topicName,
-        input.payload,
-        validateTopics,
-      );
-      if (errors.length > 0) {
-        return { messageId: "", validationErrors: errors };
-      }
-      const id = randomUUID();
-      messages.push({
-        id,
-        fqcn: input.fqcn,
-        topicName: input.topicName,
-        topicOwner: input.topicOwner ?? "integration.apps.intelligent.auth.ewc",
-        topicVersion: input.topicVersion ?? "1.0.0",
-        transactionId: input.transactionId ?? null,
-        payload: JSON.stringify(input.payload),
-        sender: input.sender ?? gatewayDid,
-        signatureValid: true,
-        timestampNanos: Date.now() * 1e6,
-        acked: false,
-      });
-      return { messageId: id, validationErrors: [] };
+      return enqueue(messages, input, gatewayDid, validateTopics);
     },
   };
 }

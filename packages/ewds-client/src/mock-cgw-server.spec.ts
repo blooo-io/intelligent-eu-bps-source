@@ -235,4 +235,55 @@ describe("MockCgwServer (INT-441)", () => {
     expect(onlyReply).toHaveLength(1);
     expect(onlyReply[0]!.topicName).toBe("billingCommandReply");
   });
+
+  // INT-454 — cluster Mock CGW surface (health + remote inject).
+  it("GET /health needs no API key", async () => {
+    stub = await startMockCgwServer();
+    const res = await fetch(`${stub.baseUrl}/health`);
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({ status: "ok" });
+  });
+
+  it("POST /test/v1/inject enqueues for CgwClient.receive", async () => {
+    stub = await startMockCgwServer();
+    const scenario = commandChannelScenarios().find(
+      (s) => s.operation === "acceptTerms",
+    )!;
+    const injected = await fetch(`${stub.baseUrl}/test/v1/inject`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": stub.apiKey,
+      },
+      body: JSON.stringify({
+        fqcn: MOCK_CGW_COMMAND_FQCN,
+        topicName: "billingCommandRequest",
+        topicOwner: MOCK_CGW_TOPIC_OWNER,
+        transactionId: scenario.request.requestId,
+        payload: scenario.request,
+      }),
+    });
+    expect(injected.status).toBe(201);
+    const body = (await injected.json()) as { messageId: string };
+    const client = new CgwClient({
+      baseUrl: stub.baseUrl,
+      apiKey: stub.apiKey,
+      clientId: "bps-test",
+    });
+    process.env.CGW_ACK_MODE = "fetch";
+    const pulled = await client.receive({
+      fqcn: MOCK_CGW_COMMAND_FQCN,
+      topicName: "billingCommandRequest",
+      amount: 1,
+    });
+    expect(pulled[0]?.id).toBe(body.messageId);
+  });
+
+  it("empty apiKey accepts any non-empty x-api-key (cluster OpenBao key)", async () => {
+    stub = await startMockCgwServer({ apiKey: "" });
+    const res = await fetch(`${stub.baseUrl}/api/v2/identity`, {
+      headers: { "x-api-key": "openbao-cgw-key-from-module" },
+    });
+    expect(res.status).toBe(200);
+  });
 });

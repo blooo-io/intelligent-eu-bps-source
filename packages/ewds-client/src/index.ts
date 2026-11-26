@@ -32,6 +32,7 @@ export {
 } from "./config.js";
 export {
   startMockCgwServer,
+  MOCK_CGW_GATEWAY_DID,
   MOCK_CGW_VALIDATED_TOPICS,
   type MockCgwListen,
   type MockCgwServerOpts,

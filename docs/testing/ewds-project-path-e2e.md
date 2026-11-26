@@ -45,8 +45,27 @@ pnpm --filter @intelligent/ewds-client test
 | S13 Commands | REQ-052 | UAT-064 | All 8 ops on Mock CGW + authz deny for member `triggerBillingRun` |
 | S14 Purge | REQ-053 | UAT-069 | `purgeCache` (≤ 7 days) |
 
+## Cluster path (INT-454) — Mock CGW on destinDev
+
+Live pods on `k8s-intelligent-eu-dev` with **Mock CGW** as the transport (not EWAG Spine):
+
+| Piece | Role |
+|---|---|
+| `services/mock-cgw` | Cluster image; `0.0.0.0:8080`, `/health`, `/test/v1/inject` |
+| `deploy/charts/mock-cgw` + `deploy/argocd/dev/mock-cgw.yaml` | GitOps |
+| `deploy/envs/dev/values.yaml` | `CGW_BASE_URL=http://mock-cgw:8080`, Mock DID allow-list |
+| `@intelligent/ewds-cluster-e2e` | Driver (inject S1 actors + S13 commands) |
+| `.github/workflows/ewds-e2e-dev.yml` | Port-forward + run driver after supply-chain |
+
+Evidence label: **`run_path: mock`**. Decision: `docs/architecture/decisions/INT-454-mock-cgw-cluster.md`.
+
+```bash
+# Local against a port-forwarded Mock CGW:
+kubectl -n int-apps port-forward svc/mock-cgw 18080:8080
+MOCK_CGW_BASE_URL=http://127.0.0.1:18080 pnpm --filter @intelligent/ewds-cluster-e2e test
+```
+
 ## Out of scope (still)
 
-- Live EWAG topic grants / production CGW identity
+- Live EWAG topic grants / production CGW identity (`live-cgw`)
 - R2M UI automation (they consume the wire we publish)
-- Cluster-only smoke on `k8s-intelligent-eu-dev` (optional after grants)

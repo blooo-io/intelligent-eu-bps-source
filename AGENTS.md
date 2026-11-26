@@ -70,4 +70,5 @@ After a version is built and its tests pass, deploy it to the cluster `k8s-intel
 | `services/reference-data` | AC-13 | LB-11 |
 | `services/scheduler` | AC-14 (Temporal workers) | LB-13 |
 | `mocks/` | AC-15 Mock suite | — |
+| `services/mock-cgw` | Mock CGW (INT-454 destinDev transport) | — |
 | `packages/module-template` | Shared NestJS module template (health, config, outbox, idempotent consumer, OTel, auth guard) | — |

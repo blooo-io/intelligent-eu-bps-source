@@ -1,0 +1,26 @@
+{
+  "runId": "484e07c2-c984-4e93-afcb-e5c07ffff779",
+  "settlementIds": [
+    "f2683b8a-f77b-4d1f-9e62-8421e25265de",
+    "7abe5565-1dc3-4230-bc28-a59e4b286487"
+  ],
+  "invoices": [
+    {
+      "invoiceId": "ec77bf9c-8733-4488-97d5-e535116d2828",
+      "producerId": "66666666-7777-4888-9999-aaaaaaaaaaaa",
+      "consumerId": "11111111-2222-4333-8444-555555555555",
+      "total": "2.00",
+      "currency": "EUR",
+      "statusAtIssue": "Open"
+    },
+    {
+      "invoiceId": "fab3b1b0-2061-45e5-ad09-6f43aee94e86",
+      "producerId": "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff",
+      "consumerId": "11111111-2222-4333-8444-555555555555",
+      "total": "2.64",
+      "currency": "EUR",
+      "statusAtIssue": "Open"
+    }
+  ],
+  "path": "NATS SettlementCompleted \u2192 AC-06"
+}

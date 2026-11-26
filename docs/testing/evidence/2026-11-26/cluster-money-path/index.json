@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-11-26T16:40:00+01:00",
+  "timezone": "Europe/Paris",
+  "jira": [
+    "INT-459"
+  ],
+  "cluster": "k8s-intelligent-eu-dev",
+  "namespace": "int-apps",
+  "run_path": "stripe-test",
+  "PSP_PROVIDER": "stripe",
+  "driver": "scripts/stripe-fresh-billing-run.mjs + payments:start",
+  "scenarios": [
+    {
+      "id": "S4",
+      "path": "s04-kyc",
+      "run_path": "stripe-test"
+    },
+    {
+      "id": "S7",
+      "path": "s07-billing",
+      "run_path": "stripe-test"
+    },
+    {
+      "id": "S8",
+      "path": "s08-pay",
+      "run_path": "stripe-test"
+    },
+    {
+      "id": "S10",
+      "path": "s10-payout",
+      "run_path": "stripe-test",
+      "result": "409 nothing_to_pay_out"
+    }
+  ],
+  "verdict": "Stripe integration is effective on destinDev for Connect provision + direct-charge pay. Payout deferred; invoice Paid status not yet observed at capture."
+}

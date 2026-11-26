@@ -1,0 +1,9 @@
+{
+  "endpoint": "POST /internal/v1/payments:start",
+  "actorId": "11111111-2222-4333-8444-555555555555",
+  "surface": "hosted",
+  "invoiceIds": [
+    "ec77bf9c-8733-4488-97d5-e535116d2828",
+    "fab3b1b0-2061-45e5-ad09-6f43aee94e86"
+  ]
+}

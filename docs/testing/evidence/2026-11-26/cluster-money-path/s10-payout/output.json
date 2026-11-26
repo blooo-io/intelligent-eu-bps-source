@@ -1,0 +1,5 @@
+{
+  "httpStatus": 409,
+  "reason": "nothing_to_pay_out",
+  "notes": "Expected until Connect balance is available for payout after charge settlement delay."
+}

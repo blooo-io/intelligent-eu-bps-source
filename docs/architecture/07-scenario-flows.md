@@ -11,7 +11,7 @@ jira: INT-449, INT-450, INT-451
 
 > Supplement to the five architecture views ([README](README.md)).
 > Datamodel / ontology: [`06-datamodel-ontology.md`](06-datamodel-ontology.md).
-> All project-UI paths are **EWDS-only** (records + command channel). `/v1` is the reference client (`apps/web`) only.
+> All project-UI paths are **EWDS-only** (records + command channel). Public REST `/v1` and the reference client were removed (INT-455).
 > Full E2E evidence for this path: [`docs/testing/ewds-project-path-e2e.md`](../testing/ewds-project-path-e2e.md) (INT-453, S1–S14).
 
 ## Legend (lifelines)
@@ -353,7 +353,7 @@ sequenceDiagram
   R2M->>EWDS: billingCommandRequest sendReminder
   EWDS->>CGW: deliver command
   CGW->>AC10: poll authorize manager
-  Note over AC10: INT-461 — REQ-061 on AC-06; AC-11 delivers mail
+  Note over AC10: INT-461 — REQ-061 on AC-06 — AC-11 delivers mail
   AC10->>AC06: POST /invoices/{id}/reminders
   AC10->>CGW: billingCommandReply
   CGW->>EWDS: publish reply
@@ -435,7 +435,7 @@ sequenceDiagram
 
 ## S12 — Data-subject erasure
 
-Erasure can start from the compliance portal (reference `/v1`) or from an EWDS erasure intake. The EWDS path still goes through **Billing CGW**.
+Erasure starts from the project UI / DPO desk or from an EWDS erasure intake (public `/v1` removed, INT-455). The EWDS path goes through **Billing CGW**. IdP account erase is delegated to R2M (INT-463).
 
 ```mermaid
 sequenceDiagram
@@ -460,7 +460,7 @@ sequenceDiagram
   Note right of AC03: clear Actor PII cache keep Invoice ids
   AC12->>AC07: erase PSP customer where allowed
   AC07->>Stripe: delete or anonymise
-  Note over AC12: IdP erase = R2M (INT-463); outcome delegated_to_project_ui
+  Note over AC12: IdP erase = R2M (INT-463) — outcome delegated_to_project_ui
   AC03-->>AC12: ErasureCompleted
 ```
 

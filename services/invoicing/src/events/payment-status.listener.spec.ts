@@ -75,4 +75,46 @@ describe("PaymentStatusListener (INT-270)", () => {
     });
     expect(apply).not.toHaveBeenCalled();
   });
+
+  // INT-460 — live NATS payload is CloudEvents-wrapped (Debezium EventRouter).
+  it("marks Paid when PaymentStatusChanged arrives as CloudEvents envelope", async () => {
+    await bus.publish("PaymentStatusChanged", {
+      id: "ce-outer-1",
+      source: "outbox",
+      type: "PaymentStatusChanged",
+      data: {
+        eventId: "evt-pay-ce-1",
+        type: "PaymentStatusChanged",
+        data: {
+          paymentId: "pay-ce-1",
+          invoiceId: "inv-ce-1",
+          status: "succeeded",
+        },
+      },
+    });
+    expect(apply).toHaveBeenCalledWith({
+      invoiceId: "inv-ce-1",
+      paymentId: "pay-ce-1",
+      status: "succeeded",
+    });
+  });
+
+  it("marks Paid when payload is JSON Converter { schema, payload }", async () => {
+    await bus.publish("PaymentStatusChanged", {
+      schema: { type: "struct" },
+      payload: {
+        eventId: "evt-pay-schema-1",
+        data: {
+          paymentId: "pay-schema-1",
+          invoiceId: "inv-schema-1",
+          status: "succeeded",
+        },
+      },
+    });
+    expect(apply).toHaveBeenCalledWith({
+      invoiceId: "inv-schema-1",
+      paymentId: "pay-schema-1",
+      status: "succeeded",
+    });
+  });
 });

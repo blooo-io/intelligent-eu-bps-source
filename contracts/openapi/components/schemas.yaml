@@ -278,6 +278,13 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
+    # INT-461 — REQ-061 sendReminder rejects non-remindable invoice statuses.
+    Conflict:
+      description: The resource state conflicts with the requested operation.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
   securitySchemes:
     bearerAuth:
       type: http

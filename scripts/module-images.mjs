@@ -92,14 +92,12 @@ function classifyChangedPath(filePath, known, selected) {
     return "skip";
   }
   const dockerfile = dockerfileForModulePath(filePath);
+  // INT-455 — apps/site has no Dockerfile; unknown module Dockerfiles force full rebuild.
   if (dockerfile && known.has(dockerfile)) {
     selected.add(dockerfile);
     return "module";
   }
-  if (!dockerfile) {
-    return "all";
-  }
-  return "module";
+  return "all";
 }
 
 function mergeLockfileDockerfiles(paths, known, selected, normalizedAll) {

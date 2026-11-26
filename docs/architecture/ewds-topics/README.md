@@ -1,7 +1,8 @@
 # Billing EWDS topics: draft proposal from Blooo to EWAG
 
-Status: **DRAFT v0.3 (2026-11-25, INT-440)**, proposed by Blooo (T5.6 / D5.5) for review by EWAG.
+Status: **DRAFT v0.4 (2026-11-26, INT-447)**, proposed by Blooo (T5.6 / D5.5) for review by EWAG.
 Agreement: EWAG creates the topics; Blooo proposes the JSON schemas. Actor and Tariff schemas are **to submit to EWAG**.
+Project path is **EWDS-only**: R2M publishes `actor` create/update (CSV in R2M = N Actor messages); billing commands include `acceptTerms`; no billing-service CSV fallback.
 
 ## Topics
 
@@ -14,7 +15,7 @@ Agreement: EWAG creates the topics; Blooo proposes the JSON schemas. Actor and T
 | `billingKycStatus` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Billing & Payment Service (Blooo gateway) | project UI (R2M) | `billingKycStatus.v1.0.0.schema.json` |
 | `billingCommandRequest` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | project UI gateway (subscriber) | Billing & Payment Service (poller) | `billingCommandRequest.v1.0.0.schema.json` |
 | `billingCommandReply` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Billing & Payment Service (Blooo gateway) | project UI gateway (correlated reply) | `billingCommandReply.v1.0.0.schema.json` |
-| `actor` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Consortium actor source / Blooo gateway (intake) | Billing & Payment Service (`ActorSourcePort`) | `actor.v1.0.0.schema.json` |
+| `actor` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Project UI (R2M) / consortium Actor source | Billing & Payment Service (`ActorSourcePort` — intake only) | `actor.v1.0.0.schema.json` |
 | `tariff` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Blooo (Tariff class owner) | Billing & Payment Service (`TariffPort`) | `tariff.v1.0.0.schema.json` |
 
 Proposed channels (Blooo gateway DID `did:web:blooo.intelligent` — confirm with EWAG):
@@ -54,7 +55,7 @@ Subscribers should treat primary ids as idempotency keys and keep the latest `up
 - **Trade status is not changed by billing.** `settled` keeps the GSY DEX meaning.
 
 ## Actor and Tariff (to submit to EWAG)
-- **`actor`:** ontology Actor / Address / ContactDetails. KYC fields (`taxId`, `dateOfBirth`, `ownershipPercentage`, `nationality`, `isBeneficialOwner`, `isControlPerson`) never travel on EWDS (ADR-013) — omitted from the schema. Address uses `line1` (not `street`).
+- **`actor`:** ontology Actor / Address / ContactDetails. **R2M is the sole project-path publisher** for create and update (including CSV→N messages). BPS only ingests (`ActorSourcePort`). KYC fields (`taxId`, `dateOfBirth`, `ownershipPercentage`, `nationality`, `isBeneficialOwner`, `isControlPerson`) never travel on EWDS (ADR-013) — omitted from the schema. Address uses `line1` (not `street`).
 - **`tariff`:** ontology Tariff owned by Blooo (`tariffId`, `communityId`, `gridId`, currency, validity, energyPrice, networkTariff, levies, taxes, incentives, structure `flat`|`TOU`). Proposed for EWAG registration.
 
 ## Personal data

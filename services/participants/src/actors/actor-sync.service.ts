@@ -23,8 +23,9 @@ export function formatPostalAddress(address: PostalAddress): string {
 }
 
 /**
- * REQ-008 / REQ-058 / UAT-008 — upsert participants from ActorSourcePort.
- * CSV import remains the fallback when the port is disabled.
+ * REQ-008 / REQ-058 / UAT-008 / INT-447 — upsert participants from ActorSourcePort.
+ * Project path is EWDS-only (R2M publishes Actor create/update). `/v1` CSV import
+ * is reference-client / e2e seed only — not a project-path fallback.
  */
 @Injectable()
 export class ActorSyncService {

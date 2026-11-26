@@ -382,7 +382,7 @@ sequenceDiagram
 
 ### 5.4 EWDS command request/reply
 
-The project UI sends `billingCommandRequest` messages (startPayment, requestWithdrawal, startKyc, sendReminder, triggerBillingRun, …). AC-10 authorizes the three layers (channel role, sender DID, actor role), dispatches to the owning module, and publishes `billingCommandReply` with a **PspHandoff** — Stripe-hosted URL or embedded `clientSecret` + `publishableKey` (A7-bis). See D4 in [`ewds-client-gateway.md`](ewds-client-gateway.md).
+The project UI sends `billingCommandRequest` messages (`startPayment`, `requestWithdrawal`, `startKyc`, `acceptTerms`, `sendReminder`, `triggerBillingRun`, `setupPaymentMethod`, …). Actor create/update is **not** a command — R2M publishes the `actor` topic (INT-447). AC-10 authorizes the three layers (channel role, sender DID, actor role), dispatches to the owning module, and publishes `billingCommandReply` with a **PspHandoff** when needed — Stripe-hosted URL or embedded `clientSecret` + `publishableKey` (A7-bis). See D4 in [`ewds-client-gateway.md`](ewds-client-gateway.md).
 
 ## 6. Reference screens (AC-01 — reference client, V1)
 

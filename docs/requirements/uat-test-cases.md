@@ -54,10 +54,10 @@ Given A pair with a net amount of 3 € in January and 4 € in February in a co
 ## Administrative management (GDPR)
 
 **UAT-008** → REQ-008
-Given Actor, Address and ContactDetails records for three participants published on the EWDS for a community, and one participant missing from the EWDS data, when the billing service ingests the EWDS records and the community manager imports the missing participant through the interim CSV fallback, then three participant records are created from the EWDS data, the fourth from the import, and the imported participant is asked to complete the missing data in the billing portal.
+Given four Actor records published on the EWDS by the project UI (R2M) for a community (including rows from a CSV load in that UI), when the billing service syncs Actor intake, then four participant records are created or updated from EWDS data only (no billing-service CSV import).
 
 **UAT-009** → REQ-009
-Given a logged-in participant, when they open and edit their billing profile, then they can update name, address and e-mail, but cannot change their GSY DEX actor identifier, meter or community, which only their community manager can change.
+Given a participant on the reference client (source import) or project path (source ewds), when they change name/address/e-mail, then reference client uses PUT /v1/me/profile (not GSY/meter/community); project path republishes Actor and PUT /v1/me/profile returns 409 profile_managed_by_ewds.
 
 **UAT-010** → REQ-010
 Given two participant accounts, when participant A attempts to read participant B's personal data via the API, then access is denied.

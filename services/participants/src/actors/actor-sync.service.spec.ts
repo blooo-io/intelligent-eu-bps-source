@@ -1,5 +1,6 @@
 /**
- * REQ-008 / REQ-058 / UAT-008 — EWDS Actor sync and CSV fallback.
+ * REQ-008 / REQ-058 / UAT-008 / INT-447 — EWDS Actor sync (project path).
+ * CSV import helpers remain for reference-client / conflict tests only.
  */
 import "reflect-metadata";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -59,29 +60,34 @@ describe("ActorSyncService (REQ-008 / UAT-008)", () => {
     );
   });
 
-  it("REQ-008 / UAT-008: three EWDS actors create participants, CSV adds the fourth", async () => {
-    const result = await sync.sync(communityId);
-    expect(result).toEqual({ created: 3, updated: 0, skipped: 0 });
+  it("REQ-008 / UAT-008: four EWDS actors create participants (R2M CSV = N Actors)", async () => {
+    // INT-447 — fourth row simulates a CSV line published as another Actor by R2M.
+    const fourth: ActorRecord = {
+      ...actors[0]!,
+      actorId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeee4",
+      gsyActorId: "gsy-r2m-csv-fourth",
+      meterId: "m-r2m-4",
+      name: "R2M Csv Fourth",
+      contact: { email: "r2m-csv-fourth@example.invalid" },
+      version: "1",
+    };
+    const four = [...actors, fourth];
+    const syncFour = new ActorSyncService(
+      store,
+      new OutboxService(outboxStore),
+      idp,
+      new MockActorSourceAdapter(four),
+    );
+    const result = await syncFour.sync(communityId);
+    expect(result).toEqual({ created: 4, updated: 0, skipped: 0 });
 
-    for (const actor of actors) {
+    for (const actor of four) {
       const row = store.getParticipant(actor.actorId)!;
       expect(row.source).toBe("ewds");
       expect(row.participantId).toBe(actor.actorId);
       expect(row.profile?.name.trim().length).toBeGreaterThan(0);
       expect(deriveReadiness(row)).toBe("ProfileCompleted");
     }
-
-    const [imported] = await participants.importParticipants(communityId, [
-      {
-        email: "csv-fourth@example.invalid",
-        marketActorId: "gsy-csv-fourth",
-        meterId: "m-csv-4",
-        role: "consumer",
-      },
-    ]);
-    const csvRow = store.getParticipant(imported.participantId)!;
-    expect(csvRow.source).toBe("import");
-    expect(deriveReadiness(csvRow)).toBe("Invited");
   });
 
   it("REQ-008: second sync with same versions is a no-op", async () => {

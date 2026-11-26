@@ -611,6 +611,10 @@ export class ParticipantsService {
     if (!row || row.status === "Offboarded") {
       throw new NotFoundException("Caller is not a registered participant");
     }
+    // INT-447 / REQ-009 — EWDS Actor is master for source=ewds; R2M republishes Actor.
+    if (row.source === "ewds") {
+      throw new ConflictException({ code: "profile_managed_by_ewds" });
+    }
     if (!profile.name.trim() || !profile.address.trim() || !profile.email.trim()) {
       throw new BadRequestException("name, address and email are required");
     }
@@ -651,6 +655,70 @@ export class ParticipantsService {
     return this.tx.run(() =>
       this.performAcceptTerms(sub, roles, input, communityId),
     );
+  }
+
+  /**
+   * INT-447 / REQ-050 / REQ-052 — EWDS command channel target.
+   * Resolves actorId → member ParticipantRecord and/or manager binding.
+   */
+  async acceptTermsForActor(
+    actorId: string,
+    input: { termsVersion: string; selfBillingMandate: boolean },
+  ): Promise<{
+    termsVersion: string;
+    selfBillingMandate: boolean;
+    acceptedAt: string;
+  }> {
+    return this.tx.run(() => this.performAcceptTermsForActor(actorId, input));
+  }
+
+  private async performAcceptTermsForActor(
+    actorId: string,
+    input: { termsVersion: string; selfBillingMandate: boolean },
+  ): Promise<{
+    termsVersion: string;
+    selfBillingMandate: boolean;
+    acceptedAt: string;
+  }> {
+    const current = this.store.getTerms();
+    if (input.termsVersion !== current.termsVersion) {
+      throw new BadRequestException("termsVersion does not match current terms");
+    }
+    const acceptedAt = new Date().toISOString();
+    const row = this.store.getParticipant(actorId);
+    if (!row || row.status === "Offboarded") {
+      throw new NotFoundException(`Unknown actor ${actorId}`);
+    }
+    // REQ-050: producers must accept the self-billing mandate.
+    if (
+      (row.role === "producer" || row.role === "prosumer") &&
+      !input.selfBillingMandate
+    ) {
+      throw new BadRequestException(
+        "selfBillingMandate is required for producers",
+      );
+    }
+    const previousStatus = deriveReadiness(row);
+    const next: ParticipantRecord = {
+      ...row,
+      termsVersionAccepted: input.termsVersion,
+      selfBillingMandate: input.selfBillingMandate,
+      termsAcceptedAt: acceptedAt,
+    };
+    next.status = deriveReadiness(next);
+    this.store.putParticipant(next);
+    await this.emitReadinessIfChanged(row, previousStatus, next);
+    await this.emitTermsAcceptedAudit(
+      row.participantId,
+      row.communityId,
+      input.termsVersion,
+      acceptedAt,
+    );
+    return {
+      termsVersion: input.termsVersion,
+      selfBillingMandate: input.selfBillingMandate,
+      acceptedAt,
+    };
   }
 
   private async performAcceptTerms(

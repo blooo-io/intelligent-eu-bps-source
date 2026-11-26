@@ -50,6 +50,19 @@ export class InternalParticipantsController {
     return this.participants.getInvoiceParty(participantId);
   }
 
+  /**
+   * INT-447 / REQ-050 / REQ-052 — EWDS command channel `acceptTerms` target.
+   * actorId on the command equals participantId (REQ-058).
+   */
+  @Post("participants/:participantId/terms-acceptance")
+  @HttpCode(200)
+  acceptTermsForActor(
+    @Param("participantId") participantId: string,
+    @Body() body: { termsVersion: string; selfBillingMandate: boolean },
+  ) {
+    return this.participants.acceptTermsForActor(participantId, body);
+  }
+
   @Get("participants/:participantId/readiness")
   checkReadiness(@Param("participantId") participantId: string) {
     return this.participants.checkReadiness(participantId);

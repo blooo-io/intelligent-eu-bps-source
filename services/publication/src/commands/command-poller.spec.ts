@@ -433,6 +433,9 @@ function stubTargets(): CommandTargetsPort {
     setupPaymentMethod: async () => {
       throw new Error("not stubbed");
     },
+    acceptTerms: async () => {
+      throw new Error("not stubbed");
+    },
   };
 }
 

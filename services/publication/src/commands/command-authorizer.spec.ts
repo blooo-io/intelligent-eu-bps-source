@@ -195,6 +195,26 @@ describe("CommandAuthorizer (REQ-052 / A7 / REQ-049)", () => {
     ).toEqual({ allow: true, communityId: C1, role: "manager" });
   });
 
+  it("INT-447: member acceptTerms -> allow", async () => {
+    const authz = new StubActorAuthzClient();
+    authz.set(activeMember(ACTOR, C1, "consumer"));
+    const a = new CommandAuthorizer(
+      [ALLOWED],
+      authz,
+      new StubInvoiceLookupClient(),
+    );
+    expect(
+      await a.decide(
+        ALLOWED,
+        true,
+        baseReq("acceptTerms", {
+          termsVersion: "v1.0.0",
+          selfBillingMandate: true,
+        }),
+      ),
+    ).toEqual({ allow: true, communityId: C1, role: "member" });
+  });
+
   it("member startKyc -> allow role member (connect_account)", async () => {
     const authz = new StubActorAuthzClient();
     authz.set(activeMember(ACTOR, C1, "consumer"));

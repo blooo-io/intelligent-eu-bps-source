@@ -107,6 +107,51 @@ paths:
                 $ref: '#/components/schemas/InvoiceParty'
         '404':
           $ref: '../components/schemas.yaml#/components/responses/NotFound'
+  /participants/{participantId}/terms-acceptance:
+    post:
+      operationId: acceptTermsForActor
+      tags: [Participants]
+      summary: Accept T&C for an Actor (EWDS command channel)
+      description: >
+        INT-447 / REQ-050 / REQ-052 — called by AC-10 when dispatching
+        billingCommandRequest operation acceptTerms. participantId = actorId.
+      parameters:
+        - $ref: '#/components/parameters/ParticipantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [termsVersion, selfBillingMandate]
+              properties:
+                termsVersion:
+                  type: string
+                  minLength: 1
+                selfBillingMandate:
+                  type: boolean
+      responses:
+        '200':
+          description: Acceptance recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [termsVersion, selfBillingMandate, acceptedAt]
+                properties:
+                  termsVersion:
+                    type: string
+                  selfBillingMandate:
+                    type: boolean
+                  acceptedAt:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '../components/schemas.yaml#/components/responses/BadRequest'
+        '404':
+          $ref: '../components/schemas.yaml#/components/responses/NotFound'
   /participants/{participantId}/readiness:
     get:
       operationId: checkReadiness

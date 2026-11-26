@@ -4,5 +4,8 @@
   "kycVerified": true,
   "accountStatus": "Active",
   "verificationKind": "connect_account",
-  "updatedAt": "2026-11-20T12:00:00+01:00"
+  "updatedAt": "2026-11-20T12:00:00+01:00",
+  "termsVersion": "v1.0.0",
+  "termsAcceptedAt": "2026-11-20T11:00:00+01:00",
+  "selfBillingMandate": true
 }

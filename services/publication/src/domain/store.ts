@@ -1,5 +1,6 @@
 import type {
   InvoiceProjection,
+  KycProjection,
   OutboundMessage,
   PaymentProjection,
 } from "./types.js";
@@ -8,11 +9,23 @@ export class PublicationStore {
   private readonly invoices = new Map<string, InvoiceProjection>();
   private readonly payments = new Map<string, PaymentProjection>();
   private readonly outbound = new Map<string, OutboundMessage>();
+  /** INT-448 — last UserAccount projection per actor (merge KYC vs T&C updates). */
+  private readonly userAccounts = new Map<string, KycProjection>();
 
   reset(): void {
     this.invoices.clear();
     this.payments.clear();
     this.outbound.clear();
+    this.userAccounts.clear();
+  }
+
+  putUserAccount(row: KycProjection): void {
+    this.userAccounts.set(row.actorId, structuredClone(row));
+  }
+
+  getUserAccount(actorId: string): KycProjection | undefined {
+    const row = this.userAccounts.get(actorId);
+    return row ? structuredClone(row) : undefined;
   }
 
   putInvoice(row: InvoiceProjection): void {

@@ -14,6 +14,19 @@ import type {
   StatementProjection,
 } from "../domain/types.js";
 import type { DataSpaceTopic } from "../domain/types.js";
+
+/** INT-448 — partial UserAccount update (undefined = keep cached value). */
+export type UserAccountPatch = {
+  actorId: string;
+  communityId: string;
+  updatedAt: string;
+  kycVerified?: boolean;
+  accountStatus?: string;
+  verificationKind?: string;
+  termsVersion?: string | null;
+  termsAcceptedAt?: string | null;
+  selfBillingMandate?: boolean;
+};
 import {
   DATASPACE_PORT,
   type DataSpacePort,
@@ -129,12 +142,40 @@ export class PublicationService {
     );
   }
 
-  /** A5 — KycStatusChanged → billingKycStatus. */
-  async onKycStatusChanged(kyc: KycProjection): Promise<void> {
+  /**
+   * A5 / INT-448 — UserAccount snapshot → billingKycStatus.
+   * Partial patches merge with the cached projection so KYC-only updates keep
+   * T&C fields and T&C-only updates keep KYC fields.
+   */
+  async onKycStatusChanged(patch: UserAccountPatch): Promise<void> {
+    const prev = this.store.getUserAccount(patch.actorId);
+    const merged: KycProjection = {
+      actorId: patch.actorId,
+      communityId: patch.communityId || prev?.communityId || "",
+      kycVerified: patch.kycVerified ?? prev?.kycVerified ?? false,
+      accountStatus:
+        patch.accountStatus ?? prev?.accountStatus ?? "PendingVerification",
+      verificationKind:
+        patch.verificationKind ?? prev?.verificationKind ?? "connect_account",
+      termsVersion:
+        patch.termsVersion !== undefined
+          ? patch.termsVersion
+          : (prev?.termsVersion ?? null),
+      termsAcceptedAt:
+        patch.termsAcceptedAt !== undefined
+          ? patch.termsAcceptedAt
+          : (prev?.termsAcceptedAt ?? null),
+      selfBillingMandate:
+        patch.selfBillingMandate !== undefined
+          ? patch.selfBillingMandate
+          : (prev?.selfBillingMandate ?? false),
+      updatedAt: patch.updatedAt,
+    };
+    this.store.putUserAccount(merged);
     await this.publishOrQueue(
       "billingKycStatus",
-      `${kyc.actorId}:${kyc.verificationKind}`,
-      toBillingKycStatus(kyc),
+      `${merged.actorId}:${merged.verificationKind}`,
+      toBillingKycStatus(merged),
     );
   }
 

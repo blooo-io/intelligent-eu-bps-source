@@ -381,6 +381,58 @@ describe("EWDS topic payload from contract events (INT-376, NFR-004, UAT-070)", 
     >;
     expect(row.kycVerified).toBe(true);
     expect(row.accountStatus).toBe("Active");
+    expect(row.termsVersion).toBeNull();
+    expect(row.selfBillingMandate).toBe(false);
+  });
+
+  it("INT-448: UserAccountStatusChanged publishes T&C alongside kycVerified", async () => {
+    const dataspace = createMockDataSpace();
+    const store = new PublicationStore();
+    const service = new PublicationService(store, dataspace);
+    const bus = new InMemoryEventBus();
+    const listener = new BillingEventsListener(bus, service);
+    await listener.onModuleInit();
+
+    await bus.publish(
+      "UserAccountStatusChanged",
+      envelope("UserAccountStatusChanged", "AC-03", {
+        actorId: PRODUCER,
+        kycVerified: false,
+        accountStatus: "PendingVerification",
+        verificationKind: "connect_account",
+        termsVersion: "v1.0.0",
+        termsAcceptedAt: "2026-11-26T06:00:00.000Z",
+        selfBillingMandate: true,
+      }),
+    );
+
+    const row = dataspace
+      .recorded()
+      .find((r) => r.topic === "billingKycStatus")!.message as Record<
+      string,
+      unknown
+    >;
+    expect(row.termsVersion).toBe("v1.0.0");
+    expect(row.selfBillingMandate).toBe(true);
+    expect(row.kycVerified).toBe(false);
+
+    // KYC-only update must not wipe T&C (merge cache).
+    await bus.publish(
+      "KycStatusChanged",
+      envelope("KycStatusChanged", "AC-07", {
+        actorId: PRODUCER,
+        kycVerified: true,
+        accountStatus: "Active",
+        verificationKind: "connect_account",
+      }),
+    );
+    const latest = dataspace
+      .recorded()
+      .filter((r) => r.topic === "billingKycStatus")
+      .at(-1)!.message as Record<string, unknown>;
+    expect(latest.kycVerified).toBe(true);
+    expect(latest.termsVersion).toBe("v1.0.0");
+    expect(latest.selfBillingMandate).toBe(true);
   });
 
   it("NFR-004: no published payload contains keys email|name|address|iban|stripe*", async () => {

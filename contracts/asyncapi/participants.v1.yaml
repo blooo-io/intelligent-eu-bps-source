@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: participants events
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     Domain events published by AC-03. Catalogue in application architecture section 4.
     Delivery is at least once. Consumers deduplicate on eventId. Payloads carry identifiers only.
@@ -33,6 +33,14 @@ channels:
     messages:
       ErasureCompleted:
         $ref: '#/components/messages/ErasureCompleted'
+  UserAccountStatusChanged:
+    address: UserAccountStatusChanged
+    description: >
+      INT-448 / REQ-050 / REQ-048 — UserAccount subset (kycVerified + T&C)
+      for AC-10 billingKycStatus publication.
+    messages:
+      UserAccountStatusChanged:
+        $ref: '#/components/messages/UserAccountStatusChanged'
 operations:
   publishParticipantOnboarded:
     action: send
@@ -58,6 +66,12 @@ operations:
       $ref: '#/channels/ErasureCompleted'
     messages:
       - $ref: '#/channels/ErasureCompleted/messages/ErasureCompleted'
+  publishUserAccountStatusChanged:
+    action: send
+    channel:
+      $ref: '#/channels/UserAccountStatusChanged'
+    messages:
+      - $ref: '#/channels/UserAccountStatusChanged/messages/UserAccountStatusChanged'
 components:
   messages:
     ParticipantOnboarded:
@@ -170,3 +184,48 @@ components:
                     enum:
                       - "completed"
                       - "failed"
+    UserAccountStatusChanged:
+      name: UserAccountStatusChanged
+      contentType: application/json
+      payload:
+        allOf:
+          - $ref: ./components/envelope.schema.json
+          - type: object
+            properties:
+              type:
+                const: UserAccountStatusChanged
+              producer:
+                const: AC-03
+              data:
+                type: object
+                additionalProperties: false
+                required:
+                  - actorId
+                  - kycVerified
+                  - termsVersion
+                  - termsAcceptedAt
+                  - selfBillingMandate
+                properties:
+                  actorId:
+                    type: string
+                    format: uuid
+                  participantId:
+                    type: string
+                    format: uuid
+                  kycVerified:
+                    type: boolean
+                  accountStatus:
+                    type: string
+                  verificationKind:
+                    type: string
+                  termsVersion:
+                    oneOf:
+                      - type: string
+                      - type: "null"
+                  termsAcceptedAt:
+                    oneOf:
+                      - type: string
+                        format: date-time
+                      - type: "null"
+                  selfBillingMandate:
+                    type: boolean

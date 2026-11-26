@@ -1,6 +1,6 @@
 # Billing EWDS topics: draft proposal from Blooo to EWAG
 
-Status: **DRAFT v0.4 (2026-11-26, INT-447)**, proposed by Blooo (T5.6 / D5.5) for review by EWAG.
+Status: **DRAFT v0.5 (2026-11-26, INT-448)**, proposed by Blooo (T5.6 / D5.5) for review by EWAG.
 Agreement: EWAG creates the topics; Blooo proposes the JSON schemas. Actor and Tariff schemas are **to submit to EWAG**.
 Project path is **EWDS-only**: R2M publishes `actor` create/update (CSV in R2M = N Actor messages); billing commands include `acceptTerms`; no billing-service CSV fallback.
 
@@ -12,7 +12,7 @@ Project path is **EWDS-only**: R2M publishes `actor` create/update (CSV in R2M =
 | `billingInvoice` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Billing & Payment Service (Blooo gateway) | GSY DEX (trade payment status), GSY Analytics / WP6 (KPIs), project UI (R2M) | `billingInvoice.v1.0.0.schema.json` |
 | `billingPayment` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Billing & Payment Service (Blooo gateway) | same | `billingPayment.v1.0.0.schema.json` |
 | `billingPayout` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Billing & Payment Service (Blooo gateway) | project UI (R2M) | `billingPayout.v1.0.0.schema.json` |
-| `billingKycStatus` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Billing & Payment Service (Blooo gateway) | project UI (R2M) | `billingKycStatus.v1.0.0.schema.json` |
+| `billingKycStatus` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Billing & Payment Service (Blooo gateway) | project UI (R2M) | `billingKycStatus.v1.0.0.schema.json` (UserAccount: KYC **+ T&C**, INT-448) |
 | `billingCommandRequest` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | project UI gateway (subscriber) | Billing & Payment Service (poller) | `billingCommandRequest.v1.0.0.schema.json` |
 | `billingCommandReply` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Billing & Payment Service (Blooo gateway) | project UI gateway (correlated reply) | `billingCommandReply.v1.0.0.schema.json` |
 | `actor` | 1.0.0 | `integration.apps.intelligent.auth.ewc` | Project UI (R2M) / consortium Actor source | Billing & Payment Service (`ActorSourcePort` — intake only) | `actor.v1.0.0.schema.json` |
@@ -33,7 +33,7 @@ Subscribe channels are restricted by role to the consortium application.
 - **billingInvoice:** on every invoice creation and status change (Open → PartiallyPaid / Paid / Overdue / Void / Disputed).
 - **billingPayment:** on every payment status change (pending → succeeded / failed / cancelled / refunded).
 - **billingPayout:** on payout request and on every payout status change.
-- **billingKycStatus:** when Connect account or Stripe Identity verification status changes for a participant.
+- **billingKycStatus:** when Connect/Identity KYC changes **or** T&C are accepted (ontology UserAccount subset: `kycVerified` + `termsVersion` / `termsAcceptedAt` / `selfBillingMandate`).
 - **billingCommandRequest / Reply:** request/reply on the command channel (REQ-052, A7). The project UI never calls Blooo REST directly; `/v1` is the reference-client API (`apps/web`) only.
 
 ### Command authorization (three layers)

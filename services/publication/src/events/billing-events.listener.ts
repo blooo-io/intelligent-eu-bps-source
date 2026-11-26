@@ -58,8 +58,12 @@ export class BillingEventsListener implements OnModuleInit {
     await this.bus.subscribe("KycStatusChanged", (p) =>
       this.dedupe(p, () => this.onKyc(p)),
     );
+    // INT-448 — T&C (+ full UserAccount subset) from AC-03.
+    await this.bus.subscribe("UserAccountStatusChanged", (p) =>
+      this.dedupe(p, () => this.onUserAccount(p)),
+    );
     this.logger.log(
-      "subscribed to Invoice*/Payment/Statement/Payout/KycStatusChanged",
+      "subscribed to Invoice*/Payment/Statement/Payout/KycStatusChanged/UserAccountStatusChanged",
     );
   }
 
@@ -262,7 +266,7 @@ export class BillingEventsListener implements OnModuleInit {
     });
   }
 
-  /** A5 — KycStatusChanged → billingKycStatus. */
+  /** A5 — KycStatusChanged → billingKycStatus (KYC fields only; T&C kept from cache). */
   async onKyc(payload: unknown): Promise<void> {
     const env = asEnvelope(payload);
     const data = env.data;
@@ -279,6 +283,44 @@ export class BillingEventsListener implements OnModuleInit {
       kycVerified: verified,
       accountStatus: verified && status === "Pending" ? "Active" : status,
       verificationKind: asString(data.verificationKind, "connect_account"),
+      updatedAt: env.occurredAt || new Date().toISOString(),
+    });
+  }
+
+  /**
+   * INT-448 / REQ-050 — UserAccountStatusChanged → billingKycStatus.
+   * Carries T&C at the same level as kycVerified (ontology UserAccount).
+   */
+  async onUserAccount(payload: unknown): Promise<void> {
+    const env = asEnvelope(payload);
+    const data = env.data;
+    const actorId = asString(data.actorId ?? data.participantId);
+    if (!actorId) return;
+    const termsVersion =
+      data.termsVersion === null
+        ? null
+        : asString(data.termsVersion) || undefined;
+    const termsAcceptedAt =
+      data.termsAcceptedAt === null
+        ? null
+        : asString(data.termsAcceptedAt) || undefined;
+    await this.publication.onKycStatusChanged({
+      actorId,
+      communityId: env.communityId,
+      ...(typeof data.kycVerified === "boolean"
+        ? { kycVerified: data.kycVerified }
+        : {}),
+      ...(asString(data.accountStatus)
+        ? { accountStatus: asString(data.accountStatus) }
+        : {}),
+      ...(asString(data.verificationKind)
+        ? { verificationKind: asString(data.verificationKind) }
+        : {}),
+      ...(termsVersion !== undefined ? { termsVersion } : {}),
+      ...(termsAcceptedAt !== undefined ? { termsAcceptedAt } : {}),
+      ...(typeof data.selfBillingMandate === "boolean"
+        ? { selfBillingMandate: data.selfBillingMandate }
+        : {}),
       updatedAt: env.occurredAt || new Date().toISOString(),
     });
   }

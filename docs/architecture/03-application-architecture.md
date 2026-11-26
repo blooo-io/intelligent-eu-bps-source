@@ -305,6 +305,7 @@ Removed REQ-057 settle-now operations on `/v1` follow the contract workstream ve
 | InvoiceStatusChanged | AC-06 | AC-08, AC-09, AC-10 | invoiceId, status, reason, outstanding |
 | PaymentStatusChanged | AC-07 | AC-06, AC-08, AC-09, AC-10, AC-11 | paymentId, invoiceId, payerId, payeeId, status, failureCategory |
 | KycStatusChanged | AC-07 | AC-03, AC-10 (billingKycStatus), AC-09 | subjectId, subjectType, kycStatus, kycVerified, method, payoutAccountVerified |
+| UserAccountStatusChanged | AC-03 | AC-10 (billingKycStatus) | actorId, kycVerified, termsVersion, termsAcceptedAt, selfBillingMandate (INT-448) |
 | DiscrepancyDetected | AC-08 | AC-09, AC-11 (operator alert) | scope, expected, actual |
 | ErasureRequested | AC-12 | AC-03, AC-06, AC-07 | requestId, participantId |
 | ErasureCompleted | AC-03, AC-06, AC-07 | AC-12 | requestId, module, result |

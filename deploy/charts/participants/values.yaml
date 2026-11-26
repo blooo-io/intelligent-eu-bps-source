@@ -12,6 +12,8 @@ egressModules:
   # INT-440 — live switch needs PSP capabilities (AC-07) + open periods (AC-05).
   - payments
   - settlement
+  # INT-454 — Mock CGW in int-apps.
+  - mock-cgw
 ingressFrom:
   - invoicing
   - settlement

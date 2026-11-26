@@ -118,6 +118,14 @@ releases:
       - ../charts/mocks/values.yaml
       - ../envs/{{ .Environment.Name }}/values.yaml
 
+  # INT-454 — Mock CGW transport stand-in (destinDev replicaCount via env overlay).
+  - name: mock-cgw
+    namespace: "{{ .Values.appsNamespace }}"
+    chart: ../charts/mock-cgw
+    values:
+      - ../charts/mock-cgw/values.yaml
+      - ../envs/{{ .Environment.Name }}/values.yaml
+
   # TD-7 / INT-132: outbox CDC relay into the environment data namespace.
   # Shared NATS is Argo-only (deploy/argocd/platform/nats.yaml) so helmfile
   # per-env apply does not install it twice.

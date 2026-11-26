@@ -17,6 +17,8 @@ const modules = [
   "reference-data",
   "scheduler",
   "mocks",
+  // INT-454 — Mock CGW transport stand-in on destinDev.
+  "mock-cgw",
   // INT-156 factory CD smoke (proves GHCR image path before product modules).
   "cd-smoke",
 ];
@@ -183,6 +185,30 @@ test("A8-live: every deployed environment runs the EWDS adapters live", async ()
   const destinDev = await readFile("deploy/envs/dev/values.yaml", "utf8");
   assert.match(destinDev, /MARKET_ADAPTER:\s*mock/);
   assert.match(destinDev, /INTAKE_BOOTSTRAP_S1:\s*"true"/);
+  // INT-454 — destinDev points CGW at Mock CGW (adapters stay ewds).
+  assert.match(destinDev, /CGW_BASE_URL:\s*http:\/\/mock-cgw:8080/);
+  assert.match(destinDev, /EWDS_COMMAND_ALLOWED_DIDS:\s*"did:ethr:volta:0xMockCgwBlooo/);
+});
+
+test("INT-454: mock-cgw chart + Argo app + peer egress", async () => {
+  const chart = await readFile("deploy/charts/mock-cgw/Chart.yaml", "utf8");
+  assert.match(chart, /^name: mock-cgw$/m);
+  const values = await readFile("deploy/charts/mock-cgw/values.yaml", "utf8");
+  assert.match(values, /replicaCount:\s*1/);
+  assert.match(values, /ingressFrom:[\s\S]*- publication/);
+  const argo = await readFile("deploy/argocd/dev/mock-cgw.yaml", "utf8");
+  assert.match(argo, /name: dev-mock-cgw/);
+  assert.match(argo, /path: deploy\/charts\/mock-cgw/);
+  for (const name of [
+    "publication",
+    "participants",
+    "trade-intake",
+    "compliance",
+    "reference-data",
+  ]) {
+    const text = await readFile(`deploy/charts/${name}/values.yaml`, "utf8");
+    assert.match(text, /egressModules:[\s\S]*- mock-cgw/, `${name} egress`);
+  }
 });
 
 test("INT-440: internal peer URLs present where compliance/participants/settlement/invoicing need them", async () => {

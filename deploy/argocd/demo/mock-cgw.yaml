@@ -1,0 +1,19 @@
+# Demo follows release tag; Mock CGW stays scaled to 0 via demo replicaCount.
+# Sync stays manual. destinDev is the INT-454 Mock CGW path.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo-mock-cgw
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/blooo-io/intelligent-eu-bps-source.git
+    targetRevision: v1.0.1
+    path: deploy/charts/mock-cgw
+    helm:
+      valueFiles:
+        - ../../envs/demo/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo-apps

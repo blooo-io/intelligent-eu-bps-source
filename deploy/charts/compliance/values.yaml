@@ -14,6 +14,8 @@ egressModules:
   # INT-440 — DSAR export + erasure adapters (AC-03 / AC-06 / AC-07).
   - payments
   - invoicing
+  # INT-454 — Mock CGW in int-apps.
+  - mock-cgw
 ingressFrom:
   - scheduler-worker
 keycloakEgress: true

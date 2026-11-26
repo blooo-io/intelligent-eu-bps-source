@@ -1,0 +1,10 @@
+apiVersion: v2
+name: mock-cgw
+description: INT-454 — Mock CGW transport stand-in for destinDev EWDS E2E (not live Spine)
+type: application
+version: 0.1.0
+appVersion: "0.0.0"
+dependencies:
+  - name: module
+    version: 0.1.0
+    repository: "file://../module"

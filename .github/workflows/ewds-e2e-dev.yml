@@ -1,0 +1,100 @@
+# INT-454 — EWDS project-path E2E against destinDev via Mock CGW (not live Spine).
+# Evidence label: run_path: mock. Requires GitHub Environment `dev` kubeconfig.
+name: ewds-e2e-dev
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [ewds-e2e-dev]
+  workflow_run:
+    workflows: [supply-chain]
+    types: [completed]
+    branches: [develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ewds-e2e-dev
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'repository_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-24.04
+    environment: dev
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: develop
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@bda439f5f36b99b262ebdcd3613869bddb064c8e # v5
+        with:
+          version: v1.32.0
+
+      - name: Configure cluster access
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_INTELLIGENT_EU_DEV }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KUBECONFIG_CONTENT}" ]; then
+            echo "Missing secret KUBECONFIG_INTELLIGENT_EU_DEV on environment dev" >&2
+            exit 1
+          fi
+          umask 077
+          mkdir -p "${HOME}/.kube"
+          printf '%s\n' "${KUBECONFIG_CONTENT}" > "${HOME}/.kube/config"
+          echo "KUBECONFIG=${HOME}/.kube/config" >> "${GITHUB_ENV}"
+
+      - name: Wait for mock-cgw Ready
+        run: |
+          set -euo pipefail
+          kubectl -n int-apps rollout status deploy/mock-cgw --timeout=180s
+          kubectl -n int-apps get deploy/mock-cgw -o wide
+
+      - name: Port-forward Mock CGW
+        run: |
+          set -euo pipefail
+          kubectl -n int-apps port-forward svc/mock-cgw 18080:8080 &
+          echo "PF_PID=$!" >> "${GITHUB_ENV}"
+          for i in $(seq 1 30); do
+            if curl -sf "http://127.0.0.1:18080/health" >/dev/null; then
+              echo "mock-cgw health ok"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "mock-cgw port-forward health failed" >&2
+          exit 1
+
+      - name: Setup pnpm + Node
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install + run cluster E2E driver
+        env:
+          MOCK_CGW_BASE_URL: http://127.0.0.1:18080
+          MOCK_CGW_API_KEY: cluster-e2e-key
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm --filter @intelligent/ewds-client build
+          pnpm --filter @intelligent/mocks build
+          pnpm --filter @intelligent/ewds-cluster-e2e test
+          echo "run_path=mock" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Mock CGW cluster E2E (S1 inject + S13 commands) passed." >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Stop port-forward
+        if: always()
+        run: |
+          if [ -n "${PF_PID:-}" ]; then kill "${PF_PID}" || true; fi

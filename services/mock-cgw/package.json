@@ -1,0 +1,26 @@
+{
+  "name": "@intelligent/mock-cgw",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "INT-454 — cluster Mock CGW service (DDHub CGW REST subset + inject API). Transport stand-in for destinDev E2E; not the live Spine.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@intelligent/ewds-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@vitest/coverage-v8": "4.1.12",
+    "typescript": "^7.0.2",
+    "vitest": "4.1.12"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,27 @@
+name: mock-cgw
+component: mock-cgw
+environment: dev
+dataNamespace: int-data
+# INT-454 — destinDev runs Mock CGW; demo/local keep chart at 0 via env if needed.
+replicaCount: 1
+image:
+  repository: ghcr.io/blooo-io/intelligent-eu-bps-source/services-mock-cgw
+  tag: "0.0.0"
+port: 8080
+# INT-287 — allow ewdsClient modules to reach Mock CGW on :8080.
+egressModules: []
+ingressFrom:
+  - publication
+  - participants
+  - trade-intake
+  - compliance
+  - reference-data
+keycloakEgress: false
+stripeEgress: false
+# No OpenBao module path; empty CGW_API_KEY → accept module OpenBao keys.
+externalSecret: false
+ewdsClient: false
+env:
+  # Empty → Mock CGW accepts any non-empty x-api-key (modules send OpenBao key).
+  CGW_API_KEY: ""
+  MOCK_CGW_VALIDATE_TOPICS: "true"

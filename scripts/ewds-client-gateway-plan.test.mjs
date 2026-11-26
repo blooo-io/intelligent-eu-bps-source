@@ -32,7 +32,8 @@ test("A7: command targets are declared in internal contracts", async () => {
     ["payments", "/payouts:request"],
     ["payments", "/kyc:start"],
     ["invoicing", "/invoices/{invoiceId}/status"],
-    ["notification", "/reminders"],
+    // INT-461 — REQ-061 sendReminder records on AC-06 (emits for AC-11).
+    ["invoicing", "/invoices/{invoiceId}/reminders"],
     ["participants", "/actors/{actorId}/authorization"],
   ]) {
     const yaml = await readFile(

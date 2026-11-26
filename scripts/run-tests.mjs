@@ -100,6 +100,7 @@ await run(process.execPath, ["--test", path.join(root, "scripts/module-images.te
 await run(process.execPath, ["--test", path.join(root, "scripts/supply-chain-workflow.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/lib/service-jwt.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/stripe-fresh-billing-run.test.mjs")]);
+await run(process.execPath, ["--test", path.join(root, "scripts/cluster-money-path-e2e.test.mjs")]);
 await run(process.execPath, ["--test", path.join(root, "scripts/sonar-layout.test.mjs")]);
 
 await run(process.execPath, ["--test", path.join(root, "scripts/pin-dev-image-tag.test.mjs")]);

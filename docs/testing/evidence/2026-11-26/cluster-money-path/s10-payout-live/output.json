@@ -1,0 +1,89 @@
+{
+  "seedPay": {
+    "httpStatus": 200,
+    "paymentId": "0a9821a6-d213-4fe5-85a3-2226793e18e4",
+    "status": "succeeded"
+  },
+  "invoiceAfterPay": {
+    "invoiceId": "d0393c1a-c85b-4eb2-9fcf-19a48dfa09ec",
+    "status": "Paid"
+  },
+  "voided": [
+    {
+      "invoiceId": "5bf01e60-10dd-456d-9483-1cb7694299a9",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    },
+    {
+      "invoiceId": "a9fdcf58-9f1c-41e3-87b6-42726176c42d",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    },
+    {
+      "invoiceId": "a9614772-04c7-4a42-92b7-08ac46a970a3",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    },
+    {
+      "invoiceId": "9f1f3b03-76dc-4354-92bf-ce40c5e371ea",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    },
+    {
+      "invoiceId": "e021c220-dfda-4f23-ad21-4e3f06f53d84",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    },
+    {
+      "invoiceId": "faf97272-e9f7-4a3f-ac46-ae8dea7c93a3",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    },
+    {
+      "invoiceId": "29cec7a5-7614-43f0-86a7-b70756cb8c0b",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    },
+    {
+      "invoiceId": "bbd2e9c7-116b-41fc-bf7e-ffbb031a34ae",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    },
+    {
+      "invoiceId": "982cbae3-16e9-4fed-b41c-400598b8f4c1",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    },
+    {
+      "invoiceId": "c3f0d39e-c15b-4efe-ac81-0cf6da806cfc",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    },
+    {
+      "invoiceId": "a9ffe14d-97f9-4c2d-b511-308fdef6e095",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    },
+    {
+      "invoiceId": "aa630da4-651b-48bc-a2b9-80a7ac958aa3",
+      "httpStatus": 200,
+      "invoiceStatus": "Void"
+    }
+  ],
+  "balanceAvailable": [
+    {
+      "amount": 1000,
+      "currency": "eur",
+      "source_types": {
+        "card": 1000
+      }
+    }
+  ],
+  "payout": {
+    "httpStatus": 200,
+    "payoutId": "0764f1c2-9b62-4fe5-b646-7f23f937287b",
+    "payoutStatus": "in_transit",
+    "amount": "5.28",
+    "currency": "EUR"
+  }
+}

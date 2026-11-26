@@ -1,0 +1,15 @@
+{
+  "attach": {
+    "participantId": "11111111-2222-4333-8444-555555555555",
+    "paymentMethodId": "pm_card_chargeDeclined"
+  },
+  "paymentsStart": {
+    "invoiceId": "24801056-4c21-41ee-a7cb-36d308a443b5",
+    "actorId": "11111111-2222-4333-8444-555555555555"
+  },
+  "reminder": {
+    "invoiceId": "24801056-4c21-41ee-a7cb-36d308a443b5",
+    "actorId": "dddddddd-eeee-4fff-8000-111111111111",
+    "communityId": "c0ffee00-1234-4abc-8def-0123456789ab"
+  }
+}

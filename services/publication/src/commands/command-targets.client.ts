@@ -46,7 +46,7 @@ export interface CommandTargetsPort {
     invoiceId: string;
     actorId: string;
     communityId: string;
-  }): Promise<{ invoiceId: string; sentAt: string }>;
+  }): Promise<{ invoiceId: string; reminderCount: number }>;
   startRun(i: {
     communityId: string;
     type: "periodic" | "final";
@@ -163,11 +163,17 @@ export class HttpCommandTargetsClient implements CommandTargetsPort {
     actorId: string;
     communityId: string;
   }) {
+    // INT-461 — invoice-side REQ-061 on AC-06 (emits PaymentReminderRequested
+    // for AC-11). Was incorrectly posting to notification /reminders (404).
     return this.postJson(
-      this.urls.notificationBaseUrl,
-      "/internal/v1/reminders",
-      i,
-    ) as Promise<{ invoiceId: string; sentAt: string }>;
+      this.urls.invoicingBaseUrl,
+      `/internal/v1/invoices/${encodeURIComponent(i.invoiceId)}/reminders`,
+      {
+        actorId: i.actorId,
+        communityId: i.communityId,
+        trigger: "manual",
+      },
+    ) as Promise<{ invoiceId: string; reminderCount: number }>;
   }
 
   async startRun(i: {

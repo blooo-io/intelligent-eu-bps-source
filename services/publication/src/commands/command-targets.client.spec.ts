@@ -148,9 +148,11 @@ describe("HttpCommandTargetsClient (REQ-052 / Task 4.3)", () => {
           { status: 200 },
         );
       }
-      if (u.includes("reminders")) {
+      // INT-461 — sendReminder targets AC-06 invoice reminders (not AC-11).
+      if (u.includes("/invoices/") && u.includes("/reminders")) {
+        expect(u).toContain("invoicing:8080");
         return new Response(
-          JSON.stringify({ invoiceId: INV, sentAt: "2026-11-24T10:00:00Z" }),
+          JSON.stringify({ invoiceId: INV, reminderCount: 1 }),
           { status: 200 },
         );
       }
@@ -208,7 +210,7 @@ describe("HttpCommandTargetsClient (REQ-052 / Task 4.3)", () => {
         actorId: ACTOR,
         communityId: C1,
       }),
-    ).resolves.toMatchObject({ invoiceId: INV });
+    ).resolves.toMatchObject({ invoiceId: INV, reminderCount: 1 });
     await expect(
       client.setupPaymentMethod({ actorId: ACTOR, surface: "hosted" }),
     ).resolves.toMatchObject({ handoff: { purpose: "setup" } });

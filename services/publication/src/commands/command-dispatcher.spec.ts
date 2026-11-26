@@ -335,7 +335,7 @@ describe("CommandDispatcher (REQ-052 / A7 / A7-bis)", () => {
     invoices.set(invoice(INV, C1, ACTOR));
     targets.sendReminder = vi.fn(async () => ({
       invoiceId: INV,
-      sentAt: "2026-11-24T10:00:00Z",
+      reminderCount: 1,
     }));
     const r = await d.handle(
       msg("sendReminder", { invoiceId: INV }, "ffffffff-ffff-4fff-8fff-ffffffffffff"),

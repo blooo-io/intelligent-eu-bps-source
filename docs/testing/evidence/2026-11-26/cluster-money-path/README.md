@@ -1,14 +1,19 @@
-# Cluster money-path evidence — INT-459
+# Cluster money-path evidence — INT-459 / INT-460 / INT-461
 
 **run_path: stripe-test** on `k8s-intelligent-eu-dev` / `int-apps` with `PSP_PROVIDER=stripe`.
 
 | Scenario | Result |
 |---|---|
 | S4 KYC / Connect | Live Connect Express accounts (e.g. `acct_1Ug5eqFNmC6Gh1He`) |
-| S7 Billing | Run `484e07c2-c984-4e93-afcb-e5c07ffff779` → 2 Open invoices via NATS |
-| S8 Pay | `succeeded` + Stripe PaymentIntent / Charge on Connect accounts |
-| S10 Payout | HTTP 409 `nothing_to_pay_out` (Connect balance not ready yet) |
+| S7 Billing | Run → Open invoices via NATS |
+| S8 Pay | `succeeded` + Stripe PaymentIntent / Charge; invoices **Paid** after INT-460 unwrap (`s08-pay-after-int460/`) |
+| S9 Failure | Decline attach `pm_card_chargeDeclined` → payment ends `failed` (`s09-failure/`). Reminder was **404** on notification `/reminders`; INT-461 routes REQ-061 to AC-06 `POST …/invoices/{id}/reminders` and CI re-proves |
+| S10 Payout | Live `po_*` after A2 Void cleanup + `tok_bypassPending` seed (`s10-payout-live/`) |
 
-Operator path: `scripts/stripe-fresh-billing-run.mjs`, then `POST /internal/v1/payments:start`.
+## Durable CI path (INT-461)
 
-**INT-460 fix verified:** after deploying the PaymentStatusListener unwrap, re-calling `payments:start` moved both invoices to **Paid** (`s08-pay-after-int460/`).
+Do not rely on one-shot port-forward scripts for regression. After merge:
+
+- Workflow: `.github/workflows/money-path-stripe-dev.yml`
+- Driver: `scripts/stripe-fresh-billing-run.mjs` → `scripts/cluster-money-path-e2e.mjs`
+- Doc: [`docs/testing/money-path-stripe-e2e-cd.md`](../../money-path-stripe-e2e-cd.md)

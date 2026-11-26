@@ -1,0 +1,186 @@
+# INT-461 — destinDev Stripe money-path E2E (S8 pay, S9 fail+reminder, S10 payout).
+# Evidence label: run_path: stripe-test. Sibling of ewds-e2e-dev (Mock CGW).
+# Requires GitHub Environment `dev` kubeconfig; Stripe key from cluster secret.
+name: money-path-stripe-dev
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [money-path-stripe-dev]
+  workflow_run:
+    workflows: [supply-chain]
+    types: [completed]
+    branches: [develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: money-path-stripe-dev
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'repository_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-24.04
+    environment: dev
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: develop
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@bda439f5f36b99b262ebdcd3613869bddb064c8e # v5
+        with:
+          version: v1.32.0
+
+      - name: Configure cluster access
+        env:
+          KUBECONFIG_CONTENT: ${{ secrets.KUBECONFIG_INTELLIGENT_EU_DEV }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KUBECONFIG_CONTENT}" ]; then
+            echo "Missing secret KUBECONFIG_INTELLIGENT_EU_DEV on environment dev" >&2
+            exit 1
+          fi
+          umask 077
+          mkdir -p "${HOME}/.kube"
+          printf '%s\n' "${KUBECONFIG_CONTENT}" > "${HOME}/.kube/config"
+          echo "KUBECONFIG=${HOME}/.kube/config" >> "${GITHUB_ENV}"
+
+      - name: Verify context admin@k8s-intelligent-eu-dev
+        run: |
+          set -euo pipefail
+          ctx="$(kubectl config current-context)"
+          echo "current-context=${ctx}"
+          test "${ctx}" = "admin@k8s-intelligent-eu-dev"
+
+      - name: Roll money-path modules to pull floating :develop images
+        # Same rationale as former e2e-dev (INT-229 / INT-280): Argo env-only
+        # syncs leave pods on pre-supply-chain digests.
+        run: |
+          set -euo pipefail
+          critical="participants trade-intake settlement invoicing payments publication"
+          failed_critical=0
+          for d in \
+            participants \
+            trade-intake \
+            settlement \
+            invoicing \
+            payments \
+            publication \
+            notification \
+            reference-data \
+            scheduler \
+            scheduler-worker
+          do
+            kubectl -n int-apps rollout restart "deploy/${d}"
+            if ! kubectl -n int-apps rollout status "deploy/${d}" --timeout=180s; then
+              echo "WARN: rollout status failed for deploy/${d}" >&2
+              case " ${critical} " in
+                *" ${d} "*) failed_critical=1 ;;
+              esac
+            fi
+          done
+          if [ "${failed_critical}" -ne 0 ]; then
+            echo "Critical deploy rollout failed" >&2
+            exit 1
+          fi
+
+      - name: Export Stripe test secret from cluster
+        # Same OpenBao-synced key payments uses — no new GitHub secret.
+        run: |
+          set -euo pipefail
+          key="$(kubectl -n int-apps get secret payments -o jsonpath='{.data.stripe_secret_key}' | base64 -d || true)"
+          if [[ -z "${key}" ]]; then
+            key="$(kubectl -n int-apps get secret payments -o jsonpath='{.data.STRIPE_SECRET_KEY}' | base64 -d || true)"
+          fi
+          if [[ ! "${key}" =~ ^sk_test_ ]]; then
+            echo "payments secret missing stripe_secret_key (sk_test_…)" >&2
+            exit 1
+          fi
+          echo "::add-mask::${key}"
+          echo "STRIPE_SECRET_KEY=${key}" >> "${GITHUB_ENV}"
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Seed fresh Open invoices + run S8/S9/S10 money-path
+        # Port-forward AC-04..07 + Keycloak; mint module-service JWT for /internal.
+        run: |
+          set -euo pipefail
+          kubectl -n int-apps port-forward deploy/payments 18087:8080 >/tmp/pf-payments.log 2>&1 &
+          echo $! > /tmp/pf-payments.pid
+          kubectl -n int-apps port-forward deploy/settlement 18085:8080 >/tmp/pf-settlement.log 2>&1 &
+          echo $! > /tmp/pf-settlement.pid
+          kubectl -n int-apps port-forward deploy/invoicing 18086:8080 >/tmp/pf-invoicing.log 2>&1 &
+          echo $! > /tmp/pf-invoicing.pid
+          kubectl -n int-apps port-forward deploy/trade-intake 18084:8080 >/tmp/pf-trade-intake.log 2>&1 &
+          echo $! > /tmp/pf-trade-intake.pid
+          kubectl -n keycloak port-forward svc/platform-keycloak-keycloakx-http 18081:80 >/tmp/pf-keycloak.log 2>&1 &
+          echo $! > /tmp/pf-keycloak.pid
+          cleanup() {
+            for f in /tmp/pf-payments.pid /tmp/pf-settlement.pid /tmp/pf-invoicing.pid /tmp/pf-trade-intake.pid /tmp/pf-keycloak.pid; do
+              if [ -f "$f" ]; then kill "$(cat "$f")" 2>/dev/null || true; fi
+            done
+          }
+          trap cleanup EXIT
+          for i in $(seq 1 30); do
+            if curl -sf "http://127.0.0.1:18087/health" >/dev/null \
+              && curl -sf "http://127.0.0.1:18085/health" >/dev/null \
+              && curl -sf "http://127.0.0.1:18086/health" >/dev/null \
+              && curl -sf "http://127.0.0.1:18084/health" >/dev/null \
+              && curl -sf "http://127.0.0.1:18081/realms/int" >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          export PAYMENTS_URL=http://127.0.0.1:18087
+          export SETTLEMENT_URL=http://127.0.0.1:18085
+          export INVOICING_URL=http://127.0.0.1:18086
+          export TRADE_INTAKE_URL=http://127.0.0.1:18084
+          export KEYCLOAK_BASE_URL=http://127.0.0.1:18081
+          export KEYCLOAK_REALM=int
+          export KEYCLOAK_SERVICE_CLIENT_ID=module-service
+          export KEYCLOAK_SERVICE_CLIENT_SECRET=dev-module-service-replace-me
+
+          node scripts/stripe-fresh-billing-run.mjs
+
+          # Same-step handoff: seed appends to $GITHUB_ENV; shell does not auto-import.
+          E2E_FRESH_INVOICE_IDS="$(
+            grep -E '^E2E_FRESH_INVOICE_IDS=' "${GITHUB_ENV}" | tail -1 | cut -d= -f2-
+          )"
+          export E2E_FRESH_INVOICE_IDS
+          if [ -z "${E2E_FRESH_INVOICE_IDS}" ]; then
+            echo "E2E_FRESH_INVOICE_IDS missing after seed" >&2
+            exit 1
+          fi
+          echo "seeded_invoice_count=$(echo "${E2E_FRESH_INVOICE_IDS}" | tr ',' '\n' | grep -c . || true)"
+
+          mkdir -p /tmp/money-path-evidence
+          export EVIDENCE_DIR=/tmp/money-path-evidence
+          node scripts/cluster-money-path-e2e.mjs
+          echo "run_path=stripe-test" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Money-path S8/S9/S10 passed (Stripe test)." >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload money-path evidence packs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: money-path-stripe-evidence
+          path: /tmp/money-path-evidence
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,24 @@
+{
+  "attach": {
+    "httpStatus": 200,
+    "participantId": "11111111-2222-4333-8444-555555555555",
+    "paymentMethodId": "pm_card_chargeDeclined",
+    "status": "complete"
+  },
+  "payment": {
+    "httpStatus": 200,
+    "paymentId": "a8eaa462-90bf-4bc5-8b9b-cc8f68ef2dca",
+    "status": "processing"
+  },
+  "invoiceAfter": {
+    "invoiceId": "24801056-4c21-41ee-a7cb-36d308a443b5",
+    "status": "Open",
+    "total": "2.00"
+  },
+  "reminder": {
+    "httpStatus": 404,
+    "message": "Cannot POST /internal/v1/reminders",
+    "error": "Not Found",
+    "statusCode": 404
+  }
+}

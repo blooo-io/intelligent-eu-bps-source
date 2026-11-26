@@ -38,7 +38,12 @@ const BANNER = [
 function toSiteHref(target) {
   const clean = target.replace(/^\.\//, "").replace(/\\/g, "/");
   if (clean === "README.md" || clean === "README") return "./";
-  if (clean === "ewds-topics/" || clean === "ewds-topics") {
+  if (
+    clean === "ewds-topics/" ||
+    clean === "ewds-topics" ||
+    clean === "ewds-topics/README.md" ||
+    clean === "ewds-topics/README"
+  ) {
     return "./ewds-topics";
   }
   if (clean.endsWith(".md")) {

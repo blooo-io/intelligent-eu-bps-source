@@ -1,6 +1,6 @@
 # Architecture
 
-The design is documented in **five validated views**, published on this site from the repository’s `docs/architecture/` tree (INT-413). You do not need to open GitHub to read them.
+The design is documented in architecture views published on this site from the repository’s `docs/architecture/` tree (INT-413 / INT-449). You do not need to open GitHub to read them.
 
 | View | Question | On this site |
 |---|---|---|
@@ -9,6 +9,8 @@ The design is documented in **five validated views**, published on this site fro
 | Application | Modules & APIs | [3. Application architecture](/architecture/03-application-architecture) |
 | Technical | Technologies | [4. Technical architecture](/architecture/04-technical-architecture) |
 | Physical | Where it runs | [5. Physical architecture](/architecture/05-physical-architecture) |
+| Ontology datamodel | Actor vs UserAccount relations | [6. Ontology datamodel](/architecture/06-datamodel-ontology) |
+| Scenario flows | End-to-end EWDS journeys | [7. Scenario flows](/architecture/07-scenario-flows) |
 
 Also published: [EWDS / DDHub Client Gateway](/architecture/ewds-client-gateway) and [EWDS topic schemas](/architecture/ewds-topics).
 

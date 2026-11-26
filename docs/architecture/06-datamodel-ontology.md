@@ -183,7 +183,7 @@ erDiagram
 | `billingKycStatus` | **`UserAccount` subset** (`kycVerified` + T&C) | BPS AC-10 | R2M |
 | `billingCommandRequest` / `Reply` | Actions (not records) | R2M ↔ BPS | — |
 
-Schemas: [`ewds-topics/`](ewds-topics/README.md).
+Schemas: [`ewds-topics/`](ewds-topics/).
 
 ## 5. UserAccount record shape (`billingKycStatus`)
 

@@ -525,6 +525,44 @@ describe("payments HTTP (INT-107)", () => {
       });
     });
 
+    // INT-461 — S9 fixture: bind pm_card_chargeDeclined before payments:start.
+    it("POST /internal/v1/payment-methods:attach binds a payment-method token", async () => {
+      const seeded = await fetch(
+        `${base}/internal/v1/payment-accounts:provision`,
+        {
+          method: "POST",
+          headers: SERVICE_HEADERS,
+          body: JSON.stringify({
+            participantId: CONSUMER,
+            communityId: COMMUNITY,
+            role: "consumer",
+          }),
+        },
+      );
+      expect(seeded.status).toBe(201);
+      const res = await fetch(`${base}/internal/v1/payment-methods:attach`, {
+        method: "POST",
+        headers: SERVICE_HEADERS,
+        body: JSON.stringify({
+          participantId: CONSUMER,
+          paymentMethodId: "pm_card_chargeDeclined",
+        }),
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        participantId: CONSUMER,
+        paymentMethodId: "pm_card_chargeDeclined",
+        status: "complete",
+      });
+      const account = await fetch(
+        `${base}/internal/v1/payment-accounts/${CONSUMER}`,
+        { headers: SERVICE_HEADERS },
+      );
+      expect(await account.json()).toMatchObject({
+        paymentMethodId: "pm_card_chargeDeclined",
+      });
+    });
+
     it("every path in the internal payments OpenAPI has a controller route", async () => {
       const paths = listInternalPaymentsOpenApiPaths();
       expect(paths.length).toBeGreaterThanOrEqual(10);
@@ -534,6 +572,7 @@ describe("payments HTTP (INT-107)", () => {
           "/payouts:request",
           "/kyc:start",
           "/payment-methods:setup",
+          "/payment-methods:attach",
         ]),
       );
 

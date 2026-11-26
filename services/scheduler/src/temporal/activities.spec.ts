@@ -75,4 +75,27 @@ describe("invokeOwnerModule (INT-216)", () => {
       }),
     ).rejects.toThrow(/owner_http_503/);
   });
+
+  it("GET omits a request body", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => "",
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    await invokeOwnerModule({
+      ownerModule: "AC-05",
+      path: "/health-check",
+      method: "GET",
+      body: { ignored: true },
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/internal/v1/health-check"),
+      expect.objectContaining({
+        method: "GET",
+        body: undefined,
+      }),
+    );
+  });
 });
+

@@ -28,11 +28,11 @@ The INT-97 source freeze on 2026-10-18 carried in-scope UAT **62 Pass / 0 Blocke
 3. `dev` continues on floating `:develop` images (INT-178). `demo` pins the published tag.
 4. The v6.1 realignment (INT-423…INT-432) lands on `develop` under SemVer; the upcoming published tag is `v1.2.0` (package version `1.2.0`, INT-430). The annotated tag is cut by `stable-release` / `cut-release.mjs` after merge — not claimed here.
 
-## Remaining partner-report gate (Blooo D5.5 report owner)
+## Repo deliverable index (INT-91)
 
-| Issue | Role |
-|---|---|
-| INT-90 | Integrate build/validation results into the D5.5 narrative |
-| INT-91 | Finalise the D5.5 deliverable report |
+| Issue | Role | Status |
+|---|---|---|
+| INT-90 | Build/validation pointers in [`D5.5-report.md`](D5.5-report.md) | Done (2026-11-26) |
+| INT-91 | Freeze deliverable index on `docs/` (no second rewritten report) | Done (2026-11-26) |
 
-Until INT-90 / INT-91 close, the **source** package is frozen; the **written D5.5 deliverable report** is not declared frozen.
+The **repo-side D5.5 deliverable index** is [`D5.5-report.md`](D5.5-report.md) at freeze date **2026-11-26**, baseline tag **`v1.2.1`**. A coordinator Word/PDF, if still required, is produced from that index — not a parallel narrative.

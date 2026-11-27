@@ -35,4 +35,4 @@ The INT-97 source freeze on 2026-10-18 carried in-scope UAT **62 Pass / 0 Blocke
 | INT-90 | Build/validation pointers in [`D5.5-report.md`](D5.5-report.md) | Done (2026-11-26) |
 | INT-91 | Freeze deliverable index on `docs/` (no second rewritten report) | Done (2026-11-26) |
 
-The **repo-side D5.5 deliverable index** is [`D5.5-report.md`](D5.5-report.md) at freeze date **2026-11-26**, baseline tag **`v1.2.3`**. A coordinator Word/PDF, if still required, is produced from that index — not a parallel narrative.
+The **repo-side D5.5 deliverable index** is [`D5.5-report.md`](D5.5-report.md) at freeze date **2026-11-26**, baseline tag **`v1.2.4`**. A coordinator Word/PDF, if still required, is produced from that index — not a parallel narrative.

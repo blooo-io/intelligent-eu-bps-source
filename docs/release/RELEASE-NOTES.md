@@ -7,10 +7,11 @@
 
 ## Changes since v1.2.3
 
-Docs-only patch `v1.2.4` (INT-471) on tip including INT-470:
+Docs-only patch `v1.2.4` (INT-471) on tip including INT-470 and INT-472:
 
 - **INT-470** — D5.5 docs drift (Markdown only): architecture / requirements / release / testing / site / service READMEs aligned with INT-455 / INT-463 (EWDS-only, 12 NestJS services AC-03…AC-14, KYC every role via Connect, per-community live/virtual, Mock CGW on `dev`); contract tooling CI vs target; historical testing docs bannered. Partner Word "INTELLIGENT_D5.5 Billing and Payment Service V1.0_final" produced from these sources.
-- **INT-471** — package bump to `1.2.4` so `stable-release` tags this tip; D5.5 baseline cites `v1.2.4`.
+- **INT-471** — package bump to `1.2.4` so `stable-release` / `cut-release` tags this tip; D5.5 baseline cites `v1.2.4`.
+- **INT-472** — S12 erasure flow: drop `Reference portal` alt; EWDS-only path (R2M → Billing CGW → AC-12), matching D5.5 Annex B.
 
 ## Changes since v1.2.2
 

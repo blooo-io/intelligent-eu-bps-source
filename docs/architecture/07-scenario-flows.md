@@ -435,26 +435,23 @@ sequenceDiagram
 
 ## S12 — Data-subject erasure
 
-Erasure starts from the project UI / DPO desk or from an EWDS erasure intake (public `/v1` removed, INT-455). The EWDS path goes through **Billing CGW**. IdP account erase is delegated to R2M (INT-463).
+Erasure is **EWDS-only** (INT-455; D5.5 Annex B): the project UI / DPO desk publishes an erasure intake message; **Billing CGW** delivers it to AC-12. There is no reference-portal HTTP path. IdP account erase is delegated to R2M (INT-463).
 
 ```mermaid
 sequenceDiagram
   actor DPO as DPO or manager
-  participant Portal as Portal or R2M
+  participant R2M as R2M UI + CGW
   participant EWDS as EWDS broker
   participant CGW as Billing CGW
   participant AC12 as AC-12 Compliance
   participant AC03 as AC-03 Participants
   participant AC07 as AC-07 Payments
   participant Stripe as Stripe
-  alt Reference portal
-    DPO->>AC12: erasure request participantId
-    Note right of DPO: targets int:Actor id
-  else EWDS erasure intake
-    Portal->>EWDS: erasure request message
-    EWDS->>CGW: deliver
-    CGW->>AC12: ErasurePort.ingest
-  end
+  DPO->>R2M: erasure request participantId
+  Note right of DPO: targets int:Actor id
+  R2M->>EWDS: erasure request message
+  EWDS->>CGW: deliver
+  CGW->>AC12: ErasurePort.ingest
   AC12->>AC03: ErasureRequested
   AC03->>AC03: purge personal fields keep invoices
   Note right of AC03: clear Actor PII cache keep Invoice ids

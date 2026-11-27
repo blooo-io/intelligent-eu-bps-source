@@ -1,9 +1,16 @@
 # V1 release notes (INT-95)
 
 **Deliverable:** D5.5 — Billing & Payment Service V1  
-**Source tag:** `v1.2.3` (INT-468), after `v1.2.2` (INT-466), `v1.2.1` (INT-440 / INT-446), `v1.2.0` (INT-430), `v1.1.6` (INT-421), `v1.1.5` (INT-417), `v1.1.4` (INT-415), `v1.1.3` (INT-412), `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
+**Source tag:** `v1.2.4` (INT-471), after `v1.2.3` (INT-468), `v1.2.2` (INT-466), `v1.2.1` (INT-440 / INT-446), `v1.2.0` (INT-430), `v1.1.6` (INT-421), `v1.1.5` (INT-417), `v1.1.4` (INT-415), `v1.1.3` (INT-412), `v1.1.2` (INT-409), `v1.1.1` (INT-400), `v1.1.0` (INT-397) and `v1.0.1` ([SOURCE-RELEASE.md](SOURCE-RELEASE.md), INT-359). `v1.0.0` was the INT-92 freeze name and was never pushed.  
 **Project:** Horizon Europe INTELLIGENT (GA 101160678), Task T5.6, led by Blooo  
 **Licence:** Apache License 2.0 — see [`LICENSE`](../../LICENSE) and [`NOTICE`](../../NOTICE)
+
+## Changes since v1.2.3
+
+Docs-only patch `v1.2.4` (INT-471) on tip including INT-470:
+
+- **INT-470** — D5.5 docs drift (Markdown only): architecture / requirements / release / testing / site / service READMEs aligned with INT-455 / INT-463 (EWDS-only, 12 NestJS services AC-03…AC-14, KYC every role via Connect, per-community live/virtual, Mock CGW on `dev`); contract tooling CI vs target; historical testing docs bannered. Partner Word "INTELLIGENT_D5.5 Billing and Payment Service V1.0_final" produced from these sources.
+- **INT-471** — package bump to `1.2.4` so `stable-release` tags this tip; D5.5 baseline cites `v1.2.4`.
 
 ## Changes since v1.2.2
 
@@ -12,7 +19,7 @@ Patch cut `v1.2.3` (INT-468) on top of `v1.2.2`:
 - **INT-467** — re-certify in-scope UATs superseded by Spec v6.1 from green automated evidence (operator rule); badge **64/64 Pass**; UAT-044/047 + REQ-034/037 `scope_d55: out`.
 - **INT-468** — package bump to `1.2.3` so `stable-release` tags this tip.
 - **INT-469** — Mermaid 12: remove semicolons in `Note` text that broke the S9/S12 scenario-flow diagrams.
-- **INT-470** — Docs drift (Markdown only): release and testing documents aligned with INT-455 / INT-463 (EWDS-only surface, 12 NestJS services AC-03…AC-14, KYC for every role via Stripe Connect, per-community live/virtual, Mock CGW on `dev` pending EWAG grants); contract tooling wording (CI vs target); historical testing documents bannered as superseded. The partner Word "INTELLIGENT_D5.5 Billing and Payment Service V1.0_final" is produced from these sources.
+- **INT-470** — Docs drift (also listed under **Changes since v1.2.3**).
 
 ## Changes since v1.2.1
 

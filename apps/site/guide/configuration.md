@@ -8,8 +8,8 @@ Modules are configured through **environment variables** and Kubernetes values. 
 |---|---|---|
 | HTTP port | `PORT` | Chart service port |
 | Database | `DATABASE_URL` | One DB per module |
-| Public base URL | `PUBLIC_BASE_URL` / web `config.json` | Browser-facing origin |
-| OIDC | Issuer URL, client id, audience | Must match gateway + web app |
+| Public base URL | `PUBLIC_BASE_URL` | Origin used for webhooks and hosted-page return URLs |
+| OIDC | Issuer URL, client id, audience | Must match gateway and service-to-service clients |
 | Stripe | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Test or live keys **per community** |
 | NATS | `NATS_URL` | JetStream enabled |
 | Temporal | Host / namespace | Scheduler workers |
@@ -38,9 +38,9 @@ Copy the structure of `deploy/envs/` as a starting point:
 2. Keep **secret values** in your secret manager; mount them as Kubernetes Secrets or envFrom.
 3. Document your own hostnames — do not hard-code upstream demo DNS.
 
-## Web app config
+## Client surface
 
-The reference UI loads a small JSON config (API base URL, OIDC client settings). Generate it from your chart or ConfigMap so the same image can run in multiple environments. `/v1` is for this reference client only; the project UI uses EWDS.
+There is no public REST `/v1` product API and no reference web client (INT-455). The project UI integrates through EWDS records and the command channel; modules call each other on `/internal/v1/...`.
 
 ## Feature and adapter switches
 

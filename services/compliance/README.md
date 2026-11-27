@@ -4,10 +4,10 @@ Audit log, personal-data retention, and data-subject export/erasure orchestratio
 
 | Operation | Path | Spec |
 |---|---|---|
-| CreateDataSubjectRequest | `POST /v1/data-subject-requests` | REQ-013, UAT-013 |
-| GetDataSubjectRequest | `GET /v1/data-subject-requests/{id}` | REQ-013 |
+| CreateDataSubjectRequest | internal API (operator / DPO; no public endpoint) | REQ-013, UAT-013 |
+| GetDataSubjectRequest | internal API (operator / DPO) | REQ-013 |
 | ApplyRetention | `POST /internal/v1/retention:apply` | REQ-011, UAT-011 |
 
 Publishes `ErasureRequested` (AC-03, AC-06, AC-07). Consumes `ErasureCompleted` and `AuditableActionPerformed`. Audit and event payloads carry identifiers only (no personal data).
 
-Contracts: `contracts/openapi/public.v1.yaml` (Privacy), `contracts/openapi/internal/compliance.v1.yaml`, `contracts/asyncapi/compliance.v1.yaml`, `contracts/asyncapi/audit.v1.yaml`.
+Contracts: `contracts/openapi/internal/compliance.v1.yaml`, `contracts/asyncapi/compliance.v1.yaml`, `contracts/asyncapi/audit.v1.yaml`.

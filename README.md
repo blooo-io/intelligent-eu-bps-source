@@ -6,7 +6,7 @@
 [![Docs site](https://img.shields.io/badge/docs-intelligent.docs.blooo.dev-1a4d3e)](https://intelligent.docs.blooo.dev/)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-339933?logo=node.js&logoColor=white)](.nvmrc)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](docs/architecture/04-technical-architecture.md)
-[![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)](docs/architecture/04-technical-architecture.md)
+[![NestJS](https://img.shields.io/badge/NestJS-12-E0234E?logo=nestjs&logoColor=white)](docs/architecture/04-technical-architecture.md)
 [![pnpm](https://img.shields.io/badge/pnpm-9-F69220?logo=pnpm&logoColor=white)](package.json)
 
 **Quality (SonarQube Community — [live dashboard](https://sonar.intelligent-eu-bp.blooo.dev/dashboard?id=blooo-io_intelligent-eu-billing-and-payment))**
@@ -56,25 +56,27 @@ Five validated views (iterative, each refining the previous). **Read them on the
 |---|---|---|---|
 | Functional | [Functional](https://intelligent.docs.blooo.dev/architecture/01-functional-architecture) | [`01-…`](docs/architecture/01-functional-architecture.md) | Actors, processes, objects, **BR-01…BR-15** |
 | Logical | [Logical](https://intelligent.docs.blooo.dev/architecture/02-logical-architecture) | [`02-…`](docs/architecture/02-logical-architecture.md) | Blocks, data ownership, events, jobs |
-| Application | [Application](https://intelligent.docs.blooo.dev/architecture/03-application-architecture) | [`03-…`](docs/architecture/03-application-architecture.md) | Modules **AC-01…AC-15**, APIs, adapters, mocks S1–S13 |
+| Application | [Application](https://intelligent.docs.blooo.dev/architecture/03-application-architecture) | [`03-…`](docs/architecture/03-application-architecture.md) | Modules **AC-02…AC-15** (AC-01 withdrawn, INT-455), internal APIs, **EWDS** records + commands, adapters, mocks; scenarios **S1–S14** ([`07-…`](docs/architecture/07-scenario-flows.md)) |
 | Technical | [Technical](https://intelligent.docs.blooo.dev/architecture/04-technical-architecture) | [`04-…`](docs/architecture/04-technical-architecture.md) | Decisions **TD-1…TD-13**, principles **TP-1…TP-8** |
 | Physical | [Physical](https://intelligent.docs.blooo.dev/architecture/05-physical-architecture) | [`05-…`](docs/architecture/05-physical-architecture.md) | Environments, Scaleway Kapsule (nl-ams), ops |
 
 ```mermaid
 %% elk %%
 flowchart LR
-  WEB[AC-01 Web · Refine] --> GW[AC-02 APISIX]
-  GW --> MOD[AC-03…AC-13 NestJS modules]
+  R2M[R2M · project UI + member IdP] <-->|records + commands| EWDS[(EWDS)]
+  EWDS <-->|mTLS · Client Gateway adapters, mock by default| CGW[Billing CGW]
+  CGW --> GW[AC-02 APISIX]
+  GW --> MOD[AC-03…AC-13 NestJS services]
   MOD --> PG[(PostgreSQL · CNPG)]
   MOD --> OUT[Outbox] --> DBZ[Debezium] --> NATS[NATS JetStream]
   SCH[AC-14 Temporal] --> MOD
   MOD --> STRIPE[(Stripe test / live per community)]
   MOD --> KC[(Keycloak)]
-  MOD <-->|Client Gateway adapters, mock by default| EXT[(EWDS: GSY trades · project UI · Actor data)]
+  MOD <-->|5 record topics + command channel| CGW
   MOD -.->|fixture| ECB[(ECB)]
 ```
 
-**Runtime stack (TD-4…TD-11):** TypeScript · NestJS · React/Refine · PostgreSQL (CloudNativePG) · NATS JetStream · Debezium · Temporal · Apache APISIX · Keycloak · OpenBao + External Secrets · OpenTelemetry · Argo CD on Kubernetes.
+**Runtime stack (TD-4…TD-11):** TypeScript · NestJS · PostgreSQL (CloudNativePG) · NATS JetStream · Debezium · Temporal · Apache APISIX · Keycloak · OpenBao + External Secrets · OpenTelemetry · Argo CD on Kubernetes.
 
 ## Repository map
 
@@ -86,11 +88,11 @@ flowchart LR
 | [`docs/release/`](docs/release/) | SemVer / GitHub Releases ([VERSIONING.md](docs/release/VERSIONING.md)), release notes, **reference** deploy notes |
 | [`docs/maintainers/`](docs/maintainers/) | Upstream-only process pointers |
 | [`contracts/`](contracts/) | **Contract-first** OpenAPI 3.1 (REST) and AsyncAPI 3 (events) |
-| [`services/`](services/) | NestJS modules — one database per module |
+| [`services/`](services/) | 12 NestJS services (AC-03…AC-14) — one database per service |
 | [`apps/site/`](apps/site/) | **Public docs site** (VitePress → GitHub Pages); EWDS integration notes (INT-455 — no public `/v1` browser) |
 | [`apps/docs-portal/`](apps/docs-portal/) | Redocly public OpenAPI portal |
 | [`packages/`](packages/) | Shared NestJS module template, generated clients |
-| [`mocks/`](mocks/) | AC-15 mock suite and scenarios S1–S13 |
+| [`mocks/`](mocks/) | AC-15 mock suite and integration fixtures (scenarios S1–S13; journeys S1–S14 in `docs/architecture/07-scenario-flows.md`) |
 | [`deploy/`](deploy/) | Example Helm charts / GitOps manifests (adapt to your registry & DNS) |
 | [`AGENTS.md`](AGENTS.md) | Detailed engineering rules (includes upstream notes) |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Open contribution first; upstream process optional |
@@ -113,6 +115,7 @@ flowchart LR
 | `services/reference-data` | AC-13 | LB-11 |
 | `services/scheduler` | AC-14 Temporal workers | LB-13 |
 | `mocks/` | AC-15 Mock suite | — |
+| `services/mock-cgw` | Mock CGW (INT-454, `dev` transport) | — |
 
 Full map and non-negotiable rules: [`AGENTS.md`](AGENTS.md).
 
@@ -123,7 +126,7 @@ Full map and non-negotiable rules: [`AGENTS.md`](AGENTS.md).
 | **GitHub Actions `ci`** | Secrets scan, contracts lint, every workspace `test` script, Helm charts, Sonar analysis | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
 | **Vitest coverage** | ≥ **80%** statements, branches, functions, lines per module | [`config/coverage-thresholds.json`](config/coverage-thresholds.json) |
 | **Sonar “Intelligent V1”** | MQR Security / Reliability / Maintainability **A**, coverage ≥ 80%, duplication ≤ 10%, `new_violations = 0` | [`docs/release/sonarqube.md`](docs/release/sonarqube.md) |
-| **Contract-first** | Spectral + Redocly + AsyncAPI validate; Schemathesis / oasdiff in the pipeline | [`contracts/`](contracts/), TD-13 |
+| **Contract-first** | In CI today: Spectral, Redocly, AsyncAPI CLI, EWDS JSON-schema validation (Prism and openapi-typescript available). Target, not yet in CI: Orval, express-openapi-validator, Schemathesis, oasdiff | [`contracts/`](contracts/), TD-13 |
 | **UAT package** | In-scope UATs tracked to Pass in item notes | [`docs/testing/v1-validation-summary.md`](docs/testing/v1-validation-summary.md) |
 
 Sonar badges above mirror the Community Build project `blooo-io_intelligent-eu-billing-and-payment` (ratings refresh when CI analyses `develop`). The dashboard is the source of truth.

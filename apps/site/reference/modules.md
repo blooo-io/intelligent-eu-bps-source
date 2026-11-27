@@ -4,7 +4,6 @@ Directory → application component map:
 
 | Directory | Component | Role |
 |---|---|---|
-| `apps/web` | AC-01 | Reference web app |
 | `deploy/` (APISIX) | AC-02 | API gateway config |
 | `services/participants` | AC-03 | Participants & communities |
 | `services/trade-intake` | AC-04 | Trade intake |

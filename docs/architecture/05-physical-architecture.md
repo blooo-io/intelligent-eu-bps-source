@@ -12,7 +12,7 @@ baseline: 04-technical-architecture.md v2.0 (revised 2026-11-25); 03
 
 > **View 5 of 5** (functional → logical → application → technical → **physical**, see [README](README.md)).
 > This view answers: **where and how the components of the technical view run**: hosting, environments, cluster topology, network exposure, storage, backups and operations.
-> Status: **revised (2026-11-25), revalidation pending**. Deployed-state correction (2026-11-10, INT-374): §3 shows the running cluster. The cloud environment is `dev` (namespaces `int-*`). `demo` is not deployed. CNPG backups are not configured. The apps namespace runs 13 back-end modules (AC-03…AC-15), not 15. Prometheus retention on `dev` is 2 days.
+> Status: **revised (2026-11-25), revalidation pending**. Deployed-state correction (2026-11-10, INT-374): §3 shows the running cluster. The cloud environment is `dev` (namespaces `int-*`). `demo` is not deployed. CNPG backups are not configured. The apps namespace runs the 12 NestJS services (AC-03…AC-14) plus the AC-15 mock suite and the Mock CGW (INT-454), not 15; there is no web app (AC-01 withdrawn, INT-455). Prometheus retention on `dev` is 2 days.
 
 ## 1. Decisions framing this view
 
@@ -56,7 +56,7 @@ flowchart TB
         OBS[observability - OTel, Prometheus retention 2d, Jaeger, VictoriaLogs, Perses]
       end
       subgraph Dev[dev - namespaces int-apps and int-data]
-        IAPP[int-apps - web app, 13 modules AC-03 to AC-15, Mailpit]
+        IAPP[int-apps - 12 NestJS services AC-03 to AC-14, AC-15 mocks, Mock CGW, Mailpit]
         IDATA[int-data - CNPG cluster, Debezium Server, backups off]
       end
     end
@@ -74,7 +74,7 @@ flowchart TB
 | `temporal` | Temporal server, namespace for `dev`; its database is in CNPG | Shared instance |
 | `nats` | NATS JetStream, account for `dev` | Shared instance |
 | `observability` | OTel Collector, Prometheus, Jaeger, VictoriaLogs, Perses. Prometheus retention on `dev` is **2 days** / 5 GB (INT-331) | Shared |
-| `int-apps` | AC-01 web app and the **13 back-end modules** AC-03…AC-15 (NestJS modules, Temporal workers, mock suite), plus Mailpit. AC-02 is the gateway in `ingress` | `dev` |
+| `int-apps` | The **12 NestJS services** AC-03…AC-14 (including the Temporal workers), the AC-15 mock suite and the Mock CGW (INT-454; `dev` uses `MARKET_ADAPTER=mock`), plus Mailpit. AC-01 is withdrawn (INT-455). AC-02 is the gateway in `ingress` | `dev` |
 | `int-data` | CNPG cluster (one database per module), Debezium Server. Backups are **not configured** | `dev` |
 
 `demo-apps` and `demo-data` are packaged (`deploy/argocd/demo`, `deploy/envs/demo`) and **not deployed**. Shared platform services isolate `dev` with their native mechanisms (realm, Temporal namespace, NATS account, OpenBao path).
@@ -84,7 +84,7 @@ flowchart TB
 ```mermaid
 %% elk %%
 flowchart LR
-  USER([Users - browsers]) --> DNS{{*.intelligent-eu-bp.blooo.dev - TLS cert-manager}}
+  USER([Stripe-hosted pages, docs readers, ops users]) --> DNS{{*.intelligent-eu-bp.blooo.dev - TLS cert-manager}}
   STRIPE((Stripe API test/live)) --> DNS
   EWF((EWF Message Broker)) -. mTLS .- MODS
   DNS --> LB((Scaleway load balancer))

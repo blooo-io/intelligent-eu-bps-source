@@ -57,7 +57,7 @@ Given A pair with a net amount of 3 € in January and 4 € in February in a co
 Given four Actor records published on the EWDS by the project UI (R2M) for a community (including rows from a CSV load in that UI), when the billing service syncs Actor intake, then four participant records are created or updated from EWDS data only (no billing-service CSV import).
 
 **UAT-009** → REQ-009
-Given a participant on the reference client (source import) or project path (source ewds), when they change name/address/e-mail, then reference client uses PUT /v1/me/profile (not GSY/meter/community); project path republishes Actor and PUT /v1/me/profile returns 409 profile_managed_by_ewds.
+Given a participant whose profile is mastered on the EWDS Actor topic (project path), when they change name/address/e-mail, then the project UI (R2M) republishes the Actor record and BPS sync applies the new version; GSY/meter/community change only via Actor republication, never by the member alone.
 
 **UAT-010** → REQ-010
 Given two participant accounts, when participant A attempts to read participant B's personal data via the API, then access is denied.
@@ -235,10 +235,10 @@ Given the deployed billing Client Gateway, when its configuration and network ex
 ## Authentication & SSO
 
 **UAT-043** → REQ-033
-Given a user registered in the IdP configured for their community, when they open the billing portal, then they are redirected to the IdP login page, return with an authenticated session after login, and the billing service never prompts for nor stores a password.
+Given a user registered in the IdP configured for their community, when they open the project UI (R2M), then they are redirected to the IdP login page (R2M owns the member IdP, INT-463), return with an authenticated session after login, and the billing service never prompts for nor stores a password.
 
 **UAT-079** → REQ-062
-Given A user holding a project DID and a valid Verifiable Credential issued through the EWDS, when they log in to the billing portal, then they are authenticated without a billing password and their role is taken from the credential. *(target D5.10)*
+Given A user holding a project DID and a valid Verifiable Credential issued through the EWDS, when they log in to the project UI (R2M), then they are authenticated without a billing password and their role is taken from the credential. *(target D5.10)*
 
 **UAT-044** → REQ-034
 Given community A using the project IdP and community B configured with a pilot OIDC IdP, when a member of each community starts a login, then each member is redirected to the issuer configured for their own community, never to the other one.

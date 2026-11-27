@@ -2,7 +2,7 @@
 
 Kubernetes packaging, delivered by GitOps with Argo CD. See `docs/architecture/04-technical-architecture.md` and `05-physical-architecture.md`.
 
-- `charts/`: one Helm chart per module and for the web app. `charts/module` holds the shared templates. Platform event charts: `nats` (shared), `debezium-server` (per env data namespace) — TD-7 / INT-132. `charts/cd-smoke` is the factory CD smoke workload (INT-156 / TD-11). `charts/mailpit` is the V1 mail catcher (TD-12 / INT-136).
+- `charts/`: one Helm chart per module (no web app chart; INT-455). `charts/module` holds the shared templates. Platform event charts: `nats` (shared), `debezium-server` (per env data namespace) — TD-7 / INT-132. `charts/cd-smoke` is the factory CD smoke workload (INT-156 / TD-11). `charts/mailpit` is the V1 mail catcher (TD-12 / INT-136).
 - `docker/`: Dockerfile pattern notes for NestJS modules (INT-156).
 - `platform/`: event transport notes (INT-132) plus values for official ESO / cert-manager / OpenBao charts (INT-133 / TD-9). `charts/openbao-store` holds the `ClusterSecretStore` named `openbao`.
 - `helmfile/`: one release per module chart, plus `debezium-server` into `dataNamespace`, `cd-smoke` into `appsNamespace`, and Mailpit when `mailpit.enabled` is true. Shared NATS is installed once via Argo (`argocd/platform/nats.yaml`). Platform operators (Argo CD, OpenBao, ESO, …) stay on their official charts (INT-155 / INT-133).

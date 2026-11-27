@@ -19,8 +19,8 @@ The architecture is produced **iteratively**, one view at a time. Each view star
 **Inputs common to all views:**
 - `docs/requirements/` (requirements v6.1, assumptions A1–A33; A21 withdrawn → A4 EWDS-only);
 - `ewds-topics/` (draft EWDS schemas; UserAccount on `billingKycStatus`);
-- [ewds-client-gateway.md](ewds-client-gateway.md) — Blooo CG deploy plan (INT-306; live path for NFR-017);
-- Product locks: **INT-447** (Actor EWDS-only), **INT-448** (T&C on UserAccount), **INT-455** (no public `/v1`), **INT-463** (R2M owns member IdP; BPS Keycloak = S2S + ops only).
+- [ewds-client-gateway.md](ewds-client-gateway.md) — Blooo CG deploy plan (INT-306; live path for NFR-017). Status: CGW deployed with mTLS; API key and remaining grants pending EWAG; `dev` uses the Mock CGW (INT-454), `MARKET_ADAPTER=mock`;
+- Product locks: **INT-447** (Actor EWDS-only), **INT-448** (T&C on UserAccount), **INT-455** (no public `/v1`, no reference client `apps/web`; external surface = EWDS records + command channel + Stripe webhooks), **INT-463** (R2M owns member IdP; BPS Keycloak = S2S + ops only).
 - Identity decisions: [decisions/INT-463-r2m-member-idp.md](decisions/INT-463-r2m-member-idp.md) · [r2m-keycloak-handoff.md](r2m-keycloak-handoff.md) (OIDC Auth Code + PKCE + scoped Admin API for R2M; never put bearer JWT on EWDS).
 
 **Legacy documents:** `ARCHITECTURE - outdated to update.md` and `api-contracts - outdated to update.md` are superseded by this series and kept only for history. `identity-federation-model.pptx` was rejected by the pilots in 09/2026 and is also superseded.

@@ -34,7 +34,7 @@ Subscribe channels are restricted by role to the consortium application.
 - **billingPayment:** on every payment status change (pending → succeeded / failed / cancelled / refunded).
 - **billingPayout:** on payout request and on every payout status change.
 - **billingKycStatus:** when Connect/Identity KYC changes **or** T&C are accepted (ontology UserAccount subset: `kycVerified` + `termsVersion` / `termsAcceptedAt` / `selfBillingMandate`).
-- **billingCommandRequest / Reply:** request/reply on the command channel (REQ-052, A7). The project UI never calls Blooo REST directly; `/v1` is the reference-client API (`apps/web`) only.
+- **billingCommandRequest / Reply:** request/reply on the command channel (REQ-052, A7). The project UI never calls Blooo REST directly; the public `/v1` and the reference client (`apps/web`) were removed (INT-455).
 
 ### Command authorization (three layers)
 

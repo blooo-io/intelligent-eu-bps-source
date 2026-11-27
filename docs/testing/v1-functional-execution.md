@@ -35,7 +35,7 @@ Confirmed set: [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76).
 | UAT-036 | NFR-004 | Ontology mapping review — functional §5 + EWDS schemas + market mock types |
 | UAT-045 | REQ-035 | Manual PKCE login on `app.dev` (S256 `code_challenge`; session after `/auth/callback`) |
 | UAT-046 | REQ-036 | `config.json` issuer/clientId only; OIDC secret via OpenBao ExternalSecret |
-| UAT-049 | NFR-011 | APISIX JWKS OIDC; forged foreign-issuer JWT → 401 on `/v1/me` |
+| UAT-049 | NFR-011 | APISIX JWKS OIDC; forged foreign-issuer JWT → 401 at the APISIX gateway (historical `/v1/me` probe; public `/v1` removed, INT-455) |
 | UAT-068 | NFR-017 | V1 mock CG (A32) + cluster region `nl-ams` (EU) — mock path until `*_ADAPTER=ewds` re-run |
 
 ## INT-80 batch (2026-10-18)

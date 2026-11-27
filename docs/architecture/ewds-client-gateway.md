@@ -1,6 +1,6 @@
 # EWDS / DDHub Client Gateway — Blooo instance (INT-306)
 
-Status: **Deployed (INT-308)**, mTLS enabled with the EWF-signed client certificate (INT-309, see [`docs/release/ddhub-client-gateway.md`](../release/ddhub-client-gateway.md)); API keys and topic/role grants pending EWAG. Sources: Energy Web official docs + D3.1 briefing + NFR-017.
+Status: **Deployed (INT-308)**, mTLS enabled with the EWF-signed client certificate (INT-309, see [`docs/release/ddhub-client-gateway.md`](../release/ddhub-client-gateway.md)); API key and remaining topic/role grants pending EWAG; the `dev` cluster uses the Mock CGW (INT-454) with `MARKET_ADAPTER=mock`. Sources: Energy Web official docs + D3.1 briefing + NFR-017.
 
 > **Billing adapters** for trades, Actor data, erasure requests, commands and publication are real and selected by environment variables; **mock stays the code default** until the grants land (A8). Deployed environments switch adapters live (A8-live). UAT results on the mock path are labelled `mock` (see [`docs/testing/v6.1-rerun.md`](../testing/v6.1-rerun.md)).
 
@@ -124,7 +124,7 @@ Pinned Phase 1 values (API auth later — INT-309):
 
 ## Command channel — hosted or embedded (D4 / A7-bis)
 
-Project-UI actions never hit billing `/v1`. **No end-user JWT travels on the wire (INT-463):** the member's OIDC session stays on R2M; the command carries `actorId` and is signed by the R2M Client Gateway DID. Commands travel EWDS request/reply; replies carry a Stripe handoff (`url` for hosted, or `clientSecret` + `publishableKey` for embedded). Card/IBAN/identity stay in the user's browser ↔ Stripe.
+Project-UI actions never hit billing over HTTP: there is no public `/v1` (removed, INT-455). **No end-user JWT travels on the wire (INT-463):** the member's OIDC session stays on R2M; the command carries `actorId` and is signed by the R2M Client Gateway DID. Commands travel EWDS request/reply; replies carry a Stripe handoff (`url` for hosted, or `clientSecret` + `publishableKey` for embedded). Card/IBAN/identity stay in the user's browser ↔ Stripe.
 
 ```mermaid
 sequenceDiagram

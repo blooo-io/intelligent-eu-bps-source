@@ -23,7 +23,7 @@ When a UAT passes, the same change updates `status` in its note. The test name a
 | Level | Where it lives | Pass means |
 |---|---|---|
 | Unit and component | The module test script, 80% statements, branches, functions and lines | GitHub Actions is green; consolidated snapshot in [`v1-unit-component-evidence.md`](v1-unit-component-evidence.md) (INT-73) |
-| Contract | `contracts/`, Spectral, Redocly, AsyncAPI and oasdiff | No unannounced breaking change |
+| Contract | `contracts/`, Spectral, Redocly, AsyncAPI and schema checks in CI (Prism / openapi-typescript for mocks and types); Orval, express-openapi-validator, Schemathesis and oasdiff are targets, **not in CI** today | No unannounced breaking change (oasdiff gate is target only) |
 | Acceptance | `docs/requirements/items/uat/`, `scope_d55: in`; confirmed set in [`v1-functional-cases.md`](v1-functional-cases.md) (INT-76); execution log [`v1-functional-execution.md`](v1-functional-execution.md) (INT-78); partner package [`v1-uat-package.md`](v1-uat-package.md) (INT-79) | The note status is `Pass` (remaining gaps for INT-80 / INT-82) |
 | Integration scenarios | [`docs/architecture/03-application-architecture.md`](../architecture/03-application-architecture.md) §8, S1–S13, mocks and Stripe test mode; prep in [`v1-integration-scenarios.md`](v1-integration-scenarios.md) (INT-74); execution log [`v1-integration-execution.md`](v1-integration-execution.md) (INT-75) | UAT notes updated from the execution log; open defects tracked on INT-75 / INT-82 |
 

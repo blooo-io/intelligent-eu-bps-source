@@ -11,7 +11,7 @@ baseline: 03-application-architecture.md v2.0 (revised 2026-11-25); 02 logical
 # Billing & Payment Service: technical architecture
 
 > **View 4 of 5** (functional → logical → application → **technical** → physical, see [README](README.md)).
-> This view chooses the technologies that implement the application components AC-01 … AC-15. It is built **one topic at a time**: options, then recommendation, then decision.
+> This view chooses the technologies that implement the application components AC-02 … AC-15 (AC-01 withdrawn, INT-455). It is built **one topic at a time**: options, then recommendation, then decision.
 > Status: **in progress**. §3 records the decisions as they are taken.
 
 ## 1. Technical principles
@@ -25,7 +25,7 @@ baseline: 03-application-architecture.md v2.0 (revised 2026-11-25); 02 logical
 | TP-5 | **Adapters for every external system; EWDS adapters real and env-selected (mock default); Stripe test or live per community.** | A8, A10.1 |
 | TP-6 | **Licence check by local `git clone`** of each candidate. The result is recorded in §4 with date and commit date. | brain rule 9 |
 | TP-7 | **Single master per data item.** Billing masters statements, invoices (number, PDF, status), payment and payout records. Stripe masters connected accounts, KYC evidence and the execution of charges and payouts; billing stores Stripe ids + a webhook-fed status cache. | 2026-10-07; v2.0 / A6 |
-| TP-8 | **API-first, contract-first.** Every interface is described by a versioned contract **before** it is implemented: OpenAPI 3.1 for REST, AsyncAPI 3 for domain events and the EWDS command channel, and JSON Schema for **EWDS record schemas and the command channel**. `/v1` serves the reference client (`apps/web`) only; the project UI uses EWDS (A7). | 2026-10-07; A7 |
+| TP-8 | **API-first, contract-first.** Every interface is described by a versioned contract **before** it is implemented: OpenAPI 3.1 for REST, AsyncAPI 3 for domain events and the EWDS command channel, and JSON Schema for **EWDS record schemas and the command channel**. There is no public REST `/v1` and no reference client (INT-455); the external surface is EWDS records + command channel + Stripe webhooks, and internal APIs use `/internal/v1/...` (A7). | 2026-10-07; A7 |
 
 ## 2. Reuse map: what can replace custom code
 
@@ -33,7 +33,7 @@ For each application component, the existing open-source building blocks (all MI
 
 | Component | Candidate accelerators | What stays custom | Reuse potential |
 |---|---|---|---|
-| AC-01 Web app | **Refine** (MIT) or **react-admin** (MIT) for the **reference client** (`apps/web`); Stripe-hosted onboarding, Checkout and Identity pages | Statements, payouts and readiness screens | High |
+| ~~AC-01 Web app~~ | ~~Refine / react-admin for the reference client (`apps/web`)~~ **Withdrawn (INT-455).** Stripe-hosted onboarding, Checkout and Identity pages are used from the R2M UI via PSP handoff URLs | — | — |
 | AC-02 API gateway | **Apache APISIX** (Apache-2.0), **Kong OSS** (Apache-2.0), **Envoy Gateway** (Apache-2.0) or **Traefik** (MIT) + **oauth2-proxy** (MIT); OpenAPI from the framework | Route and role configuration | Very high (no code) |
 | AC-03 Participants | Framework CRUD (no Keycloak admin API in BPS; member accounts are R2M-owned, INT-463) | Registry, readiness rules, CSV import | Medium |
 | AC-04 Trade intake | Stripe/HTTP clients; EWDS client patterns from the GSY/EWAG repos | Window querying, deduplication, attribution, completeness | Low (core logic) |
@@ -62,8 +62,8 @@ For each application component, the existing open-source building blocks (all MI
 | TD-1 | Reuse strategy and licences | TP-1 / TP-2 adopted. Explicit TP-2 exceptions for separate unmodified services: OpenBao (MPL-2.0, TD-9), SonarQube Community Build (INT-292), and DDHub Client Gateway (GPL-3.0, INT-308 / NFR-017) | 2026-10-07; INT-292 2026-10-22; INT-308 2026-10-23 |
 | TD-2 | Invoicing engine | **In-house PDF with pdf-lib (MIT)**, stored in the invoicing database; legal number sequential per producer, owned by billing; e-mail by AC-11 (A6). Self-billing mention, trade summary and ECB rate are rendered on the billing PDF | 2026-10-07; A6 / INT-428 2026-11-24 |
 | TD-3 | Workflow and scheduling | **Temporal** (MIT; TypeScript SDK and Helm charts MIT) for all time-based jobs, billing runs, **payout gating and auto payouts**, and multi-step sagas (DSAR propagation, retries). It implements AC-14 | 2026-10-07 |
-| TD-4 | Back-end language and framework | **TypeScript + NestJS** (MIT) for the 13 modules, with stripe-node (MIT), Temporal TS SDK (MIT), OpenAPI contracts written first (TD-13), with express-openapi-validator (MIT) validating requests and responses against them and OpenTelemetry JS (Apache-2.0). A shared module template covers health, configuration, outbox, idempotent consumers and telemetry | 2026-10-07 |
-| TD-5 | Front-end framework | **Refine** (MIT), React, with an MIT UI kit (Ant Design or MUI, to fix at implementation), OIDC auth provider and REST data provider on the public API — **`apps/web` = reference client** | 2026-10-07 |
+| TD-4 | Back-end language and framework | **TypeScript + NestJS** (MIT) (NestJS 12) for the 12 NestJS services (AC-03…AC-14), with stripe-node (MIT), Temporal TS SDK (MIT), OpenAPI contracts written first (TD-13), with express-openapi-validator (MIT) as the **target** runtime validator (not in CI today, see TD-13) and OpenTelemetry JS (Apache-2.0). A shared module template covers health, configuration, outbox, idempotent consumers and telemetry | 2026-10-07 |
+| TD-5 | Front-end framework | ~~**Refine** (MIT), React, MIT UI kit, OIDC auth provider and REST data provider on the public API — `apps/web` = reference client~~ **Withdrawn (INT-455).** No Blooo front-end; the project UI (R2M) integrates through EWDS | 2026-10-07; INT-455 |
 | TD-6 | Data and database | **Single master per data item (TP-7):** Billing masters statements, invoices (number, PDF, status), payments and payouts. Stripe masters Connect accounts, KYC evidence, charge and payout execution; we store Stripe ids and a webhook-fed status cache only. **PostgreSQL** on **CloudNativePG** (Apache-2.0), **one database and one user per module**, holds mastered data (including invoice PDFs in AC-06). Calculation tables are append-only. | 2026-10-07; v2.0 |
 | TD-7 | Event transport and outbox | **NATS JetStream** (Apache-2.0; NACK operator Apache-2.0) as the event channel. **Debezium Server** (Apache-2.0) reads each module's outbox table (PostgreSQL CDC) and publishes to JetStream, so there is no custom relay code. Consumers are idempotent (module template) | 2026-10-07 |
 | TD-8 | API gateway | **Apache APISIX** (Apache-2.0) + APISIX Ingress Controller (Apache-2.0): openid-connect plugin (Keycloak), routing, rate limiting, CORS, public OpenAPI | 2026-10-07 |
@@ -71,33 +71,34 @@ For each application component, the existing open-source building blocks (all MI
 | TD-10 | Observability | **100 % Apache-2.0 stack:** OpenTelemetry (collector + JS SDK), Prometheus (+ kube-prometheus), Jaeger (traces), VictoriaLogs (logs), Perses (dashboards). The Grafana stack (AGPL) is not used | 2026-10-07 |
 | TD-11 | CI/CD and Kubernetes packaging | **GitHub Actions** for CI (tests, build, Trivy scan (Apache-2.0), gitleaks (MIT)); **one Helm chart per module, orchestrated with helmfile** (MIT); **Argo CD** (Apache-2.0) for GitOps deployment. Dependabot for dependencies (Renovate is AGPL) | 2026-10-07 |
 | TD-12 | Local development environment | **k3d** (MIT) local cluster with the same charts as the target, deployed with helmfile; **Tilt** (Apache-2.0) for live reload; **Stripe CLI** (Apache-2.0) to forward Stripe test webhooks; **Mailpit** (MIT) as mail catcher; mock suite AC-15 | 2026-10-07 |
-| TD-13 | API contract-first tooling | Contracts: **OpenAPI 3.1** (REST, public and internal) and **AsyncAPI 3** (events **and EWDS command channel**), in `contracts/`. Lint with **Spectral** (Apache-2.0) and **Redocly CLI** (MIT). Breaking-change detection in CI with **oasdiff** (Apache-2.0). Mock server for the **reference client and module consumers** with **Prism** (Apache-2.0). TypeScript types and clients generated with **openapi-typescript** (MIT) and **Orval** (MIT). Runtime validation in NestJS with **express-openapi-validator** (MIT). Contract tests in CI with **Schemathesis** (MIT). Event documentation and code generation with **AsyncAPI CLI / Generator** (Apache-2.0) | 2026-10-07 |
+| TD-13 | API contract-first tooling | Contracts: **OpenAPI 3.1** (REST, public and internal) and **AsyncAPI 3** (events **and EWDS command channel**), in `contracts/`. Lint with **Spectral** (Apache-2.0) and **Redocly CLI** (MIT). **In CI today:** Spectral, Redocly, AsyncAPI CLI and EWDS JSON-schema validation; **Prism** (Apache-2.0) and **openapi-typescript** (MIT) are available for module consumers. **Target, not in CI yet:** breaking-change detection with **oasdiff** (Apache-2.0), typed clients with **Orval** (MIT), runtime validation in NestJS with **express-openapi-validator** (MIT), contract tests with **Schemathesis** (MIT) | 2026-10-07 |
 
 ### 3.1 Technology map per application component
 
 | Component | Technologies |
 |---|---|
-| AC-01 Web app | Refine + React + MIT UI kit, OIDC (Keycloak) |
+| ~~AC-01 Web app~~ | **Withdrawn (INT-455)** |
 | AC-02 API gateway | APISIX + openid-connect plugin, APISIX Ingress Controller |
-| AC-03 … AC-13 modules | NestJS (TypeScript), PostgreSQL (own database), outbox → Debezium Server → NATS JetStream, OpenTelemetry |
+| AC-03 … AC-13 services | NestJS (TypeScript), PostgreSQL (own database), outbox → Debezium Server → NATS JetStream, OpenTelemetry |
 | AC-06 Invoicing | + pdf-lib (MIT) for invoice PDF |
 | AC-07 Payments | + stripe-node, Stripe Connect, Identity, webhooks (test or live per community) |
 | AC-03 Participants | (no Keycloak admin REST API after INT-463) |
 | AC-14 Scheduler | Temporal (workflows and timers), TypeScript workers |
 | AC-15 Mock suite | NestJS mock services + fixtures; Stripe test mode is real |
+| Mock CGW (`services/mock-cgw`) | `dev` EWDS transport (INT-454), `MARKET_ADAPTER=mock` |
 | Platform | Keycloak, Temporal, NATS JetStream, CloudNativePG, Debezium Server, ESO + OpenBao, cert-manager, OTel + Prometheus + Jaeger + VictoriaLogs + Perses, Argo CD |
 
 ### 3.2 Consequences to track
 - **TP-7, single master (done in v2.0 / A6):** Billing masters statements, invoices (number, PDF, status) and payment/payout records; Stripe masters connected accounts, KYC evidence and charge/payout execution. REQ-039 and REQ-042 are implemented by AC-06 / AC-11.
-- **13 NestJS services:** the shared module template and the helmfile layout are the first implementation deliverables.
+- **12 NestJS services (AC-03…AC-14):** the shared module template and the helmfile layout are the first implementation deliverables.
 
 ### 3.3 Contract-first workflow
 
 1. **Design.** The API change is written in `contracts/openapi/*.yaml` (or `contracts/asyncapi/*.yaml` for events and EWDS commands), linted with Spectral and Redocly, and reviewed in a pull request.
-2. **Mock.** Prism serves the contract immediately, so AC-01 (reference client) and dependent modules can work before the implementation exists.
-3. **Generate.** openapi-typescript produces the server-side types, and Orval the typed clients for the web app and for module-to-module calls.
-4. **Implement.** The NestJS module implements the contract. express-openapi-validator rejects any request or response that does not match it.
-5. **Verify in CI.** Schemathesis runs contract tests against the running module. oasdiff blocks unannounced breaking changes, which require a new `/v2` version. Redocly publishes the API documentation (REQ-052).
+2. **Mock.** Prism serves the contract immediately, so dependent modules can work before the implementation exists.
+3. **Generate.** openapi-typescript produces the server-side types, and Orval (target) the typed clients for module-to-module calls.
+4. **Implement.** The NestJS module implements the contract. express-openapi-validator (target) is intended to reject any request or response that does not match it.
+5. **Verify in CI.** **Today:** Spectral, Redocly, AsyncAPI CLI and EWDS JSON-schema validation run on every pull request; Redocly publishes the internal API documentation. **Target (not in CI yet):** Schemathesis contract tests against the running module, and oasdiff blocking unannounced breaking changes, which would require a new `/v2` version.
 
 ## 4. Licence verification (local git clones, 2026-10-07)
 
@@ -201,7 +202,6 @@ flowchart TB
     APISIX[APISIX gateway + Ingress Controller]
   end
   subgraph Apps[apps]
-    WEB[AC-01 Web app - Refine]
     MODS[AC-03 ... AC-13 NestJS modules]
     TW[AC-14 Temporal workers - NestJS]
     MOCK[AC-15 Mock suite]
@@ -226,7 +226,6 @@ flowchart TB
   subgraph Ext[external]
     STRIPE((Stripe test / live))
   end
-  APISIX --> WEB
   APISIX --> MODS
   APISIX -. JWKS .-> KC
   MODS --> PG
@@ -245,7 +244,7 @@ flowchart TB
   PER --> PROM
 ```
 
-### 6.2 Request path (legacy reference client)
+### 6.2 ~~Request path (legacy reference client)~~ — Withdrawn (INT-455)
 
 > **INT-455 / INT-463:** the public `/v1` path and the human OIDC flow below are historical. Members sign in on R2M; billing is reached only through EWDS commands. See §7 and [R2M Keycloak handoff](r2m-keycloak-handoff.md).
 
@@ -328,6 +327,6 @@ sequenceDiagram
 | Invoices / payments | At most a few thousand per month (one per consumer→producer pair, after netting and the 5 € threshold) |
 | Events | A few thousand per day besides trade ingestion. NATS JetStream with a single stream per event type is comfortably sized |
 | Stripe | Test-mode API rate limits are lower than live; adapters use backoff and the Stripe idempotency keys |
-| Application workloads | 13 NestJS modules + Temporal workers + web app at 1 replica each in dev/test, ≈ 0.25 vCPU / 256–512 MB each |
+| Application workloads | 12 NestJS services (including the Temporal workers) at 1 replica each in dev/test, ≈ 0.25 vCPU / 256–512 MB each |
 | Platform workloads | Keycloak ≈ 1 GB; Temporal server + its database ≈ 1–2 GB; PostgreSQL 1 primary (+1 replica outside dev); NATS 1 node (dev) or 3 nodes (test/demo); Debezium Server ≈ 512 MB; observability ≈ 2–3 GB |
 | Total per environment | ≈ 8 vCPU / 16–24 GB RAM / 100 GB storage (estimate) |

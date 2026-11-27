@@ -1,5 +1,7 @@
 # Cahier de tests — Intelligent Billing & Payment
 
+> **Superseded (INT-455 / INT-463):** describes the removed /v1 reference client; kept as historical evidence. Current path: docs/testing/ewds-project-path-e2e.md and money-path-stripe-e2e-cd.md.
+
 **Produit :** Intelligent Billing & Payment  
 **Environnement :** https://app.dev.intelligent-eu-bp.blooo.dev  
 **IdP :** Keycloak realm `int` (thème Volt INT-332)  

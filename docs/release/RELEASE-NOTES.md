@@ -7,10 +7,12 @@
 
 ## Changes since v1.2.2
 
-Patch cut to freeze `develop` tip `d139e67` (INT-467 UAT re-cert on top of `v1.2.2`):
+Patch cut `v1.2.3` (INT-468) on top of `v1.2.2`:
 
 - **INT-467** — re-certify in-scope UATs superseded by Spec v6.1 from green automated evidence (operator rule); badge **64/64 Pass**; UAT-044/047 + REQ-034/037 `scope_d55: out`.
 - **INT-468** — package bump to `1.2.3` so `stable-release` tags this tip.
+- **INT-469** — Mermaid 12: remove semicolons in `Note` text that broke the S9/S12 scenario-flow diagrams.
+- **INT-470** — Docs drift (Markdown only): release and testing documents aligned with INT-455 / INT-463 (EWDS-only surface, 12 NestJS services AC-03…AC-14, KYC for every role via Stripe Connect, per-community live/virtual, Mock CGW on `dev` pending EWAG grants); contract tooling wording (CI vs target); historical testing documents bannered as superseded. The partner Word "INTELLIGENT_D5.5 Billing and Payment Service V1.0_final" is produced from these sources.
 
 ## Changes since v1.2.1
 
@@ -48,7 +50,7 @@ D5.5 remediation closeout (INT-440) and e2e-dev recovery on `dev`:
 - In-house self-billing PDFs (`pdf-lib`) with gapless legal numbers `SB-<producer8>-<seq6>` per producer; Stripe Invoicing removed (A6).
 - Payouts from the producer's Stripe Connect account to their bank (manual schedule; optional `autoPayout`).
 - KYC for every participant role (Connect onboarding target) and Stripe Identity for community managers; `kycVerified` gates statements, invoices, payments and payouts. Backend KycService / Identity, shared readiness, ActorSourcePort, BillingModeResolver, live-mode guards and per-community PSP key selection shipped (INT-431 / WS3).
-- NestJS modules AC-03…AC-14, mock suite (AC-15). Reference web app (AC-01) and public `/v1` removed (INT-455).
+- Twelve NestJS services AC-03…AC-14, plus the mock suite (AC-15). Reference web app (AC-01) and public `/v1` removed (INT-455).
 - Stripe test mode Connect payments and webhooks; live keys selectable per community when enabled (REQ-043).
 - EWDS Client Gateway adapters (`@intelligent/ewds-client`) for the five billing records (`billingStatement`, `billingInvoice`, `billingPayment`, `billingPayout`, `billingKycStatus`) and the billing command channel; mock default until EWAG grants topics/roles. Actor intake, command dispatcher/poller, and erasure/tariff EWDS transports shipped (INT-432 / WS4).
 - Live or virtual billing mode per community (Greenvolt first live community).
@@ -64,7 +66,7 @@ v6.1 source realignment (INT-422 parent; day closeouts INT-423…INT-430):
 - **INT-423** — Day 1: contracts for the two-level model, statements, payouts, KYC/Identity, EWDS records + command channel, `@intelligent/ewds-client`, public hygiene, FX precision.
 - **INT-424** — Day 2: PSP-neutral ports; settle-now / REQ-057 removal from APIs, UI and mock scenarios.
 - **INT-425** — Day 3: CollectPort pay + webhook path; participant statements.
-- **INT-426** — Day 4: producer payouts (manual schedule, withdrawal, `autoPayout`); Task 1.13 consumer Connect deferred.
+- **INT-426** — Day 4: producer payouts (manual schedule, withdrawal, `autoPayout`); consumer Connect onboarding landed later in the v6.1 line (see Known limitations).
 - **INT-427** — Day 5: reporting + KPI fields (initiated/settled, PSP fee, per-method).
 - **INT-428** — WS2 catch-up: billing-owned PDF / `SB-…` numbers, reminders (UAT-078 Pass), tariff amount mapping on publication.
 - **INT-429** — Day 5b: GDPR DSAR export, real IdP/PSP erasure adapters, Identity wizard step, EWDS invoice mapper + deploy/docs for adapter flags.
@@ -141,7 +143,7 @@ In **live** mode, AC-07 erase-at-psp does **not** delete the Connect account. St
 |---|---|
 | Billing mode | **Live per community** (Greenvolt first); others virtual (REQ-043). A22 "all virtual" withdrawn |
 | Payments | **Stripe test** by default; live keys only where a community is enabled for live (REQ-043) |
-| Market / data space / FX | Real CG adapters exist and are selected by env; **mock** remains the default until EWAG grants topics/roles. UATs on the mock path are labelled (`Pass on mock path` or `run_path: mock`). Live CGW UATs stay labelled mock-path where the live path was not re-run. ECB stays mocked (A32) |
+| Market / data space / FX | EWDS Client Gateway adapters are real and selected by environment variables. **`dev` runs the EWDS Mock CGW** (`services/mock-cgw`) until EWAG grants topics/roles; **mock is the code default**. UATs on the mock path are labelled (`Pass on mock path` or `run_path: mock`); live CGW UATs stay labelled mock-path where the live path was not re-run. ECB stays mocked (A32) |
 | Crypto / AMM / stablecoin | Out of D5.5 scope (deferred to D5.10) |
 | Grid fee / levy / tax | **0 + mention** on the invoice until a DSO tariff is published (REQ-004 / REQ-007). Publication maps fee components when present (INT-428); EWDS tariff transport shipped (INT-432). Full UAT-004 mock-tariff Pass still pending settlement/reference-data tariff billing |
 | EV charging | Out of scope (A10.4) |
@@ -150,7 +152,7 @@ In **live** mode, AC-07 erase-at-psp does **not** delete the Connect account. St
 | Invoicing | Billing-owned PDF and `SB-…` legal numbers (A6); Stripe Invoicing removed (INT-428). Reminders: UAT-078 Pass on mock path |
 | Acceptance | Counts are computed from in-scope UAT notes (`scope_d55: in`): **64 Pass / 0 Blocked / 0 Fail** (53 Pass + 11 Pass on mock path, INT-467). Historical INT-204 baseline was 62; v6.1 supersession then INT-467 re-cert from green tests. Re-run packaging: [`v6.1-rerun.md`](../testing/v6.1-rerun.md). Partner optimisations: pilot SLA number (NFR-008), onboarding step-count (NFR-016) — see [`docs/testing/v1-uat-package.md`](../testing/v1-uat-package.md) |
 | Partner IdP | V1 = single project IdP only (REQ-034 / REQ-037 and UAT-044 / UAT-047 `scope_d55: out`, INT-192). Config-only issuer path Pass on UAT-061 |
-| Stripe Connect | Producers/prosumers onboard via embedded Connect; consumers still use Elements card setup only — **Task 1.13 (consumer Connect for every role) deferred** (INT-426). Direct charges on the producer account (INT-355). Cards + SEPA in the model; operator test fixtures still use Account Tokens + test KYC tokens (INT-191 / INT-195) |
+| Stripe Connect | **Every participant role** (producer, prosumer, consumer, manager) completes Stripe Connect KYC before money moves (`kycVerified` gate). Buyers pay by **card or SEPA** on the producer's connected account (direct charge, INT-355). Operator test fixtures still use Account Tokens + test KYC tokens (INT-191 / INT-195) |
 | Command OpenAPI | EWDS `setupPaymentMethod` is wired in the command channel; the dedicated internal OpenAPI route (`/internal/v1/payment-methods:setup`) is still a contract gap (AC-10 posts to that path without a published operation) |
 | D5.5 report | Tasks **6.17–6.19** (INT-90 / INT-91 narrative and partner deliverable) live **outside this repository**; source tag packaging does not close those issues |
 | Billing period | **Monthly** by default, quarterly allowed (REQ-006); FX date = period end (INT-353). Carry-forward is signed (INT-351). Money uses exact decimal arithmetic (INT-352). Each trade is an invoice line (INT-354) |
@@ -178,4 +180,4 @@ In **live** mode, AC-07 erase-at-psp does **not** delete the Connect account. St
 
 1. CI green on `develop` (contracts, charts, tests with ≥80% coverage per module).
 2. Argo Applications Healthy for `dev-*` modules and platform.
-3. Smoke: app `/health` 200, API `/v1/me` 401 without token, auth realm reachable.
+3. Smoke: module `/health` 200 (internal), EWDS Mock CGW round-trip (`docs/testing/ewds-project-path-e2e.md`), auth realm reachable. There is no public `/v1` API.

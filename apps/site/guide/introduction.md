@@ -30,7 +30,7 @@ Grid fees, levies and taxes come from the tariff port; **0 with a mention** whil
 - Communities are **virtual or live** per community (`billingMode`); live rollout needs the operator role and live Stripe keys in your secret store.
 - **Stripe** runs in test or live mode per community — Connect accounts, direct charges, payouts and webhooks (or your PSP adapter).
 - **EWDS Client Gateway adapters** (market trade source, Actor intake, erasure intake, command channel, publication) are **real** in code and selected by environment variables; **mock is the default** until you enable them.
-- The **INTELLIGENT project UI** reads billing records and sends commands through the EWDS — not through `/v1`. **`apps/web`** is a **reference client** on the public REST API for adopters without the project UI.
+- The **INTELLIGENT project UI** (R2M) reads billing records and sends commands through the EWDS. There is no public REST `/v1` product API and no reference web client (INT-455); module-to-module calls use `/internal/v1/...`.
 - Identity is OIDC (reference deployment uses Keycloak; any OIDC IdP works if claims match the contracts).
 
 ## Repository layout (high level)
@@ -39,7 +39,6 @@ Grid fees, levies and taxes come from the tariff port; **0 with a mention** whil
 |---|---|
 | `contracts/` | OpenAPI / AsyncAPI — source of truth for APIs and events |
 | `services/*` | NestJS modules (one database per module) |
-| `apps/web` | Reference participant / manager UI |
 | `deploy/` | Example Helm charts and GitOps manifests |
 | `docs/` | Detailed architecture, requirements, testing evidence |
 | `apps/site` | **This** public documentation site (VitePress) |

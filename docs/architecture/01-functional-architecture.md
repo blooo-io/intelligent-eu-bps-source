@@ -51,7 +51,7 @@ The Billing & Payment Service (T5.6, deliverable D5.5) turns the energy trades s
 
 ### Context diagram
 
-D1 (spec v6.1): the project UI never calls billing `/v1`; it talks to the EWDS through its own Client Gateway. `/v1` serves only the reference web app. Card, IBAN and identity data go from the user's browser straight to Stripe (A7-bis hosted or embedded).
+D1 (spec v6.1): the project UI never calls billing over HTTP; it talks to the EWDS through its own Client Gateway (records + command channel). INT-455 removed the public REST `/v1` and the reference web client (AC-01 withdrawn); the only HTTP surfaces are internal `/internal/v1/...` APIs and Stripe webhooks. Card, IBAN and identity data go from the user's browser straight to Stripe (A7-bis hosted or embedded).
 
 ```mermaid
 %% elk %%
@@ -62,7 +62,6 @@ flowchart LR
   subgraph BPS["Billing & Payment Service (Blooo)"]
     CGWB[Billing Client Gateway]
     CORE[Billing modules]
-    WEB[Reference web app apps/web]
   end
   subgraph UI["Project UI (R2M)"]
     UIS[UI server]
@@ -76,7 +75,6 @@ flowchart LR
   CGWB <--> MB
   UIS --> CGWU
   CORE --> CGWB
-  WEB -->|reference client, no member OIDC| CORE
   CORE -->|API| STRIPE[(Stripe Connect + Identity)]
   CORE -->|S2S JWT, ops SSO| KC[(Keycloak)]
   UIS -->|member OIDC, admin API - INT-463| KC
@@ -169,9 +167,9 @@ flowchart TB
 | **F6.5 Manager payout overview and reminders** | Community-manager payout overview (REQ-060) and payment reminders / missing-payment alerts (REQ-061) | Community manager | REQ-060, REQ-061 |
 | **F7.1 Access audit** | Logs every access to or change of personal and payment data | DPO | REQ-030 |
 | **F7.2 Retention & purge** | Retention periods for personal data; data-space messages purged within 7 days | DPO | REQ-011, REQ-053 |
-| **F7.3 Data-subject requests** | Access and erasure requests received through the portal or the community manager, propagated to the payment provider; IdP account erasure is delegated to the project UI (INT-463). Invoices are kept for the legal retention period | DPO | REQ-013 |
+| **F7.3 Data-subject requests** | Access and erasure requests received by the pilot (data controller) or the community manager and relayed to billing through the EWDS, propagated to the payment provider; IdP account erasure is delegated to the project UI (INT-463). Invoices are kept for the legal retention period | DPO | REQ-013 |
 
-Billing results reach the **project UI only through the EWDS** (REQ-052); the REST API serves the reference client.
+Billing results reach the **project UI only through the EWDS** (REQ-052); there is no public REST API or reference client (INT-455, AC-01 withdrawn).
 
 ## 4. Main business processes
 
@@ -241,7 +239,7 @@ sequenceDiagram
   participant PSP as Payment provider
   actor P as Producer
   participant DS as Project data space
-  C->>B: Pay invoice (command or reference client)
+  C->>B: Pay invoice (`startPayment` command via the EWDS)
   B->>PSP: Direct charge on producer's connected account (card / SEPA via hosted Checkout)
   alt Success
     PSP-->>B: Payment succeeded
@@ -341,7 +339,7 @@ Adapters for every external system; **Stripe test or live per community**; EWDS 
 
 | Domain | V1 status | Note |
 |---|---|---|
-| F1 Participants & community | Implemented | Actor intake EWDS-only (R2M); `/v1` import = reference/e2e only |
+| F1 Participants & community | Implemented | Actor intake EWDS-only (R2M, `actor` topic); no public `/v1` (INT-455) |
 | F2 Trade acquisition | Implemented | **EWDS Client Gateway adapters real, mock default (A8)** |
 | F3 Settlement calculation | Implemented | ECB rates from a fixture; tariff port returns 0 + mention when no DSO tariff |
 | F4 Invoicing | Implemented | **In-house PDF (pdf-lib), e-mail by notification** |
@@ -355,7 +353,7 @@ Adapters for every external system; **Stripe test or live per community**; EWDS 
   - **A20:** fees off-platform (revised: tariff port for grid/levy/tax when published);
   - **A21:** **withdrawn (INT-447)** — replaced by A4 EWDS-only Actor from R2M.
 - Still to be decided for the logical view:
-  - which reference screens are in V1 scope.
+  - ~~which reference screens are in V1 scope~~ — closed (INT-455): no reference web client; screens belong to the R2M project UI.
 
 ## 9. Validation checklist
 - [ ] Actors and external systems complete

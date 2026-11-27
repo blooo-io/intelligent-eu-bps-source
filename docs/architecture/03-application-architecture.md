@@ -29,11 +29,11 @@ baseline: 02-logical-architecture.md v2.0 (revised 2026-11-25); 01-functional
 
 ## 2. Application components
 
-Each logical block becomes its own deployable module. The only exception is LB-01 access control, which is embedded in the API gateway because it checks every request.
+Each logical block becomes its own deployable module. The only exception is LB-01 access control, which is embedded in the API gateway because it checks every request. The product has **12 NestJS services (AC-03…AC-14)**, the **AC-02 APISIX** gateway (configuration, not a NestJS service), the **AC-15 mock suite** and the **Mock CGW** (`services/mock-cgw`, INT-454). **AC-01 is withdrawn (INT-455).**
 
 | Component | Kind | Logical block | Responsibility | Owns data |
 |---|---|---|---|---|
-| **AC-01 Web app** | Front-end | — (client) | Participant portal and community-manager console (reference screens) | None |
+| ~~**AC-01 Web app**~~ | ~~Front-end~~ | — | **Withdrawn (INT-455)** — no reference web app; project UX is the R2M UI over the EWDS | None |
 | **AC-02 API gateway** | Edge | LB-12 + LB-01 | Public entry for webhooks, docs, auth host; product `/v1` human OIDC withdrawn (INT-455). Member login is R2M (INT-463); module guards validate S2S JWT | None (config) |
 | **AC-03 Participants** | Domain | LB-02 | Communities, registry, profiles, terms and mandate, readiness, offboarding; no IdP account provisioning (R2M owns member accounts, INT-463) | Community, Participant, RegistryEntry, BillingProfile, TermsAcceptance |
 | **AC-04 Trade intake** | Domain | LB-03 | Market queries per window, deduplication, attribution, completeness, intake health | Trade, MarketInfo, ClearingResult, IntakeWindow, IntakeAnomaly |
@@ -49,7 +49,7 @@ Each logical block becomes its own deployable module. The only exception is LB-0
 | **AC-14 Scheduler** | Support | LB-13 | Time-based jobs: decides *when* and sends the command to the owning module | JobDefinition, JobExecution |
 | **AC-15 Mock suite (V1)** | Test / demo | — | Simulated market (GSY DEX request/reply), simulated data space (validates and records messages), FX fixture, scenario datasets (§8) | Fixtures |
 
-That makes 13 back-end modules, the web app and the mock suite. Every component maps to exactly one logical block, so traceability stays one to one.
+That makes 12 NestJS services, the APISIX gateway, the mock suite and the Mock CGW. Every component maps to exactly one logical block, so traceability stays one to one.
 
 ### 2.1 Overview by layer
 
@@ -59,7 +59,7 @@ D6 (spec v6.1) — module map. **INT-455:** no reference web app / public `/v1`;
 %% elk %%
 flowchart TB
   subgraph Clients
-    WEB[AC-01 Reference web app]
+    R2M[Project UI · R2M] -. EWDS records + commands .-> EWC
   end
   subgraph Edge
     GW[AC-02 APISIX]
@@ -85,7 +85,7 @@ flowchart TB
     REF[AC-13 Reference data: FX, TariffPort]
     SCH[AC-14 Scheduler]
   end
-  WEB --> GW --> PART & INV & PAY & RPT & CMP
+  GW --> PART & INV & PAY & RPT & CMP
   TIN --> EWC
   PUB --> EWC
   PART --> EWC
@@ -139,7 +139,6 @@ This diagram shows every dependency in one picture and is readable only with the
 %% elk %%
 flowchart LR
   subgraph Clients
-    WEB[AC-01 Web app]
     RM[Project UI - EWDS]
   end
   GW[AC-02 API gateway]
@@ -171,7 +170,6 @@ flowchart LR
     X_KPI((KPI file export))
   end
 
-  WEB --> GW
   RM -. EWDS records + commands .-> PUB
   GW --> PART
   GW --> SET
@@ -236,6 +234,8 @@ flowchart LR
 
 ~~Consumed by the reference client AC-01 (`apps/web`).~~ **Removed.** The INTELLIGENT project UI integrates through EWDS records and the command channel only (REQ-052 / A7 / INT-455). APISIX still terminates TLS and routes payment-provider webhooks and the docs portal; there is no public `/v1` product API.
 
+The table below is the **historical** REST map, kept for traceability only (**Withdrawn (INT-455)**; do not implement). Its EWDS equivalents are the commands `startPayment`, `requestWithdrawal`, `setInvoiceStatus`, `startKyc`, `sendReminder`, `triggerBillingRun`, `setupPaymentMethod` and `acceptTerms` (§5.4) plus the five record topics.
+
 | Resource / operation | Role(s) | Served by | Requirements | Screen |
 |---|---|---|---|---|
 | `GET /me` (profile, roles, community, readiness) | all | AC-03 | REQ-049, REQ-009 | Portal home |
@@ -260,7 +260,7 @@ flowchart LR
 
 Inbound integration endpoint, not part of the public API: `POST /webhooks/payment-provider` (AC-07), with the signature verified (NFR-015).
 
-Removed REQ-057 settle-now operations on `/v1` follow the contract workstream versioning decision (oasdiff).
+The REQ-057 settle-now operations are removed and `/v1` itself is removed (INT-455); internal APIs use `/internal/v1/...` and follow the contract workstream versioning decision (oasdiff, target — not in CI today).
 
 ### 3.2 Internal APIs (module to module, never exposed to clients)
 
@@ -409,6 +409,8 @@ Every adapter implements one logical port behind a stable interface. Switching f
 
 ## 8. Mock suite: V1 scenarios (AC-15)
 
+The mock scenarios S1–S13 below are **integration fixtures** of the AC-15 mock suite. The EWDS-only journeys S1–S14 (different numbering) are the Mermaid flows in [07-scenario-flows.md](07-scenario-flows.md).
+
 | # | Scenario | Validates |
 |---|---|---|
 | S1 | Consumer buys from 2 producers → 2 invoices | REQ-054 |
@@ -443,11 +445,11 @@ Every adapter implements one logical port behind a stable interface. Switching f
 | LB-11 Reference data | AC-13 Reference data |
 | LB-13 Scheduling | AC-14 Scheduler |
 | Ports (mock side) | AC-15 Mock suite |
-| Reference screens | AC-01 Web app |
+| ~~Reference screens~~ | ~~AC-01 Web app~~ — **Withdrawn (INT-455)** |
 
 ## 10. Open points and inputs for the technical view
 - **Consequences of one module per block, to address in the technical view:**
-  - 13 back-end workloads;
+  - 12 back-end NestJS workloads (plus the APISIX gateway);
   - one data store or schema per module;
   - a shared module template (health, configuration, outbox, observability) to avoid repeating work;
   - per-module CI/CD pipelines;
@@ -469,12 +471,12 @@ Every adapter implements one logical port behind a stable interface. Switching f
   - backups.
 
 ## 11. Validation checklist
-- [ ] One deployable module per logical block (AC-02 … AC-14), plus web app and mock suite
+- [ ] One deployable module per logical block (AC-03 … AC-14, 12 NestJS services) behind the AC-02 gateway, plus mock suite (AC-01 withdrawn, INT-455)
 - [ ] Public and internal APIs
 - [ ] Event catalogue (names, producers, consumers)
-- [ ] Reference screens for V1
-- [ ] Adapters and V1 implementations (Stripe test only, everything else mocked or local)
-- [ ] Mock scenarios S1–S13
+- [x] ~~Reference screens for V1~~ — withdrawn (INT-455)
+- [ ] Adapters and V1 implementations (Stripe test or live per community; EWDS adapters real, mock default)
+- [ ] Mock integration fixtures S1–S13 and EWDS journeys S1–S14 ([07](07-scenario-flows.md))
 
 ## 12. Changes in v0.2 (2026-10-07)
 - To favour more separately deployed modules, v0.1's grouped modules (Billing = LB-04/05/11, Control & reporting = LB-07/14, Platform = LB-08/09/10/13) are split. There is now **one module per logical block**: AC-05 Settlement, AC-06 Invoicing, AC-08 Reconciliation, AC-09 Reporting, AC-10 Publication, AC-11 Notification, AC-12 Compliance, AC-13 Reference data, AC-14 Scheduler. The mock suite becomes AC-15.

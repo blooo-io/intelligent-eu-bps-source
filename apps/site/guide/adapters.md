@@ -9,7 +9,7 @@ External systems are reached only through **adapter ports**, selected by environ
 | Stripe test or live per community | Connect accounts, **direct charges**, payouts, webhooks |
 | Mock PSP | Automated tests / offline demos |
 
-Implementations live under `services/payments`. Point webhook endpoints at your public API gateway URL. Billing issues PDF invoices in-house; Stripe does **not** host invoice documents.
+Implementations live under `services/payments`. Point webhook endpoints at your gateway URL (`POST /webhooks/payment-provider`). Billing issues PDF invoices in-house; Stripe does **not** host invoice documents.
 
 ## Local market & data space (EWDS)
 
@@ -37,10 +37,10 @@ Grid fee, levy and tax amounts come from the **tariff port** (`TARIFF_ADAPTER`, 
 
 ## Identity
 
-The public `/v1` API (reference client `apps/web` only) expects **OIDC bearer tokens**. The project UI does not call `/v1`; it uses EWDS records and the command channel (A7). The reference packaging uses Keycloak realms. Any IdP works if:
+There is no public `/v1` API (INT-455). The project UI uses EWDS records and the command channel (A7), and member identity is owned by R2M (INT-463). Module-to-module calls on `/internal/v1/...` use **OIDC service tokens**. The reference packaging uses Keycloak realms. Any IdP works if:
 
 - Access tokens validate at the gateway
-- Claims used by the services (subject, roles, community) match the [public OpenAPI](https://github.com/blooo-io/intelligent-eu-bps-source/tree/develop/contracts/openapi) assumptions
+- Claims used by the services (subject, roles, community) match the [internal OpenAPI](https://github.com/blooo-io/intelligent-eu-bps-source/tree/develop/contracts/openapi/internal) assumptions
 
 ## FX rates
 
